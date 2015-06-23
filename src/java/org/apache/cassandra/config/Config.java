@@ -85,6 +85,8 @@ public class Config
     /* initial token in the ring */
     public String initial_token;
     public Integer num_tokens = 1;
+    /** Triggers automatic allocation of tokens if set, using the replication strategy of the referenced keyspace */
+    public String allocate_tokens_for_keyspace = null;
 
     public long native_transport_idle_timeout_in_ms = 0L;
 
