@@ -960,7 +960,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
             List<InetAddress> ignoredEndpoints = replacing && !isReplacingSameAddress() ?
                                                  ImmutableList.of(DatabaseDescriptor.getReplaceAddress()) : ImmutableList.of();
-            
+
             while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement(ignoredEndpoints))
             {
                 setMode(Mode.JOINING, "waiting for schema information to complete", true);
@@ -995,7 +995,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     throw new UnsupportedOperationException(s);
                 }
                 setMode(Mode.JOINING, "getting bootstrap token", true);
-                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata, initialTokens);
+                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata, FBUtilities.getBroadcastAddress());
             }
             else
             {

@@ -76,7 +76,7 @@ public class CommitLog implements CommitLogMBean
     volatile Configuration configuration;
     final public String location;
 
-    static private CommitLog construct()
+    private static CommitLog construct()
     {
         CommitLog log = new CommitLog(DatabaseDescriptor.getCommitLogLocation(), CommitLogArchiver.construct());
 
