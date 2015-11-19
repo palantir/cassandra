@@ -120,6 +120,7 @@ public class RangeStreamerTest
                                  "Rebuild",
                                  false,
                                  DatabaseDescriptor.getEndpointSnitch(),
-                                 streamStateStore);
+                                 streamStateStore,
+                                 false);
     }
 }
