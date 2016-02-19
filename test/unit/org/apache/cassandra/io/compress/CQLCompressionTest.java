@@ -33,10 +33,25 @@ public class CQLCompressionTest extends CQLTester
     @Test
     public void lz4ParamsTest()
     {
-
-        createTable("create table %s (id int primary key, uh text) with compression = {'sstable_compression':'LZ4Compressor'}");
+        createTable("create table %s (id int primary key, uh text) with compression = {'class':'LZ4Compressor', 'lz4_high_compressor_level':3}");
         ICompressor compressor = CompressionParameters.create(getCurrentColumnFamilyStore().getCompressionParameters()).sstableCompressor;
         assertTrue(compressor instanceof LZ4Compressor);
+        LZ4Compressor lz4Compressor = (LZ4Compressor) compressor;
+        assertEquals(lz4Compressor.compressorType, LZ4Compressor.LZ4_FAST_COMPRESSOR);
+
+        createTable("create table %s (id int primary key, uh text) with compression = {'class':'LZ4Compressor', 'lz4_compressor_type':'high', 'lz4_high_compressor_level':13}");
+        compressor = CompressionParameters.create(getCurrentColumnFamilyStore().getCompressionParameters()).sstableCompressor;
+        assertTrue(compressor instanceof LZ4Compressor);
+        lz4Compressor = (LZ4Compressor) compressor;
+        assertEquals(lz4Compressor.compressorType, LZ4Compressor.LZ4_HIGH_COMPRESSOR);
+        assertEquals(13, (int) lz4Compressor.compressionLevel);
+
+        createTable("create table %s (id int primary key, uh text) with compression = {'class':'LZ4Compressor'}");
+        compressor = CompressionParameters.create(getCurrentColumnFamilyStore().getCompressionParameters()).sstableCompressor;
+        assertTrue(compressor instanceof LZ4Compressor);
+        lz4Compressor = (LZ4Compressor) compressor;
+        assertEquals(lz4Compressor.compressorType, LZ4Compressor.LZ4_FAST_COMPRESSOR);
+        assertEquals(9, (int) lz4Compressor.compressionLevel);
     }
 
     @Test(expected = ConfigurationException.class)
@@ -73,7 +88,7 @@ public class CQLCompressionTest extends CQLTester
     {
         try
         {
-            createTable("create table %s (id int primary key, uh text) with compression = {'sstable_compression':'ZstdCompressor', 'compression_level':'100'}");
+            createTable("create table %s (id int primary key, uh text) with compression = {'class':'LZ4Compressor', 'lz4_compressor_type':'high', 'lz4_high_compressor_level':113}");
         }
         catch (RuntimeException e)
         {
