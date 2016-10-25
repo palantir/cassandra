@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +43,9 @@ import org.apache.cassandra.utils.WrappedRunnable;
 public class TraceStateImpl extends TraceState
 {
     private static final Logger logger = LoggerFactory.getLogger(TraceStateImpl.class);
-    private static final int WAIT_FOR_PENDING_EVENTS_TIMEOUT_SECS =
-      Integer.valueOf(System.getProperty("cassandra.wait_for_tracing_events_timeout_secs", "1"));
+
+    private static int WAIT_FOR_PENDING_EVENTS_TIMEOUT_SECS =
+      Integer.parseInt(System.getProperty("cassandra.wait_for_tracing_events_timeout_secs", "0"));
 
     public TraceStateImpl(InetAddress coordinator, UUID sessionId, Tracing.TraceType traceType)
     {
