@@ -57,13 +57,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import com.palantir.logsafe.Preconditions;
-import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.ColumnDefinition;
@@ -405,7 +403,7 @@ public class CassandraDaemon
         new HiccupMeter().start();
 
         if (!FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress()))
-            waitForGossipToSettle();
+            Gossiper.waitToSettle();
 
         // schedule periodic background compaction task submission. this is simply a backstop against compactions stalling
         // due to scheduling errors or race conditions
@@ -752,61 +750,6 @@ public class CassandraDaemon
         if(!runManaged) {
             System.exit(0);
         }
-    }
-
-    @VisibleForTesting
-    public static void waitForGossipToSettle()
-    {
-        int forceAfter = Integer.getInteger("cassandra.skip_wait_for_gossip_to_settle", -1);
-        if (forceAfter == 0)
-        {
-            return;
-        }
-        final int GOSSIP_SETTLE_MIN_WAIT_MS = 5000;
-        final int GOSSIP_SETTLE_POLL_INTERVAL_MS = 1000;
-        final int GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED = 3;
-
-        logger.info("Waiting for gossip to settle before accepting client requests...");
-        Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_MIN_WAIT_MS, TimeUnit.MILLISECONDS);
-        int totalPolls = 0;
-        int numOkay = 0;
-        JMXEnabledThreadPoolExecutor gossipStage = (JMXEnabledThreadPoolExecutor)StageManager.getStage(Stage.GOSSIP);
-        while (numOkay < GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
-        {
-            Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
-            long completed = gossipStage.metrics.completedTasks.getValue();
-            long active = gossipStage.metrics.activeTasks.getValue();
-            long pending = gossipStage.metrics.pendingTasks.getValue();
-            totalPolls++;
-            if (active == 0 && pending == 0)
-            {
-                logger.debug("Gossip looks settled. CompletedTasks: {}", SafeArg.of("completedTasks", completed));
-                numOkay++;
-            }
-            else
-            {
-                logger.info(
-                        "Gossip not settled after {} polls. Gossip Stage active/pending/completed: {}/{}/{}",
-                        SafeArg.of("totalPolls", totalPolls),
-                        SafeArg.of("active", active),
-                        SafeArg.of("pending", pending),
-                        SafeArg.of("completed", completed));
-                numOkay = 0;
-            }
-            if (forceAfter > 0 && totalPolls > forceAfter)
-            {
-                logger.warn("Gossip not settled but startup forced by cassandra.skip_wait_for_gossip_to_settle. Gossip Stage total/active/pending/completed: {}/{}/{}/{}",
-                            SafeArg.of("totalPolls", totalPolls),
-                            SafeArg.of("active", active),
-                            SafeArg.of("pending", pending),
-                            SafeArg.of("completed", completed));
-                break;
-            }
-        }
-        if (totalPolls > GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
-            logger.info("Gossip settled after {} extra polls; proceeding", SafeArg.of("extraPolls", totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED));
-        else
-            logger.info("No gossip backlog; proceeding");
     }
 
     public static void stop(String[] args) throws InterruptedException
