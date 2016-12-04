@@ -667,7 +667,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     private boolean sendGossip(MessageOut<GossipDigestSyn> message, Set<InetAddress> epSet)
     {
         List<InetAddress> liveEndpoints = ImmutableList.copyOf(epSet);
-        
+
         int size = liveEndpoints.size();
         if (size < 1)
             return false;
@@ -1251,7 +1251,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         for (Entry<ApplicationState, VersionedValue> remoteEntry : remoteStates)
             doOnChangeNotifications(addr, remoteEntry.getKey(), remoteEntry.getValue());
     }
-    
+
     // notify that a local application state is going to change (doesn't get triggered for remote changes)
     private void doBeforeChangeNotifications(InetAddress addr, EndpointState epState, ApplicationState apState, VersionedValue newValue)
     {
@@ -1651,5 +1651,59 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         stop();
         ExecutorUtils.shutdownAndWait(timeout, unit, executor);
+    }
+
+    public static void waitToSettle()
+    {
+        int forceAfter = Integer.getInteger("cassandra.skip_wait_for_gossip_to_settle", -1);
+        if (forceAfter == 0)
+        {
+            return;
+        }
+        final int GOSSIP_SETTLE_MIN_WAIT_MS = 5000;
+        final int GOSSIP_SETTLE_POLL_INTERVAL_MS = 1000;
+        final int GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED = 3;
+
+        logger.info("Waiting for gossip to settle before accepting client requests...");
+        Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_MIN_WAIT_MS, TimeUnit.MILLISECONDS);
+        int totalPolls = 0;
+        int numOkay = 0;
+        JMXEnabledThreadPoolExecutor gossipStage = (JMXEnabledThreadPoolExecutor)StageManager.getStage(Stage.GOSSIP);
+        while (numOkay < GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
+        {
+            Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            long completed = gossipStage.metrics.completedTasks.getValue();
+            long active = gossipStage.metrics.activeTasks.getValue();
+            long pending = gossipStage.metrics.pendingTasks.getValue();
+            totalPolls++;
+            if (active == 0 && pending == 0)
+            {
+                logger.debug("Gossip looks settled. CompletedTasks: {}", SafeArg.of("completedTasks", completed));
+                numOkay++;
+            }
+            else
+            {
+                logger.info(
+                    "Gossip not settled after {} polls. Gossip Stage active/pending/completed: {}/{}/{}",
+                    SafeArg.of("totalPolls", totalPolls),
+                    SafeArg.of("active", active),
+                    SafeArg.of("pending", pending),
+                    SafeArg.of("completed", completed));
+                numOkay = 0;
+            }
+            if (forceAfter > 0 && totalPolls > forceAfter)
+            {
+                logger.warn("Gossip not settled but startup forced by cassandra.skip_wait_for_gossip_to_settle. Gossip Stage total/active/pending/completed: {}/{}/{}/{}",
+                            SafeArg.of("totalPolls", totalPolls),
+                            SafeArg.of("active", active),
+                            SafeArg.of("pending", pending),
+                            SafeArg.of("completed", completed));
+                break;
+            }
+        }
+        if (totalPolls > GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
+            logger.info("Gossip settled after {} extra polls; proceeding", SafeArg.of("extraPolls", totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED));
+        else
+            logger.info("No gossip backlog; proceeding");
     }
 }
