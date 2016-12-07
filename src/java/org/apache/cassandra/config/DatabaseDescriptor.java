@@ -1930,6 +1930,16 @@ public class DatabaseDescriptor
         return conf.streaming_socket_timeout_in_ms;
     }
 
+    public static int getStreamingKeepAlivePeriod()
+    {
+        return conf.streaming_keep_alive_period_in_secs;
+    }
+
+    public static int getStreamingConnectionsPerHost()
+    {
+        return conf.streaming_connections_per_host;
+    }
+
     public static String getLocalDataCenter()
     {
         return localDC;
