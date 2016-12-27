@@ -834,7 +834,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private boolean shouldBootstrap(boolean autoBootstrap)
     {
-        return autoBootstrap && !SystemKeyspace.bootstrapComplete() && !DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress());
+        return autoBootstrap && !SystemKeyspace.bootstrapComplete() && !isSeed();
+    }
+
+    public static boolean isSeed()
+    {
+        return DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress());
     }
 
     private void prepareToJoin() throws ConfigurationException
@@ -896,6 +901,27 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void waitForSchema(int delay)
+    {
+        // first sleep the delay to make sure we see all our peers
+        Uninterruptibles.sleepUninterruptibly(delay, TimeUnit.MILLISECONDS);
+
+        // if our schema hasn't matched yet, keep sleeping until it does
+        // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+        List<InetAddress> ignoredEndpoints = replacing && !isReplacingSameAddress() ?
+                                             ImmutableList.of(DatabaseDescriptor.getReplaceAddress()) : ImmutableList.of();
+
+        while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement(ignoredEndpoints))
+        {
+            setMode(Mode.JOINING, "waiting for schema information to complete", true);
+            logger.info(
+            "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
+            SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
+    }
+
     private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens)
     {
         joined = true;
@@ -952,23 +978,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
-            // first sleep the delay to make sure we see all our peers
-            Uninterruptibles.sleepUninterruptibly(delay, TimeUnit.MILLISECONDS);
-
-            // if our schema hasn't matched yet, keep sleeping until it does
-            // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
-            SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
-            List<InetAddress> ignoredEndpoints = replacing && !isReplacingSameAddress() ?
-                                                 ImmutableList.of(DatabaseDescriptor.getReplaceAddress()) : ImmutableList.of();
-
-            while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement(ignoredEndpoints))
-            {
-                setMode(Mode.JOINING, "waiting for schema information to complete", true);
-                logger.info(
-                    "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
-                    SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
-                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-            }
+            waitForSchema(delay);
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
@@ -995,7 +1005,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     throw new UnsupportedOperationException(s);
                 }
                 setMode(Mode.JOINING, "getting bootstrap token", true);
-                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata, FBUtilities.getBroadcastAddress());
+                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata, FBUtilities.getBroadcastAddress(), delay, initialTokens);
             }
             else
             {
@@ -1072,22 +1082,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             bootstrapTokens = SystemKeyspace.getSavedTokens();
             if (bootstrapTokens.isEmpty())
             {
-                if (initialTokens.size() < 1)
-                {
-                    bootstrapTokens = BootStrapper.getRandomTokens(tokenMetadata, DatabaseDescriptor.getNumTokens());
-                    if (DatabaseDescriptor.getNumTokens() == 1)
-                        logger.warn("Generated random token {}. Random tokens will result in an unbalanced ring; see http://wiki.apache.org/cassandra/Operations",
-                                    SafeArg.of("token", bootstrapTokens));
-                    else
-                        logger.info("Generated random tokens. tokens are {}", SafeArg.of("tokens", bootstrapTokens));
-                }
-                else
-                {
-                    bootstrapTokens = new ArrayList<>(initialTokens.size());
-                    for (String token : initialTokens)
-                        bootstrapTokens.add(getPartitioner().getTokenFactory().fromString(token));
-                    logger.info("Saved tokens not found. Using configuration value: {}", SafeArg.of("tokens", bootstrapTokens));
-                }
+                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata, FBUtilities.getBroadcastAddress(), delay, initialTokens);
             }
             else
             {
@@ -5323,7 +5318,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         // Let's wait until gossip is finished before allowing requests
         instance.startGossiping();
-        CassandraDaemon.waitForGossipToSettle();
+        Gossiper.waitToSettle();
         instance.startTransports();
         instance.setOperationModeNormal();
     }
