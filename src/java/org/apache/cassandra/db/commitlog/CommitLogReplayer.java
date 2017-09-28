@@ -47,6 +47,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.compress.CompressionParameters;
 import org.apache.cassandra.io.compress.ICompressor;
 import org.apache.cassandra.io.util.ByteBufferDataInput;
+import org.apache.cassandra.io.util.ChannelProxy;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.io.util.FileDataInput;
 import org.apache.cassandra.io.util.FileUtils;
@@ -136,11 +137,59 @@ public class CommitLogReplayer
         return new CommitLogReplayer(commitLog, globalPosition, cfPersisted, replayFilter);
     }
 
+    private static boolean shouldSkip(File file) throws IOException, ConfigurationException
+    {
+        CommitLogDescriptor desc = CommitLogDescriptor.fromFileName(file.getName());
+        if (desc.version < CommitLogDescriptor.VERSION_21)
+        {
+            return false;
+        }
+        try(ChannelProxy channel = new ChannelProxy(file);
+            RandomAccessReader reader = RandomAccessReader.open(channel))
+        {
+            CommitLogDescriptor.readHeader(reader);
+            int end = reader.readInt();
+            long filecrc = reader.readInt() & 0xffffffffL;
+            return end == 0 && filecrc == 0;
+        }
+    }
+
+    private static List<File> filterCommitLogFiles(File[] toFilter)
+    {
+        List<File> filtered = new ArrayList<>(toFilter.length);
+        for (File file: toFilter)
+        {
+            try
+            {
+                if (shouldSkip(file))
+                {
+                    logger.info("Skipping playback of empty log: {}", file.getName());
+                }
+                else
+                {
+                    filtered.add(file);
+                }
+            }
+            catch (Exception e)
+            {
+                // let recover deal with it
+                filtered.add(file);
+            }
+        }
+
+        return filtered;
+    }
+
     public void recover(File[] clogs) throws IOException
     {
-        int i;
-        for (i = 0; i < clogs.length; ++i)
-            recover(clogs[i], i + 1 == clogs.length);
+        List<File> filteredLogs = filterCommitLogFiles(clogs);
+
+        int i = 0;
+        for (File clog: filteredLogs)
+        {
+            i++;
+            recover(clog, i == filteredLogs.size());
+        }
     }
 
     public int blockForWrites()

@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
+import com.google.common.io.Files;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -140,6 +141,62 @@ public class CommitLogTest
     {
         // Even though it's empty, it's the last commitlog segment, so allowTruncation=true should allow it to pass
         CommitLog.instance.recover(new File[]{ tmpFile(CommitLogDescriptor.current_version)  });
+    }
+
+    /**
+     * Since commit log segments can be allocated before they're needed, the commit log file with the highest
+     * id isn't neccesarily the last log that we wrote to. We should remove header only logs on recover so we
+     * can tolerate truncated logs
+     */
+    @Test
+    public void testHeaderOnlyFileFiltering() throws Exception
+    {
+        File directory = Files.createTempDir();
+
+        CommitLogDescriptor desc1 = new CommitLogDescriptor(CommitLogDescriptor.current_version, 1, null);
+        CommitLogDescriptor desc2 = new CommitLogDescriptor(CommitLogDescriptor.current_version, 2, null);
+
+        ByteBuffer buffer;
+
+        // this has a header and malformed data
+        File file1 = new File(directory, desc1.fileName());
+        buffer = ByteBuffer.allocate(1024);
+        CommitLogDescriptor.writeHeader(buffer, desc1);
+        int pos = buffer.position();
+        CommitLogSegment.writeSyncMarker(desc1.id, buffer, buffer.position(), buffer.position(), buffer.position() + 128);
+        buffer.position(pos + 8);
+        buffer.putInt(5);
+        buffer.putInt(6);
+
+        try (OutputStream lout = new FileOutputStream(file1))
+        {
+            lout.write(buffer.array());
+        }
+
+        // this has only a header
+        File file2 = new File(directory, desc2.fileName());
+        buffer = ByteBuffer.allocate(1024);
+        CommitLogDescriptor.writeHeader(buffer, desc2);
+        try (OutputStream lout = new FileOutputStream(file2))
+        {
+            lout.write(buffer.array());
+        }
+
+        // one corrupt file and one header only file should be ok
+        runExpecting(new WrappedRunnable() {
+            public void runMayThrow() throws Exception
+            {
+                CommitLog.instance.recover(file1, file2);
+            }
+        }, null);
+
+        // 2 corrupt files and one header only file should fail
+        runExpecting(new WrappedRunnable() {
+            public void runMayThrow() throws Exception
+            {
+                CommitLog.instance.recover(file1, file1, file2);
+            }
+        }, CommitLogReplayException.class);
     }
 
     @Test
