@@ -727,6 +727,8 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
 
     public void resetLocalSchema() throws IOException;
 
+    public void reloadLocalSchema();
+
     /**
      * Enables/Disables tracing for the whole system. Only thrift requests can start tracing currently.
      *
