@@ -141,6 +141,10 @@ public final class MessagingService implements MessagingServiceMBean
         CROSS_VPC_IP_MAPPING_SYN,
         CROSS_VPC_IP_MAPPING_ACK,
         // remember to add new verbs at the end, since we serialize by ordinal
+        PING(),
+
+        // add new verbs after the existing verbs, but *before* the UNUSED verbs, since we serialize by ordinal.
+        // UNUSED verbs serve as padding for backwards compatability where a previous version needs to validate a verb from the future.
         UNUSED_1,
         UNUSED_2,
         UNUSED_3,
@@ -194,6 +198,8 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.UNUSED_1, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_2, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_3, Stage.INTERNAL_RESPONSE);
+
+        put(Verb.PING, Stage.READ);
     }};
 
     /**
@@ -231,6 +237,7 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.PAXOS_COMMIT, Commit.serializer);
         put(Verb.CROSS_VPC_IP_MAPPING_ACK, CrossVpcIpMappingAck.serializer);
         put(Verb.CROSS_VPC_IP_MAPPING_SYN, CrossVpcIpMappingSyn.serializer);
+        put(Verb.PING, PingMessage.serializer);
     }};
 
     /**

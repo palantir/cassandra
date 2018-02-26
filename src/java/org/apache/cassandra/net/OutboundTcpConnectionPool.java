@@ -25,12 +25,15 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.metrics.ConnectionMetrics;
+import org.apache.cassandra.net.async.OutboundConnectionIdentifier;
 import org.apache.cassandra.security.SSLFactory;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -67,15 +70,35 @@ public class OutboundTcpConnectionPool
      */
     OutboundTcpConnection getConnection(MessageOut msg)
     {
-        if (Stage.GOSSIP == msg.getStage())
-            return gossipMessages;
-        if (Stage.CROSS_VPC_IP_MAPPING == msg.getStage()) {
-            // Application-level keepalive to avoid NLB idle resets around 6 minutes
-            return largeMessages;
+        if (msg.connectionType == null)
+        {
+            if (Stage.GOSSIP == msg.getStage())
+                return gossipMessages;
+            if (Stage.CROSS_VPC_IP_MAPPING == msg.getStage()) {
+                // Application-level keepalive to avoid NLB idle resets around 6 minutes
+                return largeMessages;
+            }
+            return msg.payloadSize(smallMessages.getTargetVersion()) > LARGE_MESSAGE_THRESHOLD
+                   ? largeMessages
+                   : smallMessages;
         }
-        return msg.payloadSize(smallMessages.getTargetVersion()) > LARGE_MESSAGE_THRESHOLD
-               ? largeMessages
-               : smallMessages;
+        return getConnection(msg.connectionType);
+    }
+
+    @VisibleForTesting
+    final OutboundTcpConnection getConnection(OutboundConnectionIdentifier.ConnectionType connectionType)
+    {
+        switch (connectionType)
+        {
+            case SMALL_MESSAGE:
+                return smallMessages;
+            case LARGE_MESSAGE:
+                return largeMessages;
+            case GOSSIP:
+                return gossipMessages;
+            default:
+                throw new IllegalArgumentException("unsupported connection type: " + connectionType);
+        }
     }
 
     void reset()

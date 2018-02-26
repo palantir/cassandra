@@ -2080,4 +2080,14 @@ public class DatabaseDescriptor
     public static int getWriteDelay() {
         return conf.write_delay_in_s;
     }
+
+    public static int getBlockForPeersPercentage()
+    {
+        return conf.block_for_peers_percentage;
+    }
+
+    public static int getBlockForPeersTimeoutInSeconds()
+    {
+        return conf.block_for_peers_timeout_in_secs;
+    }
 }

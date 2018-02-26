@@ -161,8 +161,13 @@ public class RemoveTest
 
         for (InetAddress host : hosts)
         {
+<<<<<<< HEAD
             MessageOut msg = new MessageOut(host, MessagingService.Verb.REPLICATION_FINISHED, null, null, Collections.<String, byte[]>emptyMap());
             MessagingService.instance().sendRR(msg, FBUtilities.getBroadcastAddress());
+=======
+            MessageOut msg = new MessageOut(host, MessagingService.Verb.REPLICATION_FINISHED, null, null, Collections.<Object>emptyList(), null);
+            MessagingService.instance().sendRR(msg, FBUtilities.getBroadcastAddressAndPort());
+>>>>>>> b86801e95a (Add optional startup delay to wait until peers are ready)
         }
 
         remover.join();

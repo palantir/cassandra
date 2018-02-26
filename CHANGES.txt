@@ -3,6 +3,7 @@
 Merged from 2.1:
  * Only allow strings to be passed to JMX authentication (CASSANDRA-16077)
  * Nodetool compactionstats fails with NullPointerException (CASSANDRA-13021)
+ * Add optional startup delay to wait until peers are ready (CASSANDRA-13993)
 
 2.2.17
  * Fix nomenclature of allow and deny lists (CASSANDRA-15862)

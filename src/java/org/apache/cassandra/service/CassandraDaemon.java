@@ -35,9 +35,16 @@ import java.rmi.server.RMIServerSocketFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+<<<<<<< HEAD
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+=======
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.management.MBeanServer;
+>>>>>>> b86801e95a (Add optional startup delay to wait until peers are ready)
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 import javax.management.remote.JMXConnectorServer;
@@ -67,6 +74,10 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.*;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.concurrent.ScheduledExecutors;
+import org.apache.cassandra.gms.Gossiper;
+import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.net.StartupClusterConnectivityChecker;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
@@ -574,6 +585,11 @@ public class CassandraDaemon
             logger.info(isx.getMessage());
             return;
         }
+        StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(DatabaseDescriptor.getBlockForPeersPercentage(),
+                                                                                                      DatabaseDescriptor.getBlockForPeersTimeoutInSeconds(),
+                                                                                                      Gossiper.instance::isAlive);
+        Set<InetAddress> peers = Gossiper.instance.getEndpointStates().stream().map(Map.Entry::getKey).collect(Collectors.toSet());
+        connectivityChecker.execute(peers);
 
         String nativeFlag = System.getProperty("cassandra.start_native_transport");
         if ((nativeFlag != null && Boolean.parseBoolean(nativeFlag)) || (nativeFlag == null && DatabaseDescriptor.startNativeTransport()))
