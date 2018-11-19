@@ -82,6 +82,13 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
         runTests("Snappy");
     }
 
+    @Test
+    public void testZSTDWriter() throws IOException
+    {
+        compressor = ZstdCompressor.create(Collections.emptyMap());
+        runTests("ZSTD");
+    }
+
     private void testWrite(File f, int bytesToTest) throws IOException
     {
         final String filename = f.getAbsolutePath();

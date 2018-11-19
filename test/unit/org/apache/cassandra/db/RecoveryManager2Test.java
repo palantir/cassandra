@@ -41,6 +41,7 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.ParameterizedClass;
+import org.apache.cassandra.io.compress.ZstdCompressor;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -89,7 +90,8 @@ public class RecoveryManager2Test
                 { null }, // No compression
                 { new ParameterizedClass(LZ4Compressor.class.getName(), Collections.<String, String>emptyMap()) },
                 { new ParameterizedClass(SnappyCompressor.class.getName(), Collections.<String, String>emptyMap()) },
-                { new ParameterizedClass(DeflateCompressor.class.getName(), Collections.<String, String>emptyMap()) } });
+                { new ParameterizedClass(DeflateCompressor.class.getName(), Collections.<String, String>emptyMap()) },
+                {new ParameterizedClass(ZstdCompressor.class.getName(), Collections.emptyMap()) }});
     }
 
     @Test
