@@ -1,5 +1,3 @@
-.gitignore
-
 # C*
 build/
 src/gen-java/
@@ -11,7 +9,6 @@ doc/cql3/CQL.html
 
 # C* debs
 build-stamp
-build.properties
 debian/cassandra*debhelper*
 debian/cassandra*.substvars
 debian/cassandra/
@@ -76,3 +73,6 @@ lib/jsr223/scala/*.jar
 
 # Generated files from the documentation
 doc/source/configuration/cassandra_config_file.rst
+
+# Palantir
+.gradle
