@@ -167,7 +167,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -703,6 +703,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 Gossiper.instance.addLocalApplicationStates(states);
             }
             doAuthSetup();
+            setMode(Mode.ZOMBIE, true);
             logger.info("Not joining ring as requested. Use JMX (StorageService->joinRing()) to initiate ring joining");
         }
     }
@@ -2720,11 +2721,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return status.statusCode;
     }
 
-    public void forceKeyspaceCompaction(boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
+    public void forceKeyspaceCompaction(boolean bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         for (ColumnFamilyStore cfStore : getValidColumnFamilies(true, false, keyspaceName, columnFamilies))
         {
-            cfStore.forceMajorCompaction(splitOutput);
+            boolean existingDiskSpaceCheckFlag = cfStore.isCompactionDiskSpaceCheckEnabled();
+            cfStore.compactionDiskSpaceCheck(!bypassDiskspaceCheck);
+            cfStore.forceMajorCompaction(splitOutput); // blocks on compaction futures
+            cfStore.compactionDiskSpaceCheck(existingDiskSpaceCheckFlag);
         }
     }
 
@@ -4446,7 +4450,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void loadNewSSTables(String ksName, String cfName)
     {
-        ColumnFamilyStore.loadNewSSTables(ksName, cfName);
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
     }
 
     /**
@@ -4533,6 +4545,26 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void setTombstoneFailureThreshold(int threshold)
     {
         DatabaseDescriptor.setTombstoneFailureThreshold(threshold);
+    }
+
+    public int getRowCountWarnThreshold()
+    {
+        return DatabaseDescriptor.getRowCountWarnThreshold();
+    }
+
+    public void setRowCountWarnThreshold(int threshold)
+    {
+        DatabaseDescriptor.setRowCountWarnThreshold(threshold);
+    }
+
+    public int getRowCountFailureThreshold()
+    {
+        return DatabaseDescriptor.getRowCountFailureThreshold();
+    }
+
+    public void setRowCountFailureThreshold(int threshold)
+    {
+        DatabaseDescriptor.setRowCountFailureThreshold(threshold);
     }
 
     public int getBatchSizeFailureThreshold()

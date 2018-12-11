@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.db;
 
+import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
@@ -30,7 +31,8 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
     {
         if (StorageService.instance.isBootstrapMode())
         {
-            throw new RuntimeException("Cannot service reads while bootstrapping!");
+            /* Don't service reads! */
+            throw new IsBootstrappingException();
         }
 
         ReadCommand command = message.payload;
