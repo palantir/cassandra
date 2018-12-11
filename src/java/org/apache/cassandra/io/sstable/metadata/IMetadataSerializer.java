@@ -72,4 +72,6 @@ public interface IMetadataSerializer
      * Mutate repairedAt time
      */
     void mutateRepairedAt(Descriptor descriptor, long newRepairedAt) throws IOException;
+
+    void mutatePartitioner(Descriptor descriptor, String partitioner) throws IOException;
 }

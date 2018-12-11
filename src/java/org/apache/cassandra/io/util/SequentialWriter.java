@@ -357,6 +357,11 @@ public class SequentialWriter extends OutputStream implements WritableByteChanne
         return getFilePointer();
     }
 
+    public long getEstimatedOnDiskBytesWritten()
+    {
+        return getOnDiskFilePointer();
+    }
+
     public long length()
     {
         try

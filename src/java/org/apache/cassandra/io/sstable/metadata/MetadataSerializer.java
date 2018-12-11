@@ -148,6 +148,16 @@ public class MetadataSerializer implements IMetadataSerializer
         rewriteSSTableMetadata(descriptor, currentComponents);
     }
 
+    public void mutatePartitioner(Descriptor descriptor, String partitioner) throws IOException
+    {
+        logger.trace("Mutating {} to partitioner {}", descriptor.filenameFor(Component.STATS), partitioner);
+        Map<MetadataType, MetadataComponent> currentComponents = deserialize(descriptor, EnumSet.allOf(MetadataType.class));
+        ValidationMetadata validation = (ValidationMetadata) currentComponents.remove(MetadataType.VALIDATION);
+        // mutate partitioner
+        currentComponents.put(MetadataType.VALIDATION, validation.mutatePartitioner(partitioner));
+        rewriteSSTableMetadata(descriptor, currentComponents);
+    }
+
     private void rewriteSSTableMetadata(Descriptor descriptor, Map<MetadataType, MetadataComponent> currentComponents) throws IOException
     {
         Descriptor tmpDescriptor = descriptor.asType(Descriptor.Type.TEMP);

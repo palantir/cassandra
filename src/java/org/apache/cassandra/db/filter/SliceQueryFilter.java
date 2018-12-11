@@ -24,6 +24,8 @@ import java.util.*;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
+import com.palantir.cassandra.utils.CountingCellIterator;
+
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.utils.Pair;
@@ -55,8 +57,13 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public volatile int count;
     public final int compositesToGroup;
 
+    private boolean hitTombstoneFailureThreshold = false;
+    private boolean hitTombstoneWarnThreshold = false;
+
     // Not serialized, just a ack for range slices to find the number of live column counted, even when we group
     private ColumnCounter columnCounter;
+
+    private CountingCellIterator reducedCells;
 
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count)
     {
@@ -257,12 +264,13 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now)
     {
+        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
-        while (reducedColumns.hasNext())
+        while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
-            Cell cell = reducedColumns.next();
+            Cell cell = reducedCells.next();
 
             if (logger.isTraceEnabled())
                 logger.trace("collecting {} of {}: {}", columnCounter.live(), count, cell.getString(container.getComparator()));
@@ -272,15 +280,18 @@ public class SliceQueryFilter implements IDiskAtomFilter
             if (cell.getLocalDeletionTime() < gcBefore || !columnCounter.count(cell, tester))
                 continue;
 
+            // always safe to exit if we've seen more then we need. this will happen if we're grouping composite columns
+            // (ColumnCounter#hasSeenAtLeast won't return true until we've seen the start of the next group)
             if (columnCounter.live() > count)
                 break;
 
-            if (respectTombstoneThresholds() && columnCounter.tombstones() > DatabaseDescriptor.getTombstoneFailureThreshold())
+            if (respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneFailureThreshold())
             {
-                Tracing.trace("Scanned over {} tombstones; query aborted (see tombstone_failure_threshold); slices={}",
+                hitTombstoneFailureThreshold = true;
+                Tracing.trace("Scanned over {} dead cells; query aborted (see tombstone_failure_threshold); slices={}",
                               DatabaseDescriptor.getTombstoneFailureThreshold(), getSlicesInfo(container));
 
-                throw new TombstoneOverwhelmingException(columnCounter.tombstones(),
+                throw new TombstoneOverwhelmingException(reducedCells,
                                                          count,
                                                          container.metadata().ksName,
                                                          container.metadata().cfName,
@@ -292,12 +303,14 @@ public class SliceQueryFilter implements IDiskAtomFilter
             container.appendColumn(cell);
         }
 
-        boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && columnCounter.tombstones() > DatabaseDescriptor.getTombstoneWarnThreshold();
+        boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneWarnThreshold();
         if (warnTombstones)
         {
-            String msg = String.format("Read %d live and %d tombstone cells in %s.%s for key: %1.512s (see tombstone_warn_threshold). %d columns were requested, slices=%1.512s",
-                                       columnCounter.live(),
-                                       columnCounter.tombstones(),
+            hitTombstoneWarnThreshold = true;
+            String msg = String.format("Read %d live, %d tombstoned, and %d droppable cells in %s.%s for key: %1.512s (see tombstone_warn_threshold). %d columns were requested, slices=%1.512s",
+                                       reducedCells.live(),
+                                       reducedCells.tombstones(),
+                                       reducedCells.droppableTombstones() + reducedCells.droppableTtls(),
                                        container.metadata().ksName,
                                        container.metadata().cfName,
                                        container.metadata().getKeyValidator().getString(key.getKey()),
@@ -306,9 +319,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
             ClientWarn.instance.warn(msg);
             logger.warn(msg);
         }
-        Tracing.trace("Read {} live and {} tombstone cells{}",
+        Tracing.trace("Read {} live, {} tombstoned, and {} droppable cells{}",
                       columnCounter.live(),
-                      columnCounter.tombstones(),
+                      reducedCells.tombstones(),
+                      reducedCells.droppableTombstones() + reducedCells.droppableTtls(),
                       warnTombstones ? " (see tombstone_warn_threshold)" : "");
     }
 
@@ -415,6 +429,14 @@ public class SliceQueryFilter implements IDiskAtomFilter
         return columnCounter == null ? 0 : Math.min(columnCounter.live(), count);
     }
 
+    public boolean hitTombstoneFailureThreshold() {
+        return hitTombstoneFailureThreshold;
+    }
+
+    public boolean hitTombstoneWarnThreshold() {
+        return hitTombstoneWarnThreshold;
+    }
+
     public int lastTombstones()
     {
         return columnCounter == null ? 0 : columnCounter.tombstones();
@@ -423,6 +445,26 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public int lastLive()
     {
         return columnCounter == null ? 0 : columnCounter.live();
+    }
+
+    public int lastReadDroppableTombstones()
+    {
+        return reducedCells == null ? 0 : reducedCells.droppableTombstones();
+    }
+
+    public int lastReadDroppableTtls()
+    {
+        return reducedCells == null ? 0 : reducedCells.droppableTtls();
+    }
+
+    public int lastReadLive()
+    {
+        return reducedCells == null ? 0 : reducedCells.live();
+    }
+
+    public int lastReadTombstones()
+    {
+        return reducedCells == null ? 0 : reducedCells.tombstones();
     }
 
     @Override

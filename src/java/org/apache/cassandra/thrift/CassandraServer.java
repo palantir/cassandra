@@ -27,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.*;
@@ -694,6 +695,93 @@ public class CassandraServer implements Cassandra.Iface
         catch (RequestValidationException e)
         {
             throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
+    public CASResult put_unless_exists(
+                         ByteBuffer key,
+                         String column_family,
+                         List<Column> updates,
+                         ConsistencyLevel serial_consistency_level,
+                         ConsistencyLevel commit_consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        if (startSessionIfRequested()) {
+            ImmutableMap.Builder<String,String> builder = ImmutableMap.builder();
+            builder.put("key", ByteBufferUtil.bytesToHex(key));
+            builder.put("column_family", column_family);
+            builder.put("updates", updates.toString());
+            builder.put("consistency_level", commit_consistency_level.name());
+            builder.put("serial_consistency_level", serial_consistency_level.name());
+            Map<String,String> traceParameters = builder.build();
+
+            Tracing.instance.begin("put_unless_exists", traceParameters);
+        }
+        else
+        {
+            logger.trace("put_unless_exists");
+        }
+
+        try
+        {
+            ThriftClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            cState.hasColumnFamilyAccess(keyspace, column_family, Permission.MODIFY);
+            cState.hasColumnFamilyAccess(keyspace, column_family, Permission.SELECT);
+
+            CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_family, false);
+            ThriftValidation.validateKey(metadata, key);
+
+            if (metadata.cfType == ColumnFamilyType.Super)
+                throw new org.apache.cassandra.exceptions.InvalidRequestException("CAS does not support supercolumns");
+
+            Iterable<ByteBuffer> names = Iterables.transform(updates, new Function<Column, ByteBuffer>()
+            {
+                public ByteBuffer apply(Column column)
+                {
+                    return column.name;
+                }
+            });
+            ThriftValidation.validateColumnNames(metadata, new ColumnParent(column_family), names);
+            for (Column column : updates)
+                ThriftValidation.validateColumnData(metadata, key, null, column);
+
+            CFMetaData cfm = Schema.instance.getCFMetaData(cState.getKeyspace(), column_family);
+            ColumnFamily cfUpdates = ArrayBackedSortedColumns.factory.create(cfm);
+            for (Column column : updates)
+                cfUpdates.addColumn(cfm.comparator.cellFromByteBuffer(column.name), column.value, column.timestamp);
+
+            // Validate row level indexes. See CASSANDRA-10092 for more details.
+            Keyspace.open(metadata.ksName).getColumnFamilyStore(metadata.cfName).indexManager.validateRowLevelIndexes(key, cfUpdates);
+
+            schedule(DatabaseDescriptor.getWriteRpcTimeout());
+
+            ColumnFamily result = StorageProxy.cas(cState.getKeyspace(),
+                                                   column_family,
+                                                   key,
+                                                   new ThriftPutUnlessExistsRequest(cfUpdates),
+                                                   ThriftConversion.fromThrift(serial_consistency_level),
+                                                   ThriftConversion.fromThrift(commit_consistency_level),
+                                                   cState);
+            return result == null
+                   ? new CASResult(true)
+                   : new CASResult(false).setCurrent_values(thriftifyColumnsAsColumns(result.getSortedColumns(), System.currentTimeMillis()));
+        }
+        catch (RequestTimeoutException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        catch (RequestExecutionException e)
+        {
+            throw ThriftConversion.rethrow(e);
         }
         finally
         {
@@ -1558,7 +1646,7 @@ public class CassandraServer implements Cassandra.Iface
         try
         {
             ThriftValidation.validateKeyspaceNotSystem(ks_def.name);
-            state().hasAllKeyspacesAccess(Permission.CREATE);
+            state().hasKeyspaceAccess(ks_def.name, Permission.CREATE);
             ThriftValidation.validateKeyspaceNotYetExisting(ks_def.name);
 
             // generate a meaningful error if the user setup keyspace and/or column definition incorrectly
@@ -2103,6 +2191,38 @@ public class CassandraServer implements Cassandra.Iface
                 return ThriftSessionManager.instance.getConnectedClients();
             }
         });
+    }
+
+    @VisibleForTesting
+    static class ThriftPutUnlessExistsRequest implements CASRequest
+    {
+        private final ColumnFamily updates;
+
+        @VisibleForTesting
+        ThriftPutUnlessExistsRequest(ColumnFamily updates)
+        {
+            this.updates = updates;
+        }
+
+        public IDiskAtomFilter readFilter()
+        {
+            return new NamesQueryFilter(ImmutableSortedSet.copyOf(updates.getComparator(), updates.getColumnNames()));
+        }
+
+        public boolean appliesTo(ColumnFamily current)
+        {
+            return !hasLiveCells(current, System.currentTimeMillis());
+        }
+
+        private static boolean hasLiveCells(ColumnFamily cf, long now)
+        {
+            return cf != null && !cf.hasOnlyTombstones(now);
+        }
+
+        public ColumnFamily makeUpdates(ColumnFamily current)
+        {
+            return updates;
+        }
     }
 
     private static class ThriftCASRequest implements CASRequest

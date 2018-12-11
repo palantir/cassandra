@@ -73,6 +73,12 @@ public class PasswordAuthenticator implements IAuthenticator
         return true;
     }
 
+    // No anonymous access.
+    public boolean requireSaslAuthentication()
+    {
+        return true;
+    }
+
     private AuthenticatedUser authenticate(String username, String password) throws AuthenticationException
     {
         try
