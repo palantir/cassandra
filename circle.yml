@@ -1,0 +1,58 @@
+#  (c) Copyright 2018 Palantir Technologies Inc. All rights reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+machine:
+  java:
+    version: oraclejdk8
+  environment:
+    TERM: dumb
+  post:
+    # Install Unlimited Strength JCE jars
+    - wget -qO- https://artifactory.palantir.build/artifactory/internal-dist-thirdparty/oracle/jce_policy/8/jce_policy-8.zip
+      | bsdtar -xvf- -C /tmp && sudo cp /tmp/UnlimitedJCEPolicyJDK8/* $JAVA_HOME/jre/lib/security/
+
+dependencies:
+  pre:
+    - sudo apt-get install --only-upgrade ant
+  override:
+    - ant maven-ant-tasks-retrieve-build
+
+test:
+  pre:
+    - sudo apt-get install --only-upgrade ant
+  override:
+    - set -eou pipefail && ant -Dtest.runners=2 test | tee $CIRCLE_ARTIFACTS/test_output
+    - ./gradlew --console=plain --info ant-artifacts
+
+deployment:
+  develop:
+    branch: /^palantir-cassandra-[23]\.[0-9]{1,2}\.[0-9]{1,2}$/
+    owner: foundry
+    commands:
+      - git clean -fdx
+      - ant build build-test
+      - ./gradlew --console=plain --info ant-artifacts
+      - ./gradlew --console=plain --info publish
+  release:
+    tag: /[0-9]+(\.[0-9]+)+(-rc[0-9]+)?(-alpha[0-9]+)?/
+    owner: foundry
+    commands:
+      - git clean -fdx
+      - ant build build-test
+      - ./gradlew --console=plain --info ant-artifacts
+      - ./gradlew --console=plain --info publish
+
+notify:
+  webhooks:
+    - url: https://parana.palantir.build/hook
