@@ -28,6 +28,11 @@ public class AllowAllAuthenticator implements IAuthenticator
 {
     private static final SaslNegotiator AUTHENTICATOR_INSTANCE = new Negotiator();
 
+    public boolean requireSaslAuthentication()
+    {
+        return false;
+    }
+
     public boolean requireAuthentication()
     {
         return false;

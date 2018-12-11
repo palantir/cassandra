@@ -76,7 +76,7 @@ public class MaxSSTableSizeWriter extends CompactionAwareWriter
     public boolean append(AbstractCompactedRow row)
     {
         RowIndexEntry rie = sstableWriter.append(row);
-        if (sstableWriter.currentWriter().getOnDiskFilePointer() > maxSSTableSize)
+        if (sstableWriter.currentWriter().getEstimatedOnDiskBytesWritten() > maxSSTableSize)
         {
             File sstableDirectory = cfs.directories.getLocationForDisk(getWriteDirectory(expectedWriteSize));
             @SuppressWarnings("resource")

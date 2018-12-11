@@ -29,6 +29,8 @@ import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.palantir.cassandra.db.RowCountOverwhelmingException;
+
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1338,7 +1340,7 @@ public class StorageProxy implements StorageProxyMBean
             casReadMetrics.addNano(latency);
             // TODO avoid giving every command the same latency number.  Can fix this in CASSADRA-5329
             for (ReadCommand command : commands)
-                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatency.update(latency, TimeUnit.NANOSECONDS);
+                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatency.addNano(latency);
         }
 
         return rows;
@@ -1375,7 +1377,7 @@ public class StorageProxy implements StorageProxyMBean
             readMetrics.addNano(latency);
             // TODO avoid giving every command the same latency number.  Can fix this in CASSADRA-5329
             for (ReadCommand command : commands)
-                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatency.update(latency, TimeUnit.NANOSECONDS);
+                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatency.addNano(latency);
         }
 
         return rows;
@@ -1587,7 +1589,7 @@ public class StorageProxy implements StorageProxyMBean
             catch (Throwable t)
             {
                 handler.onFailure(FBUtilities.getBroadcastAddress());
-                if (t instanceof TombstoneOverwhelmingException)
+                if (t instanceof TombstoneOverwhelmingException || t instanceof RowCountOverwhelmingException)
                     logger.error(t.getMessage());
                 else
                     throw t;
@@ -1619,7 +1621,7 @@ public class StorageProxy implements StorageProxyMBean
             catch (Throwable t)
             {
                 handler.onFailure(FBUtilities.getBroadcastAddress());
-                if (t instanceof TombstoneOverwhelmingException)
+                if (t instanceof TombstoneOverwhelmingException || t instanceof RowCountOverwhelmingException)
                     logger.error(t.getMessage());
                 else
                     throw t;
@@ -1964,7 +1966,7 @@ public class StorageProxy implements StorageProxyMBean
         {
             long latency = System.nanoTime() - startTime;
             rangeMetrics.addNano(latency);
-            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.update(latency, TimeUnit.NANOSECONDS);
+            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.addNano(latency);
         }
         return command.postReconciliationProcessing(rows);
     }

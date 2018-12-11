@@ -1241,6 +1241,26 @@ public class DatabaseDescriptor
         conf.tombstone_failure_threshold = threshold;
     }
 
+    public static int getRowCountFailureThreshold()
+    {
+        return conf.rowcount_failure_threshold;
+    }
+
+    public static void setRowCountFailureThreshold(int threshold)
+    {
+        conf.rowcount_failure_threshold = threshold;
+    }
+
+    public static int getRowCountWarnThreshold()
+    {
+        return conf.rowcount_warn_threshold;
+    }
+
+    public static void setRowCountWarnThreshold(int threshold)
+    {
+        conf.rowcount_warn_threshold = threshold;
+    }
+
     /**
      * size of commitlog segments to allocate
      */
