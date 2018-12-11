@@ -35,6 +35,7 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import org.apache.cassandra.db.lifecycle.SSTableIntervalTree;
 import org.apache.cassandra.db.lifecycle.View;
@@ -74,6 +75,7 @@ import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics.Sampler;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.CacheService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.streaming.StreamLockfile;
@@ -188,6 +190,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public final ColumnFamilyMetrics metric;
     public volatile long sampleLatencyNanos;
     private final ScheduledFuture<?> latencyCalculator;
+
+    private volatile boolean compactionSpaceCheck = true;
 
     public static void shutdownPostFlushExecutor() throws InterruptedException
     {
@@ -732,9 +736,21 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public static synchronized void loadNewSSTables(String ksName, String cfName)
     {
+        loadNewSSTables(ksName, cfName, false);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTables(String, String, boolean)} for more info
+     *
+     * @param ksName        The keyspace name
+     * @param cfName        The columnFamily name
+     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     */
+    public static synchronized void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
         /** ks/cf existence checks will be done by open and getCFS methods for us */
         Keyspace keyspace = Keyspace.open(ksName);
-        keyspace.getColumnFamilyStore(cfName).loadNewSSTables();
+        keyspace.getColumnFamilyStore(cfName).loadNewSSTables(assumeCfIsEmpty);
     }
 
     /**
@@ -742,7 +758,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public synchronized void loadNewSSTables()
     {
-        logger.info("Loading new SSTables for {}/{}...", keyspace.getName(), name);
+        loadNewSSTables(false);
+    }
+
+    public synchronized void loadNewSSTables(boolean assumeCfIsEmpty)
+    {
+        logger.info("Loading new SSTables for {}/{}{}...",
+                keyspace.getName(), name,
+                assumeCfIsEmpty ? " assuming the columnfamily is empty" : "");
 
         Set<Descriptor> currentDescriptors = new HashSet<Descriptor>();
         for (SSTableReader sstable : data.getView().sstables)
@@ -767,7 +790,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             // force foreign sstables to level 0
             try
             {
-                if (new File(descriptor.filenameFor(Component.STATS)).exists())
+                if (!assumeCfIsEmpty && new File(descriptor.filenameFor(Component.STATS)).exists())
                     descriptor.getMetadataSerializer().mutateLevel(descriptor, 0);
             }
             catch (IOException e)
@@ -1932,11 +1955,21 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // Log the number of tombstones scanned on single key queries
                 metric.tombstoneScannedHistogram.update(((SliceQueryFilter) filter.filter).lastTombstones());
                 metric.liveScannedHistogram.update(((SliceQueryFilter) filter.filter).lastLive());
+                metric.droppableTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadDroppableTombstones());
+                metric.droppableTtlsReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadDroppableTtls());
+                metric.liveReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadLive());
+                metric.tombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadTombstones());
+                if (((SliceQueryFilter) filter.filter).hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
             }
         }
         finally
         {
             metric.readLatency.addNano(System.nanoTime() - start);
+            if (filter.filter instanceof SliceQueryFilter
+                    && ((SliceQueryFilter) filter.filter).hitTombstoneFailureThreshold())
+            {
+                metric.tombstoneFailures.inc();
+            }
         }
 
         return result;
@@ -2142,6 +2175,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
         return new CompositeDataSupport(SAMPLING_RESULT, SAMPLER_NAMES, new Object[]{
                 samplerResults.cardinality, result});
+    }
+
+    public boolean isCompactionDiskSpaceCheckEnabled()
+    {
+        return compactionSpaceCheck;
+    }
+
+    public void compactionDiskSpaceCheck(boolean enable)
+    {
+        compactionSpaceCheck = enable;
     }
 
     public void cleanupCache()
@@ -2350,13 +2393,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         int columnsCount = 0;
         int total = 0, matched = 0;
         boolean ignoreTombstonedPartitions = filter.ignoreTombstonedPartitions();
+        int rowCountFailureThreshold = DatabaseDescriptor.getRowCountFailureThreshold();
 
         try
         {
+            Row rawRow = null;
             while (rowIterator.hasNext() && matched < filter.maxRows() && columnsCount < filter.maxColumns())
             {
                 // get the raw columns requested, and additional columns for the expressions if necessary
-                Row rawRow = rowIterator.next();
+                rawRow = rowIterator.next();
                 total++;
                 ColumnFamily data = rawRow.cf;
 
@@ -2384,7 +2429,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                     removeDroppedColumns(data);
                 }
 
-                rows.add(new Row(rawRow.key, data));
+                Row row = new Row(rawRow.key, data);
+                metric.rangeScanBytesRead.mark(Row.serializer.serializedSize(row, MessagingService.current_version));
+                rows.add(row);
+
                 if (!ignoreTombstonedPartitions || !data.hasOnlyTombstones(filter.timestamp))
                     matched++;
 
@@ -2392,6 +2440,42 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                     columnsCount += filter.lastCounted(data);
                 // Update the underlying filter to avoid querying more columns per slice than necessary and to handle paging
                 filter.updateFilter(columnsCount);
+
+                if (rows.size() > rowCountFailureThreshold)
+                {
+                    metric.rowCountFailures.inc();
+                    int numTombstonedRows = countTombstonedRows(rows, filter);
+                    Tracing.trace("Scanned over {} rows ({} tombstoned); query aborted (see rowcount_failure_threshold)",
+                                  rows.size(), numTombstonedRows);
+
+                    throw new RowCountOverwhelmingException(rows.size(),
+                                                            numTombstonedRows,
+                                                            filter.maxRows(),
+                                                            filter.cfs.metadata.ksName,
+                                                            filter.cfs.metadata.cfName,
+                                                            rawRow.key.toString(),
+                                                            filter.dataRange.toString());
+                }
+            }
+
+            if (logger.isWarnEnabled() && rows.size() > DatabaseDescriptor.getRowCountWarnThreshold())
+            {
+                metric.rowCountWarnings.inc();
+                int numTombstonedRows = countTombstonedRows(rows, filter);
+                String msg = String.format("Scanned over %d rows (%d tombstoned) in %s.%s; " +
+                                           "%d rows were requested (see rowcount_warn_threshold); " +
+                                           "lastRow=%s; dataLimits=%s",
+                                           rows.size(),
+                                           numTombstonedRows,
+                                           filter.cfs.metadata.ksName,
+                                           filter.cfs.metadata.cfName,
+                                           filter.maxRows(),
+                                           rawRow == null ? "null" : rawRow.key.toString(),
+                                           filter.dataRange.toString());
+                Tracing.trace("Scanned over {} rows ({} tombstoned) (see tombstone_warn_threshold)",
+                              rows.size(),
+                              numTombstonedRows);
+                logger.warn(msg);
             }
 
             return rows;
@@ -2408,6 +2492,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private int countTombstonedRows(List<Row> rows, ExtendedFilter filter)
+    {
+        int numTombstonedRows = 0;
+        for (Row row : rows)
+        {
+            if (row.cf.hasOnlyTombstones(filter.timestamp))
+            {
+                numTombstonedRows++;
+            }
+        }
+        return numTombstonedRows;
     }
 
     public CellNameType getComparator()
@@ -2743,13 +2840,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
+    @VisibleForTesting
+    public void clearUnsafe() {
+        clearUnsafe(true);
+    }
+
     /**
      * For testing.  No effort is made to clear historical or even the current memtables, nor for
      * thread safety.  All we do is wipe the sstable containers clean, while leaving the actual
      * data files present on disk.  (This allows tests to easily call loadNewSSTables on them.)
      */
     @VisibleForTesting
-    public void clearUnsafe()
+    public void clearUnsafe(final boolean enableCompaction)
     {
         for (final ColumnFamilyStore cfs : concatWithIndexes())
         {
@@ -2759,7 +2861,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 {
                     cfs.data.reset(new Memtable(new AtomicReference<>(ReplayPosition.NONE), cfs));
                     cfs.getCompactionStrategy().shutdown();
-                    cfs.getCompactionStrategy().startup();
+                    if (enableCompaction) cfs.getCompactionStrategy().startup();
                     return null;
                 }
             }, true);
@@ -3141,13 +3243,30 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public double getDroppableTombstoneRatio()
     {
+        return getDroppableTombstoneRatio(true);
+    }
+
+    public double getTombstoneRatio()
+    {
+        return getDroppableTombstoneRatio(false);
+    }
+
+    public double getLiveTombstoneRatio()
+    {
+        return getTombstoneRatio() - getDroppableTombstoneRatio();
+    }
+
+    private double getDroppableTombstoneRatio(boolean useGcGrace)
+    {
         double allDroppable = 0;
         long allColumns = 0;
         int localTime = (int)(System.currentTimeMillis()/1000);
 
         for (SSTableReader sstable : getSSTables())
         {
-            allDroppable += sstable.getDroppableTombstonesBefore(localTime - sstable.metadata.getGcGraceSeconds());
+            int gcBefore = localTime;
+            if (useGcGrace) gcBefore = localTime - sstable.metadata.getGcGraceSeconds();
+            allDroppable += sstable.getDroppableTombstonesBefore(gcBefore);
             allColumns += sstable.getEstimatedColumnCount().mean() * sstable.getEstimatedColumnCount().count();
         }
         return allColumns > 0 ? allDroppable / allColumns : 0;
@@ -3231,5 +3350,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             return null;
 
         return keyspace.getColumnFamilyStore(id);
+    }
+
+    /**
+     * @return map of sstable file path to repaired at value
+     */
+    public Map<String, Long> getRepairedAtPerSstable() {
+        Collection<SSTableReader> ssTables = getSSTables();
+        Map<String, Long> repairedAtPerSstable = new HashMap<>(ssTables.size());
+        for (SSTableReader sstable : ssTables)
+        {
+            repairedAtPerSstable.put(sstable.descriptor.relativeFilenameFor(Component.DATA),
+                                     sstable.getSSTableMetadata().repairedAt);
+        }
+        return repairedAtPerSstable;
     }
 }

@@ -17,13 +17,11 @@
  */
 package org.apache.cassandra.config;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,9 +30,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
-
-import org.apache.commons.lang3.builder.ToStringBuilder;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -258,6 +253,9 @@ public class Config
 
     public volatile int tombstone_warn_threshold = 1000;
     public volatile int tombstone_failure_threshold = 100000;
+
+    public volatile int rowcount_warn_threshold = 10000;
+    public volatile int rowcount_failure_threshold = 100000;
 
     public volatile Long index_summary_capacity_in_mb;
     public volatile int index_summary_resize_interval_in_minutes = 60;

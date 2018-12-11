@@ -97,7 +97,7 @@ public class StartupMessage extends Message.Request
             }
         }
 
-        if (DatabaseDescriptor.getAuthenticator().requireAuthentication())
+        if (DatabaseDescriptor.getAuthenticator().requireAuthentication() || DatabaseDescriptor.getAuthenticator().requireSaslAuthentication())
             return new AuthenticateMessage(DatabaseDescriptor.getAuthenticator().getClass().getName());
         else
             return new ReadyMessage();

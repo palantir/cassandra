@@ -234,6 +234,7 @@ public class CompactionController implements AutoCloseable
         else
         {
             final long finalTimestamp = minTimestampSeen;
+            logger.debug("Creating purge evaluator; [maximumPurgeableTimestampExclusive:{},decoratedKey:{}]", finalTimestamp, key); 
             return new Predicate<Long>()
             {
                 public boolean apply(Long time)

@@ -352,7 +352,12 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
             FailureDetector.instance.registerFailureDetectionEventListener(this);
             registeredForEndpointChanges = true;
         }
-        parentRepairSessions.put(parentRepairSession, new ParentRepairSession(coordinator, columnFamilyStores, ranges, isIncremental, isGlobal, System.currentTimeMillis()));
+
+        if (isIncremental) {
+            parentRepairSessions.put(parentRepairSession, new ParentRepairSession(coordinator, columnFamilyStores, ranges, isIncremental, isGlobal, System.currentTimeMillis()));
+        } else {
+            parentRepairSessions.put(parentRepairSession, new ParentRepairSession(coordinator, columnFamilyStores, ranges, isIncremental, isGlobal, ActiveRepairService.UNREPAIRED_SSTABLE));
+        }
     }
 
     public Set<SSTableReader> currentlyRepairing(UUID cfId, UUID parentRepairSession)
@@ -432,9 +437,14 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
         ParentRepairSession prs = getParentRepairSession(parentRepairSession);
         //A repair will be marked as not global if it is a subrange repair to avoid many small anti-compactions
         //in addition to other scenarios such as repairs not involving all DCs or hosts
-        if (!prs.isGlobal)
+        // Also disable anticompaction for any repairs that are NOT incremental
+        if (!prs.isGlobal || !prs.isIncremental)
         {
-            logger.info("Not a global repair, will not do anticompaction");
+            if (!prs.isGlobal) {
+                logger.info("Not a global repair, will not do anticompaction");
+            } else {
+                logger.info("Not an incremental repair, will not do anticompaction");
+            }
             removeParentRepairSession(parentRepairSession);
             return Futures.immediateFuture(Collections.emptyList());
         }

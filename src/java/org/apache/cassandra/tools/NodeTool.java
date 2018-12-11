@@ -27,6 +27,7 @@ import java.util.Map.Entry;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
+import com.palantir.cassandra.tools.nodetool.*;
 
 import io.airlift.command.*;
 
@@ -82,6 +83,11 @@ public class NodeTool
                 GetStreamThroughput.class,
                 GetTraceProbability.class,
                 GetInterDCStreamThroughput.class,
+                GetReadThresholds.class,
+                SetRowCountFailureThreshold.class,
+                SetRowCountWarnThreshold.class,
+                SetTombstoneFailureThreshold.class,
+                SetTombstoneWarnThreshold.class,
                 GetEndpoints.class,
                 GetSSTables.class,
                 GossipInfo.class,
@@ -133,7 +139,8 @@ public class NodeTool
                 SetLoggingLevel.class,
                 GetLoggingLevels.class,
                 FailureDetectorInfo.class,
-                RefreshSizeEstimates.class
+                RefreshSizeEstimates.class,
+                ForceTerminateRepairSessions.class
         );
 
         Cli.CliBuilder<Runnable> builder = Cli.builder("nodetool");

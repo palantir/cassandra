@@ -280,6 +280,11 @@ public class CompactionTask extends AbstractCompactionTask
      */
     protected void checkAvailableDiskSpace()
     {
+        if (!cfs.isCompactionDiskSpaceCheckEnabled()) {
+            logger.info("Compaction space check is disabled");
+            return;
+        }
+
         AbstractCompactionStrategy strategy = cfs.getCompactionStrategy();
 
         while(true)

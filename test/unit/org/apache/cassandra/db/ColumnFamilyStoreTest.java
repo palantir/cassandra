@@ -2356,4 +2356,40 @@ public class ColumnFamilyStoreTest
 
         PerRowSecondaryIndexTest.TestIndex.reset();
     }
+
+    @Test
+    public void testGetRepairedAtPerSstable() throws IOException
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_STANDARD1);
+        cfs.truncateBlocking();
+        cfs.disableAutoCompaction();
+
+        Mutation rm;
+        rm = new Mutation(KEYSPACE1, ByteBufferUtil.bytes("key1"));
+        rm.add(CF_STANDARD1, cellname("Column1"), ByteBufferUtil.bytes("asdf"), 0);
+        rm.applyUnsafe();
+        cfs.forceBlockingFlush();
+
+        rm = new Mutation(KEYSPACE1, ByteBufferUtil.bytes("key1"));
+        rm.add(CF_STANDARD1, cellname("Column2"), ByteBufferUtil.bytes("asdf"), 1);
+        rm.applyUnsafe();
+        cfs.forceBlockingFlush();
+
+        assertEquals(cfs.getUnrepairedSSTables().size(), 2);
+
+        Iterator<SSTableReader> sstables = cfs.getUnrepairedSSTables().iterator();
+        SSTableReader sstableToRepair = sstables.next();
+        sstableToRepair.descriptor.getMetadataSerializer().mutateRepairedAt(sstableToRepair.descriptor, 1234567L);
+        sstableToRepair.reloadSSTableMetadata();
+        String repairedSstable = sstableToRepair.descriptor.relativeFilenameFor(Component.DATA);
+
+        Map<String, Long> repairedAtPerSstable = cfs.getRepairedAtPerSstable();
+        assertTrue(repairedAtPerSstable.containsKey(repairedSstable));
+        assertEquals(1234567L, repairedAtPerSstable.get(repairedSstable).longValue());
+
+        String unrepairedSstable = sstables.next().descriptor.relativeFilenameFor(Component.DATA);
+        assertTrue(repairedAtPerSstable.containsKey(unrepairedSstable));
+        assertEquals(0L, repairedAtPerSstable.get(unrepairedSstable).longValue());
+    }
 }
