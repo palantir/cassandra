@@ -490,6 +490,10 @@ public class FBUtilities
         {
             return cls.newInstance();
         }
+        catch (ConfigurationException e)
+        {
+            throw e;
+        }
         catch (IllegalAccessException e)
         {
             throw new ConfigurationException(String.format("Default constructor for %s class '%s' is inaccessible.", readable, classname));

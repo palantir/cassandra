@@ -24,9 +24,11 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.metrics.ColumnFamilyMetrics.ColumnFamilyHistogram;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.palantir.cassandra.utils.CountingCellIterator;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
@@ -80,6 +82,14 @@ public class KeyspaceMetrics
     public final Histogram tombstoneScannedHistogram;
     /** Live cells scanned in queries on this Keyspace */
     public final Histogram liveScannedHistogram;
+    /** Droppable tombstones scanned in queries on this CF per {@link CountingCellIterator} */
+    public final Histogram droppableTombstonesReadHistogram;
+    /** Droppable ttls scanned in queries on this CF per {@link CountingCellIterator} */
+    public final Histogram droppableTtlsReadHistogram;
+    /** Live cells scanned in queries on this CF per {@link CountingCellIterator} */
+    public final Histogram liveReadHistogram;
+    /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
+    public final Histogram tombstonesReadHistogram;
     /** Column update time delta on this Keyspace */
     public final Histogram colUpdateTimeDeltaHistogram;
     /** CAS Prepare metric */
@@ -224,9 +234,14 @@ public class KeyspaceMetrics
         sstablesPerReadHistogram = Metrics.histogram(factory.createMetricName("SSTablesPerReadHistogram"), true);
         tombstoneScannedHistogram = Metrics.histogram(factory.createMetricName("TombstoneScannedHistogram"), false);
         liveScannedHistogram = Metrics.histogram(factory.createMetricName("LiveScannedHistogram"), false);
+        droppableTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("DroppableTombstonesReadHistogram"), false);
+        droppableTtlsReadHistogram = Metrics.histogram(factory.createMetricName("DroppableTtlsReadHistogram"), false);
+        liveReadHistogram = Metrics.histogram(factory.createMetricName("LiveReadHistogram"), false);
+        tombstonesReadHistogram = Metrics.histogram(factory.createMetricName("TombstonesReadHistogram"), false);
         colUpdateTimeDeltaHistogram = Metrics.histogram(factory.createMetricName("ColUpdateTimeDeltaHistogram"), false);
         // add manually since histograms do not use createKeyspaceGauge method
-        allMetrics.addAll(Lists.newArrayList("SSTablesPerReadHistogram", "TombstoneScannedHistogram", "LiveScannedHistogram"));
+        allMetrics.addAll(Lists.newArrayList("SSTablesPerReadHistogram", "TombstoneScannedHistogram", "LiveScannedHistogram",
+                "DroppableTombstonesReadHistogram", "DroppableTtlsReadHistogram", "LiveReadHistogram", "TombstonesReadHistogram"));
 
         casPrepare = new LatencyMetrics(factory, "CasPrepare");
         casPropose = new LatencyMetrics(factory, "CasPropose");

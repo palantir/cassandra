@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 
 import com.google.common.collect.ImmutableList;
@@ -107,6 +108,10 @@ public class LatencyMetrics
         {
             parent.addNano(nanos);
         }
+    }
+
+    public Snapshot getSnapshot() {
+        return latency.getSnapshot();
     }
 
     public void release()

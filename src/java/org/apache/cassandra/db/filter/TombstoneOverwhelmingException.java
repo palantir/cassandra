@@ -18,9 +18,11 @@
  */
 package org.apache.cassandra.db.filter;
 
+import com.palantir.cassandra.utils.CountingCellIterator;
+
 public class TombstoneOverwhelmingException extends RuntimeException
 {
-    private final int numTombstones;
+    private final CountingCellIterator cells;
     private final int numRequested;
     private final String ksName;
     private final String cfName;
@@ -28,7 +30,7 @@ public class TombstoneOverwhelmingException extends RuntimeException
     private final String slicesInfo;
     private final String partitionKey;
 
-    public TombstoneOverwhelmingException(int numTombstones,
+    public TombstoneOverwhelmingException(CountingCellIterator cells,
                                           int numRequested,
                                           String ksName,
                                           String cfName,
@@ -36,7 +38,7 @@ public class TombstoneOverwhelmingException extends RuntimeException
                                           String slicesInfo,
                                           String partitionKey)
     {
-        this.numTombstones = numTombstones;
+        this.cells = cells;
         this.numRequested = numRequested;
         this.ksName = ksName;
         this.cfName = cfName;
@@ -53,8 +55,9 @@ public class TombstoneOverwhelmingException extends RuntimeException
     public String getMessage()
     {
         return String.format(
-                "Scanned over %d tombstones in %s.%s; %d columns were requested; query aborted " +
-                "(see tombstone_failure_threshold); partitionKey=%s; lastCell=%s; slices=%s",
-                numTombstones, ksName, cfName, numRequested, partitionKey, lastCellName, slicesInfo);
+                "Scanned over %d tombstoned and %d droppable cells (%d total) in %s.%s; %d columns were requested;"
+                + " query aborted (see tombstone_failure_threshold); partitionKey=%s; lastCell=%s; slices=%s",
+                cells.tombstones(), cells.droppableTombstones() + cells.droppableTtls(), cells.dead(),
+                ksName, cfName, numRequested, partitionKey, lastCellName, slicesInfo);
     }
 }

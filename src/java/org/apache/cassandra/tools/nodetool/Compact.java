@@ -36,6 +36,9 @@ public class Compact extends NodeToolCmd
     @Option(title = "split_output", name = {"-s", "--split-output"}, description = "Use -s to not create a single big file")
     private boolean splitOutput = false;
 
+    @Option(title = "bypass_diskspace_check", name = {"-b", "--bypass-diskspace-check"}, description = "Ignore free space checks. Useful for compacting many tombstones.")
+    private boolean bypassDiskspaceCheck = false;
+
     @Override
     public void execute(NodeProbe probe)
     {
@@ -46,7 +49,7 @@ public class Compact extends NodeToolCmd
         {
             try
             {
-                probe.forceKeyspaceCompaction(splitOutput, keyspace, cfnames);
+                probe.forceKeyspaceCompaction(bypassDiskspaceCheck, splitOutput, keyspace, cfnames);
             } catch (Exception e)
             {
                 throw new RuntimeException("Error occurred during compaction", e);
