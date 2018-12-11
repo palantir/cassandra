@@ -1,5 +1,3 @@
-.gitignore
-
 # C*
 build
 build/
@@ -15,7 +13,6 @@ lib/
 
 # C* debs
 build-stamp
-build.properties
 debian/cassandra*debhelper*
 debian/cassandra*.substvars
 debian/cassandra/
@@ -69,13 +66,7 @@ Thumbs.db
 .ant_targets
 
 # Generated files from the documentation
-doc/modules/cassandra/pages/configuration/cass_yaml_file.adoc
-doc/modules/cassandra/pages/tools/nodetool/
-doc/modules/cassandra/examples/TEXT/NODETOOL/
+doc/source/configuration/cassandra_config_file.rst
 
-# Python virtual environment
-venv/
-
-# build-scripts will put cassandra-builds and cassandra-dtest into the directory
-cassandra-builds/
-cassandra-dtest/
+# Palantir
+.gradle
