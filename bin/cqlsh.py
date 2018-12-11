@@ -706,10 +706,11 @@ class Shell(cmd.Cmd):
         if use_conn:
             self.conn = use_conn
         else:
+            ssl_enable,ssl_options = sslhandling.ssl_settings(hostname, CONFIG_FILE)
             self.conn = Cluster(contact_points=(self.hostname,), port=self.port, cql_version=cqlver,
                                 protocol_version=protocol_version,
                                 auth_provider=self.auth_provider,
-                                ssl_options=sslhandling.ssl_settings(hostname, CONFIG_FILE) if ssl else None,
+                                ssl_options=ssl_options if ssl or ssl_enable else None,
                                 load_balancing_policy=WhiteListRoundRobinPolicy([self.hostname]),
                                 control_connection_timeout=connect_timeout,
                                 connect_timeout=connect_timeout)

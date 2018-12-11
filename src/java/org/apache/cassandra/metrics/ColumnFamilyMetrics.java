@@ -23,14 +23,14 @@ import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
+import com.palantir.cassandra.utils.CountingCellIterator;
 import com.codahale.metrics.*;
-import com.codahale.metrics.Timer;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
+import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.utils.EstimatedHistogram;
 import org.apache.cassandra.utils.TopKSampler;
 
@@ -79,6 +79,8 @@ public class ColumnFamilyMetrics
     public final Counter pendingFlushes;
     /** Estimate of number of pending compactios for this CF */
     public final Gauge<Integer> pendingCompactions;
+    /** Number of SSTables that have a repairedAt timestamp > 0 (from incremental repairs) */
+    public final Gauge<Long> repairedAtSSTableCount;
     /** Number of SSTables on disk for this CF */
     public final Gauge<Integer> liveSSTableCount;
     /** Disk space used by SSTables belonging to this CF */
@@ -113,6 +115,22 @@ public class ColumnFamilyMetrics
     public final ColumnFamilyHistogram tombstoneScannedHistogram;
     /** Live cells scanned in queries on this CF */
     public final ColumnFamilyHistogram liveScannedHistogram;
+    /** Droppable tombstones scanned in queries on this CF per {@link CountingCellIterator} */
+    public final ColumnFamilyHistogram droppableTombstonesReadHistogram;
+    /** Droppable ttls scanned in queries on this CF per {@link CountingCellIterator} */
+    public final ColumnFamilyHistogram droppableTtlsReadHistogram;
+    /** Live cells scanned in queries on this CF per {@link CountingCellIterator} */
+    public final ColumnFamilyHistogram liveReadHistogram;
+    /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
+    public final ColumnFamilyHistogram tombstonesReadHistogram;
+    /** Number of tombstone read failures */
+    public final Counter rowCountFailures;
+    /** Number of tombstone read warnings */
+    public final Counter rowCountWarnings;
+    /** Number of tombstone read failures */
+    public final Counter tombstoneFailures;
+    /** Number of tombstone read warnings */
+    public final Counter tombstoneWarnings;
     /** Column update time delta on this CF */
     public final ColumnFamilyHistogram colUpdateTimeDeltaHistogram;
     /** Disk space used by snapshot files which */
@@ -130,8 +148,18 @@ public class ColumnFamilyMetrics
     /** CAS Commit metrics */
     public final LatencyMetrics casCommit;
 
-    public final Timer coordinatorReadLatency;
-    public final Timer coordinatorScanLatency;
+    /** Estimated ratio of droppable tombstones and number of cells in this table */
+    public final Gauge<Double> droppableTombstoneRatio;
+    /** Estimated ratio of live tombstones and number of cells in this table */
+    public final Gauge<Double> liveTombstoneRatio;
+    /** Estimated ratio of tombstones and number of cells in this table */
+    public final Gauge<Double> tombstoneRatio;
+
+    /** Bytes read on range scans **/
+    public final Meter rangeScanBytesRead;
+
+    public final LatencyMetrics coordinatorReadLatency;
+    public final LatencyMetrics coordinatorScanLatency;
 
     /** Time spent waiting for free memtable space, either on- or off-heap */
     public final Histogram waitingOnFreeMemtableSpace;
@@ -346,6 +374,8 @@ public class ColumnFamilyMetrics
         readLatency = new LatencyMetrics(factory, "Read", cfs.keyspace.metric.readLatency, globalReadLatency);
         writeLatency = new LatencyMetrics(factory, "Write", cfs.keyspace.metric.writeLatency, globalWriteLatency);
         rangeLatency = new LatencyMetrics(factory, "Range", cfs.keyspace.metric.rangeLatency, globalRangeLatency);
+        coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
+        coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         pendingCompactions = createColumnFamilyGauge("PendingCompactions", new Gauge<Integer>()
         {
@@ -359,6 +389,19 @@ public class ColumnFamilyMetrics
             public Integer getValue()
             {
                 return cfs.getTracker().getSSTables().size();
+            }
+        });
+        repairedAtSSTableCount = createColumnFamilyGauge("RepairedAtSSTableCount", new Gauge<Long>()
+        {
+            public Long getValue()
+            {
+                long repairedAtCount = 0;
+                for (Long repairedAt : cfs.getRepairedAtPerSstable().values())
+                {
+                    if (repairedAt > ActiveRepairService.UNREPAIRED_SSTABLE)
+                        repairedAtCount++;
+                }
+                return repairedAtCount;
             }
         });
         liveDiskSpaceUsed = createColumnFamilyCounter("LiveDiskSpaceUsed");
@@ -598,9 +641,11 @@ public class ColumnFamilyMetrics
         });
         tombstoneScannedHistogram = createColumnFamilyHistogram("TombstoneScannedHistogram", cfs.keyspace.metric.tombstoneScannedHistogram, false);
         liveScannedHistogram = createColumnFamilyHistogram("LiveScannedHistogram", cfs.keyspace.metric.liveScannedHistogram, false);
+        droppableTombstonesReadHistogram = createColumnFamilyHistogram("DroppableTombstonesReadHistogram", cfs.keyspace.metric.droppableTombstonesReadHistogram, false);
+        droppableTtlsReadHistogram = createColumnFamilyHistogram("DroppableTtlsReadHistogram", cfs.keyspace.metric.droppableTtlsReadHistogram, false);
+        liveReadHistogram = createColumnFamilyHistogram("LiveReadHistogram", cfs.keyspace.metric.liveReadHistogram, false);
+        tombstonesReadHistogram = createColumnFamilyHistogram("TombstonesReadHistogram", cfs.keyspace.metric.tombstonesReadHistogram, false);
         colUpdateTimeDeltaHistogram = createColumnFamilyHistogram("ColUpdateTimeDeltaHistogram", cfs.keyspace.metric.colUpdateTimeDeltaHistogram, false);
-        coordinatorReadLatency = Metrics.timer(factory.createMetricName("CoordinatorReadLatency"));
-        coordinatorScanLatency = Metrics.timer(factory.createMetricName("CoordinatorScanLatency"));
         waitingOnFreeMemtableSpace = Metrics.histogram(factory.createMetricName("WaitingOnFreeMemtableSpace"), false);
 
         trueSnapshotsSize = createColumnFamilyGauge("SnapshotsSize", new Gauge<Long>()
@@ -614,9 +659,38 @@ public class ColumnFamilyMetrics
         rowCacheHit = createColumnFamilyCounter("RowCacheHit");
         rowCacheMiss = createColumnFamilyCounter("RowCacheMiss");
 
+        rowCountFailures = createColumnFamilyCounter("RowCountFailures");
+        rowCountWarnings = createColumnFamilyCounter("RowCountWarnings");
+        tombstoneFailures = createColumnFamilyCounter("TombstoneFailures");
+        tombstoneWarnings = createColumnFamilyCounter("TombstoneWarnings");
+
         casPrepare = new LatencyMetrics(factory, "CasPrepare", cfs.keyspace.metric.casPrepare);
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
+
+        droppableTombstoneRatio = createColumnFamilyGauge("DroppableTombstoneRatio", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getDroppableTombstoneRatio();
+            }
+        });
+        liveTombstoneRatio = createColumnFamilyGauge("LiveTombstoneRatio", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getLiveTombstoneRatio();
+            }
+        });
+        tombstoneRatio = createColumnFamilyGauge("TombstoneRatio", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getTombstoneRatio();
+            }
+        });
+
+        rangeScanBytesRead = Metrics.meter(factory.createMetricName("RangeScanBytesRead"));
     }
 
     public void updateSSTableIterated(int count)

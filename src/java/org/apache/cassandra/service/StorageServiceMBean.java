@@ -246,7 +246,7 @@ public interface StorageServiceMBean extends NotificationEmitter
     /**
      * Forces major compaction of a single keyspace
      */
-    public void forceKeyspaceCompaction(boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
+    public void forceKeyspaceCompaction(boolean bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
 
     /**
      * Trigger a cleanup of keys on a single keyspace
@@ -539,6 +539,15 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void loadNewSSTables(String ksName, String cfName);
 
     /**
+     * Load new SSTables to the given keyspace/columnFamily
+     *
+     * @param ksName            The parent keyspace name
+     * @param cfName            The ColumnFamily name where SSTables belong
+     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     */
+    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty);
+
+    /**
      * Return a List of Tokens representing a sample of keys across all ColumnFamilyStores.
      *
      * Note: this should be left as an operation, not an attribute (methods starting with "get")
@@ -588,6 +597,17 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public int getTombstoneFailureThreshold();
     /** Sets the threshold for abandoning queries with many tombstones */
     public void setTombstoneFailureThreshold(int tombstoneDebugThreshold);
+
+    /** Returns the threshold for warning of queries with many rows */
+    public int getRowCountWarnThreshold();
+    /** Sets the threshold for warning queries with many rows */
+    public void setRowCountWarnThreshold(int rowCountDebugThreshold);
+
+    /** Returns the threshold for abandoning queries with many rows */
+    public int getRowCountFailureThreshold();
+    /** Sets the threshold for abandoning queries with many rows */
+    public void setRowCountFailureThreshold(int rowCountDebugThreshold);
+
 
     /** Returns the threshold for rejecting queries due to a large batch size */
     public int getBatchSizeFailureThreshold();
