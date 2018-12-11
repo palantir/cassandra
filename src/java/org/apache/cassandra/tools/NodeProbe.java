@@ -305,15 +305,17 @@ public class NodeProbe implements AutoCloseable
     }
 
 
-    public void forceKeyspaceCompaction(boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
+    public void forceKeyspaceCompaction(boolean bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
-        ssProxy.forceKeyspaceCompaction(splitOutput, keyspaceName, columnFamilies);
+        ssProxy.forceKeyspaceCompaction(bypassDiskspaceCheck, splitOutput, keyspaceName, columnFamilies);
     }
 
     public void forceKeyspaceFlush(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         ssProxy.forceKeyspaceFlush(keyspaceName, columnFamilies);
     }
+
+    public void forceTerminateActiveRepairSessions() { ssProxy.forceTerminateAllRepairSessions(); }
 
     public void repairAsync(final PrintStream out, final String keyspace, Map<String, String> options) throws IOException
     {
@@ -949,6 +951,46 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getInterDCStreamThroughputMbPerSec();
     }
 
+    public void setRowCountFailureThreshold(int value)
+    {
+        ssProxy.setRowCountFailureThreshold(value);
+    }
+
+    public int getRowCountFailureThreshold()
+    {
+        return ssProxy.getRowCountFailureThreshold();
+    }
+
+    public void setRowCountWarnThreshold(int value)
+    {
+        ssProxy.setRowCountWarnThreshold(value);
+    }
+
+    public int getRowCountWarnThreshold()
+    {
+        return ssProxy.getRowCountWarnThreshold();
+    }
+
+    public void setTombstoneFailureThreshold(int value)
+    {
+        ssProxy.setTombstoneFailureThreshold(value);
+    }
+
+    public int getTombstoneFailureThreshold()
+    {
+        return ssProxy.getTombstoneFailureThreshold();
+    }
+
+    public void setTombstoneWarnThreshold(int value)
+    {
+        ssProxy.setTombstoneWarnThreshold(value);
+    }
+
+    public int getTombstoneWarnThreshold()
+    {
+        return ssProxy.getTombstoneWarnThreshold();
+    }
+
     public double getTraceProbability()
     {
         return ssProxy.getTraceProbability();
@@ -964,9 +1006,9 @@ public class NodeProbe implements AutoCloseable
         return msProxy.getDroppedMessages();
     }
 
-    public void loadNewSSTables(String ksName, String cfName)
+    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
-        ssProxy.loadNewSSTables(ksName, cfName);
+        ssProxy.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
     }
 
     public void rebuildIndex(String ksName, String cfName, String... idxNames)

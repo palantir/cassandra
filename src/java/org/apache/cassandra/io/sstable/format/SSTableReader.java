@@ -45,6 +45,8 @@ import org.apache.cassandra.config.*;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
 import org.apache.cassandra.db.commitlog.ReplayPosition;
+import org.apache.cassandra.db.compaction.AbstractCompactionStrategy;
+import org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy;
 import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.filter.ColumnSlice;
 import org.apache.cassandra.db.index.SecondaryIndex;
@@ -2233,10 +2235,13 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         // and in the FINAL type tidier
         private final AtomicBoolean isCompacted;
 
+        private final Class<? extends AbstractCompactionStrategy> compactionStrategy;
+
         GlobalTidy(final SSTableReader reader)
         {
             this.desc = reader.descriptor;
             this.isCompacted = new AtomicBoolean();
+            this.compactionStrategy = reader.metadata.compactionStrategyClass;
         }
 
         void ensureReadMeter()
@@ -2259,7 +2264,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             {
                 public void run()
                 {
-                    if (!isCompacted.get())
+                    if (!isCompacted.get() && compactionStrategy == SizeTieredCompactionStrategy.class)
                     {
                         meterSyncThrottle.acquire();
                         SystemKeyspace.persistSSTableReadMeter(desc.ksname, desc.cfname, desc.generation, readMeter);

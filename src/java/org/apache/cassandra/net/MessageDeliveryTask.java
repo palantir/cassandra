@@ -23,8 +23,11 @@ import java.util.EnumSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.db.RowCountOverwhelmingException;
+
 import org.apache.cassandra.db.filter.TombstoneOverwhelmingException;
 import org.apache.cassandra.db.index.IndexNotAvailableException;
+import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.gms.Gossiper;
 
 public class MessageDeliveryTask implements Runnable
@@ -71,10 +74,25 @@ public class MessageDeliveryTask implements Runnable
             handleFailure(ioe);
             throw new RuntimeException(ioe);
         }
-        catch (TombstoneOverwhelmingException | IndexNotAvailableException e)
+        catch (TombstoneOverwhelmingException | RowCountOverwhelmingException | IndexNotAvailableException e)
         {
             handleFailure(e);
             logger.error(e.getMessage());
+        }
+        catch (IsBootstrappingException e)
+        {
+            /*
+             * Ignore bootstrapping error messages as they spam the logs and don't offer
+             * much in the way of signal.
+             */
+            handleFailure(e);
+            if (READ_VERBS.contains(verb))
+            {
+                logger.debug("Squelching error message for verb type {} during bootstrap", verb);
+            }
+            else {
+                throw e;
+            }
         }
         catch (Throwable t)
         {
@@ -99,4 +117,7 @@ public class MessageDeliveryTask implements Runnable
     private static final EnumSet<MessagingService.Verb> GOSSIP_VERBS = EnumSet.of(MessagingService.Verb.GOSSIP_DIGEST_ACK,
                                                                                   MessagingService.Verb.GOSSIP_DIGEST_ACK2,
                                                                                   MessagingService.Verb.GOSSIP_DIGEST_SYN);
+    
+    private static final EnumSet<MessagingService.Verb> READ_VERBS = EnumSet.of(MessagingService.Verb.READ,
+                                                                                MessagingService.Verb.RANGE_SLICE);
 }

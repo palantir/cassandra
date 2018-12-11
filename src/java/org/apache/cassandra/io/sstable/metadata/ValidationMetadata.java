@@ -48,6 +48,11 @@ public class ValidationMetadata extends MetadataComponent
         return MetadataType.VALIDATION;
     }
 
+    public ValidationMetadata mutatePartitioner(String newPartitioner)
+    {
+        return new ValidationMetadata(newPartitioner, bloomFilterFPChance);
+    }
+
     @Override
     public boolean equals(Object o)
     {

@@ -364,11 +364,19 @@ public abstract class AbstractCompactionStrategy
         // if that happens we will end up in infinite compaction loop, so first we check enough if enough time has
         // elapsed since SSTable created.
         if (System.currentTimeMillis() < sstable.getCreationTimeFor(Component.DATA) + tombstoneCompactionInterval * 1000)
-           return false;
+        {
+            logger.debug("Ignoring sstable due to creation time: {}", sstable.descriptor.filenameFor(Component.DATA));
+            return false;
+        }
 
         double droppableRatio = sstable.getEstimatedDroppableTombstoneRatio(gcBefore);
         if (droppableRatio <= tombstoneThreshold)
+        {
+            logger.debug("Ignoring sstable due to estimated droppable ratio ({}): {}",
+                         droppableRatio,
+                         sstable.descriptor.filenameFor(Component.DATA));
             return false;
+        }
 
         //sstable range overlap check is disabled. See CASSANDRA-6563.
         if (uncheckedTombstoneCompaction)
@@ -390,6 +398,8 @@ public abstract class AbstractCompactionStrategy
             if (sstable.getIndexSummarySize() < 2)
             {
                 // we have too few samples to estimate correct percentage
+                logger.debug("Ignoring sstable due to index summary being too small: {}",
+                             sstable.descriptor.filenameFor(Component.DATA));
                 return false;
             }
             // first, calculate estimated keys that do not overlap
@@ -403,7 +413,16 @@ public abstract class AbstractCompactionStrategy
             double remainingColumnsRatio = ((double) columns) / (sstable.getEstimatedColumnCount().count() * sstable.getEstimatedColumnCount().mean());
 
             // return if we still expect to have droppable tombstones in rest of columns
-            return remainingColumnsRatio * droppableRatio > tombstoneThreshold;
+
+            boolean worthCompacting = remainingColumnsRatio * droppableRatio > tombstoneThreshold;
+            if (!worthCompacting)
+            {
+                logger.debug("Ignoring sstable due to estimated columns ratio ({} * {}): {}",
+                             remainingColumnsRatio,
+                             droppableRatio,
+                             sstable.descriptor.filenameFor(Component.DATA));
+            }
+            return worthCompacting;
         }
     }
 
