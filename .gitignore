@@ -1,5 +1,3 @@
-.gitignore
-
 # C*
 build/
 src/gen-java/
@@ -11,7 +9,6 @@ doc/cql3/CQL.html
 
 # C* debs
 build-stamp
-build.properties
 debian/cassandra*debhelper*
 debian/cassandra*.substvars
 debian/cassandra/
@@ -72,3 +69,5 @@ lib/jsr223/jython/cachedir
 lib/jsr223/scala/*.jar
 
 .ant_targets
+# Palantir
+.gradle

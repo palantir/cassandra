@@ -11,7 +11,7 @@ bintray {
         name = rootProject.name
         userOrg = 'palantir'
         licenses = ['Apache-2.0']
-        publications = ['nebula', 'bom']
+        publications = ['dist']
     }
 }
 
@@ -19,4 +19,3 @@ publish.dependsOn bintrayUpload
 bintrayUpload.onlyIf {
     versionDetails().isCleanTag
 }
-

@@ -64,3 +64,4 @@ ext.generateBomFromExisting = { xmlRootNode, existingPomPath ->
     def dependencyManagementNode = xmlRootNode.appendNode('dependencyManagement').appendNode('dependencies')
     existingPom.dependencyManagement.dependencies.dependency.each { dep -> processDependency(dep, dependencyManagementNode) }
 }
+

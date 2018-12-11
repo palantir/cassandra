@@ -1,0 +1,40 @@
+/*
+ * (c) Copyright 2018 Palantir Technologies Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: "${project.rootDir}/gradle/publish-jar.gradle"
+
+apply plugin: 'java'
+
+// Cassandra's javadoc strings will throw javadoc warnings that fail builds,
+// so we just disable them for this jar.
+tasks.withType(Javadoc).all { enabled = false }
+
+def copiedSrcDir = "${project.projectDir}/src/main/java"
+
+// dependency comes from ant import in root build.gradle
+task copySourceFiles(type: Copy) {
+    doFirst {
+        delete copiedSrcDir
+    }
+    from("${project.rootDir}/src/java") {
+        include '**/*MBean.java'
+    }
+    into copiedSrcDir
+    includeEmptyDirs false
+}
+
+tasks.withType(JavaCompile).all { dependsOn copySourceFiles }
+

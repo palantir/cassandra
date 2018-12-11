@@ -20,21 +20,14 @@ apply from: "${project.rootDir}/gradle/publish-jar.gradle"
 afterEvaluate {
     publishing {
         publications {
-            bom(MavenPublication) {
-                artifactId 'cassandra-all-bom'
-                pom.withXml {
-                    generateBomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
-                }
-            }
             nebula(MavenPublication) {
                 artifacts = []
-                artifact(file("${project.rootDir}/build/palantir-cassandra-${project.version}.jar"))
-                artifactId 'cassandra-all'
+                artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
+                artifactId 'cassandra-thrift'
                 pom.withXml {
-                    generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
+                    generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")
                 }
             }
         }
     }
 }
-

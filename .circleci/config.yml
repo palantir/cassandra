@@ -86,4 +86,3 @@ workflows:
       - publish:
           requires: [ build, test , artifacts ]
           filters: { tags: { only: /.*/ }, branches: { only: palantir-cassandra-2.2.18 } }
-
