@@ -26,7 +26,7 @@ jobs:
           key: 'maven-ant-build-{{ checksum "build.xml" }}'
           paths: [ ~/build ]
       - restore_cache: { key: 'gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}' }
-      - run: ./gradlew --no-daemon --parallel --stacktrace resolveConfigurations
+      - run: ./gradlew --no-daemon
       - save_cache:
           key: 'gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}'
           paths: [ ~/.gradle/wrapper ]
