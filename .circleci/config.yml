@@ -32,7 +32,7 @@ jobs:
           paths: [ ~/.gradle/wrapper ]
       - run: ant build build-test
       - persist_to_workspace:
-          root: ~
+          root: /home/circleci
           paths:
             - build
             - conf/hotspot_compiler
@@ -44,7 +44,7 @@ jobs:
     docker: [{ image: 'circleci/openjdk:8u171-node' }]
     resource_class: xlarge
     steps:
-      - attach_workspace: { at: ~ }
+      - attach_workspace: { at: /home/circleci }
       - run: set -eou pipefail && ant -Dtest.runners=2 test | tee ~/build/test_output
       - store_artifacts: { path: ~/build/test_output }
 
@@ -54,11 +54,11 @@ jobs:
     environment:
       GRADLE_OPTS: -Dorg.gradle.console=plain -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
     steps:
-      - attach_workspace: { at: ~ }
+      - attach_workspace: { at: /home/circleci }
       - run: ./gradlew --no-daemon ant-artifacts
       - store_artifacts: { path: ~/build/palantir-cassandra-2.2.13* }
       - persist_to_workspace:
-          root: ~
+          root: /home/circleci
           paths:
             - build
 
@@ -68,7 +68,7 @@ jobs:
     environment:
       GRADLE_OPTS: -Dorg.gradle.console=plain -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
     steps:
-      - attach_workspace: { at: ~ }
+      - attach_workspace: { at: /home/circleci }
       - run: ./gradlew --no-daemon --parallel --stacktrace --continue publish
 
 workflows:
