@@ -51,7 +51,6 @@ jobs:
     steps:
       - attach_workspace: { at: /home/circleci }
       - run: ./gradlew --no-daemon ant-artifacts
-      - store_artifacts: { path: build/palantir-cassandra-2.2.13* }
       - persist_to_workspace:
           root: /home/circleci
           paths: [ project, .gradle, .m2 ]
