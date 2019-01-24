@@ -24,7 +24,7 @@ jobs:
       - run: ant maven-ant-tasks-retrieve-build
       - save_cache:
           key: 'maven-ant-build-{{ checksum "build.xml" }}'
-          paths: [ ~/build ]
+          paths: [ build ]
       - restore_cache: { key: 'gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}' }
       - run: ./gradlew --no-daemon
       - save_cache:
@@ -40,8 +40,8 @@ jobs:
     resource_class: xlarge
     steps:
       - attach_workspace: { at: /home/circleci }
-      - run: set -eou pipefail && ant -Dtest.runners=2 test | tee ~/build/test_output
-      - store_artifacts: { path: ~/build/test_output }
+      - run: set -eou pipefail && ant -Dtest.runners=2 test | tee build/test_output
+      - store_artifacts: { path: build/test_output }
 
   artifacts:
     docker: [{ image: 'circleci/openjdk:8u171-node' }]
@@ -51,7 +51,7 @@ jobs:
     steps:
       - attach_workspace: { at: /home/circleci }
       - run: ./gradlew --no-daemon ant-artifacts
-      - store_artifacts: { path: ~/build/palantir-cassandra-2.2.13* }
+      - store_artifacts: { path: build/palantir-cassandra-2.2.13* }
       - persist_to_workspace:
           root: /home/circleci
           paths: [ project, .gradle, .m2 ]
