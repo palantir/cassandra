@@ -20,15 +20,15 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - restore_cache: { key: 'maven-ant-build-{{ checksum "build.xml" }}' }
+      - restore_cache: { key: 'maven-ant-build-v2-{{ checksum "build.xml" }}' }
       - run: ant maven-ant-tasks-retrieve-build
       - save_cache:
-          key: 'maven-ant-build-{{ checksum "build.xml" }}'
+          key: 'maven-ant-build-v2-{{ checksum "build.xml" }}'
           paths: [ build ]
-      - restore_cache: { key: 'gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}' }
+      - restore_cache: { key: 'gradle-wrapper-v2-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}' }
       - run: ./gradlew --no-daemon
       - save_cache:
-          key: 'gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}'
+          key: 'gradle-wrapper-v2-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}'
           paths: [ ~/.gradle/wrapper ]
       - run: ant build build-test
       - persist_to_workspace:
