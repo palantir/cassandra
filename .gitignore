@@ -1,5 +1,3 @@
-.gitignore
-
 # C*
 build/
 src/gen-java/
