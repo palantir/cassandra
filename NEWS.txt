@@ -43,6 +43,17 @@ restore snapshots created with the previous major version using the
 using the provided 'sstableupgrade' tool.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+2.2.14
+======
+
+Upgrading
+---------
+    - Nothing specific to this release, but please see 2.2 if you are upgrading
+      from a previous version.
+
+>>>>>>> af91658353... Update version to 2.2.14
 2.2.13
 =======
 2.1.21
