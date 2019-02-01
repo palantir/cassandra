@@ -1,4 +1,14 @@
+<<<<<<< HEAD
 cassandra (2.2.13) unstable; urgency=medium
+=======
+cassandra (2.1.21) unstable; urgency=medium
+
+  * New release
+
+ -- Michael Shuler <mshuler@apache.org>  Fri, 01 Feb 2019 12:28:58 -0600
+
+cassandra (2.1.20) unstable; urgency=medium
+>>>>>>> 9bb75358df... Update version to 2.1.21
 
   * New release
 
