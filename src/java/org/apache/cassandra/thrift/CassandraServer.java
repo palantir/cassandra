@@ -490,7 +490,7 @@ public class CassandraServer implements Cassandra.Iface
         org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
         consistencyLevel.validateForRead(keyspace);
 
-        List<ReadCommand> commands = new ArrayList<ReadCommand>(keys.size());
+        List<ReadCommand> commands = new ArrayList<ReadCommand>(request.size());
 
         for (Map.Entry<ByteBuffer, SlicePredicate> singleKeyRequest : request.entrySet())
         {
