@@ -35,6 +35,7 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.thrift.TException;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import com.google.common.collect.ImmutableList;
 
 public class MultiGetMultiSliceTest
 {
@@ -55,12 +56,12 @@ public class MultiGetMultiSliceTest
         SchemaLoader.prepareServer();
         new EmbeddedCassandraService().start();
         ThriftSessionManager.instance.setCurrentSocket(new InetSocketAddress(9160));
-        SchemaLoader.createKeyspace(KEYSPACE1,
+        SchemaLoader.createKeyspace(KEYSPACE,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD));
+                                    SchemaLoader.standardCFMD(KEYSPACE, CF_STANDARD));
         server = new CassandraServer();
-        server.set_keyspace(KEYSPACE1);
+        server.set_keyspace(KEYSPACE);
     }
 
     @Test
@@ -73,7 +74,7 @@ public class MultiGetMultiSliceTest
         Map<ByteBuffer, SlicePredicate> request = ImmutableMap.of(
                 PARTITION_1, slicePredicateForColumns(COLUMN_A),
                 PARTITION_2, slicePredicateForColumns(COLUMN_B, COLUMN_C));
-        Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(Map<ByteBuffer, SlicePredicate> request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
         assertColumnNameMatches(ImmutableList.of(COLUMN_A), result.get(PARTITION_1));
         assertColumnNameMatches(ImmutableList.of(COLUMN_B, COLUMN_C), result.get(PARTITION_2));
     }
@@ -89,8 +90,8 @@ public class MultiGetMultiSliceTest
         for (char ch = 'a'; ch <= 'z'; ch++)
         {
             Column column = new Column()
-                    .setName(ByteBufferUtil.bytes(String.valueOf(ch)));
-                    .setValue(new byte [0]);
+                    .setName(ByteBufferUtil.bytes(String.valueOf(ch)))
+                    .setValue(new byte [0])
                     .setTimestamp(System.nanoTime());
             server.insert(key, parent, column, ConsistencyLevel.ONE);
         }
