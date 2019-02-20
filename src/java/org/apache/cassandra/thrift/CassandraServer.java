@@ -370,9 +370,9 @@ public class CassandraServer implements Cassandra.Iface
         if (startSessionIfRequested())
         {
             Map<String, SlicePredicate> stringKeysToPredicateMap = Maps.newHashMap();
-            for (Map.Entry<String, SlicePredicate> entry : keysToPredicateMap.entrySet())
-                stringKeysToPredicateMap.put(ByteBufferUtil.bytesToHex(key), predicate.toString());
-            Map<String, String> traceParameters = ImmutableMap.of("stringKeysToPredicateMap", stringKeysToPredicateMap.toString(),
+            for (Map.Entry<ByteBuffer, SlicePredicate> entry : request.entrySet())
+                stringKeysToPredicateMap.put(ByteBufferUtil.bytesToHex(entry.getKey()), entry.getValue());
+            Map<String, String> traceParameters = ImmutableMap.of("string_keys_to_predicate_map", stringKeysToPredicateMap.toString(),
                                                                   "column_parent", column_parent.toString(),
                                                                   "consistency_level", consistency_level.name());
             Tracing.instance.begin("multiget_multislice", traceParameters);
@@ -484,7 +484,8 @@ public class CassandraServer implements Cassandra.Iface
     {
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
         ThriftValidation.validateColumnParent(metadata, column_parent);
-        ThriftValidation.validatePredicate(metadata, column_parent, predicate);
+        for (SlicePredicate predicate : request.values())
+            ThriftValidation.validatePredicate(metadata, column_parent, predicate);
 
         org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
         consistencyLevel.validateForRead(keyspace);
