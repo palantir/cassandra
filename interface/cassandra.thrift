@@ -648,6 +648,15 @@ service Cassandra {
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
+    Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
+    users may specify a distinct <code>SlicePredicate</code> for each key in the <code>request</code>.
+  */
+  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required map<binary, SlicePredicate> request,
+                                                            2:required ColumnParent column_parent,
+                                                            3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
     Perform a get_count in parallel on the given list<binary> keys. The return value maps keys to the count found.
   */
   map<binary, i32> multiget_count(1:required list<binary> keys,
