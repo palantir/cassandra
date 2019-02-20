@@ -364,6 +364,41 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_multislice(Map<ByteBuffer, SlicePredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+            throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        if (startSessionIfRequested())
+        {
+            Map<String, SlicePredicate> stringKeysToPredicateMap = Maps.newHashMap();
+            for (Map.Entry<String, SlicePredicate> entry : keysToPredicateMap.entrySet())
+                stringKeysToPredicateMap.put(ByteBufferUtil.bytesToHex(key), predicate.toString());
+            Map<String, String> traceParameters = ImmutableMap.of("stringKeysToPredicateMap", stringKeysToPredicateMap.toString(),
+                                                                  "column_parent", column_parent.toString(),
+                                                                  "consistency_level", consistency_level.name());
+            Tracing.instance.begin("multiget_multislice", traceParameters);
+        }
+        else
+        {
+            logger.trace("multiget_multislice");
+        }
+
+        try
+        {
+            ClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            return multigetMultisliceInternal(keyspace, request, column_parent, System.currentTimeMillis(), consistency_level, cState);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
     private SliceQueryFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SliceRange range)
     {
         if (metadata.isSuper())
@@ -434,6 +469,33 @@ public class CassandraServer implements Cassandra.Iface
             // Note that we should not share a slice filter amongst the command, due to SliceQueryFilter not  being immutable
             // due to its columnCounter used by the lastCounted() method (also see SelectStatement.getSliceCommands)
             commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filter.cloneShallow()));
+        }
+
+        return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+    }
+
+    private Map<ByteBuffer, List<ColumnOrSuperColumn>> multigetMultisliceInternal(String keyspace,
+                                                                                  Map<ByteBuffer, SlicePredicate> request,
+                                                                                  ColumnParent column_parent,
+                                                                                  long timestamp,
+                                                                                  ConsistencyLevel consistency_level,
+                                                                                  ClientState cState)
+            throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
+        ThriftValidation.validateColumnParent(metadata, column_parent);
+        ThriftValidation.validatePredicate(metadata, column_parent, predicate);
+
+        org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
+        consistencyLevel.validateForRead(keyspace);
+
+        List<ReadCommand> commands = new ArrayList<ReadCommand>(keys.size());
+
+        for (Map.Entry<ByteBuffer, SlicePredicate> singleKeyRequest : request.entrySet())
+        {
+            ByteBuffer key = singleKeyRequest.getKey();
+            ThriftValidation.validateKey(metadata, key);
+            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, singleKeyRequest.getValue())));
         }
 
         return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
