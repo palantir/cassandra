@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0-pt1"
+const string VERSION = "20.1.0-pt2"
 
 
 #
@@ -649,9 +649,9 @@ service Cassandra {
 
   /**
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
-    users may specify a distinct <code>SlicePredicate</code> for each key in the <code>request</code>.
+    users may specify one or more <code>SlicePredicate</code>s for each key in the <code>request</code>.
   */
-  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required map<binary, SlicePredicate> request,
+  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required map<binary, list<SlicePredicate>> request,
                                                             2:required ColumnParent column_parent,
                                                             3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
