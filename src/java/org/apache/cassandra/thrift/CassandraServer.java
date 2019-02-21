@@ -261,7 +261,13 @@ public class CassandraServer implements Cassandra.Iface
             ColumnFamily cf = columnFamilies.get(StorageService.getPartitioner().decorateKey(command.key));
             boolean reverseOrder = command instanceof SliceFromReadCommand && ((SliceFromReadCommand)command).filter.reversed;
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(cf, subColumnsOnly, reverseOrder, command.timestamp);
-            columnFamiliesMap.put(command.key, thriftifiedColumns);
+
+            List<ColumnOrSuperColumn> existingResultsForKey = columnFamiliesMap.get(command.key);
+            if (existingResultsForKey == null) {
+                columnFamiliesMap.put(command.key, thriftifiedColumns);
+            } else {
+                existingResultsForKey.addAll(thriftifiedColumns);
+            }
         }
 
         return columnFamiliesMap;
@@ -364,15 +370,15 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_multislice(Map<ByteBuffer, SlicePredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_multislice(Map<ByteBuffer, List<SlicePredicate>> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
             throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
         {
-            Map<String, SlicePredicate> stringKeysToPredicateMap = Maps.newHashMap();
-            for (Map.Entry<ByteBuffer, SlicePredicate> entry : request.entrySet())
-                stringKeysToPredicateMap.put(ByteBufferUtil.bytesToHex(entry.getKey()), entry.getValue());
-            Map<String, String> traceParameters = ImmutableMap.of("string_keys_to_predicate_map", stringKeysToPredicateMap.toString(),
+            Map<String, List<SlicePredicate>> stringKeysToPredicatesMap = Maps.newHashMap();
+            for (Map.Entry<ByteBuffer, List<SlicePredicate>> entry : request.entrySet())
+                stringKeysToPredicatesMap.put(ByteBufferUtil.bytesToHex(entry.getKey()), entry.getValue());
+            Map<String, String> traceParameters = ImmutableMap.of("string_keys_to_predicates_map", stringKeysToPredicatesMap.toString(),
                                                                   "column_parent", column_parent.toString(),
                                                                   "consistency_level", consistency_level.name());
             Tracing.instance.begin("multiget_multislice", traceParameters);
@@ -475,7 +481,7 @@ public class CassandraServer implements Cassandra.Iface
     }
 
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> multigetMultisliceInternal(String keyspace,
-                                                                                  Map<ByteBuffer, SlicePredicate> request,
+                                                                                  Map<ByteBuffer, List<SlicePredicate>> request,
                                                                                   ColumnParent column_parent,
                                                                                   long timestamp,
                                                                                   ConsistencyLevel consistency_level,
@@ -484,19 +490,30 @@ public class CassandraServer implements Cassandra.Iface
     {
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
         ThriftValidation.validateColumnParent(metadata, column_parent);
-        for (SlicePredicate predicate : request.values())
-            ThriftValidation.validatePredicate(metadata, column_parent, predicate);
+        for (List<SlicePredicate> predicateList : request.values()) {
+            for (SlicePredicate predicate : predicateList) {
+                ThriftValidation.validatePredicate(metadata, column_parent, predicate);
+            }
+        }
 
         org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
         consistencyLevel.validateForRead(keyspace);
 
         List<ReadCommand> commands = new ArrayList<ReadCommand>(request.size());
 
-        for (Map.Entry<ByteBuffer, SlicePredicate> singleKeyRequest : request.entrySet())
+        for (Map.Entry<ByteBuffer, List<SlicePredicate>> singleKeyRequest : request.entrySet())
         {
             ByteBuffer key = singleKeyRequest.getKey();
             ThriftValidation.validateKey(metadata, key);
-            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, singleKeyRequest.getValue())));
+            for (SlicePredicate predicate : singleKeyRequest.getValue()) {
+                commands.add(ReadCommand.create(
+                        keyspace,
+                        key,
+                        column_parent.getColumn_family(),
+                        timestamp,
+                        toInternalFilter(metadata, column_parent, predicate)
+                ));
+            }
         }
 
         return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
