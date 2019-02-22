@@ -261,12 +261,27 @@ public class CassandraServer implements Cassandra.Iface
             ColumnFamily cf = columnFamilies.get(StorageService.getPartitioner().decorateKey(command.key));
             boolean reverseOrder = command instanceof SliceFromReadCommand && ((SliceFromReadCommand)command).filter.reversed;
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(cf, subColumnsOnly, reverseOrder, command.timestamp);
+            columnFamiliesMap.put(command.key, thriftifiedColumns);
+        }
 
-            List<ColumnOrSuperColumn> existingResultsForKey = columnFamiliesMap.get(command.key);
-            if (existingResultsForKey == null) {
+        return columnFamiliesMap;
+    }
+
+    private Map<ByteBuffer, List<ColumnOrSuperColumn>> getPossiblyOverlappingSlice(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        Map<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamily(commands, consistency_level, cState);
+        Map<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = new HashMap<ByteBuffer, List<ColumnOrSuperColumn>>();
+        for (ReadCommand command: commands)
+        {
+            ColumnFamily cf = columnFamilies.get(StorageService.getPartitioner().decorateKey(command.key));
+            boolean reverseOrder = command instanceof SliceFromReadCommand && ((SliceFromReadCommand)command).filter.reversed;
+            List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(cf, subColumnsOnly, reverseOrder, command.timestamp);
+            List<ColumnOrSuperColumn> existingColumns = columnFamiliesMap.get(command.key);
+            if (existingColumns == null) {
                 columnFamiliesMap.put(command.key, thriftifiedColumns);
             } else {
-                existingResultsForKey.addAll(thriftifiedColumns);
+                existingColumns.addAll(thriftifiedColumns);
             }
         }
 
@@ -511,7 +526,7 @@ public class CassandraServer implements Cassandra.Iface
                     toInternalFilter(metadata, column_parent, keyPredicate.predicate)));
         }
 
-        return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+        return getPossiblyOverlappingSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
     }
 
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)

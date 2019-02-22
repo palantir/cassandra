@@ -63,7 +63,7 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void testCanUseDifferentPredicatesOnDifferentPartitions() throws Exception
+    public void canUseDifferentPredicatesOnDifferentPartitions() throws Exception
     {
         ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
@@ -76,6 +76,21 @@ public class MultiGetMultiSliceTest
         Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
         assertColumnNameMatches(ImmutableList.of(COLUMN_A), result.get(PARTITION_1));
         assertColumnNameMatches(ImmutableList.of(COLUMN_B, COLUMN_C), result.get(PARTITION_2));
+    }
+
+    @Test
+    public void canUseDifferentPredicatesOnTheSamePartition() throws Exception
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+
+        List<KeyPredicate> request = ImmutableList.of(
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_A)),
+                new KeyPredicate().setKey(PARTITION_2).setPredicate(slicePredicateForColumns(COLUMN_B)));
+
+        Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        assertColumnNameMatches(ImmutableList.of(COLUMN_A, COLUMN_B), result.get(PARTITION_1));
+
     }
 
     private SlicePredicate slicePredicateForColumns(ByteBuffer... columnNames) {

@@ -665,7 +665,7 @@ service Cassandra {
     that key, to ensure that these match the <code>SlicePredicate</code> provided.
     If <code>SlicePredicate</code>s for the same key overlap, results returned may contain matching
     <code>ColumnOrSuperColumn</code>s at least once, but we make no guarantees on the number of times a given
-    <code>ColumnOrSuperColumn</code> is returned.
+    <code>ColumnOrSuperColumn</code> is returned, nor on the ordering of <code>ColumnOrSuperColumn</code>s returned.
   */
   map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
                                                             2:required ColumnParent column_parent,
