@@ -16,14 +16,15 @@
 
 package org.apache.cassandra.thrift;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import com.google.common.collect.ImmutableList;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import junit.framework.Assert;
 import org.apache.cassandra.SchemaLoader;
@@ -33,9 +34,6 @@ import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.service.EmbeddedCassandraService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.thrift.TException;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import com.google.common.collect.ImmutableList;
 
 public class MultiGetMultiSliceTest
 {
@@ -71,9 +69,10 @@ public class MultiGetMultiSliceTest
         addTheAlphabetToRow(PARTITION_1, cp);
         addTheAlphabetToRow(PARTITION_2, cp);
 
-        Map<ByteBuffer, SlicePredicate> request = ImmutableMap.of(
-                PARTITION_1, slicePredicateForColumns(COLUMN_A),
-                PARTITION_2, slicePredicateForColumns(COLUMN_B, COLUMN_C));
+        List<KeyPredicate> request = ImmutableList.of(
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_A)),
+                new KeyPredicate().setKey(PARTITION_2).setPredicate(slicePredicateForColumns(COLUMN_B, COLUMN_C)));
+
         Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
         assertColumnNameMatches(ImmutableList.of(COLUMN_A), result.get(PARTITION_1));
         assertColumnNameMatches(ImmutableList.of(COLUMN_B, COLUMN_C), result.get(PARTITION_2));
