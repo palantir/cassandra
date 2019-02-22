@@ -117,7 +117,6 @@ struct ColumnOrSuperColumn {
     4: optional CounterSuperColumn counter_super_column
 }
 
-
 #
 # Exceptions
 # (note that internal server errors will raise a TApplicationException, courtesy of Thrift)
@@ -600,6 +599,15 @@ struct MultiSliceRequest {
     6: optional ConsistencyLevel consistency_level=ConsistencyLevel.ONE
 }
 
+/**
+ * A pair of a row (key) and column or columns, used in calls to multiget_multislice() specifying which rows should be
+ * queried and which columns within said rows.
+ */
+struct KeyPredicate {
+    1: optional binary key,
+    2: optional SlicePredicate predicate,
+}
+
 service Cassandra {
   # auth methods
   void login(1: required AuthenticationRequest auth_request) throws (1:AuthenticationException authnx, 2:AuthorizationException authzx),
@@ -651,7 +659,7 @@ service Cassandra {
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
     users may specify one or more <code>SlicePredicate</code>s for each key in the <code>request</code>.
   */
-  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required map<binary, list<SlicePredicate>> request,
+  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
                                                             2:required ColumnParent column_parent,
                                                             3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
