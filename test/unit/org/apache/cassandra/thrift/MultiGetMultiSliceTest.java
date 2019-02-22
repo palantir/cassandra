@@ -22,9 +22,11 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,6 +49,7 @@ public class MultiGetMultiSliceTest
     private static final ByteBuffer COLUMN_A = ByteBufferUtil.bytes("a");
     private static final ByteBuffer COLUMN_B = ByteBufferUtil.bytes("b");
     private static final ByteBuffer COLUMN_C = ByteBufferUtil.bytes("c");
+    private static final ByteBuffer COLUMN_D = ByteBufferUtil.bytes("d");
 
     private static CassandraServer server;
 
@@ -65,7 +68,7 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void canUseDifferentPredicatesOnDifferentPartitions() throws Exception
+    public void differentPredicatesOnDifferentPartitions() throws Exception
     {
         ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
@@ -81,7 +84,7 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void canUseDifferentPredicatesOnTheSamePartition() throws Exception
+    public void disjointPredicatesOnSamePartition() throws Exception
     {
         ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
@@ -95,22 +98,55 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void overlappingPredicatesOnSamePartitionHandled() throws Exception
+    public void overlappingPredicatesOnSamePartition() throws Exception
     {
         ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
 
         List<KeyPredicate> request = ImmutableList.of(
-        new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_A, COLUMN_B)),
-        new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_B, COLUMN_C)));
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_A, COLUMN_B)),
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_B, COLUMN_C)));
 
         Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
-        assertColumnNamesMatchInAnyOrder(ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C), result.get(PARTITION_1));
+        assertColumnsOccurAtLeastOnce(ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C), result.get(PARTITION_1));
+    }
+
+    @Test
+    public void overlappingPredicatesOnSamePartitionWithRange() throws Exception
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+
+        List<KeyPredicate> request = ImmutableList.of(
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_B)),
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForRange(COLUMN_A, COLUMN_D, 5)));
+
+        Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        assertColumnsOccurAtLeastOnce(ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C, COLUMN_D), result.get(PARTITION_1));
+    }
+
+    @Test
+    public void disjointRangePredicatesOnSamePartition() throws Exception
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+
+        List<KeyPredicate> request = ImmutableList.of(
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForRange(COLUMN_A, COLUMN_C, 1)),
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForRange(COLUMN_C, COLUMN_D, 3)));
+
+        Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        assertColumnsOccurAtLeastOnce(ImmutableList.of(COLUMN_A, COLUMN_C, COLUMN_D), result.get(PARTITION_1));
     }
 
     private SlicePredicate slicePredicateForColumns(ByteBuffer... columnNames) {
         return new SlicePredicate()
                 .setColumn_names(ImmutableList.copyOf(columnNames));
+    }
+
+    private SlicePredicate slicePredicateForRange(ByteBuffer start, ByteBuffer finish, int count) {
+        return new SlicePredicate()
+                .setSlice_range(new SliceRange().setStart(start).setFinish(finish).setCount(count));
     }
 
     private static void addTheAlphabetToRow(ByteBuffer key, ColumnParent parent)
@@ -151,6 +187,19 @@ public class MultiGetMultiSliceTest
         {
             Assert.assertEquals(actual.get(i) + " did not equal " + expected.get(i),
                                 expected.get(i), actualBuffers.get(i));
+        }
+    }
+
+    private void assertColumnsOccurAtLeastOnce(List<ByteBuffer> expected, List<ColumnOrSuperColumn> actual)
+    {
+        Set<ByteBuffer> actualBuffers = Sets.newHashSet();
+        for (ColumnOrSuperColumn actualColumn : actual) {
+            actualBuffers.add(actualColumn.getColumn().bufferForName());
+        }
+
+        for (ByteBuffer expectedBuffer : expected) {
+            Assert.assertTrue("expected buffer " + expectedBuffer + " not present in " + actualBuffers,
+                              actualBuffers.contains(expected));
         }
     }
 }
