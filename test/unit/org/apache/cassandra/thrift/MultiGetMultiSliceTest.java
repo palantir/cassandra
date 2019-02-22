@@ -181,12 +181,14 @@ public class MultiGetMultiSliceTest
             actualBuffers.add(actualColumn.getColumn().bufferForName());
         }
         Collections.sort(actualBuffers);
-        Collections.sort(expected);
+
+        List<ByteBuffer> sortedExpectedBuffers = Lists.newArrayList(expected);
+        Collections.sort(sortedExpectedBuffers);
 
         for (int i = 0 ; i < expected.size() ; i++)
         {
-            Assert.assertEquals(actual.get(i) + " did not equal " + expected.get(i),
-                                expected.get(i), actualBuffers.get(i));
+            Assert.assertEquals(actual.get(i) + " did not equal " + sortedExpectedBuffers.get(i),
+                                sortedExpectedBuffers.get(i), actualBuffers.get(i));
         }
     }
 
@@ -199,7 +201,7 @@ public class MultiGetMultiSliceTest
 
         for (ByteBuffer expectedBuffer : expected) {
             Assert.assertTrue("expected buffer " + expectedBuffer + " not present in " + actualBuffers,
-                              actualBuffers.contains(expected));
+                              actualBuffers.contains(expectedBuffer));
         }
     }
 }
