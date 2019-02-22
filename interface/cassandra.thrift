@@ -659,9 +659,9 @@ service Cassandra {
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
     users may specify one or more <code>SlicePredicate</code>s for each key in the <code>request</code>.
   */
-  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
-                                                            2:required ColumnParent column_parent,
-                                                            3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+  map<KeyPredicate,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
+                                                                  2:required ColumnParent column_parent,
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
