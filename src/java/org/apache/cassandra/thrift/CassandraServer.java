@@ -370,15 +370,19 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_multislice(Map<ByteBuffer, List<SlicePredicate>> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
-            throws InvalidRequestException, UnavailableException, TimedOutException
+    @Override
+    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
         if (startSessionIfRequested())
         {
-            Map<String, List<SlicePredicate>> stringKeysToPredicatesMap = Maps.newHashMap();
-            for (Map.Entry<ByteBuffer, List<SlicePredicate>> entry : request.entrySet())
-                stringKeysToPredicatesMap.put(ByteBufferUtil.bytesToHex(entry.getKey()), entry.getValue());
-            Map<String, String> traceParameters = ImmutableMap.of("string_keys_to_predicates_map", stringKeysToPredicatesMap.toString(),
+            List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
+            for (KeyPredicate keyPredicate : request) {
+                keyPredicates.add(Pair.create(
+                        ByteBufferUtil.bytesToHex(keyPredicate.key),
+                        keyPredicate.predicate));
+            }
+            Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
                                                                   "column_parent", column_parent.toString(),
                                                                   "consistency_level", consistency_level.name());
             Tracing.instance.begin("multiget_multislice", traceParameters);
@@ -481,7 +485,7 @@ public class CassandraServer implements Cassandra.Iface
     }
 
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> multigetMultisliceInternal(String keyspace,
-                                                                                  Map<ByteBuffer, List<SlicePredicate>> request,
+                                                                                  List<KeyPredicate> request,
                                                                                   ColumnParent column_parent,
                                                                                   long timestamp,
                                                                                   ConsistencyLevel consistency_level,
@@ -490,30 +494,21 @@ public class CassandraServer implements Cassandra.Iface
     {
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
         ThriftValidation.validateColumnParent(metadata, column_parent);
-        for (List<SlicePredicate> predicateList : request.values()) {
-            for (SlicePredicate predicate : predicateList) {
-                ThriftValidation.validatePredicate(metadata, column_parent, predicate);
-            }
-        }
 
         org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
         consistencyLevel.validateForRead(keyspace);
 
         List<ReadCommand> commands = new ArrayList<ReadCommand>(request.size());
 
-        for (Map.Entry<ByteBuffer, List<SlicePredicate>> singleKeyRequest : request.entrySet())
-        {
-            ByteBuffer key = singleKeyRequest.getKey();
-            ThriftValidation.validateKey(metadata, key);
-            for (SlicePredicate predicate : singleKeyRequest.getValue()) {
-                commands.add(ReadCommand.create(
-                        keyspace,
-                        key,
-                        column_parent.getColumn_family(),
-                        timestamp,
-                        toInternalFilter(metadata, column_parent, predicate)
-                ));
-            }
+        for (KeyPredicate keyPredicate : request) {
+            ThriftValidation.validateKey(metadata, keyPredicate.key);
+            ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
+            commands.add(ReadCommand.create(
+                    keyspace,
+                    keyPredicate.key,
+                    column_parent.getColumn_family(),
+                    timestamp,
+                    toInternalFilter(metadata, column_parent, keyPredicate.predicate)));
         }
 
         return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
