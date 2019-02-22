@@ -19,10 +19,12 @@ package org.apache.cassandra.thrift;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -74,8 +76,8 @@ public class MultiGetMultiSliceTest
                 new KeyPredicate().setKey(PARTITION_2).setPredicate(slicePredicateForColumns(COLUMN_B, COLUMN_C)));
 
         Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
-        assertColumnNameMatches(ImmutableList.of(COLUMN_A), result.get(PARTITION_1));
-        assertColumnNameMatches(ImmutableList.of(COLUMN_B, COLUMN_C), result.get(PARTITION_2));
+        assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_A), result.get(PARTITION_1));
+        assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_B, COLUMN_C), result.get(PARTITION_2));
     }
 
     @Test
@@ -86,11 +88,24 @@ public class MultiGetMultiSliceTest
 
         List<KeyPredicate> request = ImmutableList.of(
                 new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_A)),
-                new KeyPredicate().setKey(PARTITION_2).setPredicate(slicePredicateForColumns(COLUMN_B)));
+                new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_B)));
 
         Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
-        assertColumnNameMatches(ImmutableList.of(COLUMN_A, COLUMN_B), result.get(PARTITION_1));
+        assertColumnNamesMatchInAnyOrder(ImmutableList.of(COLUMN_A, COLUMN_B), result.get(PARTITION_1));
+    }
 
+    @Test
+    public void overlappingPredicatesOnSamePartitionHandled() throws Exception
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+
+        List<KeyPredicate> request = ImmutableList.of(
+        new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_A, COLUMN_B)),
+        new KeyPredicate().setKey(PARTITION_1).setPredicate(slicePredicateForColumns(COLUMN_B, COLUMN_C)));
+
+        Map<ByteBuffer, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        assertColumnNamesMatchInAnyOrder(ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C), result.get(PARTITION_1));
     }
 
     private SlicePredicate slicePredicateForColumns(ByteBuffer... columnNames) {
@@ -111,13 +126,31 @@ public class MultiGetMultiSliceTest
         }
     }
 
-    private static void assertColumnNameMatches(List<ByteBuffer> expected, List<ColumnOrSuperColumn> actual)
+    private static void assertColumnNamesMatchPrecisely(List<ByteBuffer> expected, List<ColumnOrSuperColumn> actual)
     {
         Assert.assertEquals(actual + " " + expected + " did not have same number of elements", actual.size(), expected.size());
         for (int i = 0 ; i < expected.size() ; i++)
         {
             Assert.assertEquals(actual.get(i) + " did not equal " + expected.get(i),
                                 expected.get(i), actual.get(i).getColumn().bufferForName());
+        }
+    }
+
+    private static void assertColumnNamesMatchInAnyOrder(List<ByteBuffer> expected, List<ColumnOrSuperColumn> actual)
+    {
+        Assert.assertEquals(actual + " " + expected + " did not have same number of elements", actual.size(), expected.size());
+
+        List<ByteBuffer> actualBuffers = Lists.newArrayList();
+        for (ColumnOrSuperColumn actualColumn : actual) {
+            actualBuffers.add(actualColumn.getColumn().bufferForName());
+        }
+        Collections.sort(actualBuffers);
+        Collections.sort(expected);
+
+        for (int i = 0 ; i < expected.size() ; i++)
+        {
+            Assert.assertEquals(actual.get(i) + " did not equal " + expected.get(i),
+                                expected.get(i), actualBuffers.get(i));
         }
     }
 }
