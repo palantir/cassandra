@@ -108,19 +108,11 @@ public class Cassandra {
      * Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
      * users may specify one or more <code>SlicePredicate</code>s for each key in the <code>request</code>.
      * 
-     * Users may provide multiple <code>KeyPredicate</code>s for a given key, and the result is still keyed by key.
-     * If multiple <code>KeyPredicate</code>s are provided for a single key, users who are only interested in the results
-     * of their individual <code>KeyPredicate</code> MUST post-filter the <code>ColumnOrSuperColumn</code>s returned for
-     * that key, to ensure that these match the <code>SlicePredicate</code> provided.
-     * If <code>SlicePredicate</code>s for the same key overlap, results returned may contain matching
-     * <code>ColumnOrSuperColumn</code>s at least once, but we make no guarantees on the number of times a given
-     * <code>ColumnOrSuperColumn</code> is returned.
-     * 
      * @param request
      * @param column_parent
      * @param consistency_level
      */
-    public Map<ByteBuffer,List<ColumnOrSuperColumn>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public Map<KeyPredicate,List<ColumnOrSuperColumn>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * Perform a get_count in parallel on the given list<binary> keys. The return value maps keys to the count found.
@@ -795,7 +787,7 @@ public class Cassandra {
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "multiget_slice failed: unknown result");
     }
 
-    public Map<ByteBuffer,List<ColumnOrSuperColumn>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public Map<KeyPredicate,List<ColumnOrSuperColumn>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
       send_multiget_multislice(request, column_parent, consistency_level);
       return recv_multiget_multislice();
@@ -810,7 +802,7 @@ public class Cassandra {
       sendBase("multiget_multislice", args);
     }
 
-    public Map<ByteBuffer,List<ColumnOrSuperColumn>> recv_multiget_multislice() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public Map<KeyPredicate,List<ColumnOrSuperColumn>> recv_multiget_multislice() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
       multiget_multislice_result result = new multiget_multislice_result();
       receiveBase(result, "multiget_multislice");
@@ -2282,7 +2274,7 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public Map<ByteBuffer,List<ColumnOrSuperColumn>> getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Map<KeyPredicate,List<ColumnOrSuperColumn>> getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
@@ -5436,7 +5428,7 @@ public class Cassandra {
       }
     }
 
-    public static class multiget_multislice<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, multiget_multislice_args, Map<ByteBuffer,List<ColumnOrSuperColumn>>> {
+    public static class multiget_multislice<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, multiget_multislice_args, Map<KeyPredicate,List<ColumnOrSuperColumn>>> {
       public multiget_multislice() {
         super("multiget_multislice");
       }
@@ -5445,10 +5437,10 @@ public class Cassandra {
         return new multiget_multislice_args();
       }
 
-      public AsyncMethodCallback<Map<ByteBuffer,List<ColumnOrSuperColumn>>> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
+      public AsyncMethodCallback<Map<KeyPredicate,List<ColumnOrSuperColumn>>> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
         final org.apache.thrift.AsyncProcessFunction fcall = this;
-        return new AsyncMethodCallback<Map<ByteBuffer,List<ColumnOrSuperColumn>>>() { 
-          public void onComplete(Map<ByteBuffer,List<ColumnOrSuperColumn>> o) {
+        return new AsyncMethodCallback<Map<KeyPredicate,List<ColumnOrSuperColumn>>>() { 
+          public void onComplete(Map<KeyPredicate,List<ColumnOrSuperColumn>> o) {
             multiget_multislice_result result = new multiget_multislice_result();
             result.success = o;
             try {
@@ -5498,7 +5490,7 @@ public class Cassandra {
         return false;
       }
 
-      public void start(I iface, multiget_multislice_args args, org.apache.thrift.async.AsyncMethodCallback<Map<ByteBuffer,List<ColumnOrSuperColumn>>> resultHandler) throws TException {
+      public void start(I iface, multiget_multislice_args args, org.apache.thrift.async.AsyncMethodCallback<Map<KeyPredicate,List<ColumnOrSuperColumn>>> resultHandler) throws TException {
         iface.multiget_multislice(args.request, args.column_parent, args.consistency_level,resultHandler);
       }
     }
@@ -15892,7 +15884,7 @@ public class Cassandra {
       schemes.put(TupleScheme.class, new multiget_multislice_resultTupleSchemeFactory());
     }
 
-    public Map<ByteBuffer,List<ColumnOrSuperColumn>> success; // required
+    public Map<KeyPredicate,List<ColumnOrSuperColumn>> success; // required
     public InvalidRequestException ire; // required
     public UnavailableException ue; // required
     public TimedOutException te; // required
@@ -15970,7 +15962,7 @@ public class Cassandra {
       Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
       tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
           new org.apache.thrift.meta_data.MapMetaData(org.apache.thrift.protocol.TType.MAP, 
-              new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING              , true), 
+              new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, KeyPredicate.class), 
               new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
                   new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, ColumnOrSuperColumn.class)))));
       tmpMap.put(_Fields.IRE, new org.apache.thrift.meta_data.FieldMetaData("ire", org.apache.thrift.TFieldRequirementType.DEFAULT, 
@@ -15987,7 +15979,7 @@ public class Cassandra {
     }
 
     public multiget_multislice_result(
-      Map<ByteBuffer,List<ColumnOrSuperColumn>> success,
+      Map<KeyPredicate,List<ColumnOrSuperColumn>> success,
       InvalidRequestException ire,
       UnavailableException ue,
       TimedOutException te)
@@ -16004,14 +15996,13 @@ public class Cassandra {
      */
     public multiget_multislice_result(multiget_multislice_result other) {
       if (other.isSetSuccess()) {
-        Map<ByteBuffer,List<ColumnOrSuperColumn>> __this__success = new HashMap<ByteBuffer,List<ColumnOrSuperColumn>>(other.success.size());
-        for (Map.Entry<ByteBuffer, List<ColumnOrSuperColumn>> other_element : other.success.entrySet()) {
+        Map<KeyPredicate,List<ColumnOrSuperColumn>> __this__success = new HashMap<KeyPredicate,List<ColumnOrSuperColumn>>(other.success.size());
+        for (Map.Entry<KeyPredicate, List<ColumnOrSuperColumn>> other_element : other.success.entrySet()) {
 
-          ByteBuffer other_element_key = other_element.getKey();
+          KeyPredicate other_element_key = other_element.getKey();
           List<ColumnOrSuperColumn> other_element_value = other_element.getValue();
 
-          ByteBuffer __this__success_copy_key = org.apache.thrift.TBaseHelper.copyBinary(other_element_key);
-;
+          KeyPredicate __this__success_copy_key = new KeyPredicate(other_element_key);
 
           List<ColumnOrSuperColumn> __this__success_copy_value = new ArrayList<ColumnOrSuperColumn>(other_element_value.size());
           for (ColumnOrSuperColumn other_element_value_element : other_element_value) {
@@ -16049,18 +16040,18 @@ public class Cassandra {
       return (this.success == null) ? 0 : this.success.size();
     }
 
-    public void putToSuccess(ByteBuffer key, List<ColumnOrSuperColumn> val) {
+    public void putToSuccess(KeyPredicate key, List<ColumnOrSuperColumn> val) {
       if (this.success == null) {
-        this.success = new HashMap<ByteBuffer,List<ColumnOrSuperColumn>>();
+        this.success = new HashMap<KeyPredicate,List<ColumnOrSuperColumn>>();
       }
       this.success.put(key, val);
     }
 
-    public Map<ByteBuffer,List<ColumnOrSuperColumn>> getSuccess() {
+    public Map<KeyPredicate,List<ColumnOrSuperColumn>> getSuccess() {
       return this.success;
     }
 
-    public multiget_multislice_result setSuccess(Map<ByteBuffer,List<ColumnOrSuperColumn>> success) {
+    public multiget_multislice_result setSuccess(Map<KeyPredicate,List<ColumnOrSuperColumn>> success) {
       this.success = success;
       return this;
     }
@@ -16158,7 +16149,7 @@ public class Cassandra {
         if (value == null) {
           unsetSuccess();
         } else {
-          setSuccess((Map<ByteBuffer,List<ColumnOrSuperColumn>>)value);
+          setSuccess((Map<KeyPredicate,List<ColumnOrSuperColumn>>)value);
         }
         break;
 
@@ -16451,12 +16442,13 @@ public class Cassandra {
               if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
                 {
                   org.apache.thrift.protocol.TMap _map266 = iprot.readMapBegin();
-                  struct.success = new HashMap<ByteBuffer,List<ColumnOrSuperColumn>>(2*_map266.size);
+                  struct.success = new HashMap<KeyPredicate,List<ColumnOrSuperColumn>>(2*_map266.size);
                   for (int _i267 = 0; _i267 < _map266.size; ++_i267)
                   {
-                    ByteBuffer _key268;
+                    KeyPredicate _key268;
                     List<ColumnOrSuperColumn> _val269;
-                    _key268 = iprot.readBinary();
+                    _key268 = new KeyPredicate();
+                    _key268.read(iprot);
                     {
                       org.apache.thrift.protocol.TList _list270 = iprot.readListBegin();
                       _val269 = new ArrayList<ColumnOrSuperColumn>(_list270.size);
@@ -16523,10 +16515,10 @@ public class Cassandra {
         if (struct.success != null) {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
-            oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, struct.success.size()));
-            for (Map.Entry<ByteBuffer, List<ColumnOrSuperColumn>> _iter273 : struct.success.entrySet())
+            oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.LIST, struct.success.size()));
+            for (Map.Entry<KeyPredicate, List<ColumnOrSuperColumn>> _iter273 : struct.success.entrySet())
             {
-              oprot.writeBinary(_iter273.getKey());
+              _iter273.getKey().write(oprot);
               {
                 oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, _iter273.getValue().size()));
                 for (ColumnOrSuperColumn _iter274 : _iter273.getValue())
@@ -16589,9 +16581,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (Map.Entry<ByteBuffer, List<ColumnOrSuperColumn>> _iter275 : struct.success.entrySet())
+            for (Map.Entry<KeyPredicate, List<ColumnOrSuperColumn>> _iter275 : struct.success.entrySet())
             {
-              oprot.writeBinary(_iter275.getKey());
+              _iter275.getKey().write(oprot);
               {
                 oprot.writeI32(_iter275.getValue().size());
                 for (ColumnOrSuperColumn _iter276 : _iter275.getValue())
@@ -16619,13 +16611,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(4);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TMap _map277 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
-            struct.success = new HashMap<ByteBuffer,List<ColumnOrSuperColumn>>(2*_map277.size);
+            org.apache.thrift.protocol.TMap _map277 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRUCT, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
+            struct.success = new HashMap<KeyPredicate,List<ColumnOrSuperColumn>>(2*_map277.size);
             for (int _i278 = 0; _i278 < _map277.size; ++_i278)
             {
-              ByteBuffer _key279;
+              KeyPredicate _key279;
               List<ColumnOrSuperColumn> _val280;
-              _key279 = iprot.readBinary();
+              _key279 = new KeyPredicate();
+              _key279.read(iprot);
               {
                 org.apache.thrift.protocol.TList _list281 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
                 _val280 = new ArrayList<ColumnOrSuperColumn>(_list281.size);
