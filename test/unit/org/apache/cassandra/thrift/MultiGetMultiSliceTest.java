@@ -222,25 +222,29 @@ public class MultiGetMultiSliceTest
         Assert.assertEquals(result.size(), 1);
     }
 
-    private static KeyPredicate keyPredicateForColumns(ByteBuffer key, ByteBuffer... columnNames) {
+    private static KeyPredicate keyPredicateForColumns(ByteBuffer key, ByteBuffer... columnNames)
+    {
         return new KeyPredicate()
                 .setKey(key)
                 .setPredicate(slicePredicateForColumns(columnNames));
     }
 
-    private static SlicePredicate slicePredicateForColumns(ByteBuffer... columnNames) {
+    private static SlicePredicate slicePredicateForColumns(ByteBuffer... columnNames)
+    {
         return new SlicePredicate()
                 .setColumn_names(ImmutableList.copyOf(columnNames));
     }
 
-    private static KeyPredicate keyPredicateForRange(ByteBuffer key, ByteBuffer start, ByteBuffer finish, int count) {
+    private static KeyPredicate keyPredicateForRange(ByteBuffer key, ByteBuffer start, ByteBuffer finish, int count)
+    {
         return new KeyPredicate()
                .setKey(key)
                .setPredicate(slicePredicateForRange(start, finish, count));
     }
 
 
-    private static SlicePredicate slicePredicateForRange(ByteBuffer start, ByteBuffer finish, int count) {
+    private static SlicePredicate slicePredicateForRange(ByteBuffer start, ByteBuffer finish, int count)
+    {
         return new SlicePredicate()
                 .setSlice_range(new SliceRange().setStart(start).setFinish(finish).setCount(count));
     }
@@ -260,7 +264,7 @@ public class MultiGetMultiSliceTest
 
     private static void assertColumnNamesMatchPrecisely(List<ByteBuffer> expected, List<ColumnOrSuperColumn> actual)
     {
-        Assert.assertEquals(actual + " " + expected + " did not have same number of elements", expected.size(), actual.size());
+        Assert.assertEquals(expected + " " + actual + " did not have same number of elements", expected.size(), actual.size());
         for (int i = 0 ; i < expected.size() ; i++)
         {
             Assert.assertEquals(actual.get(i) + " did not equal " + expected.get(i),
