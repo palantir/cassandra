@@ -190,7 +190,7 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void handlesRequestWithMultiplePredicatesOnTheSameColumn() throws Exception
+    public void handlesRequestWithManyPredicatesOnTheSamePartition() throws Exception
     {
         ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
@@ -207,6 +207,19 @@ public class MultiGetMultiSliceTest
                                             result.get(keyPredicateForColumns(PARTITION_1, columnName)));
         }
         Assert.assertEquals(result.size(), 'z' - 'a' + 1);
+    }
+
+    @Test
+    public void handlesRequestWithMultipleIdenticalKeyPredicates() throws Exception
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+
+        List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMNS_AB, PARTITION_1_COLUMNS_AB);
+
+        Map<KeyPredicate, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_A, COLUMN_B), result.get(PARTITION_1_COLUMNS_AB));
+        Assert.assertEquals(result.size(), 1);
     }
 
     private static KeyPredicate keyPredicateForColumns(ByteBuffer key, ByteBuffer... columnNames) {

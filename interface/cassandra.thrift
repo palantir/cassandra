@@ -658,6 +658,10 @@ service Cassandra {
   /**
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
     users may specify one or more <code>SlicePredicate</code>s for each key in the <code>request</code>.
+
+    In the event users specify multiple identical <code>KeyPredicate</code>s in the request, only one instance of
+    any <code>ColumnOrSuperColumn</code>s read by the query will be present in the list associated with that
+    <code>KeyPredicate</code> in the map that is returned.
   */
   map<KeyPredicate,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
                                                                   2:required ColumnParent column_parent,
