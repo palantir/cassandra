@@ -729,7 +729,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     /**
-     * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
+     * See #{@code StorageService.loadNewSSTables(String, String)} for more info
      *
      * @param ksName The keyspace name
      * @param cfName The columnFamily name
@@ -740,7 +740,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     /**
-     * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
+     * See #{@code StorageService.loadNewSSTables(String, String, boolean)} for more info
      *
      * @param ksName        The keyspace name
      * @param cfName        The columnFamily name
@@ -764,13 +764,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public synchronized void loadNewSSTables(boolean assumeCfIsEmpty) {
         loadNewSSTablesWithCount(assumeCfIsEmpty);
     }
-
-
-
-
-
-
-
 
     /**
      * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
