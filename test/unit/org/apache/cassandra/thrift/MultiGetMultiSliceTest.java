@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -166,7 +167,8 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void differentOrderingOnRangePredicatesRespected() throws Exception {
+    public void differentOrderingOnRangePredicatesRespected() throws Exception
+    {
         ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
 
@@ -185,6 +187,26 @@ public class MultiGetMultiSliceTest
         assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C), result.get(PARTITION_1_RANGE_THREE_FROM_A_TO_Z));
         assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_Z, COLUMN_Y, COLUMN_X), result.get(partition1RangeThreeFromAToZReversed));
         Assert.assertEquals(result.size(), 2);
+    }
+
+    @Test
+    public void handlesRequestWithMultiplePredicatesOnTheSameColumn() throws Exception
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+
+        List<KeyPredicate> request = Lists.newArrayListWithExpectedSize('z' - 'a' + 1);
+        for (char ch = 'a'; ch <= 'z'; ch++) {
+            request.add(keyPredicateForColumns(PARTITION_1, ByteBufferUtil.bytes(String.valueOf(ch))));
+        }
+
+        Map<KeyPredicate, List<ColumnOrSuperColumn>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        for (char ch = 'a'; ch <= 'z'; ch++) {
+            ByteBuffer columnName = ByteBufferUtil.bytes(String.valueOf(ch));
+            assertColumnNamesMatchPrecisely(ImmutableList.of(columnName),
+                                            result.get(keyPredicateForColumns(PARTITION_1, columnName)));
+        }
+        Assert.assertEquals(result.size(), 'z' - 'a' + 1);
     }
 
     private static KeyPredicate keyPredicateForColumns(ByteBuffer key, ByteBuffer... columnNames) {
@@ -225,7 +247,7 @@ public class MultiGetMultiSliceTest
 
     private static void assertColumnNamesMatchPrecisely(List<ByteBuffer> expected, List<ColumnOrSuperColumn> actual)
     {
-        Assert.assertEquals(actual + " " + expected + " did not have same number of elements", actual.size(), expected.size());
+        Assert.assertEquals(actual + " " + expected + " did not have same number of elements", expected.size(), actual.size());
         for (int i = 0 ; i < expected.size() ; i++)
         {
             Assert.assertEquals(actual.get(i) + " did not equal " + expected.get(i),
