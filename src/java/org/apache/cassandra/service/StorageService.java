@@ -4383,17 +4383,33 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /**
      * #{@inheritDoc}
      */
-    public int loadNewSSTables(String ksName, String cfName)
+    public void loadNewSSTables(String ksName, String cfName)
     {
-        return ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
     }
 
     /**
      * #{@inheritDoc}
      */
-    public int loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
-        return ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public int loadNewSSTablesWithCount(String ksName, String cfName)
+    {
+        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
     }
 
     /**

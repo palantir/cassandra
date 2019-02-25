@@ -136,7 +136,14 @@ public interface ColumnFamilyStoreMBean
      * Scan through Keyspace/ColumnFamily's data directory
      * determine which SSTables should be loaded and load them
      */
-    public int loadNewSSTables();
+    public void loadNewSSTables();
+
+    /**
+     * Scan through Keyspace/ColumnFamily's data directory
+     * determine which SSTables should be loaded and load them
+     * @return the number of sstables loaded
+     */
+    public int loadNewSSTablesWithCount();
 
     /**
      * @return the number of SSTables in L0.  Always return 0 if Leveled compaction is not enabled.

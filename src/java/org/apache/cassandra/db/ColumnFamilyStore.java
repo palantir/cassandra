@@ -729,20 +729,64 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     /**
-     * See #{@code StorageService.loadNewSSTables(String, String)} for more info
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
+     *
+     * @param ksName The keyspace name
+     * @param cfName The columnFamily name
+     */
+    public static synchronized void loadNewSSTables(String ksName, String cfName)
+    {
+        loadNewSSTables(ksName, cfName, false);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
+     *
+     * @param ksName        The keyspace name
+     * @param cfName        The columnFamily name
+     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     */
+    public static synchronized void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        /** ks/cf existence checks will be done by open and getCFS methods for us */
+        Keyspace keyspace = Keyspace.open(ksName);
+        keyspace.getColumnFamilyStore(cfName).loadNewSSTables(assumeCfIsEmpty);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public synchronized void loadNewSSTables()
+    {
+        loadNewSSTables(false);
+    }
+
+    public synchronized void loadNewSSTables(boolean assumeCfIsEmpty) {
+        loadNewSSTablesWithCount(assumeCfIsEmpty);
+    }
+
+
+
+
+
+
+
+
+    /**
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
      *
      * @param ksName The keyspace name
      * @param cfName The columnFamily name
      *
      * @return the number of new sstables loaded
      */
-    public static synchronized int loadNewSSTables(String ksName, String cfName)
+    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName)
     {
-        return loadNewSSTables(ksName, cfName, false);
+        return loadNewSSTablesWithCount(ksName, cfName, false);
     }
 
     /**
-     * See #{@code StorageService.loadNewSSTables(String, String, boolean)} for more info
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
      *
      * @param ksName        The keyspace name
      * @param cfName        The columnFamily name
@@ -750,22 +794,22 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      *
      * @return the number of new sstables loaded
      */
-    public static synchronized int loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
         /** ks/cf existence checks will be done by open and getCFS methods for us */
         Keyspace keyspace = Keyspace.open(ksName);
-        return keyspace.getColumnFamilyStore(cfName).loadNewSSTables(assumeCfIsEmpty);
+        return keyspace.getColumnFamilyStore(cfName).loadNewSSTablesWithCount(assumeCfIsEmpty);
     }
 
     /**
      * #{@inheritDoc}
      */
-    public synchronized int loadNewSSTables()
+    public synchronized int loadNewSSTablesWithCount()
     {
-        return loadNewSSTables(false);
+        return loadNewSSTablesWithCount(false);
     }
 
-    public synchronized int loadNewSSTables(boolean assumeCfIsEmpty)
+    public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
     {
         logger.info("Loading new SSTables for {}/{}{}...",
                 keyspace.getName(), name,
