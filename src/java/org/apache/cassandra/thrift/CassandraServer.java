@@ -391,7 +391,7 @@ public class CassandraServer implements Cassandra.Iface
 
     @Override
     public Map<KeyPredicate, List<ColumnOrSuperColumn>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
-    throws InvalidRequestException, UnavailableException, TimedOutException, TException
+    throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
         {
