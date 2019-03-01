@@ -660,17 +660,13 @@ service Cassandra {
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
     users may specify more than one <code>KeyPredicate</code> for each distinct key in the <code>request</code>.
 
-    In the event multiple <code>SlicePredicate</code>s are provided with the same key, we guarantee that the list of
-    <code>ColumnOrSuperColumn</code>s associated with that key in the result map will contain all
-    <code>ColumnOrSuperColumn</code>s associated with each distinct <code>SlicePredicate</code>. However, we do not
-    make guarantees on the ordering of these <code>ColumnOrSuperColumn</code>s. Furthermore, in the event of
-    overlapping <code>SlicePredicate</code>s for the same key, we do not make any guarantees on the frequency of
-    <code>ColumnOrSuperColumn</code>s matched by multiple <code>SlicePredicate</code>s in the result map, apart from
-    appearing at least once.
+    Each list of <code>ColumnOrSuperColumn</code> present in the list associated with a specific key in the result
+    map corresponds to the result of a get_slice for one of the <code>KeyPredicate</code>s provided that matches
+    that key. However, we do not make guarantees on the ordering of the lists for each key.
   */
-  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
-                                                            2:required ColumnParent column_parent,
-                                                            3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+  map<binary,list<list<ColumnOrSuperColumn>>> multiget_multislice(1:required list<KeyPredicate> request,
+                                                                  2:required ColumnParent column_parent,
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
