@@ -27,9 +27,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
@@ -88,10 +91,26 @@ public class CassandraServer implements Cassandra.Iface
     protected Map<DecoratedKey, ColumnFamily> readColumnFamily(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
-        // TODO - Support multiple column families per row, right now row only contains 1 column family
-        Map<DecoratedKey, ColumnFamily> columnFamilyKeyMap = new HashMap<DecoratedKey, ColumnFamily>();
+        return Maps.transformValues(readColumnFamilies(commands, consistency_level, cState).asMap(),
+                                    new Function<Collection<ColumnFamily>, ColumnFamily>()
+                                    {
+                                        @Nullable
+                                        public ColumnFamily apply(@Nullable Collection<ColumnFamily> columnFamilies)
+                                        {
+                                            Preconditions.checkNotNull(columnFamilies);
+                                            Preconditions.checkState(columnFamilies.size() == 1,
+                                                                     "Expected to only have 1 column family per key in readColumnFamily");
+                                            return Iterables.getOnlyElement(columnFamilies);
+                                        }
+                                    });
+    }
 
-        List<Row> rows = null;
+    private ListMultimap<DecoratedKey, ColumnFamily> readColumnFamilies(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        ListMultimap<DecoratedKey, ColumnFamily> columnFamilyMultimap = ArrayListMultimap.create();
+
+        List<Row> rows;
         try
         {
             schedule(DatabaseDescriptor.getReadRpcTimeout());
@@ -106,14 +125,14 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestExecutionException e)
         {
-            ThriftConversion.rethrow(e);
+            throw ThriftConversion.rethrow(e);
         }
 
         for (Row row: rows)
         {
-            columnFamilyKeyMap.put(row.key, row.cf);
+            columnFamilyMultimap.put(row.key, row.cf);
         }
-        return columnFamilyKeyMap;
+        return columnFamilyMultimap;
     }
 
     public List<ColumnOrSuperColumn> thriftifyColumns(Collection<Cell> cells, boolean reverseOrder, long now)
@@ -267,6 +286,50 @@ public class CassandraServer implements Cassandra.Iface
         return columnFamiliesMap;
     }
 
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        Multimap<DecoratedKey, ReadCommand> commandsByKey = partitionCommandsByKey(commands);
+        for (Collection<ReadCommand> commandsForSpecificKey : commandsByKey.asMap().values()) {
+            checkCommandsHaveMatchingTimestamp(commandsForSpecificKey);
+        }
+
+        ListMultimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
+        ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
+        for (Map.Entry<DecoratedKey, ColumnFamily> entry : columnFamilies.entries())
+        {
+            // We just want one command as a representative
+            ReadCommand representativeCommand = commandsByKey.get(entry.getKey()).iterator().next();
+
+            // Ordering not guaranteed if multiple queries, so this is correct
+            boolean reverseOrder = representativeCommand instanceof SliceFromReadCommand
+                                   && ((SliceFromReadCommand) representativeCommand).filter.reversed;
+            List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(
+                    entry.getValue(), subColumnsOnly, reverseOrder, representativeCommand.timestamp);
+            columnFamiliesMap.put(entry.getKey().getKey(), thriftifiedColumns);
+        }
+
+        return Multimaps.asMap(columnFamiliesMap);
+    }
+
+    private Multimap<DecoratedKey, ReadCommand> partitionCommandsByKey(List<ReadCommand> commands)
+    {
+        Multimap<DecoratedKey, ReadCommand> result = ArrayListMultimap.create();
+        for (ReadCommand readCommand : commands) {
+            result.put(StorageService.getPartitioner().decorateKey(readCommand.key), readCommand);
+        }
+        return result;
+    }
+
+    private void checkCommandsHaveMatchingTimestamp(Collection<ReadCommand> readCommands) {
+        Set<Long> commandTimestamp = Sets.newHashSet();
+        for (ReadCommand readCommand : readCommands) {
+            commandTimestamp.add(readCommand.timestamp);
+        }
+        Preconditions.checkState(commandTimestamp.size() == 1,
+                                 "Multiple read commands for a given key should be done at the same timestamp");
+    }
+
     private List<ColumnOrSuperColumn> thriftifyColumnFamily(ColumnFamily cf, boolean subcolumnsOnly, boolean reverseOrder, long now)
     {
         if (cf == null || !cf.hasColumns())
@@ -364,15 +427,18 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_multislice(Map<ByteBuffer, SlicePredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+    @Override
+    public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
             throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
         {
-            Map<String, SlicePredicate> stringKeysToPredicateMap = Maps.newHashMap();
-            for (Map.Entry<ByteBuffer, SlicePredicate> entry : request.entrySet())
-                stringKeysToPredicateMap.put(ByteBufferUtil.bytesToHex(entry.getKey()), entry.getValue());
-            Map<String, String> traceParameters = ImmutableMap.of("string_keys_to_predicate_map", stringKeysToPredicateMap.toString(),
+            List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
+            for (KeyPredicate keyPredicate : request)
+            {
+                keyPredicates.add(Pair.create(ByteBufferUtil.bytesToHex(keyPredicate.key), keyPredicate.predicate));
+            }
+            Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
                                                                   "column_parent", column_parent.toString(),
                                                                   "consistency_level", consistency_level.name());
             Tracing.instance.begin("multiget_multislice", traceParameters);
@@ -474,32 +540,36 @@ public class CassandraServer implements Cassandra.Iface
         return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
     }
 
-    private Map<ByteBuffer, List<ColumnOrSuperColumn>> multigetMultisliceInternal(String keyspace,
-                                                                                  Map<ByteBuffer, SlicePredicate> request,
-                                                                                  ColumnParent column_parent,
-                                                                                  long timestamp,
-                                                                                  ConsistencyLevel consistency_level,
-                                                                                  ClientState cState)
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multigetMultisliceInternal(String keyspace,
+                                                                                        List<KeyPredicate> keyPredicates,
+                                                                                        ColumnParent column_parent,
+                                                                                        long timestamp,
+                                                                                        ConsistencyLevel consistency_level,
+                                                                                        ClientState cState)
             throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
         ThriftValidation.validateColumnParent(metadata, column_parent);
-        for (SlicePredicate predicate : request.values())
-            ThriftValidation.validatePredicate(metadata, column_parent, predicate);
 
         org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
         consistencyLevel.validateForRead(keyspace);
 
-        List<ReadCommand> commands = new ArrayList<ReadCommand>(request.size());
+        List<ReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyspace, keyPredicates, column_parent, timestamp, metadata);
+        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+    }
 
-        for (Map.Entry<ByteBuffer, SlicePredicate> singleKeyRequest : request.entrySet())
+    private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata)
+    {
+        List<ReadCommand> commands = new ArrayList<>(keyPredicates.size());
+
+        for (KeyPredicate keyPredicate : keyPredicates)
         {
-            ByteBuffer key = singleKeyRequest.getKey();
+            ByteBuffer key = keyPredicate.key;
             ThriftValidation.validateKey(metadata, key);
-            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, singleKeyRequest.getValue())));
+            ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
+            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, keyPredicate.predicate)));
         }
-
-        return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+        return commands;
     }
 
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)

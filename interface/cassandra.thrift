@@ -662,7 +662,10 @@ service Cassandra {
 
     Each list of <code>ColumnOrSuperColumn</code> present in the list associated with a specific key in the result
     map corresponds to the result of a get_slice for one of the <code>KeyPredicate</code>s provided that matches
-    that key. However, we do not make guarantees on the ordering of the lists for each key.
+    that key. If there is more than one <code>KeyPredicate</code> associated with a specific key, we do not
+    guarantee the order in which <code>ColumnOrSuperColumn</code>s are presented.
+
+    We also do not make guarantees on the ordering of the lists for each key.
   */
   map<binary,list<list<ColumnOrSuperColumn>>> multiget_multislice(1:required list<KeyPredicate> request,
                                                                   2:required ColumnParent column_parent,
