@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0-pt1"
+const string VERSION = "20.1.0-pt2"
 
 
 #
@@ -600,6 +600,15 @@ struct MultiSliceRequest {
     6: optional ConsistencyLevel consistency_level=ConsistencyLevel.ONE
 }
 
+/**
+ * A pair of a row (key) and column or columns, used in calls to multiget_multislice() specifying which rows should be
+ * queried and which columns within said rows.
+ */
+struct KeyPredicate {
+    1: optional binary key,
+    2: optional SlicePredicate predicate,
+}
+
 service Cassandra {
   # auth methods
   void login(1: required AuthenticationRequest auth_request) throws (1:AuthenticationException authnx, 2:AuthorizationException authzx),
@@ -649,9 +658,17 @@ service Cassandra {
 
   /**
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
-    users may specify a distinct <code>SlicePredicate</code> for each key in the <code>request</code>.
+    users may specify more than one <code>KeyPredicate</code> for each distinct key in the <code>request</code>.
+
+    In the event multiple <code>SlicePredicate</code>s are provided with the same key, we guarantee that the list of
+    <code>ColumnOrSuperColumn</code>s associated with that key in the result map will contain all
+    <code>ColumnOrSuperColumn</code>s associated with each distinct <code>SlicePredicate</code>. However, we do not
+    make guarantees on the ordering of these <code>ColumnOrSuperColumn</code>s. Furthermore, in the event of
+    overlapping <code>SlicePredicate</code>s for the same key, we do not make any guarantees on the frequency of
+    <code>ColumnOrSuperColumn</code>s matched by multiple <code>SlicePredicate</code>s in the result map, apart from
+    appearing at least once.
   */
-  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required map<binary, SlicePredicate> request,
+  map<binary,list<ColumnOrSuperColumn>> multiget_multislice(1:required list<KeyPredicate> request,
                                                             2:required ColumnParent column_parent,
                                                             3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
