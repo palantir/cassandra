@@ -1232,7 +1232,7 @@
       <mkdir dir="${build.test.dir}/cassandra"/>
       <mkdir dir="${build.test.dir}/output"/>
       <mkdir dir="${build.test.dir}/output/@{testtag}"/>
-      <junit fork="on" forkmode="@{forkmode}" failureproperty="testfailed" maxmemory="1024m" timeout="@{timeout}" printsummary="withOutAndErr">
+      <junit fork="on" forkmode="@{forkmode}" failureproperty="testfailed" maxmemory="1024m" timeout="@{timeout}">
         <sysproperty key="net.sourceforge.cobertura.datafile" file="${cobertura.datafile}"/>
         <formatter classname="org.apache.cassandra.CassandraXMLJUnitResultFormatter" extension=".xml" usefile="true"/>
         <formatter classname="org.apache.cassandra.CassandraBriefJUnitResultFormatter" usefile="false"/>
