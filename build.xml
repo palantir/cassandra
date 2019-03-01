@@ -399,6 +399,7 @@
           <dependency groupId="org.jboss.byteman" artifactId="byteman" version="${byteman.version}" scope="test"/>
           <dependency groupId="org.jboss.byteman" artifactId="byteman-submit" version="${byteman.version}" scope="test"/>
           <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit" version="${byteman.version}" scope="test"/>
+          <dependency groupId="org.assertj" artifactId="assertj-core" version="3.12.0" scope="test"/>
 
 
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-core" version="1.1.1"/>
@@ -479,6 +480,7 @@
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <dependency groupId="junit" artifactId="junit"/>
+        <dependency groupId="org.assertj" artifactId="assertj-core"/>
         <dependency groupId="org.apache.rat" artifactId="apache-rat"/>
         <dependency groupId="org.apache.hadoop" artifactId="hadoop-core"/>
       	<dependency groupId="org.apache.hadoop" artifactId="hadoop-minicluster"/>
@@ -503,6 +505,7 @@
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <dependency groupId="junit" artifactId="junit"/>
+        <dependency groupId="org.assertj" artifactId="assertj-core"/>
         <dependency groupId="org.apache.pig" artifactId="pig">
           <exclusion groupId="xmlenc" artifactId="xmlenc"/>
           <exclusion groupId="tomcat" artifactId="jasper-runtime"/>
@@ -1229,7 +1232,7 @@
       <mkdir dir="${build.test.dir}/cassandra"/>
       <mkdir dir="${build.test.dir}/output"/>
       <mkdir dir="${build.test.dir}/output/@{testtag}"/>
-      <junit fork="on" forkmode="@{forkmode}" failureproperty="testfailed" maxmemory="1024m" timeout="@{timeout}">
+      <junit fork="on" forkmode="@{forkmode}" failureproperty="testfailed" maxmemory="1024m" timeout="@{timeout}" printsummary="withOutAndErr">
         <sysproperty key="net.sourceforge.cobertura.datafile" file="${cobertura.datafile}"/>
         <formatter classname="org.apache.cassandra.CassandraXMLJUnitResultFormatter" extension=".xml" usefile="true"/>
         <formatter classname="org.apache.cassandra.CassandraBriefJUnitResultFormatter" usefile="false"/>
