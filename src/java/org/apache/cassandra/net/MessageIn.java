@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.FileUtils;
 
@@ -102,6 +103,9 @@ public class MessageIn<T>
 
     public Stage getMessageType()
     {
+        if (payload instanceof ReadCommand) {
+            return ((ReadCommand) payload).isCheap() ? Stage.READ_CHEAP : Stage.READ;
+        }
         return MessagingService.verbStages.get(verb);
     }
 
