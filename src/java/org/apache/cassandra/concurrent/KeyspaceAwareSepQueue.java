@@ -38,7 +38,7 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
 
     private Queue<FutureTask<?>> queue(String keyspace) {
         if (!queue.containsKey(keyspace)) {
-            queue.put(keyspace, new LinkedList<>());
+            queue.put(keyspace, new LinkedList<FutureTask<?>>());
         }
         return queue.get(keyspace);
     }
