@@ -141,4 +141,13 @@ public class SharedExecutorPool
         while (null != (e = spinning.pollFirstEntry()))
             LockSupport.unpark(e.getValue().thread);
     }
+
+    public LocalAwareExecutorService newKeyspaceAwareExecutor(
+    int maxConcurrency, int maxQueuedTasks, String jmxPath, String name)
+    {
+        SEPExecutor executor = new SEPExecutor(
+            this, new KeyspaceAwareSepQueue(), maxConcurrency, maxQueuedTasks, jmxPath, name);
+        executors.add(executor);
+        return executor;
+    }
 }

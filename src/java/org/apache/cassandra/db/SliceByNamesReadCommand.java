@@ -65,6 +65,12 @@ public class SliceByNamesReadCommand extends ReadCommand
                       .toString();
     }
 
+    @Override
+    public boolean isCheap()
+    {
+        return true;
+    }
+
     public IDiskAtomFilter filter()
     {
         return filter;
