@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 public enum Stage
 {
     READ,
+    READ_CHEAP,
     MUTATION,
     COUNTER_MUTATION,
     GOSSIP,
@@ -61,6 +62,7 @@ public enum Stage
             case MUTATION:
             case COUNTER_MUTATION:
             case READ:
+            case READ_CHEAP:
             case REQUEST_RESPONSE:
             case READ_REPAIR:
                 return "request";
