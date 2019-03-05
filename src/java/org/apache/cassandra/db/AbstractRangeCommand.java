@@ -94,6 +94,11 @@ public abstract class AbstractRangeCommand implements IReadCommand
 
     public abstract List<Row> executeLocally();
 
+    @Override
+    public boolean isCheap() {
+        return false;
+    }
+
     public long getTimeout()
     {
         return DatabaseDescriptor.getRangeRpcTimeout();
