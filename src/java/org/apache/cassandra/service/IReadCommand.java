@@ -19,6 +19,15 @@ package org.apache.cassandra.service;
 
 public interface IReadCommand
 {
+    /**
+     * Palantir addition to enable better scheduling.
+     * <p>
+     * Cassandra services are typically designed to service individual workflows, so the read commands executed are
+     * all roughly the same cost. This means that a FIFO queue (what is used) seems sensible. Unfortunately our reads
+     * are very different in size, and so we see very variable properties wrt latency. Thus, this code is to
+     * experiment with splitting workloads across different executors by whether we can guess that they're cheap or not.
+     */
+    public boolean isCheap();
     public String getKeyspace();
     public long getTimeout();
 }

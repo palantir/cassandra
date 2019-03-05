@@ -121,6 +121,11 @@ public class SliceFromReadCommand extends ReadCommand
         return new Row(row.key, filter.trim(row.cf, getOriginalRequestedCount(), timestamp));
     }
 
+    @Override
+    public boolean isCheap() {
+        return filter.count <= 1;
+    }
+
     public IDiskAtomFilter filter()
     {
         return filter;
