@@ -47,7 +47,7 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
 
     public synchronized boolean offer(FutureTask<?> futureTask)
     {
-        queue("").add(checkNotNull(futureTask));
+        queue(currentKeyspace.get()).add(checkNotNull(futureTask));
         return true;
     }
 
@@ -83,6 +83,6 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
     }
 
     public static void setCurrentKeyspace(String keyspace) {
-        currentKeyspace.set(keyspace);
+        currentKeyspace.set(checkNotNull(keyspace));
     }
 }
