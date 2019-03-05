@@ -28,10 +28,14 @@ import java.util.Map;
 import java.util.Queue;
 import javax.annotation.concurrent.GuardedBy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.concurrent.AbstractLocalAwareExecutorService.FutureTask;
 
 public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
 {
+    private static final Logger log = LoggerFactory.getLogger(KeyspaceAwareSepQueue.class);
     private static final ThreadLocal<String> currentKeyspace = new ThreadLocal<>();
     @GuardedBy("this")
     private final Map<String, Queue<FutureTask<?>>> queue = new LinkedHashMap<>();
@@ -46,7 +50,12 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
     // If someone didn't set the current keyspace, gracefully fall back to a backup queue.
     private static String currentKeyspace() {
         String current = currentKeyspace.get();
-        return current != null ? current : "";
+        currentKeyspace.remove();
+        if (current == null) {
+            log.info("Saw a command where the current keyspace was not set, which indicates a bug");
+            return "";
+        }
+        return current;
     }
 
     public synchronized boolean offer(FutureTask<?> futureTask)
