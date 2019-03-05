@@ -19,6 +19,7 @@ package org.apache.cassandra.concurrent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,10 +51,17 @@ public class SEPExecutor extends AbstractLocalAwareExecutorService
     final SimpleCondition shutdown = new SimpleCondition();
 
     // TODO: see if other queue implementations might improve throughput
-    protected final ConcurrentLinkedQueue<FutureTask<?>> tasks = new ConcurrentLinkedQueue<>();
+    protected final Queue<FutureTask<?>> tasks;
 
     SEPExecutor(SharedExecutorPool pool, int maxWorkers, int maxTasksQueued, String jmxPath, String name)
     {
+        this(pool, new ConcurrentLinkedQueue<>(), maxWorkers, maxTasksQueued, jmxPath, name);
+    }
+
+    SEPExecutor(SharedExecutorPool pool, Queue<FutureTask<?>> tasks, int maxWorkers,
+                int maxTasksQueued, String jmxPath, String name)
+    {
+        this.tasks = tasks;
         this.pool = pool;
         this.maxWorkers = maxWorkers;
         this.maxTasksQueued = maxTasksQueued;

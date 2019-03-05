@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData.SpeculativeRetry.RetryType;
@@ -116,6 +117,7 @@ public abstract class AbstractReadExecutor
         if (hasLocalEndpoint)
         {
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
+            KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
             StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
         }
     }

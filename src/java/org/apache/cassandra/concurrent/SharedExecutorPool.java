@@ -109,4 +109,13 @@ public class SharedExecutorPool
         executors.add(executor);
         return executor;
     }
+
+    public LocalAwareExecutorService newKeyspaceAwareExecutor(
+    int maxConcurrency, int maxQueuedTasks, String jmxPath, String name)
+    {
+        SEPExecutor executor = new SEPExecutor(
+            this, new KeyspaceAwareSepQueue(), maxConcurrency, maxQueuedTasks, jmxPath, name);
+        executors.add(executor);
+        return executor;
+    }
 }
