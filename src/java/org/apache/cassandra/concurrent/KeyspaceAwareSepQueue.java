@@ -32,17 +32,15 @@ import org.apache.cassandra.concurrent.AbstractLocalAwareExecutorService.FutureT
 
 public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
 {
-    private static final ThreadLocal<String> currentKeyspace = ThreadLocal.withInitial(() -> "");
+    private static final ThreadLocal<String> currentKeyspace = new ThreadLocal<>();
     @GuardedBy("this")
     private final Map<String, Queue<FutureTask<?>>> queue = new LinkedHashMap<>();
 
     private Queue<FutureTask<?>> queue(String keyspace) {
-        return queue.computeIfAbsent(keyspace, KeyspaceAwareSepQueue::createQueue);
-    }
-
-    // linked list to reduce allocations on the assumption that stuff isn't in the queue too long
-    private static Queue<FutureTask<?>> createQueue(String keyspace) {
-        return new LinkedList<>();
+        if (!queue.containsKey(keyspace)) {
+            queue.put(keyspace, new LinkedList<>());
+        }
+        return queue.get(keyspace);
     }
 
     public synchronized boolean offer(FutureTask<?> futureTask)
