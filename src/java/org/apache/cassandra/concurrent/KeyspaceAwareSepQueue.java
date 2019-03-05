@@ -43,9 +43,15 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
         return queue.get(keyspace);
     }
 
+    // If someone didn't set the current keyspace, gracefully fall back to a backup queue.
+    private static String currentKeyspace() {
+        String current = currentKeyspace.get();
+        return current != null ? current : "";
+    }
+
     public synchronized boolean offer(FutureTask<?> futureTask)
     {
-        queue(currentKeyspace.get()).add(checkNotNull(futureTask));
+        queue(currentKeyspace()).add(checkNotNull(futureTask));
         return true;
     }
 
