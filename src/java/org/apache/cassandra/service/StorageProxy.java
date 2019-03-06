@@ -37,6 +37,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.concurrent.ParameterizedSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
@@ -1849,6 +1850,7 @@ public class StorageProxy implements StorageProxyMBean
                     if (filteredEndpoints.size() == 1
                         && filteredEndpoints.get(0).equals(FBUtilities.getBroadcastAddress()))
                     {
+                        ParameterizedSepQueue.setQueueingParameter(command);
                         StageManager.getStage(Stage.READ).execute(new LocalRangeSliceRunnable(nodeCmd, handler));
                     }
                     else
