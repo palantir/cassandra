@@ -601,8 +601,8 @@ struct MultiSliceRequest {
 }
 
 /**
- * A pair of a row (key) and column or columns, used in calls to multiget_multislice() specifying which rows should be
- * queried and which columns within said rows.
+ * A pair of a row (key) and selection of columns, used in calls to multiget_multislice() specifying which rows should
+ * be queried and which columns within said rows.
  */
 struct KeyPredicate {
     1: optional binary key,

@@ -105,7 +105,7 @@ public class CassandraServer implements Cassandra.Iface
                                     });
     }
 
-    private ListMultimap<DecoratedKey, ColumnFamily> readColumnFamilies(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
+    private Multimap<DecoratedKey, ColumnFamily> readColumnFamilies(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
         ListMultimap<DecoratedKey, ColumnFamily> columnFamilyMultimap = ArrayListMultimap.create();
@@ -294,7 +294,7 @@ public class CassandraServer implements Cassandra.Iface
             checkCommandsHaveMatchingTimestamp(commandsForSpecificKey);
         }
 
-        ListMultimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
+        Multimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
         ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
         for (Map.Entry<DecoratedKey, ColumnFamily> entry : columnFamilies.entries())
         {
