@@ -28,7 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
+import org.apache.cassandra.concurrent.ParameterizedSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ReadCommand;
@@ -106,7 +106,7 @@ public class MessageIn<T>
     {
         if (payload instanceof ReadCommand) {
             ReadCommand command = (ReadCommand) payload;
-            KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
+            ParameterizedSepQueue.setQueueingParameter(command);
             return command.isCheap() ? Stage.READ_CHEAP : Stage.READ;
         }
         return MessagingService.verbStages.get(verb);
