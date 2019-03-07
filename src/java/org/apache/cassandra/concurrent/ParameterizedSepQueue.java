@@ -32,11 +32,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.AbstractLocalAwareExecutorService.FutureTask;
+import org.apache.cassandra.db.AbstractRangeCommand;
+import org.apache.cassandra.service.IReadCommand;
 
-public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
+public final class ParameterizedSepQueue extends AbstractQueue<FutureTask<?>>
 {
-    private static final Logger log = LoggerFactory.getLogger(KeyspaceAwareSepQueue.class);
-    private static final ThreadLocal<String> currentKeyspace = new ThreadLocal<>();
+    private static final Logger log = LoggerFactory.getLogger(ParameterizedSepQueue.class);
+    private static final ThreadLocal<String> queueingParameter = new ThreadLocal<>();
     @GuardedBy("this")
     private final Map<String, Queue<FutureTask<?>>> queue = new LinkedHashMap<>();
 
@@ -49,8 +51,8 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
 
     // If someone didn't set the current keyspace, gracefully fall back to a backup queue.
     private static String currentKeyspace() {
-        String current = currentKeyspace.get();
-        currentKeyspace.remove();
+        String current = queueingParameter.get();
+        queueingParameter.remove();
         if (current == null) {
             log.info("Saw a command where the current keyspace was not set, which indicates a bug");
             return "";
@@ -95,7 +97,16 @@ public final class KeyspaceAwareSepQueue extends AbstractQueue<FutureTask<?>>
         throw new UnsupportedOperationException();
     }
 
-    public static void setCurrentKeyspace(String keyspace) {
-        currentKeyspace.set(checkNotNull(keyspace));
+    /**
+     * Hypothesis: Gets happen on all tables, so you want to prioritize per keyspace. Scans happen on individual
+     * tables, and we'd rather indicate that gets to a specific table are expensive rather than all tables; better
+     * to take out reads to a single table than all.
+     */
+    public static void setQueueingParameter(IReadCommand read) {
+        if (read instanceof AbstractRangeCommand) {
+            queueingParameter.set(((AbstractRangeCommand) read).columnFamily);
+        } else {
+            queueingParameter.set(read.getKeyspace());
+        }
     }
 }
