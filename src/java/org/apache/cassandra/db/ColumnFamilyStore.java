@@ -765,7 +765,48 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         loadNewSSTables(false);
     }
 
-    public synchronized void loadNewSSTables(boolean assumeCfIsEmpty)
+    public synchronized void loadNewSSTables(boolean assumeCfIsEmpty) {
+        loadNewSSTablesWithCount(assumeCfIsEmpty);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
+     *
+     * @param ksName The keyspace name
+     * @param cfName The columnFamily name
+     *
+     * @return the number of new sstables loaded
+     */
+    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName)
+    {
+        return loadNewSSTablesWithCount(ksName, cfName, false);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
+     *
+     * @param ksName        The keyspace name
+     * @param cfName        The columnFamily name
+     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     *
+     * @return the number of new sstables loaded
+     */
+    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        /** ks/cf existence checks will be done by open and getCFS methods for us */
+        Keyspace keyspace = Keyspace.open(ksName);
+        return keyspace.getColumnFamilyStore(cfName).loadNewSSTablesWithCount(assumeCfIsEmpty);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public synchronized int loadNewSSTablesWithCount()
+    {
+        return loadNewSSTablesWithCount(false);
+    }
+
+    public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
     {
         logger.info("Loading new SSTables for {}/{}{}...",
                 keyspace.getName(), name,
@@ -837,7 +878,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         if (newSSTables.isEmpty())
         {
             logger.info("No new SSTables were found for {}/{}", keyspace.getName(), name);
-            return;
+            return 0;
         }
 
         logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}", keyspace.getName(), name, newSSTables);
@@ -849,6 +890,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         logger.info("Done loading load new SSTables for {}/{}", keyspace.getName(), name);
+        return newSSTables.size();
     }
 
     public void rebuildSecondaryIndex(String idxName)
