@@ -26,7 +26,6 @@ package org.apache.cassandra.thrift;
  *
  */
 
-
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.thrift.scheme.IScheme;
 import org.apache.thrift.scheme.SchemeFactory;
@@ -110,7 +109,13 @@ public class Cassandra {
      * 
      * Each list of <code>ColumnOrSuperColumn</code> present in the list associated with a specific key in the result
      * map corresponds to the result of a get_slice for one of the <code>KeyPredicate</code>s provided that matches
-     * that key. However, we do not make guarantees on the ordering of the lists for each key.
+     * that key.
+     * 
+     * If there is more than one <code>KeyPredicate</code> associated with a specific key, we require that the types
+     * of associated <code>SlicePredicate</code>s are of the same type (where type is defined as named columns,
+     * slice range or reversed slice range).
+     * 
+     * We also do not make guarantees on the ordering of the lists for each key.
      * 
      * @param request
      * @param column_parent
