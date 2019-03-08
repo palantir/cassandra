@@ -40,8 +40,10 @@ import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.service.EmbeddedCassandraService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.thrift.TException;
+import org.assertj.core.api.ThrowableAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MultiGetMultiSliceTest
 {
@@ -149,18 +151,21 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void overlappingPredicatesOnSamePartitionWithRange() throws Exception
+    public void overlappingPredicatesOnSamePartitionWithRangeThrows() throws Exception
     {
-        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        final ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
 
-        List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMN_B, PARTITION_1_RANGE_THREE_FROM_A_TO_Z);
+        final List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMN_B, PARTITION_1_RANGE_THREE_FROM_A_TO_Z);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
-        assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_B),
-                                                                        ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C)),
-                                     result.get(PARTITION_1));
-        assertThat(result.size()).isEqualTo(1);
+        assertThatThrownBy(new ThrowableAssert.ThrowingCallable()
+        {
+            public void call() throws Throwable
+            {
+                server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+            }
+        }).isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Multiple versions of thriftify details found");
     }
 
     @Test
@@ -180,9 +185,9 @@ public class MultiGetMultiSliceTest
     }
 
     @Test
-    public void reverseAndForwardOnRangePredicatesSimultaneouslySupported() throws Exception
+    public void reverseAndForwardOnRangePredicatesSimultaneouslyThrows() throws Exception
     {
-        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        final ColumnParent cp = new ColumnParent(CF_STANDARD);
         addTheAlphabetToRow(PARTITION_1, cp);
 
         KeyPredicate partition1RangeThreeFromAToZReversed = new KeyPredicate()
@@ -193,14 +198,17 @@ public class MultiGetMultiSliceTest
                                                                                           .setFinish(COLUMN_A)
                                                                                           .setCount(3)
                                                                                           .setReversed(true)));
-        List<KeyPredicate> request = ImmutableList.of(PARTITION_1_RANGE_THREE_FROM_A_TO_Z,
+        final List<KeyPredicate> request = ImmutableList.of(PARTITION_1_RANGE_THREE_FROM_A_TO_Z,
                                                       partition1RangeThreeFromAToZReversed);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
-        assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_Z, COLUMN_Y, COLUMN_X),
-                                                                        ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C)),
-                                     result.get(PARTITION_1));
-        assertThat(result.size()).isEqualTo(1);
+        assertThatThrownBy(new ThrowableAssert.ThrowingCallable()
+        {
+            public void call() throws Throwable
+            {
+                server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+            }
+        }).isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Multiple versions of thriftify details found");
     }
 
     @Test

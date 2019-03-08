@@ -298,14 +298,11 @@ public class CassandraServer implements Cassandra.Iface
         ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
         for (Map.Entry<DecoratedKey, ColumnFamily> entry : columnFamilies.entries())
         {
-            // We just want one command as a representative
-            ReadCommand representativeCommand = commandsByKey.get(entry.getKey()).iterator().next();
+            ThriftifyColumnFamilyDetails details
+                    = ThriftifyColumnFamilyDetails.forReadCommands(commandsByKey.get(entry.getKey()));
 
-            // Ordering not guaranteed if multiple queries, so this is correct
-            boolean reverseOrder = representativeCommand instanceof SliceFromReadCommand
-                                   && ((SliceFromReadCommand) representativeCommand).filter.reversed;
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(
-                    entry.getValue(), subColumnsOnly, reverseOrder, representativeCommand.timestamp);
+                    entry.getValue(), subColumnsOnly, details.reversed(), details.timestamp);
             columnFamiliesMap.put(entry.getKey().getKey(), thriftifiedColumns);
         }
 
@@ -2414,6 +2411,80 @@ public class CassandraServer implements Cassandra.Iface
         public ColumnFamily makeUpdates(ColumnFamily current)
         {
             return updates;
+        }
+    }
+
+    private enum SlicePredicateType {
+        NAMED_COLUMNS,
+        FORWARD_KEY_RANGE,
+        REVERSED_KEY_RANGE,
+    }
+
+    private static class ThriftifyColumnFamilyDetails
+    {
+        private final SlicePredicateType slicePredicateType;
+        private final long timestamp;
+
+        private ThriftifyColumnFamilyDetails(SlicePredicateType slicePredicateType, long timestamp)
+        {
+            this.slicePredicateType = slicePredicateType;
+            this.timestamp = timestamp;
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommand(ReadCommand readCommand) {
+            SlicePredicateType type;
+            if (readCommand instanceof SliceFromReadCommand) {
+                type = ((SliceFromReadCommand) readCommand).filter.reversed
+                       ? SlicePredicateType.REVERSED_KEY_RANGE
+                       : SlicePredicateType.FORWARD_KEY_RANGE;
+            } else {
+                type = SlicePredicateType.NAMED_COLUMNS;
+            }
+            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommands(Collection<ReadCommand> readCommands) {
+            Preconditions.checkArgument(!readCommands.isEmpty(),
+                                        "Cannot identify thriftify details for zero commands");
+            Set<ThriftifyColumnFamilyDetails> detailsForCommands = Sets.newHashSet();
+            for (ReadCommand readCommand : readCommands) {
+                detailsForCommands.add(forReadCommand(readCommand));
+            }
+
+            Preconditions.checkState(detailsForCommands.size() == 1,
+                                     "Multiple versions of thriftify details found: " + detailsForCommands);
+            return detailsForCommands.iterator().next();
+        }
+
+        private boolean reversed() {
+            return slicePredicateType == SlicePredicateType.REVERSED_KEY_RANGE;
+        }
+
+        public boolean equals(Object o)
+        {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            ThriftifyColumnFamilyDetails that = (ThriftifyColumnFamilyDetails) o;
+
+            if (timestamp != that.timestamp) return false;
+            return slicePredicateType == that.slicePredicateType;
+        }
+
+        public int hashCode()
+        {
+            int result = slicePredicateType != null ? slicePredicateType.hashCode() : 0;
+            result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+            return result;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ThriftifyColumnFamilyDetails{" +
+                   "slicePredicateType=" + slicePredicateType +
+                   ", timestamp=" + timestamp +
+                   '}';
         }
     }
 }
