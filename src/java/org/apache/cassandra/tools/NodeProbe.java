@@ -1011,6 +1011,11 @@ public class NodeProbe implements AutoCloseable
         ssProxy.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
     }
 
+    public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        return ssProxy.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
+    }
+
     public void rebuildIndex(String ksName, String cfName, String... idxNames)
     {
         ssProxy.rebuildSecondaryIndex(ksName, cfName, idxNames);
