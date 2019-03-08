@@ -5154,6 +5154,22 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /**
      * #{@inheritDoc}
      */
+    public int loadNewSSTablesWithCount(String ksName, String cfName)
+    {
+        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
     public List<String> sampleKeyRange() // do not rename to getter - see CASSANDRA-4452 for details
     {
         List<DecoratedKey> keys = new ArrayList<>();
