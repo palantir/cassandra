@@ -409,6 +409,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     /** get the operational mode (leaving, joining, normal, decommissioned, client) **/
     public String getOperationMode();
 
+    /** get details on the current set of non-transient errors (if any) **/
+    public List<String> getNonTransientErrors();
+
     /** Returns whether the storage service is starting or not */
     public boolean isStarting();
 

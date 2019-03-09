@@ -43,6 +43,7 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.util.FileUtils;
@@ -51,6 +52,7 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.scheduler.IRequestScheduler;
 import org.apache.cassandra.scheduler.NoScheduler;
 import org.apache.cassandra.service.CacheService;
+import org.apache.cassandra.service.DefaultFSErrorHandler;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.memory.*;
@@ -91,6 +93,8 @@ public class DatabaseDescriptor
     // Don't initialize the role manager until applying config. The options supported by CassandraRoleManager
     // depend on the configured IAuthenticator, so defer creating it until that's been set.
     private static IRoleManager roleManager;
+
+    private static FSErrorHandler fsErrorHandler = new DefaultFSErrorHandler();
 
     private static IRequestScheduler requestScheduler;
     private static RequestSchedulerId requestSchedulerId;
@@ -363,6 +367,9 @@ public class DatabaseDescriptor
         authorizer.validateConfiguration();
         roleManager.validateConfiguration();
         internodeAuthenticator.validateConfiguration();
+
+        if (conf.fs_error_handler != null)
+            fsErrorHandler = FBUtilities.newFSErrorHandler(conf.fs_error_handler);
 
         /* Hashing strategy */
         if (conf.partitioner == null)
@@ -753,6 +760,11 @@ public class DatabaseDescriptor
     public static IRoleManager getRoleManager()
     {
         return roleManager;
+    }
+
+    public static FSErrorHandler getFSErrorHandler()
+    {
+        return fsErrorHandler;
     }
 
     public static int getPermissionsValidity()

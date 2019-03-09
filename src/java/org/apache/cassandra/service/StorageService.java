@@ -166,8 +166,23 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE }
+    private static enum Mode {
+        STARTING,
+        NORMAL,
+        JOINING,
+        LEAVING,
+        DECOMMISSIONED,
+        MOVING,
+        DRAINING,
+        DRAINED,
+        // node has yet to a join a ring
+        ZOMBIE,
+        // node has experienced a non-transient error; is alive and "stopped" for debugging purposes
+        FATAL
+    }
+
     private Mode operationMode = Mode.STARTING;
+    private List<String> nonTransientErrors = new ArrayList<String>();
 
     /* Used for tracking drain progress */
     private volatile int totalCFs, remainingCFs;
@@ -3939,6 +3954,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public String getOperationMode()
     {
         return operationMode.toString();
+    }
+
+    public List<String> getNonTransientErrors()
+    {
+        return nonTransientErrors;
+    }
+
+    public synchronized void recordNonTransientErrors(List<String> errors) {
+        // expectation is that non-transient errors require a bounce after remediation so only add, never remove
+        nonTransientErrors.addAll(errors);
+        String msg = String.format("recording non-transient errors {%s}", errors.toString());
+        setMode(Mode.FATAL, msg, true);
     }
 
     public boolean isStarting()
