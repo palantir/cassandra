@@ -177,12 +177,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         DRAINED,
         // node has yet to a join a ring
         ZOMBIE,
-        // node has experienced a non-transient error; is alive and "stopped" for debugging purposes
-        FATAL
+        // node is running but all transports are stopped
+        STOPPED
     }
 
     private Mode operationMode = Mode.STARTING;
-    private List<String> nonTransientErrors = new ArrayList<String>();
+    private Set<String> nonTransientErrors = Collections.synchronizedSet(new HashSet<String>());
 
     /* Used for tracking drain progress */
     private volatile int totalCFs, remainingCFs;
@@ -416,6 +416,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.error("Stopping native transport");
             stopNativeTransport();
         }
+        setMode(Mode.STOPPED, "all transports have been stopped", true);
     }
 
     private void shutdownClientServers()
@@ -3958,14 +3959,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public List<String> getNonTransientErrors()
     {
-        return nonTransientErrors;
+        return ImmutableList.copyOf(nonTransientErrors);
     }
 
     public synchronized void recordNonTransientErrors(List<String> errors) {
         // expectation is that non-transient errors require a bounce after remediation so only add, never remove
         nonTransientErrors.addAll(errors);
-        String msg = String.format("recording non-transient errors {%s}", errors.toString());
-        setMode(Mode.FATAL, msg, true);
+        logger.error("Non transient errors recorded: {}", errors);
     }
 
     public boolean isStarting()
