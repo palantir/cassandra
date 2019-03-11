@@ -70,12 +70,12 @@
     <property name="test.distributed.listfile" value = "ant-jvm-dtest-list"/>
     <property name="dist.dir" value="${build.dir}/dist"/>
     <property name="tmp.dir" value="${java.io.tmpdir}"/>
-	
+
     <property name="source.version" value="1.8"/>
     <property name="source.test.version" value="1.8"/>
     <property name="target.version" value="1.8"/>
     <property name="target.test.version" value="1.8"/>
-	
+
     <condition property="version" value="${base.version}">
       <isset property="release"/>
     </condition>
@@ -83,7 +83,7 @@
     <property name="version.properties.dir"
               value="${build.src.resources}/org/apache/cassandra/config/" />
     <property name="final.name" value="${ant.project.name}-${version}"/>
- 
+
     <!-- details of what version of Maven ANT Tasks to fetch -->
     <property name="maven-ant-tasks.version" value="2.1.3" />
     <property name="maven-ant-tasks.local" value="${user.home}/.m2/repository/org/apache/maven/maven-ant-tasks"/>
@@ -114,7 +114,7 @@
     <property name="cobertura.report.dir" value="${cobertura.build.dir}/report"/>
     <property name="cobertura.classes.dir" value="${cobertura.build.dir}/classes"/>
     <property name="cobertura.datafile" value="${cobertura.build.dir}/cobertura.ser"/>
-    
+
     <!-- https://www.eclemma.org/jacoco/ -->
     <property name="jacoco.export.dir" value="${build.dir}/jacoco/" />
     <property name="jacoco.partials.dir" value="${jacoco.export.dir}/partials" />
@@ -162,7 +162,7 @@
           <exclude name="**/ant-*.jar"/>
         </fileset>
     </path>
-	
+
 	<path id="cobertura.classpath">
 		<pathelement location="${cobertura.classes.dir}"/>
 	</path>
@@ -220,7 +220,7 @@
                 srcfile="${build.src.java}/org/apache/cassandra/cql3/Cql.g"
                 targetfile="${build.src.gen-java}/org/apache/cassandra/cql3/Cql.tokens"/>
     </target>
- 
+
     <target name="gen-cql3-grammar" depends="check-gen-cql3-grammar" unless="cql3current">
       <echo>Building Grammar ${build.src.java}/org/apache/cassandra/cql3/Cql.g  ...</echo>
       <java classname="org.antlr.Tool"
@@ -429,6 +429,7 @@
           <dependency groupId="org.jboss.byteman" artifactId="byteman" version="${byteman.version}" scope="test"/>
           <dependency groupId="org.jboss.byteman" artifactId="byteman-submit" version="${byteman.version}" scope="test"/>
           <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit" version="${byteman.version}" scope="test"/>
+          <dependency groupId="org.assertj" artifactId="assertj-core" version="3.12.0" scope="test"/>
 
           <dependency groupId="net.bytebuddy" artifactId="byte-buddy" version="${bytebuddy.version}" />
           <dependency groupId="net.bytebuddy" artifactId="byte-buddy-agent" version="${bytebuddy.version}" />
@@ -457,7 +458,7 @@
           	<exclusion groupId="log4j" artifactId="log4j"/>
           </dependency>
           <dependency groupId="joda-time" artifactId="joda-time" version="2.4" />
-        	
+
         </dependencyManagement>
         <developer id="adelapena" name="Andres de la Peña"/>
         <developer id="alakshman" name="Avinash Lakshman"/>
@@ -513,6 +514,7 @@
         <dependency groupId="junit" artifactId="junit"/>
         <dependency groupId="org.mockito" artifactId="mockito-core" />
         <dependency groupId="org.apache.cassandra" artifactId="dtest-api" />
+        <dependency groupId="org.assertj" artifactId="assertj-core"/>
         <dependency groupId="org.apache.rat" artifactId="apache-rat"/>
         <dependency groupId="org.apache.hadoop" artifactId="hadoop-core"/>
       	<dependency groupId="org.apache.hadoop" artifactId="hadoop-minicluster"/>
@@ -538,6 +540,7 @@
                 version="${version}"/>
         <dependency groupId="junit" artifactId="junit"/>
         <dependency groupId="org.mockito" artifactId="mockito-core" />
+        <dependency groupId="org.assertj" artifactId="assertj-core"/>
         <dependency groupId="org.apache.pig" artifactId="pig">
           <exclusion groupId="xmlenc" artifactId="xmlenc"/>
           <exclusion groupId="tomcat" artifactId="jasper-runtime"/>
@@ -634,12 +637,12 @@
 
         <!-- don't need jna to run, but nice to have -->
         <dependency groupId="net.java.dev.jna" artifactId="jna"/>
-        
+
         <!-- don't need jamm unless running a server in which case it needs to be a -javagent to be used anyway -->
         <dependency groupId="com.github.jbellis" artifactId="jamm"/>
 		<dependency groupId="com.github.tjake" artifactId="crc32ex"/>
         <dependency groupId="io.netty" artifactId="netty-all"/>
-      	
+
       	<dependency groupId="joda-time" artifactId="joda-time"/>
 
         <dependency groupId="org.fusesource" artifactId="sigar"/>
@@ -671,7 +674,7 @@
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
   <dependency groupId="com.google.guava" artifactId="guava"/>
       </artifact:pom>
-      
+
     </target>
 
     <target name="maven-ant-tasks-retrieve-build" depends="maven-declare-dependencies" unless="without.maven">
@@ -721,8 +724,8 @@
     <target name="maven-ant-tasks-retrieve-test" depends="maven-ant-tasks-init">
       <artifact:dependencies pomRefId="test-deps-pom"
                              filesetId="test-dependency-jars"
-                             sourcesFilesetId="test-dependency-sources" 
-                             cacheDependencyRefs="true" 
+                             sourcesFilesetId="test-dependency-sources"
+                             cacheDependencyRefs="true"
                              dependencyRefsBuildFile="${build.dir}/test-dependencies.xml">
         <remoteRepository refid="apache"/>
         <remoteRepository refid="central"/>
@@ -817,7 +820,7 @@
             description="Run in test mode.  Not for production use!">
       <java classname="org.apache.cassandra.service.CassandraDaemon" fork="true">
         <classpath>
-          <path refid="cassandra.classpath"/>  
+          <path refid="cassandra.classpath"/>
           <pathelement location="${test.conf}"/>
         </classpath>
         <jvmarg value="-Dstorage-config=${test.conf}"/>
@@ -898,7 +901,7 @@
 	<target name="write-poms" unless="without.maven">
 	    <antcall target="_write-poms" />
 	</target>
-	
+
     <!--
         The jar target makes cassandra.jar output.
     -->
@@ -1032,7 +1035,7 @@
       </create-javadoc>
       <jar jarfile="${build.dir}/${ant.project.name}-clientutil-${version}-javadoc.jar"
            basedir="${javadoc.jars.dir}/clientutil"/>
-      <!-- javadoc task always rebuilds so might as well remove the generated docs to prevent 
+      <!-- javadoc task always rebuilds so might as well remove the generated docs to prevent
            being pulled into the distribution by accident -->
       <delete quiet="true" dir="${javadoc.jars.dir}"/>
     </target>
@@ -1221,7 +1224,7 @@
      encoding="utf-8"
      destdir="${test.classes}"
      includeantruntime="true"
-     source="${source.test.version}" 
+     source="${source.test.version}"
      target="${target.test.version}">
      <classpath>
         <path refid="cassandra.classpath"/>
@@ -1256,7 +1259,7 @@
     <attribute name="filelist" default="" />
     <attribute name="poffset" default="0"/>
     <attribute name="testtag" default=""/>
-    
+
     <attribute name="usejacoco" default="no"/>
     <attribute name="showoutput" default="false"/>
     <sequential>
@@ -1372,7 +1375,7 @@
         <exclude name="**/pig/*.java" />
     </fileset>
   </target>
-  
+
   <!-- Will not generate a junit report or fail on error since it is called in parallel for test-compression
        That is taken care of by testparallel -->
   <macrodef name="testlist">
@@ -1446,7 +1449,7 @@
       <jvmarg value="-Dcassandra.skip_sync=true" />
     </testmacro>
   </target>
-    
+
   <target name="test-compression" depends="build-test" description="Execute unit tests with sstable compression enabled">
     <property name="compressed_yaml" value="${build.test.dir}/cassandra.compressed.yaml"/>
     <concat destfile="${compressed_yaml}">
@@ -1467,12 +1470,12 @@
       <jvmarg value="-Dcassandra.test-serialization-writes=True"/>
     </testmacro>
   </target>
-  
+
   <target name="msg-ser-test" depends="build-test" description="Tests message serializations">
       <testmacro inputdir="${test.unit.src}" timeout="${test.timeout}"
                filter="**/SerializationsTest.java"/>
   </target>
-  
+
   <target name="msg-ser-test-7" depends="build-test" description="Generates message serializations">
     <testmacro inputdir="${test.unit.src}"
         timeout="${test.timeout}" filter="**/SerializationsTest.java">
@@ -1670,7 +1673,7 @@
   </target>
 
   <target name="rat-check" depends="rat-init">
-    <rat:report xmlns:rat="antlib:org.apache.rat.anttasks"  
+    <rat:report xmlns:rat="antlib:org.apache.rat.anttasks"
                 reportFile="${build.dir}/rat-report.log">
       <fileset dir="."  excludesfile=".rat-excludes" />
     </rat:report>
@@ -1966,7 +1969,7 @@
   <classpathentry kind="lib" path="build/classes/thrift" sourcepath="interface/thrift/gen-java/"/>
   <classpathentry kind="lib" path="test/conf"/>
 ]]>
-	</echo>	  
+	</echo>
   	<path id="eclipse-project-libs-path">
   	 <fileset dir="lib">
   	    <include name="**/*.jar" />
@@ -1980,27 +1983,27 @@
   		var File = java.io.File;
   		var FilenameUtils = Packages.org.apache.commons.io.FilenameUtils;
   		jars = project.getProperty("eclipse-project-libs").split(project.getProperty("path.separator"));
-  		
+
   		cp = "";
   	    for (i=0; i< jars.length; i++) {
   	       srcjar = FilenameUtils.getBaseName(jars[i]) + '-sources.jar';
   		   srcdir = FilenameUtils.concat(project.getProperty("build.dir.lib"), 'sources');
   		   srcfile = new File(FilenameUtils.concat(srcdir, srcjar));
-  		
+
   		   cp += ' <classpathentry kind="lib" path="' + jars[i] + '"';
   		   if (srcfile.exists()) {
   		      cp += ' sourcepath="' + srcfile.getAbsolutePath() + '"';
   		   }
   		   cp += '/>\n';
   		}
-  		
+
   		cp += '</classpath>';
-  	    
+
   		echo = project.createTask("echo");
   	    echo.setMessage(cp);
   		echo.setFile(new File(".classpath"));
   		echo.setAppend(true);
-  	    echo.perform();	     
+  	    echo.perform();
   	]]> </script>
     <mkdir dir=".settings" />
   </target>
@@ -2020,30 +2023,30 @@
   </target>
 
 
-  <target name="eclipse-warnings" depends="build" description="Run eclipse compiler code analysis">        
+  <target name="eclipse-warnings" depends="build" description="Run eclipse compiler code analysis">
         <property name="ecj.log.dir" value="${build.dir}/ecj" />
         <property name="ecj.warnings.file" value="${ecj.log.dir}/eclipse_compiler_checks.txt"/>
         <delete dir="${ecj.log.dir}" />
         <mkdir  dir="${ecj.log.dir}" />
 
-        <property name="ecj.properties" value="${basedir}/eclipse_compiler.properties" />                
+        <property name="ecj.properties" value="${basedir}/eclipse_compiler.properties" />
 
-        <echo message="Running Eclipse Code Analysis.  Output logged to ${ecj.warnings.file}" />        
-        
-	<java 
+        <echo message="Running Eclipse Code Analysis.  Output logged to ${ecj.warnings.file}" />
+
+	<java
 	    jar="${build.dir.lib}/jars/ecj-${ecj.version}.jar"
             fork="true"
 	    failonerror="true"
-            maxmemory="512m"> 
+            maxmemory="512m">
             <arg value="-source"/>
-	    <arg value="${source.version}" /> 
+	    <arg value="${source.version}" />
 	    <arg value="-target"/>
-	    <arg value="${target.version}" /> 
+	    <arg value="${target.version}" />
 	    <arg value="-d" />
             <arg value="none" />
-	    <arg value="-proc:none" /> 
+	    <arg value="-proc:none" />
             <arg value="-log" />
-            <arg value="${ecj.warnings.file}" /> 
+            <arg value="${ecj.warnings.file}" />
             <arg value="-properties" />
             <arg value="${ecj.properties}" />
             <arg value="-cp" />
@@ -2051,19 +2054,19 @@
             <arg value="${build.src.java}" />
         </java>
   </target>
-  
+
 
   <!-- Installs artifacts to local Maven repository -->
   <target name="mvn-install"
           depends="maven-declare-dependencies,jar,sources-jar,javadoc-jar"
           description="Installs the artifacts in the Maven Local Repository">
-          
+
     <!-- the parent -->
     <install pomFile="${build.dir}/${final.name}-parent.pom"
              file="${build.dir}/${final.name}-parent.pom"
              packaging="pom"/>
 
-    <!-- the cassandra-thrift jar -->  
+    <!-- the cassandra-thrift jar -->
     <install pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
              file="${build.dir}/${ant.project.name}-thrift-${version}.jar"/>
     <install pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
@@ -2073,7 +2076,7 @@
              file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
              classifier="javadoc"/>
 
-    <!-- the cassandra-clientutil jar -->  
+    <!-- the cassandra-clientutil jar -->
     <install pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
              file="${build.dir}/${ant.project.name}-clientutil-${version}.jar"/>
     <install pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
@@ -2099,13 +2102,13 @@
           depends="mvn-install,artifacts"
           if="release"
           description="Publishes the artifacts to the Maven repository">
-          
+
     <!-- the parent -->
     <deploy pomFile="${build.dir}/${final.name}-parent.pom"
             file="${build.dir}/${final.name}-parent.pom"
             packaging="pom"/>
-          
-    <!-- the cassandra-thrift jar -->  
+
+    <!-- the cassandra-thrift jar -->
     <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
             file="${build.dir}/${ant.project.name}-thrift-${version}.jar"/>
     <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
@@ -2115,7 +2118,7 @@
             file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
             classifier="javadoc"/>
 
-    <!-- the cassandra-clientutil jar -->  
+    <!-- the cassandra-clientutil jar -->
     <deploy pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
             file="${build.dir}/${ant.project.name}-clientutil-${version}.jar"/>
     <deploy pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
