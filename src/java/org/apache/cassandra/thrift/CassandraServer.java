@@ -291,10 +291,9 @@ public class CassandraServer implements Cassandra.Iface
     {
         Multimap<DecoratedKey, ReadCommand> commandsByKey = partitionCommandsByKey(commands);
         Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
-        for (DecoratedKey key : commandsByKey.keySet()) {
-            ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(
-                    commandsByKey.get(key));
-            detailsByKey.put(key, details);
+        for (Map.Entry<DecoratedKey, Collection<ReadCommand>> entry : commandsByKey.asMap().entrySet()) {
+            ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(entry.getValue());
+            detailsByKey.put(entry.getKey(), details);
         }
 
         Multimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
