@@ -290,17 +290,18 @@ public class CassandraServer implements Cassandra.Iface
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
         Multimap<DecoratedKey, ReadCommand> commandsByKey = partitionCommandsByKey(commands);
-        for (Collection<ReadCommand> commandsForSpecificKey : commandsByKey.asMap().values()) {
-            checkCommandsHaveMatchingTimestamp(commandsForSpecificKey);
+        Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
+        for (DecoratedKey key : commandsByKey.keySet()) {
+            ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(
+                    commandsByKey.get(key));
+            detailsByKey.put(key, details);
         }
 
         Multimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
         ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
         for (Map.Entry<DecoratedKey, ColumnFamily> entry : columnFamilies.entries())
         {
-            ThriftifyColumnFamilyDetails details
-                    = ThriftifyColumnFamilyDetails.forReadCommands(commandsByKey.get(entry.getKey()));
-
+            ThriftifyColumnFamilyDetails details = detailsByKey.get(entry.getKey());
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(
                     entry.getValue(), subColumnsOnly, details.reversed(), details.timestamp);
             columnFamiliesMap.put(entry.getKey().getKey(), thriftifiedColumns);
@@ -316,15 +317,6 @@ public class CassandraServer implements Cassandra.Iface
             result.put(StorageService.getPartitioner().decorateKey(readCommand.key), readCommand);
         }
         return result;
-    }
-
-    private void checkCommandsHaveMatchingTimestamp(Collection<ReadCommand> readCommands) {
-        Set<Long> commandTimestamp = Sets.newHashSet();
-        for (ReadCommand readCommand : readCommands) {
-            commandTimestamp.add(readCommand.timestamp);
-        }
-        Preconditions.checkState(commandTimestamp.size() == 1,
-                                 "Multiple read commands for a given key should be done at the same timestamp");
     }
 
     private List<ColumnOrSuperColumn> thriftifyColumnFamily(ColumnFamily cf, boolean subcolumnsOnly, boolean reverseOrder, long now)
