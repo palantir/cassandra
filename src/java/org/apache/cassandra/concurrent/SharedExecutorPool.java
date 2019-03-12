@@ -114,7 +114,7 @@ public class SharedExecutorPool
     int maxConcurrency, int maxQueuedTasks, String jmxPath, String name)
     {
         SEPExecutor executor = new SEPExecutor(
-        this, new ParameterizedSepQueue(), maxConcurrency, maxQueuedTasks, jmxPath, name);
+            this, new KeyspaceAwareSepQueue(), maxConcurrency, maxQueuedTasks, jmxPath, name);
         executors.add(executor);
         return executor;
     }
