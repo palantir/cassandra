@@ -33,6 +33,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.*;
 import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
@@ -546,16 +549,33 @@ public class CassandraServer implements Cassandra.Iface
         return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
     }
 
-    private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata)
+    private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace,
+                                                                     List<KeyPredicate> keyPredicates,
+                                                                     final ColumnParent column_parent,
+                                                                     long timestamp,
+                                                                     final CFMetaData metadata)
     {
         List<ReadCommand> commands = new ArrayList<>(keyPredicates.size());
+        LoadingCache<SlicePredicate, IDiskAtomFilter> canonicalFilters = CacheBuilder.newBuilder()
+                .build(new CacheLoader<SlicePredicate, IDiskAtomFilter>()
+                {
+                    public IDiskAtomFilter load(SlicePredicate slicePredicate)
+                    {
+                        ThriftValidation.validatePredicate(metadata, column_parent, slicePredicate);
+                        return toInternalFilter(metadata, column_parent, slicePredicate);
+                    }
+                });
 
         for (KeyPredicate keyPredicate : keyPredicates)
         {
             ByteBuffer key = keyPredicate.key;
             ThriftValidation.validateKey(metadata, key);
-            ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
-            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, keyPredicate.predicate)));
+            commands.add(ReadCommand.create(
+                    keyspace,
+                    key,
+                    column_parent.getColumn_family(),
+                    timestamp,
+                    canonicalFilters.getUnchecked(keyPredicate.predicate).cloneShallow()));
         }
         return commands;
     }
