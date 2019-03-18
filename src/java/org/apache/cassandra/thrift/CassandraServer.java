@@ -2443,6 +2443,30 @@ public class CassandraServer implements Cassandra.Iface
         }
 
         private static ThriftifyColumnFamilyDetails forReadCommand(ReadCommand readCommand) {
+            SlicePredicateType type = getSlicePredicateType(readCommand);
+            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommands(Collection<ReadCommand> readCommands) {
+            Preconditions.checkArgument(!readCommands.isEmpty(),
+                                        "Cannot identify thriftify details for zero commands");
+            ReadCommand firstCommand = readCommands.iterator().next();
+            ThriftifyColumnFamilyDetails details = forReadCommand(firstCommand);
+
+            for (ReadCommand readCommand : Iterables.skip(readCommands, 1)) {
+                // Don't create a new instance of the details object
+                Preconditions.checkState(getSlicePredicateType(readCommand) == details.slicePredicateType
+                                         && readCommand.timestamp == details.timestamp,
+                                         "Incompatible thriftify details found in read commands - %s and %s",
+                                         readCommand,
+                                         firstCommand);
+            }
+
+            return details;
+        }
+
+        private static SlicePredicateType getSlicePredicateType(ReadCommand readCommand)
+        {
             SlicePredicateType type;
             if (readCommand instanceof SliceFromReadCommand) {
                 type = ((SliceFromReadCommand) readCommand).filter.reversed
@@ -2451,20 +2475,7 @@ public class CassandraServer implements Cassandra.Iface
             } else {
                 type = SlicePredicateType.NAMED_COLUMNS;
             }
-            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
-        }
-
-        private static ThriftifyColumnFamilyDetails forReadCommands(Collection<ReadCommand> readCommands) {
-            Preconditions.checkArgument(!readCommands.isEmpty(),
-                                        "Cannot identify thriftify details for zero commands");
-            Set<ThriftifyColumnFamilyDetails> detailsForCommands = Sets.newHashSet();
-            for (ReadCommand readCommand : readCommands) {
-                detailsForCommands.add(forReadCommand(readCommand));
-            }
-
-            Preconditions.checkState(detailsForCommands.size() == 1,
-                                     "Multiple versions of thriftify details found: " + detailsForCommands);
-            return detailsForCommands.iterator().next();
+            return type;
         }
 
         private boolean reversed() {
