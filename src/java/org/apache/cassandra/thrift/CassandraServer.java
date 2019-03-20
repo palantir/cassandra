@@ -562,7 +562,7 @@ public class CassandraServer implements Cassandra.Iface
                 canonicalFilters.put(predicate, filter);
                 filterToUse = filter;
             }
-            
+
             commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filterToUse.cloneShallow()));
         }
         return commands;
@@ -2450,6 +2450,13 @@ public class CassandraServer implements Cassandra.Iface
 
         private static ThriftifyColumnFamilyDetails forReadCommand(ReadCommand readCommand) {
             SlicePredicateType type;
+            type = getSlicePredicateType(readCommand);
+            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
+        }
+
+        private static SlicePredicateType getSlicePredicateType(ReadCommand readCommand)
+        {
+            SlicePredicateType type;
             if (readCommand instanceof SliceFromReadCommand) {
                 type = ((SliceFromReadCommand) readCommand).filter.reversed
                        ? SlicePredicateType.REVERSED_KEY_RANGE
@@ -2457,20 +2464,23 @@ public class CassandraServer implements Cassandra.Iface
             } else {
                 type = SlicePredicateType.NAMED_COLUMNS;
             }
-            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
+            return type;
         }
 
         private static ThriftifyColumnFamilyDetails forReadCommands(Collection<ReadCommand> readCommands) {
             Preconditions.checkArgument(!readCommands.isEmpty(),
                                         "Cannot identify thriftify details for zero commands");
-            Set<ThriftifyColumnFamilyDetails> detailsForCommands = Sets.newHashSet();
-            for (ReadCommand readCommand : readCommands) {
-                detailsForCommands.add(forReadCommand(readCommand));
+            ThriftifyColumnFamilyDetails canonicalDetails = forReadCommand(readCommands.iterator().next());
+
+            for (ReadCommand readCommand : Iterables.skip(readCommands, 1)) {
+                Preconditions.checkState(canonicalDetails.slicePredicateType == getSlicePredicateType(readCommand)
+                                         && canonicalDetails.timestamp == readCommand.timestamp,
+                                         "Conflicting thriftify details found between commands - %s and %s",
+                                         readCommands.iterator().next(),
+                                         readCommand);
             }
 
-            Preconditions.checkState(detailsForCommands.size() == 1,
-                                     "Multiple versions of thriftify details found: " + detailsForCommands);
-            return detailsForCommands.iterator().next();
+            return canonicalDetails;
         }
 
         private boolean reversed() {
