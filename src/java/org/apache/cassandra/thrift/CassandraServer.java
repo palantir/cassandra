@@ -549,15 +549,41 @@ public class CassandraServer implements Cassandra.Iface
     private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata)
     {
         List<ReadCommand> commands = new ArrayList<>(keyPredicates.size());
+        validateKeyPredicates(keyPredicates, column_parent, metadata);
 
+        Map<SlicePredicate, IDiskAtomFilter> canonicalFilters = Maps.newHashMap();
         for (KeyPredicate keyPredicate : keyPredicates)
         {
             ByteBuffer key = keyPredicate.key;
-            ThriftValidation.validateKey(metadata, key);
-            ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
-            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, keyPredicate.predicate)));
+            SlicePredicate predicate = keyPredicate.predicate;
+            IDiskAtomFilter filterToUse = canonicalFilters.get(predicate);
+            if (filterToUse == null) { // Cannot use computeIfAbsent() for Java 7 compatibility
+                IDiskAtomFilter filter = toInternalFilter(metadata, column_parent, predicate);
+                canonicalFilters.put(predicate, filter);
+                filterToUse = filter;
+            }
+            
+            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filterToUse.cloneShallow()));
         }
         return commands;
+    }
+
+    private void validateKeyPredicates(List<KeyPredicate> keyPredicates, ColumnParent column_parent, CFMetaData metadata)
+    {
+        Set<ByteBuffer> validatedKeys = Sets.newHashSet();
+        Set<SlicePredicate> validatedPredicates = Sets.newHashSet();
+        for (KeyPredicate keyPredicate : keyPredicates)
+        {
+            if (!validatedKeys.contains(keyPredicate.key))
+            {
+                ThriftValidation.validateKey(metadata, keyPredicate.key);
+                validatedKeys.add(keyPredicate.key);
+            }
+            if (!validatedPredicates.contains(keyPredicate.predicate)) {
+                ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
+                validatedPredicates.add(keyPredicate.predicate);
+            }
+        }
     }
 
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)
