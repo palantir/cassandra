@@ -165,7 +165,7 @@ public class MultiGetMultiSliceTest
                 server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
             }
         }).isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Multiple versions of thriftify details found");
+          .hasMessageContaining("Conflicting thriftify details found between commands");
     }
 
     @Test
@@ -208,7 +208,7 @@ public class MultiGetMultiSliceTest
                 server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
             }
         }).isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Multiple versions of thriftify details found");
+          .hasMessageContaining("Conflicting thriftify details found between commands");
     }
 
     @Test
