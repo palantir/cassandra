@@ -56,6 +56,10 @@ ext.generatePomFromExisting = { xmlRootNode, existingPomPath ->
 
     def dependenciesNode = xmlRootNode.appendNode('dependencies')
     existingPom.dependencies.dependency.each { dep -> processDependency(dep, dependenciesNode) }
+}
+
+ext.generateBomFromExisting = { xmlRootNode, existingPomPath ->
+    def existingPom = new XmlSlurper().parse(file(existingPomPath))
 
     def dependencyManagementNode = xmlRootNode.appendNode('dependencyManagement').appendNode('dependencies')
     existingPom.dependencyManagement.dependencies.dependency.each { dep -> processDependency(dep, dependencyManagementNode) }
