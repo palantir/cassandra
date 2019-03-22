@@ -20,6 +20,12 @@ apply from: "${project.rootDir}/gradle/publish-jar.gradle"
 afterEvaluate {
     publishing {
         publications {
+            bom(MavenPublication) {
+                artifactId 'cassandra-all-bom'
+                pom.withXml {
+                    generateBomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
+                }
+            }
             nebula(MavenPublication) {
                 artifacts = []
                 artifact(file("${project.rootDir}/build/palantir-cassandra-${project.version}.jar"))
