@@ -549,15 +549,41 @@ public class CassandraServer implements Cassandra.Iface
     private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata)
     {
         List<ReadCommand> commands = new ArrayList<>(keyPredicates.size());
+        validateKeyPredicates(keyPredicates, column_parent, metadata);
 
+        Map<SlicePredicate, IDiskAtomFilter> canonicalFilters = Maps.newHashMap();
         for (KeyPredicate keyPredicate : keyPredicates)
         {
             ByteBuffer key = keyPredicate.key;
-            ThriftValidation.validateKey(metadata, key);
-            ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
-            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, toInternalFilter(metadata, column_parent, keyPredicate.predicate)));
+            SlicePredicate predicate = keyPredicate.predicate;
+            IDiskAtomFilter filterToUse = canonicalFilters.get(predicate);
+            if (filterToUse == null) { // Cannot use computeIfAbsent() for Java 7 compatibility
+                IDiskAtomFilter filter = toInternalFilter(metadata, column_parent, predicate);
+                canonicalFilters.put(predicate, filter);
+                filterToUse = filter;
+            }
+
+            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filterToUse.cloneShallow()));
         }
         return commands;
+    }
+
+    private void validateKeyPredicates(List<KeyPredicate> keyPredicates, ColumnParent column_parent, CFMetaData metadata)
+    {
+        Set<ByteBuffer> validatedKeys = Sets.newHashSet();
+        Set<SlicePredicate> validatedPredicates = Sets.newHashSet();
+        for (KeyPredicate keyPredicate : keyPredicates)
+        {
+            if (!validatedKeys.contains(keyPredicate.key))
+            {
+                ThriftValidation.validateKey(metadata, keyPredicate.key);
+                validatedKeys.add(keyPredicate.key);
+            }
+            if (!validatedPredicates.contains(keyPredicate.predicate)) {
+                ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
+                validatedPredicates.add(keyPredicate.predicate);
+            }
+        }
     }
 
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)
@@ -2423,6 +2449,12 @@ public class CassandraServer implements Cassandra.Iface
         }
 
         private static ThriftifyColumnFamilyDetails forReadCommand(ReadCommand readCommand) {
+            SlicePredicateType type = getSlicePredicateType(readCommand);
+            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
+        }
+
+        private static SlicePredicateType getSlicePredicateType(ReadCommand readCommand)
+        {
             SlicePredicateType type;
             if (readCommand instanceof SliceFromReadCommand) {
                 type = ((SliceFromReadCommand) readCommand).filter.reversed
@@ -2431,20 +2463,20 @@ public class CassandraServer implements Cassandra.Iface
             } else {
                 type = SlicePredicateType.NAMED_COLUMNS;
             }
-            return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
+            return type;
         }
 
         private static ThriftifyColumnFamilyDetails forReadCommands(Collection<ReadCommand> readCommands) {
             Preconditions.checkArgument(!readCommands.isEmpty(),
                                         "Cannot identify thriftify details for zero commands");
-            Set<ThriftifyColumnFamilyDetails> detailsForCommands = Sets.newHashSet();
+            Set<ThriftifyColumnFamilyDetails> thriftifyDetails = Sets.newHashSet();
             for (ReadCommand readCommand : readCommands) {
-                detailsForCommands.add(forReadCommand(readCommand));
+                thriftifyDetails.add(forReadCommand(readCommand));
             }
-
-            Preconditions.checkState(detailsForCommands.size() == 1,
-                                     "Multiple versions of thriftify details found: " + detailsForCommands);
-            return detailsForCommands.iterator().next();
+            Preconditions.checkState(thriftifyDetails.size() == 1,
+                                     "Conflicting thriftify details found between commands: %s",
+                                     readCommands);
+            return thriftifyDetails.iterator().next();
         }
 
         private boolean reversed() {
