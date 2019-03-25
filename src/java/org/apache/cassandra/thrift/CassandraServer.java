@@ -2449,8 +2449,7 @@ public class CassandraServer implements Cassandra.Iface
         }
 
         private static ThriftifyColumnFamilyDetails forReadCommand(ReadCommand readCommand) {
-            SlicePredicateType type;
-            type = getSlicePredicateType(readCommand);
+            SlicePredicateType type = getSlicePredicateType(readCommand);
             return new ThriftifyColumnFamilyDetails(type, readCommand.timestamp);
         }
 
@@ -2470,17 +2469,14 @@ public class CassandraServer implements Cassandra.Iface
         private static ThriftifyColumnFamilyDetails forReadCommands(Collection<ReadCommand> readCommands) {
             Preconditions.checkArgument(!readCommands.isEmpty(),
                                         "Cannot identify thriftify details for zero commands");
-            ThriftifyColumnFamilyDetails canonicalDetails = forReadCommand(readCommands.iterator().next());
-
-            for (ReadCommand readCommand : Iterables.skip(readCommands, 1)) {
-                Preconditions.checkState(canonicalDetails.slicePredicateType == getSlicePredicateType(readCommand)
-                                         && canonicalDetails.timestamp == readCommand.timestamp,
-                                         "Conflicting thriftify details found between commands - %s and %s",
-                                         readCommands.iterator().next(),
-                                         readCommand);
+            Set<ThriftifyColumnFamilyDetails> thriftifyDetails = Sets.newHashSet();
+            for (ReadCommand readCommand : readCommands) {
+                thriftifyDetails.add(forReadCommand(readCommand));
             }
-
-            return canonicalDetails;
+            Preconditions.checkState(thriftifyDetails.size() == 1,
+                                     "Conflicting thriftify details found between commands: %s",
+                                     readCommands);
+            return thriftifyDetails.iterator().next();
         }
 
         private boolean reversed() {
