@@ -157,6 +157,8 @@ public class ColumnFamilyMetrics
 
     /** Bytes read on range scans **/
     public final Meter rangeScanBytesRead;
+    /** Bytes read on reads **/
+    public final Meter readBytesRead;
 
     public final LatencyMetrics coordinatorReadLatency;
     public final LatencyMetrics coordinatorScanLatency;
@@ -691,6 +693,7 @@ public class ColumnFamilyMetrics
         });
 
         rangeScanBytesRead = Metrics.meter(factory.createMetricName("RangeScanBytesRead"));
+        readBytesRead = Metrics.meter(factory.createMetricName("ReadBytesRead"));
     }
 
     public void updateSSTableIterated(int count)

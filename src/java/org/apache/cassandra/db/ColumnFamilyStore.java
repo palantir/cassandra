@@ -1992,6 +1992,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
             removeDroppedColumns(result);
 
+            metric.readBytesRead.mark(ColumnFamily.serializer.serializedSize(result, MessagingService.current_version));
+
             if (filter.filter instanceof SliceQueryFilter)
             {
                 // Log the number of tombstones scanned on single key queries
