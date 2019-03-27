@@ -43,6 +43,7 @@ import org.apache.cassandra.service.pager.QueryPagers;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.metrics.KeyspaceMetrics;
+import org.apache.cassandra.net.MessagingService;
 
 /**
  * It represents a Keyspace.
@@ -358,7 +359,9 @@ public class Keyspace
     {
         ColumnFamilyStore cfStore = getColumnFamilyStore(filter.getColumnFamilyName());
         ColumnFamily columnFamily = cfStore.getColumnFamily(filter);
-        return new Row(filter.key, columnFamily);
+        Row row = new Row(filter.key, columnFamily);
+        cfStore.metric.readBytesRead.mark(Row.serializer.serializedSize(row, MessagingService.current_version));
+        return row;
     }
 
     public void apply(Mutation mutation, boolean writeCommitLog)
