@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.*;
 
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
 import org.apache.cassandra.config.CFMetaData;
@@ -596,7 +595,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
     {
         final DeletionInfo delInfo = source.deletionInfo();
         if (!delInfo.hasRanges() || slices.length == 0)
-            return Iterators.emptyIterator();
+            return Collections.emptyIterator();
 
         return new AbstractIterator<RangeTombstone>()
         {
