@@ -91,21 +91,20 @@ public class CassandraServer implements Cassandra.Iface
     protected Map<DecoratedKey, ColumnFamily> readColumnFamily(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
-        return Maps.transformValues(readColumnFamilies(commands, consistency_level, cState).asMap(),
-                                    new Function<Collection<ColumnFamily>, ColumnFamily>()
+        return Maps.transformValues(Multimaps.asMap(readColumnFamilies(commands, consistency_level, cState)),
+                                    new Function<List<ColumnFamily>, ColumnFamily>()
                                     {
                                         @Nullable
-                                        public ColumnFamily apply(@Nullable Collection<ColumnFamily> columnFamilies)
+                                        public ColumnFamily apply(@Nullable List<ColumnFamily> columnFamilies)
                                         {
                                             Preconditions.checkNotNull(columnFamilies);
-                                            Preconditions.checkState(columnFamilies.size() == 1,
-                                                                     "Expected to only have 1 column family per key in readColumnFamily");
-                                            return Iterables.getOnlyElement(columnFamilies);
+                                            // This looks weird, but matches past behaviour!
+                                            return columnFamilies.get(columnFamilies.size() - 1);
                                         }
                                     });
     }
 
-    private Multimap<DecoratedKey, ColumnFamily> readColumnFamilies(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
+    private ListMultimap<DecoratedKey, ColumnFamily> readColumnFamilies(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
         ListMultimap<DecoratedKey, ColumnFamily> columnFamilyMultimap = ArrayListMultimap.create();
