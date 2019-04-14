@@ -26,9 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,13 +37,14 @@ import static org.junit.Assert.fail;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
+import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.db.RowUpdateBuilder;
+import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
-import org.apache.cassandra.schema.KeyspaceParams;
+import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.Pair;
 
 import static org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy.getWindowBoundsInMillis;
@@ -63,7 +61,8 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
     {
         SchemaLoader.prepareServer();
         SchemaLoader.createKeyspace(KEYSPACE1,
-                                    KeyspaceParams.simple(1),
+                                    SimpleStrategy.class,
+                                    KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1));
     }
 
@@ -138,8 +137,10 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
     @Test
     public void testPrepBucket()
     {
-        Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_STANDARD1);
+        String ksname = KEYSPACE1;
+        String cfname = "Standard1";
+        Keyspace keyspace = Keyspace.open(ksname);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfname);
         cfs.truncateBlocking();
         cfs.disableAutoCompaction();
 
@@ -151,10 +152,9 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
         for (int r = 0; r < 3; r++)
         {
             DecoratedKey key = Util.dk(String.valueOf(r));
-            new RowUpdateBuilder(cfs.metadata, r, key.getKey())
-            .clustering("column")
-            .add("val", value).build().applyUnsafe();
-
+            Mutation rm = new Mutation(ksname, key.getKey());
+            rm.add(cfname, Util.cellname("column"), value, r);
+            rm.applyUnsafe();
             cfs.forceBlockingFlush();
         }
         // Decrement the timestamp to simulate a timestamp in the past hour
@@ -162,16 +162,16 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
         {
             // And add progressively more cells into each sstable
             DecoratedKey key = Util.dk(String.valueOf(r));
-            new RowUpdateBuilder(cfs.metadata, r, key.getKey())
-            .clustering("column")
-            .add("val", value).build().applyUnsafe();
+            Mutation rm = new Mutation(ksname, key.getKey());
+            rm.add(cfname, Util.cellname("column"), value, r);
+            rm.applyUnsafe();
             cfs.forceBlockingFlush();
         }
 
         cfs.forceBlockingFlush();
 
         HashMultimap<Long, SSTableReader> buckets = HashMultimap.create();
-        List<SSTableReader> sstrs = new ArrayList<>(cfs.getLiveSSTables());
+        List<SSTableReader> sstrs = new ArrayList<>(cfs.getSSTables());
 
         // We'll put 3 sstables into the newest bucket
         for (int i = 0 ; i < 3; i++)
@@ -179,10 +179,10 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
             Pair<Long,Long> bounds = getWindowBoundsInMillis(TimeUnit.HOURS, 1, tstamp );
             buckets.put(bounds.left, sstrs.get(i));
         }
-        List<SSTableReader> newBucket = newestBucket(buckets, 4, 32, TimeUnit.HOURS, 1, new SizeTieredCompactionStrategyOptions(), getWindowBoundsInMillis(TimeUnit.HOURS, 1, System.currentTimeMillis()).left );
+        List<SSTableReader> newBucket = newestBucket(buckets, 4, 32, TimeUnit.HOURS, 1, new SizeTieredCompactionStrategyOptions());
         assertTrue("incoming bucket should not be accepted when it has below the min threshold SSTables", newBucket.isEmpty());
 
-        newBucket = newestBucket(buckets, 2, 32, TimeUnit.HOURS, 1, new SizeTieredCompactionStrategyOptions(), getWindowBoundsInMillis(TimeUnit.HOURS, 1, System.currentTimeMillis()).left);
+        newBucket = newestBucket(buckets, 2, 32, TimeUnit.HOURS, 1, new SizeTieredCompactionStrategyOptions());
         assertTrue("incoming bucket should be accepted when it is larger than the min threshold SSTables", !newBucket.isEmpty());
 
         // And 2 into the second bucket (1 hour back)
@@ -203,22 +203,22 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
             DecoratedKey key = Util.dk(String.valueOf(r));
             for(int i = 0 ; i < r ; i++)
             {
-                new RowUpdateBuilder(cfs.metadata, tstamp + r, key.getKey())
-                .clustering("column")
-                .add("val", value).build().applyUnsafe();
+                Mutation rm = new Mutation(ksname, key.getKey());
+                rm.add(cfname, Util.cellname("column"), value, tstamp + r);
+                rm.applyUnsafe();
             }
             cfs.forceBlockingFlush();
         }
 
         // Reset the buckets, overfill it now
-        sstrs = new ArrayList<>(cfs.getLiveSSTables());
+        sstrs = new ArrayList<>(cfs.getSSTables());
         for (int i = 0 ; i < 40; i++)
         {
             Pair<Long,Long> bounds = getWindowBoundsInMillis(TimeUnit.HOURS, 1, sstrs.get(i).getMaxTimestamp());
             buckets.put(bounds.left, sstrs.get(i));
         }
 
-        newBucket = newestBucket(buckets, 4, 32, TimeUnit.DAYS, 1, new SizeTieredCompactionStrategyOptions(), getWindowBoundsInMillis(TimeUnit.HOURS, 1, System.currentTimeMillis()).left);
+        newBucket = newestBucket(buckets, 4, 32, TimeUnit.DAYS, 1, new SizeTieredCompactionStrategyOptions());
         assertEquals("new bucket should be trimmed to max threshold of 32", newBucket.size(),  32);
     }
 
@@ -226,8 +226,10 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
     @Test
     public void testDropExpiredSSTables() throws InterruptedException
     {
-        Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_STANDARD1);
+        String ksname = KEYSPACE1;
+        String cfname = CF_STANDARD1;
+        Keyspace keyspace = Keyspace.open(ksname);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfname);
         cfs.truncateBlocking();
         cfs.disableAutoCompaction();
 
@@ -235,21 +237,21 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
 
         // create 2 sstables
         DecoratedKey key = Util.dk(String.valueOf("expired"));
-        new RowUpdateBuilder(cfs.metadata, System.currentTimeMillis(), 1, key.getKey())
-        .clustering("column")
-        .add("val", value).build().applyUnsafe();
+        Mutation rm = new Mutation(ksname, key.getKey());
+        rm.add(cfname, Util.cellname("column"), value, System.currentTimeMillis(), 1);
+        rm.applyUnsafe();
 
         cfs.forceBlockingFlush();
-        SSTableReader expiredSSTable = cfs.getLiveSSTables().iterator().next();
+        SSTableReader expiredSSTable = cfs.getSSTables().iterator().next();
         Thread.sleep(10);
 
         key = Util.dk(String.valueOf("nonexpired"));
-        new RowUpdateBuilder(cfs.metadata, System.currentTimeMillis(), key.getKey())
-        .clustering("column")
-        .add("val", value).build().applyUnsafe();
+        Mutation rm2 = new Mutation(ksname, key.getKey());
+        rm2.add(cfname, Util.cellname("column"), value, System.currentTimeMillis());
+        rm2.applyUnsafe();
 
         cfs.forceBlockingFlush();
-        assertEquals(cfs.getLiveSSTables().size(), 2);
+        assertEquals(cfs.getSSTables().size(), 2);
 
         Map<String, String> options = new HashMap<>();
 
@@ -258,7 +260,7 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
         options.put(TimeWindowCompactionStrategyOptions.TIMESTAMP_RESOLUTION_KEY, "MILLISECONDS");
         options.put(TimeWindowCompactionStrategyOptions.EXPIRED_SSTABLE_CHECK_FREQUENCY_SECONDS_KEY, "0");
         TimeWindowCompactionStrategy twcs = new TimeWindowCompactionStrategy(cfs, options);
-        for (SSTableReader sstable : cfs.getLiveSSTables())
+        for (SSTableReader sstable : cfs.getSSTables())
             twcs.addSSTable(sstable);
         twcs.startup();
         assertNull(twcs.getNextBackgroundTask((int) (System.currentTimeMillis() / 1000)));
@@ -270,5 +272,4 @@ public class TimeWindowCompactionStrategyTest extends SchemaLoader
         assertEquals(sstable, expiredSSTable);
         t.transaction.abort();
     }
-
 }
