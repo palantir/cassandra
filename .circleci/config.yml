@@ -57,7 +57,6 @@ jobs:
       - run: mkdir -p build/artifacts
       - run: mv build/palantir-cassandra-* build/artifacts
       - store_artifacts: { path: build/artifacts }
->>>>>>> build and publish tooling via gradle
 
   publish:
     docker: [{ image: 'circleci/openjdk:8u171-node' }]
