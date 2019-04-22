@@ -79,6 +79,10 @@ public class ColumnFamilyMetrics
     public final Counter pendingFlushes;
     /** Estimate of number of pending compactios for this CF */
     public final Gauge<Integer> pendingCompactions;
+    /** Total number of compactions since server [re]start */
+    public final Meter totalCompactionsCompleted;
+    /** Total number of bytes compacted since server [re]start */
+    public final Meter bytesCompacted;
     /** Number of SSTables that have a repairedAt timestamp > 0 (from incremental repairs) */
     public final Gauge<Long> repairedAtSSTableCount;
     /** Number of SSTables on disk for this CF */
@@ -386,6 +390,8 @@ public class ColumnFamilyMetrics
                 return cfs.getCompactionStrategy().getEstimatedRemainingTasks();
             }
         });
+        totalCompactionsCompleted = Metrics.meter(factory.createMetricName("TotalCompactionsCompleted"));
+        bytesCompacted = Metrics.meter(factory.createMetricName("BytesCompacted"));
         liveSSTableCount = createColumnFamilyGauge("LiveSSTableCount", new Gauge<Integer>()
         {
             public Integer getValue()
