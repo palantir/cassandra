@@ -81,4 +81,4 @@ workflows:
           filters: { tags: { only: /.*/ } }
       - publish:
           requires: [ build, test , artifacts ]
-          filters: { tags: { only: /.*/ }, branches: { only: palantir-cassandra-2.2.13 } }
+          filters: { tags: { only: /.*/ }, branches: { only: palantir-cassandra-2.2.14 } }
