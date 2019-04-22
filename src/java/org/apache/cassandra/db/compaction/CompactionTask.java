@@ -206,6 +206,8 @@ public class CompactionTask extends AbstractCompactionTask
 
                         if (collector != null)
                             collector.finishCompaction(ci);
+                        cfs.metric.bytesCompacted.mark(ci.getCompactionInfo().getTotal());
+                        cfs.metric.totalCompactionsCompleted.mark();
                     }
                 }
             }
