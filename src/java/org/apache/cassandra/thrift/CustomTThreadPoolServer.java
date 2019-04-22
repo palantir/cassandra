@@ -27,6 +27,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 
 import org.slf4j.Logger;
@@ -256,6 +257,12 @@ public class CustomTThreadPoolServer extends TServer
                     TServerSocket sslServer = TSSLTransportFactory.getServerSocket(addr.getPort(), 0, addr.getAddress(), params);
                     SSLServerSocket sslServerSocket = (SSLServerSocket) sslServer.getServerSocket();
                     String[] suites = SSLFactory.filterCipherSuites(sslServerSocket.getSupportedCipherSuites(), clientEnc.cipher_suites);
+                    if (clientEnc.require_endpoint_verification)
+                    {
+                        SSLParameters sslParameters = sslServerSocket.getSSLParameters();
+                        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+                        sslServerSocket.setSSLParameters(sslParameters);
+                    }
                     sslServerSocket.setEnabledCipherSuites(suites);
                     sslServerSocket.setEnabledProtocols(SSLFactory.ACCEPTED_PROTOCOLS);
                     serverTransport = new TCustomServerSocket(sslServer.getServerSocket(), args.keepAlive, args.sendBufferSize, args.recvBufferSize);
