@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
@@ -372,6 +373,12 @@ public class Server implements CassandraDaemon.Server
             SSLEngine sslEngine = sslContext.createSSLEngine();
             sslEngine.setUseClientMode(false);
             String[] suites = SSLFactory.filterCipherSuites(sslEngine.getSupportedCipherSuites(), encryptionOptions.cipher_suites);
+            if(encryptionOptions.require_endpoint_verification)
+            {
+                SSLParameters sslParameters = sslEngine.getSSLParameters();
+                sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+                sslEngine.setSSLParameters(sslParameters);
+            }
             sslEngine.setEnabledCipherSuites(suites);
             sslEngine.setNeedClientAuth(encryptionOptions.require_client_auth);
             sslEngine.setEnabledProtocols(SSLFactory.ACCEPTED_PROTOCOLS);
