@@ -28,6 +28,8 @@ import javax.management.openmbean.TabularData;
 import com.google.common.base.Function;
 import com.google.common.collect.*;
 import com.google.common.io.ByteStreams;
+import com.palantir.cassandra.db.CoalescingCompactionsInProgressFlusher;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +68,9 @@ import static org.apache.cassandra.cql3.QueryProcessor.executeOnceInternal;
 public final class SystemKeyspace
 {
     private static final Logger logger = LoggerFactory.getLogger(SystemKeyspace.class);
+
+    private static final boolean COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES = Boolean.parseBoolean(
+            System.getProperty("palantir_cassandra.coalesce_cip_flushes", "false"));
 
     // Used to indicate that there was a previous version written to the legacy (pre 1.2)
     // system.Versions table, but that we cannot read it. Suffice to say, any upgrade should
@@ -351,7 +356,7 @@ public final class SystemKeyspace
         });
         String req = "INSERT INTO system.%s (id, keyspace_name, columnfamily_name, inputs) VALUES (?, ?, ?, ?)";
         executeInternal(String.format(req, COMPACTIONS_IN_PROGRESS), compactionId, cfs.keyspace.getName(), cfs.name, Sets.newHashSet(generations));
-        forceBlockingFlush(COMPACTIONS_IN_PROGRESS);
+        forceBlockingCompactionsInProgressFlush();
         return compactionId;
     }
 
@@ -365,7 +370,15 @@ public final class SystemKeyspace
         assert taskId != null;
 
         executeInternal(String.format("DELETE FROM system.%s WHERE id = ?", COMPACTIONS_IN_PROGRESS), taskId);
-        forceBlockingFlush(COMPACTIONS_IN_PROGRESS);
+        forceBlockingCompactionsInProgressFlush();
+    }
+
+    private static void forceBlockingCompactionsInProgressFlush() {
+        if (COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES) {
+            CoalescingCompactionsInProgressFlusher.INSTANCE.forceBlockingFlush();
+        } else {
+            forceBlockingFlush(COMPACTIONS_IN_PROGRESS);
+        }
     }
 
     /**
