@@ -16,13 +16,12 @@
 
 package com.palantir.cassandra.db;
 
-import java.util.function.Supplier;
-
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.utils.FBUtilities;
 
+import com.google.common.base.Supplier;
 import com.palantir.common.concurrent.CoalescingSupplier;
 
 /**
@@ -54,10 +53,17 @@ public class CompactionsInProgressFlusher {
     
     private static final boolean COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES = Boolean.getBoolean(
             "palantir_cassandra.coalesce_cip_flushes");
-    private static final Supplier<ReplayPosition> COMPACTIONS_IN_PROGRESS_FLUSHER = () -> FBUtilities.waitOnFuture(
-            Keyspace.open(SystemKeyspace.NAME)
-                    .getColumnFamilyStore(SystemKeyspace.COMPACTIONS_IN_PROGRESS)
-                    .forceFlush());
+
+    private static final Supplier<ReplayPosition> COMPACTIONS_IN_PROGRESS_FLUSHER = new Supplier<ReplayPosition>() {
+        @Override
+        public ReplayPosition get() {
+            return FBUtilities.waitOnFuture(
+                    Keyspace.open(SystemKeyspace.NAME)
+                            .getColumnFamilyStore(SystemKeyspace.COMPACTIONS_IN_PROGRESS)
+                            .forceFlush());
+
+        }
+    };
     
     private final Supplier<ReplayPosition> flusher;
     
