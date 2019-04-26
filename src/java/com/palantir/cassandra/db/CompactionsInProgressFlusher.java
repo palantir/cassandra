@@ -51,10 +51,7 @@ import com.palantir.common.concurrent.CoalescingSupplier;
 public class CompactionsInProgressFlusher {
     public static final CompactionsInProgressFlusher INSTANCE = new CompactionsInProgressFlusher();
     
-    private static final boolean COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES = Boolean.getBoolean(
-            "palantir_cassandra.coalesce_cip_flushes");
-
-    private static final Supplier<ReplayPosition> COMPACTIONS_IN_PROGRESS_FLUSHER = new Supplier<ReplayPosition>() {
+    private final Supplier<ReplayPosition> flusher = new Supplier<ReplayPosition>() {
         @Override
         public ReplayPosition get() {
             return FBUtilities.waitOnFuture(
@@ -64,25 +61,14 @@ public class CompactionsInProgressFlusher {
 
         }
     };
+    private final Supplier<ReplayPosition> coalescingFlusher = new CoalescingSupplier<ReplayPosition>(flusher);
     
-    private final Supplier<ReplayPosition> flusher;
+    private CompactionsInProgressFlusher() { }
     
-    public CompactionsInProgressFlusher() {
-        this(getFlusher());
-    }
-    
-    private CompactionsInProgressFlusher(Supplier<ReplayPosition> flusher) {
-        this.flusher = flusher;
-    }
-    
-    private static Supplier<ReplayPosition> getFlusher() {
-        if (COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES) {
-            return new CoalescingSupplier<ReplayPosition>(COMPACTIONS_IN_PROGRESS_FLUSHER);
-        }
-        return COMPACTIONS_IN_PROGRESS_FLUSHER;
-    }
-
     public ReplayPosition forceBlockingFlush() {
+        if (Boolean.getBoolean("palantir_cassandra.coalesce_cip_flushes")) {
+            return coalescingFlusher.get();
+        }
         return flusher.get();
     }
 }
