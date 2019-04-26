@@ -49,7 +49,7 @@ import com.palantir.common.concurrent.CoalescingSupplier;
  * @author tpetracca
  */
 public class CompactionsInProgressFlusher {
-    public static CompactionsInProgressFlusher INSTANCE = new CompactionsInProgressFlusher();
+    public static final CompactionsInProgressFlusher INSTANCE = new CompactionsInProgressFlusher();
     
     private static final boolean COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES = Boolean.getBoolean(
             "palantir_cassandra.coalesce_cip_flushes");
