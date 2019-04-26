@@ -1,16 +1,13 @@
 package com.palantir.cassandra.db;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.utils.FBUtilities;
 
-import com.google.common.base.Throwables;
+import com.palantir.common.concurrent.CoalescingSupplier;
 
 /**
  * Executing a single compaction task requires two flushes of the system.compactions_in_progress table: at start and
@@ -36,52 +33,34 @@ import com.google.common.base.Throwables;
  * 
  * @author tpetracca
  */
-public class CoalescingCompactionsInProgressFlusher {
-    public static CoalescingCompactionsInProgressFlusher INSTANCE = new CoalescingCompactionsInProgressFlusher();
+public class CompactionsInProgressFlusher {
+    public static CompactionsInProgressFlusher INSTANCE = new CompactionsInProgressFlusher();
     
-    private volatile CompletableFuture<ReplayPosition> nextResult = new CompletableFuture<ReplayPosition>();
-    private final Lock fairLock = new ReentrantLock(true);
-
-    private CoalescingCompactionsInProgressFlusher() { }
+    private static final boolean COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES = Boolean.getBoolean(
+            "palantir_cassandra.coalesce_cip_flushes");
+    private static final Supplier<ReplayPosition> COMPACTIONS_IN_PROGRESS_FLUSHER = () -> FBUtilities.waitOnFuture(
+            Keyspace.open(SystemKeyspace.NAME)
+                    .getColumnFamilyStore(SystemKeyspace.COMPACTIONS_IN_PROGRESS)
+                    .forceFlush());
+    
+    private final Supplier<ReplayPosition> flusher;
+    
+    public CompactionsInProgressFlusher() {
+        this(getFlusher());
+    }
+    
+    private CompactionsInProgressFlusher(Supplier<ReplayPosition> flusher) {
+        this.flusher = flusher;
+    }
+    
+    private static Supplier<ReplayPosition> getFlusher() {
+        if (COALESCE_COMPACTIONS_IN_PROGRESS_FLUSHES) {
+            return new CoalescingSupplier<ReplayPosition>(COMPACTIONS_IN_PROGRESS_FLUSHER);
+        }
+        return COMPACTIONS_IN_PROGRESS_FLUSHER;
+    }
 
     public ReplayPosition forceBlockingFlush() {
-        CompletableFuture<ReplayPosition> future = nextResult;
-
-        completeOrWaitForCompletion(future);
-
-        return getResult(future);
-    }
-
-    private void completeOrWaitForCompletion(CompletableFuture<ReplayPosition> future) {
-        fairLock.lock();
-        try {
-            resetAndCompleteIfNotCompleted(future);
-        } finally {
-            fairLock.unlock();
-        }
-    }
-
-    private void resetAndCompleteIfNotCompleted(CompletableFuture<ReplayPosition> future) {
-        if (future.isDone()) {
-            return;
-        }
-
-        nextResult = new CompletableFuture<ReplayPosition>();
-        try {
-            future.complete(FBUtilities.waitOnFuture(
-                    Keyspace.open(SystemKeyspace.NAME)
-                            .getColumnFamilyStore(SystemKeyspace.COMPACTIONS_IN_PROGRESS)
-                            .forceFlush()));
-        } catch (Throwable t) {
-            future.completeExceptionally(t);
-        }
-    }
-
-    private ReplayPosition getResult(CompletableFuture<ReplayPosition> future) {
-        try {
-            return future.getNow(null);
-        } catch (CompletionException ex) {
-            throw Throwables.propagate(ex.getCause());
-        }
+        return flusher.get();
     }
 }
