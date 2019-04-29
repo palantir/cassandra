@@ -19,8 +19,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 
 /**
@@ -28,7 +28,7 @@ import com.google.common.base.Throwables;
  * concurrent requests will result in a single computation. Computations are guaranteed to execute after being
  * requested; requests will not receive results for computations that started prior to the request.
  * 
- * Copied directly from and swapping java8's Supplier for guava's:
+ * Copied directly from:
  * https://github.com/palantir/atlasdb/blob/0.138.0/atlasdb-commons/src/main/java/com/palantir/common/concurrent/CoalescingSupplier.java
  */
 public class CoalescingSupplier<T> implements Supplier<T> {
