@@ -28,6 +28,8 @@ import javax.management.openmbean.TabularData;
 import com.google.common.base.Function;
 import com.google.common.collect.*;
 import com.google.common.io.ByteStreams;
+import com.palantir.cassandra.db.CompactionsInProgressFlusher;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,7 +353,7 @@ public final class SystemKeyspace
         });
         String req = "INSERT INTO system.%s (id, keyspace_name, columnfamily_name, inputs) VALUES (?, ?, ?, ?)";
         executeInternal(String.format(req, COMPACTIONS_IN_PROGRESS), compactionId, cfs.keyspace.getName(), cfs.name, Sets.newHashSet(generations));
-        forceBlockingFlush(COMPACTIONS_IN_PROGRESS);
+        CompactionsInProgressFlusher.INSTANCE.forceBlockingFlush();
         return compactionId;
     }
 
@@ -365,7 +367,7 @@ public final class SystemKeyspace
         assert taskId != null;
 
         executeInternal(String.format("DELETE FROM system.%s WHERE id = ?", COMPACTIONS_IN_PROGRESS), taskId);
-        forceBlockingFlush(COMPACTIONS_IN_PROGRESS);
+        CompactionsInProgressFlusher.INSTANCE.forceBlockingFlush();
     }
 
     /**
