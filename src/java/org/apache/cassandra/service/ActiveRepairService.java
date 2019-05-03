@@ -220,7 +220,14 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
             }
             else if (range.intersects(toRepair))
             {
-                throw new IllegalArgumentException("Requested range intersects a local range but is not fully contained in one; this would lead to imprecise repair");
+                throw new IllegalArgumentException(
+                String.format("Requested range intersects a local range but is not fully contained in one; this " +
+                              "would lead to imprecise repair. Range to repair: %s , Intersecting range: %s , " +
+                              "Intersection: %s, Intersection size: %s",
+                              toRepair,
+                              range,
+                              range.intersectionWith(toRepair),
+                              range.intersectionWith(toRepair).size()));
             }
         }
         if (rangeSuperSet == null || !replicaSets.containsKey(rangeSuperSet))
