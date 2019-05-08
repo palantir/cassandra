@@ -246,6 +246,11 @@ public interface StorageServiceMBean extends NotificationEmitter
     /**
      * Forces major compaction of a single keyspace
      */
+    public void forceKeyspaceCompaction(boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
+
+    /**
+     * Forces major compaction of a single keyspace
+     */
     public void forceKeyspaceCompaction(boolean bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
 
     /**
