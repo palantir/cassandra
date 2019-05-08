@@ -72,6 +72,18 @@ public class CompactionsCQLTest extends CQLTester
     }
 
     @Test
+    public void testTriggerMinorCompactionTWCS() throws Throwable
+    {
+        createTable("CREATE TABLE %s (id text PRIMARY KEY) WITH compaction = {'class':'TimeWindowCompactionStrategy', 'min_threshold':2};");
+        assertTrue(getCurrentColumnFamilyStore().getCompactionStrategy().isEnabled());
+        execute("insert into %s (id) values ('1')");
+        flush();
+        execute("insert into %s (id) values ('1')");
+        flush();
+        waitForMinor(KEYSPACE, currentTable(), 5000, true);
+    }
+
+    @Test
     public void testTriggerNoMinorCompactionSTCSDisabled() throws Throwable
     {
         createTable("CREATE TABLE %s (id text PRIMARY KEY)  WITH compaction = {'class':'SizeTieredCompactionStrategy', 'min_threshold':2, 'enabled':false};");
