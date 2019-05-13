@@ -192,4 +192,9 @@ public interface ColumnFamilyStoreMBean
      * @return map of sstable relative path to repaired at value
      */
     public Map<String, Long> getRepairedAtPerSstable();
+
+    /**
+     * @return map of sstable to metadata
+     */
+    public Map<String, Map<String, Object>> getSstableMetadata();
 }

@@ -75,6 +75,7 @@ import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.*;
 import org.apache.cassandra.io.sstable.metadata.CompactionMetadata;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
+import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics.Sampler;
@@ -3410,5 +3411,28 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                      sstable.getSSTableMetadata().repairedAt);
         }
         return repairedAtPerSstable;
+    }
+
+    /**
+     * @return map of sstable file path to metadata for said sstable
+     */
+    public Map<String, Map<String, Object>> getSstableMetadata() {
+        Collection<SSTableReader> ssTables = getSSTables();
+        Map<String, Map<String, Object>> sstableMetadatas = new HashMap<>(ssTables.size());
+        for (SSTableReader sstable : ssTables)
+        {
+            sstableMetadatas.put(
+                    sstable.descriptor.relativeFilenameFor(Component.DATA),
+                    generateMetadataForSstable(sstable));
+        }
+        return sstableMetadatas;
+    }
+
+    private Map<String, Object> generateMetadataForSstable(SSTableReader sstable) {
+        StatsMetadata metadata = sstable.getSSTableMetadata();
+        return ImmutableMap.<String, Object>of(
+                "repairedAt", metadata.repairedAt,
+                "maxTimestamp", metadata.maxTimestamp,
+                "minTimestamp", metadata.minTimestamp);
     }
 }
