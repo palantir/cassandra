@@ -110,6 +110,12 @@ public class MigrationManager
             logger.debug("Submitting migration task for {}", endpoint);
             submitMigrationTask(endpoint);
         }
+
+        if (Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
+        {
+            logger.warn("Not pulling schema because unsafe schema migration mode is enabled");
+            return;
+        }
         else
         {
             // Include a delay to make sure we have a chance to apply any changes being
@@ -132,7 +138,10 @@ public class MigrationManager
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
                         return;
                     }
-                    logger.debug("submitting migration task for {}", endpoint);
+                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
+                            endpoint,
+                            currentVersion,
+                            Schema.instance.getVersion());
                     submitMigrationTask(endpoint);
                 }
             };
@@ -482,7 +491,11 @@ public class MigrationManager
             if (!endpoint.equals(FBUtilities.getBroadcastAddress()) &&
                     MessagingService.instance().knowsVersion(endpoint) &&
                     MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version)
+            {
+                logger.debug("Anouncing schema to endpoint {}", endpoint);
+                logger.trace("Announcing schema {}", schema);
                 pushSchemaMutation(endpoint, schema);
+            }
         }
 
         return f;
