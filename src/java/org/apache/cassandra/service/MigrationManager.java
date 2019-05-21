@@ -77,19 +77,23 @@ public class MigrationManager
         listeners.remove(listener);
     }
 
-    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state)
+    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state) {
+        scheduleSchemaPull(endpoint, state, false);
+    }
+
+    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state, boolean onChange)
     {
         VersionedValue value = state.getApplicationState(ApplicationState.SCHEMA);
 
         if (!endpoint.equals(FBUtilities.getBroadcastAddress()) && value != null)
-            maybeScheduleSchemaPull(UUID.fromString(value.value), endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value);
+            maybeScheduleSchemaPull(UUID.fromString(value.value), endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value, onChange);
     }
 
     /**
      * If versions differ this node sends request with local migration list to the endpoint
      * and expecting to receive a list of migrations to apply locally.
      */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion)
+    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion, boolean onChange)
     {
         String ourMajorVersion = FBUtilities.getReleaseVersionMajor();
         if (!releaseVersion.startsWith(ourMajorVersion))
@@ -111,9 +115,11 @@ public class MigrationManager
             submitMigrationTask(endpoint);
         }
 
-        if (Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
+        if (onChange && Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
         {
-            logger.warn("Not pulling schema because unsafe schema migration mode is enabled");
+            // if we're scheduling due to a schema change (and not because a node is newly alive or joined)
+            // and we're in unsafe_schema_migration mode, then don't submit a MigrationTask
+            logger.warn("Not pulling schema because of schema change while in unsafe schema migration mode");
             return;
         }
         else
