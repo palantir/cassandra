@@ -77,19 +77,23 @@ public class MigrationManager
         listeners.remove(listener);
     }
 
-    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state)
+    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state) {
+        scheduleSchemaPull(endpoint, state, false);
+    }
+
+    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state, boolean onChange)
     {
         VersionedValue value = state.getApplicationState(ApplicationState.SCHEMA);
 
         if (!endpoint.equals(FBUtilities.getBroadcastAddress()) && value != null)
-            maybeScheduleSchemaPull(UUID.fromString(value.value), endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value);
+            maybeScheduleSchemaPull(UUID.fromString(value.value), endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value, onChange);
     }
 
     /**
      * If versions differ this node sends request with local migration list to the endpoint
      * and expecting to receive a list of migrations to apply locally.
      */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion)
+    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion, boolean onChange)
     {
         String ourMajorVersion = FBUtilities.getReleaseVersionMajor();
         if (!releaseVersion.startsWith(ourMajorVersion))
@@ -109,6 +113,14 @@ public class MigrationManager
             // If we think we may be bootstrapping or have recently started, submit MigrationTask immediately
             logger.debug("Submitting migration task for {}", endpoint);
             submitMigrationTask(endpoint);
+        }
+
+        if (onChange && Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
+        {
+            // if we're scheduling due to a schema change (and not because a node is newly alive or joined)
+            // and we're in unsafe_schema_migration mode, then don't submit a MigrationTask
+            logger.warn("Not pulling schema because of schema change while in unsafe schema migration mode");
+            return;
         }
         else
         {
@@ -132,7 +144,10 @@ public class MigrationManager
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
                         return;
                     }
-                    logger.debug("submitting migration task for {}", endpoint);
+                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
+                            endpoint,
+                            currentVersion,
+                            Schema.instance.getVersion());
                     submitMigrationTask(endpoint);
                 }
             };
@@ -482,7 +497,11 @@ public class MigrationManager
             if (!endpoint.equals(FBUtilities.getBroadcastAddress()) &&
                     MessagingService.instance().knowsVersion(endpoint) &&
                     MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version)
+            {
+                logger.debug("Anouncing schema to endpoint {}", endpoint);
+                logger.trace("Announcing schema {}", schema);
                 pushSchemaMutation(endpoint, schema);
+            }
         }
 
         return f;
