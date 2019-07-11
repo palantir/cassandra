@@ -18,11 +18,6 @@
 
 package org.apache.cassandra.service;
 
-import java.io.File;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.BlacklistedDirectories;
 import org.apache.cassandra.db.Keyspace;
@@ -31,6 +26,10 @@ import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
 
 public class DefaultFSErrorHandler implements FSErrorHandler
 {
@@ -45,6 +44,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         JVMStabilityInspector.inspectThrowable(e);
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
+            case stop:
+                StorageService.instance.recordCorruptSSTable(e.path.toPath());
+                break;
             case stop_paranoid:
                 StorageService.instance.stopTransports();
                 break;
@@ -63,6 +65,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop_paranoid:
             case stop:
                 StorageService.instance.stopTransports();
+                StorageService.instance.recordFSError();
                 break;
             case best_effort:
                 // for both read and write errors mark the path as unwritable.

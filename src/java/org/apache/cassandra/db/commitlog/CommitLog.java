@@ -485,6 +485,7 @@ public class CommitLog implements CommitLogMBean
             case die:
             case stop:
                 StorageService.instance.stopTransports();
+                StorageService.instance.recordCorruptCommitLog();
                 //$FALL-THROUGH$
             case stop_commit:
                 logger.error(String.format("%s. Commit disk failure policy is %s; terminating thread", message, DatabaseDescriptor.getCommitFailurePolicy()), t);

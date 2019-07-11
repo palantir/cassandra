@@ -22,6 +22,7 @@ import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -36,7 +37,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+import org.apache.cassandra.db.commitlog.CorruptCommitLogNonTransientError;
+import org.apache.cassandra.io.FSNonTransientError;
+import org.apache.cassandra.io.sstable.CorruptSSTableNonTransientError;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.mina.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,6 +185,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final ObjectName jmxObjectName;
 
+    private final ConcurrentHashSet<NonTransientError> nonTransientErrors;
+
     private Collection<Token> bootstrapTokens = null;
 
     // true when keeping strict consistency while bootstrapping
@@ -222,6 +229,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
         try
         {
+            nonTransientErrors = new ConcurrentHashSet<>();
             jmxObjectName = new ObjectName("org.apache.cassandra.db:type=StorageService");
             mbs.registerMBean(this, jmxObjectName);
             mbs.registerMBean(StreamManager.instance, new ObjectName(StreamManager.OBJECT_NAME));
@@ -1276,6 +1284,26 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Resuming bootstrap is requested, but the node is already bootstrapped.");
             return false;
         }
+    }
+
+    @Override
+    public Set<NonTransientError> getNonTransientErrors() {
+        return nonTransientErrors;
+    }
+
+    @Override
+    public void recordCorruptCommitLog() {
+        nonTransientErrors.add(CorruptCommitLogNonTransientError.instance);
+    }
+
+    @Override
+    public void recordCorruptSSTable(Path path) {
+        nonTransientErrors.add(new CorruptSSTableNonTransientError(path));
+    }
+
+    @Override
+    public void recordFSError() {
+        nonTransientErrors.add(FSNonTransientError.instance);
     }
 
     public boolean isBootstrapMode()
