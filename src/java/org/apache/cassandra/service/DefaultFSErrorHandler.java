@@ -45,6 +45,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         JVMStabilityInspector.inspectThrowable(e);
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
+            case stop:
+                StorageService.instance.recordCorruptSSTable(e.path.toPath());
+                break;
             case stop_paranoid:
                 StorageService.instance.stopTransports();
                 break;
@@ -63,6 +66,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop_paranoid:
             case stop:
                 StorageService.instance.stopTransports();
+                StorageService.instance.recordFSError();
                 break;
             case best_effort:
                 // for both read and write errors mark the path as unwritable.

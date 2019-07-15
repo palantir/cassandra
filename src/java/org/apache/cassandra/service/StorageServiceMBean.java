@@ -21,9 +21,11 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -212,7 +214,7 @@ public interface StorageServiceMBean extends NotificationEmitter
 
     /**
      * Takes the snapshot of a multiple column family from different keyspaces. A snapshot name must be specified.
-     * 
+     *
      * @param tag
      *            the tag given to the snapshot; may not be null or empty
      * @param columnFamilyList
@@ -399,11 +401,11 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * If level cannot be parsed, then the level will be defaulted to DEBUG<br>
      * <br>
      * The logback configuration should have < jmxConfigurator /> set
-     * 
+     *
      * @param classQualifier The logger's classQualifer
      * @param level The log level
-     * @throws Exception 
-     * 
+     * @throws Exception
+     *
      *  @see ch.qos.logback.classic.Level#toLevel(String)
      */
     public void setLoggingLevel(String classQualifier, String level) throws Exception;
@@ -650,4 +652,29 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @return true if the node successfully starts resuming. (this does not mean bootstrap streaming was success.)
      */
     public boolean resumeBootstrap();
+
+    /**
+     * @return a set of all recorded {@link NonTransientError} errors.
+     */
+    Set<NonTransientError> getNonTransientErrors();
+
+    /**
+     * record a {@link org.apache.cassandra.io.FSNonTransientError} error that is guaranteed to be returned by
+     * {@link #getNonTransientErrors()}.
+     */
+    void recordFSError();
+
+    /**
+     * record a {@link org.apache.cassandra.db.commitlog.CorruptCommitLogNonTransientError} error that is guaranteed to
+     * be returned by {@link #getNonTransientErrors()}.
+     */
+    void recordCorruptCommitLog();
+
+    /**
+     * record a {@link org.apache.cassandra.io.sstable.CorruptSSTableNonTransientError} error that is guaranteed to be
+     * returned by {@link #getNonTransientErrors()}.
+     */
+    void recordCorruptSSTable(Path path);
+
+    interface NonTransientError { }
 }
