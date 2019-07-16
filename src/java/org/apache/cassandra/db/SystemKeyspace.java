@@ -41,6 +41,7 @@ import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.db.compaction.CompactionHistoryTabularData;
 import org.apache.cassandra.db.compaction.LeveledCompactionStrategy;
+import org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.db.marshal.*;
@@ -198,6 +199,19 @@ public final class SystemKeyspace
                 + "requested_at timestamp,"
                 + "PRIMARY KEY ((token_bytes)))");
 
+    // this has the additional upside of preventing any sort of vulnerabilities caused by allowing arbitrary
+    // injection of values into this configuration point
+    private static String getCompactionsInProgresStcsMaxThreshold() {
+        String config = System.getProperty("palantir_cassandra.cip_stcs_max_threshold", "32");
+        int val;
+        try {
+            val = Integer.parseInt(config);
+        } catch (NumberFormatException e) {
+            logger.error("Configured compactions_in_progress STCS max_threshold is not an integer. Falling back to default of 32");
+            val = 32;
+        }
+        return Integer.toString(val);
+    }
     private static final CFMetaData CompactionsInProgress =
         compile(COMPACTIONS_IN_PROGRESS,
                 "unfinished compactions",
@@ -206,7 +220,9 @@ public final class SystemKeyspace
                 + "columnfamily_name text,"
                 + "inputs set<int>,"
                 + "keyspace_name text,"
-                + "PRIMARY KEY ((id)))");
+                + "PRIMARY KEY ((id)))")
+                .compactionStrategyClass(SizeTieredCompactionStrategy.class)
+                .compactionStrategyOptions(Collections.singletonMap("max_threshold", getCompactionsInProgresStcsMaxThreshold()));
 
     private static final CFMetaData CompactionHistory =
         compile(COMPACTION_HISTORY,
