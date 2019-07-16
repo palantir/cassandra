@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -474,7 +475,9 @@ public class CommitLog implements CommitLogMBean
             case die:
             case stop:
                 StorageService.instance.stopTransports();
-                StorageService.instance.recordCorruptCommitLog();
+                StorageService.instance.recordNonTransientError(
+                        StorageService.NonTransientError.COMMIT_LOG_CORRUPTION,
+                        ImmutableMap.of());
                 //$FALL-THROUGH$
             case stop_commit:
                 logger.error(String.format("%s. Commit disk failure policy is %s; terminating thread", message, DatabaseDescriptor.getCommitFailurePolicy()), t);

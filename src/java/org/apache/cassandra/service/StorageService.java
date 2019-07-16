@@ -22,7 +22,6 @@ import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -37,11 +36,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
-import org.apache.cassandra.db.commitlog.CorruptCommitLogNonTransientError;
-import org.apache.cassandra.io.FSNonTransientError;
-import org.apache.cassandra.io.sstable.CorruptSSTableNonTransientError;
+import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.mina.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,7 +184,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private Collection<Token> bootstrapTokens = null;
 
-    private final ConcurrentHashSet<NonTransientError> nonTransientErrors;
+    public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
+    private final Map<String, Set<Map<String, String>>> nonTransientErrors;
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -238,7 +235,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         super(Executors.newSingleThreadExecutor());
 
         jmxObjectName = "org.apache.cassandra.db:type=StorageService";
-        nonTransientErrors = new ConcurrentHashSet<>();
+        nonTransientErrors = new HashMap<>();
         MBeanWrapper.instance.registerMBean(this, jmxObjectName);
         MBeanWrapper.instance.registerMBean(StreamManager.instance, StreamManager.OBJECT_NAME);
 
@@ -1347,24 +1344,28 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public Set<NonTransientError> getNonTransientErrors() {
+    public Map<String, Set<Map<String, String>>> getNonTransientErrors() {
         return nonTransientErrors;
     }
 
     @Override
-    public void recordCorruptCommitLog() {
-        nonTransientErrors.add(CorruptCommitLogNonTransientError.instance);
+    public void recordNonTransientError(String errorType, Map<String, String> attributes) {
+        if (EnumUtils.isValidEnum(NonTransientError.class, errorType))
+        {
+            recordNonTransientError(NonTransientError.valueOf(errorType), attributes);
+        }
+        else
+        {
+            logger.warn("Failed to record non transient error of type {}", errorType);
+        }
     }
 
-    @Override
-    public void recordCorruptSSTable(Path path) {
-        nonTransientErrors.add(new CorruptSSTableNonTransientError(path));
+    public synchronized void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
+        Set<Map<String, String>> errors =
+                nonTransientErrors.computeIfAbsent(nonTransientError.toString(), err -> new HashSet<>());
+        errors.add(Collections.unmodifiableMap(attributes));
     }
 
-    @Override
-    public void recordFSError() {
-        nonTransientErrors.add(FSNonTransientError.instance);
-    }
 
     public boolean isBootstrapMode()
     {

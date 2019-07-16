@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -654,27 +653,18 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public boolean resumeBootstrap();
 
     /**
-     * @return a set of all recorded {@link NonTransientError} errors.
+     * Retrieve a map of non transient error type to a set of unique errors. every error is represented as a map from an
+     * attribute name to value
+     *
+     * @return a map of all recorded non transient errors.
      */
-    Set<NonTransientError> getNonTransientErrors();
+    Map<String, Set<Map<String, String>>> getNonTransientErrors();
 
     /**
-     * record a {@link org.apache.cassandra.io.FSNonTransientError} error that is guaranteed to be returned by
-     * {@link #getNonTransientErrors()}.
+     * record a non transient error that is guaranteed to be returned by {@link #getNonTransientErrors()}.
+     *
+     * @param errorType non transient error type such as CommitLogCorruption.
+     * @param attributes map of attribute name to value representing the non transient error
      */
-    void recordFSError();
-
-    /**
-     * record a {@link org.apache.cassandra.db.commitlog.CorruptCommitLogNonTransientError} error that is guaranteed to
-     * be returned by {@link #getNonTransientErrors()}.
-     */
-    void recordCorruptCommitLog();
-
-    /**
-     * record a {@link org.apache.cassandra.io.sstable.CorruptSSTableNonTransientError} error that is guaranteed to be
-     * returned by {@link #getNonTransientErrors()}.
-     */
-    void recordCorruptSSTable(Path path);
-
-    interface NonTransientError { }
+    void recordNonTransientError(String errorType, Map<String, String> attributes);
 }
