@@ -41,6 +41,7 @@ import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.db.compaction.CompactionHistoryTabularData;
 import org.apache.cassandra.db.compaction.LeveledCompactionStrategy;
+import org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.db.marshal.*;
@@ -206,7 +207,10 @@ public final class SystemKeyspace
                 + "columnfamily_name text,"
                 + "inputs set<int>,"
                 + "keyspace_name text,"
-                + "PRIMARY KEY ((id)))");
+                + "PRIMARY KEY ((id)))")
+                .compactionStrategyClass(SizeTieredCompactionStrategy.class)
+                .compactionStrategyOptions(Collections.singletonMap(
+                        "max_threshold", System.getProperty("palantir_cassandra.cip_stcs_max_threshold", "32")));
 
     private static final CFMetaData CompactionHistory =
         compile(COMPACTION_HISTORY,
