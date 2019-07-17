@@ -82,9 +82,20 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
         Iterable<SSTableReader> candidates = filterSuspectSSTables(Sets.intersection(cfs.getUncompactingSSTables(), sstables));
 
         List<List<SSTableReader>> buckets = getBuckets(createSSTableAndLengthPairs(candidates), sizeTieredOptions.bucketHigh, sizeTieredOptions.bucketLow, sizeTieredOptions.minSSTableSize);
-        logger.trace("Compaction buckets are {}", buckets);
+        if (logger.isTraceEnabled())
+        {
+            int[] sizes = new int[buckets.size()];
+            for (int i = 0; i < buckets.size(); i++) {
+                sizes[i] = buckets.get(i).size();
+            }
+            logger.trace("Compaction bucket sizes are {}", Arrays.toString(sizes));
+        }
         updateEstimatedCompactionsByTasks(buckets);
         List<SSTableReader> mostInteresting = mostInterestingBucket(buckets, minThreshold, maxThreshold);
+        if (logger.isTraceEnabled())
+        {
+            logger.trace("Most interesting bucket is {}", Arrays.toString(mostInteresting.toArray()));
+        }
         if (!mostInteresting.isEmpty())
             return mostInteresting;
 
