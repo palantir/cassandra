@@ -201,7 +201,7 @@ public final class SystemKeyspace
 
     // this has the additional upside of preventing any sort of vulnerabilities caused by allowing arbitrary
     // injection of values into this configuration point
-    private static String getCompactionsInProgresStcsMaxThreshold() {
+    private static int getCompactionsInProgresStcsMaxThreshold() {
         String config = System.getProperty("palantir_cassandra.cip_stcs_max_threshold", "32");
         int val;
         try {
@@ -210,8 +210,9 @@ public final class SystemKeyspace
             logger.error("Configured compactions_in_progress STCS max_threshold is not an integer. Falling back to default of 32");
             val = 32;
         }
-        return Integer.toString(val);
+        return val;
     }
+    private static int compactionsInProgressMaxCompactionThreshold = getCompactionsInProgresStcsMaxThreshold();
     private static final CFMetaData CompactionsInProgress =
         compile(COMPACTIONS_IN_PROGRESS,
                 "unfinished compactions",
@@ -221,8 +222,9 @@ public final class SystemKeyspace
                 + "inputs set<int>,"
                 + "keyspace_name text,"
                 + "PRIMARY KEY ((id)))")
+                .maxCompactionThreshold(compactionsInProgressMaxCompactionThreshold)
                 .compactionStrategyClass(SizeTieredCompactionStrategy.class)
-                .compactionStrategyOptions(Collections.singletonMap("max_threshold", getCompactionsInProgresStcsMaxThreshold()));
+                .compactionStrategyOptions(Collections.singletonMap("max_threshold", Integer.toString(compactionsInProgressMaxCompactionThreshold)));
 
     private static final CFMetaData CompactionHistory =
         compile(COMPACTION_HISTORY,
