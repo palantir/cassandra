@@ -1348,18 +1348,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return nonTransientErrors;
     }
 
-    @Override
-    public void recordNonTransientError(String errorType, Map<String, String> attributes) {
-        if (EnumUtils.isValidEnum(NonTransientError.class, errorType))
-        {
-            recordNonTransientError(NonTransientError.valueOf(errorType), attributes);
-        }
-        else
-        {
-            logger.warn("Failed to record non transient error of type {}", errorType);
-        }
-    }
-
     public synchronized void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
         Set<Map<String, String>> errors =
                 nonTransientErrors.computeIfAbsent(nonTransientError.toString(), err -> new HashSet<>());

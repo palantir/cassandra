@@ -659,12 +659,4 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @return a map of all recorded non transient errors.
      */
     Map<String, Set<Map<String, String>>> getNonTransientErrors();
-
-    /**
-     * record a non transient error that is guaranteed to be returned by {@link #getNonTransientErrors()}.
-     *
-     * @param errorType non transient error type such as CommitLogCorruption.
-     * @param attributes map of attribute name to value representing the non transient error
-     */
-    void recordNonTransientError(String errorType, Map<String, String> attributes);
 }
