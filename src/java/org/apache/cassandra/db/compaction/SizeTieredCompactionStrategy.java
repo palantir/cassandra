@@ -88,17 +88,20 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
             for (int i = 0; i < buckets.size(); i++) {
                 sizes[i] = buckets.get(i).size();
             }
-            logger.trace("Compaction bucket sizes are {}", Arrays.toString(sizes));
+            logger.trace("Compaction bucket sizes for {}.{} are {}", cfs.keyspace.getName(), cfs.getColumnFamilyName(), Arrays.toString(sizes));
         }
         updateEstimatedCompactionsByTasks(buckets);
         List<SSTableReader> mostInteresting = mostInterestingBucket(buckets, minThreshold, maxThreshold);
-        if (logger.isTraceEnabled())
-        {
-            logger.trace("Most interesting bucket is {}", Arrays.toString(mostInteresting.toArray()));
-        }
         if (!mostInteresting.isEmpty())
+        {
+            if (logger.isTraceEnabled())
+            {
+                logger.trace("Most interesting bucket for {}.{} is {}", cfs.keyspace.getName(), cfs.getColumnFamilyName(), Arrays.toString(mostInteresting.toArray()));
+            }
             return mostInteresting;
+        }
 
+        logger.trace("No interesting bucket for {}.{}. Looking for a single sstable for tombstone compaction", cfs.keyspace.getName(), cfs.getColumnFamilyName());
         // if there is no sstable to compact in standard way, try compacting single sstable whose droppable tombstone
         // ratio is greater than threshold.
         List<SSTableReader> sstablesWithTombstones = new ArrayList<>();
