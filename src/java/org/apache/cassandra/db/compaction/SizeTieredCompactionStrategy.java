@@ -84,12 +84,28 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
         Iterable<SSTableReader> candidates = filterSuspectSSTables(filter(cfs.getUncompactingSSTables(), sstables::contains));
 
         List<List<SSTableReader>> buckets = getBuckets(createSSTableAndLengthPairs(candidates), sizeTieredOptions.bucketHigh, sizeTieredOptions.bucketLow, sizeTieredOptions.minSSTableSize);
-        logger.trace("Compaction buckets are {}", buckets);
+
+        if (logger.isTraceEnabled())
+        {
+            int[] sizes = new int[buckets.size()];
+            for (int i = 0; i < buckets.size(); i++) {
+                sizes[i] = buckets.get(i).size();
+            }
+            logger.trace("Compaction bucket sizes for {}.{} are {}", cfs.keyspace.getName(), cfs.getTableName(), Arrays.toString(sizes));
+        }
+
         estimatedRemainingTasks = getEstimatedCompactionsByTasks(cfs, buckets);
         cfs.getCompactionStrategyManager().compactionLogger.pending(this, estimatedRemainingTasks);
         List<SSTableReader> mostInteresting = mostInterestingBucket(buckets, minThreshold, maxThreshold);
-        if (!mostInteresting.isEmpty())
+        if (!mostInteresting.isEmpty()) {
+            if (logger.isTraceEnabled())
+            {
+                logger.trace("Most interesting bucket for {}.{} is {}", cfs.keyspace.getName(), cfs.getTableName(), Arrays.toString(mostInteresting.toArray()));
+            }
             return mostInteresting;
+        }
+
+        logger.trace("No interesting bucket for {}.{}. Looking for a single sstable for tombstone compaction", cfs.keyspace.getName(), cfs.getTableName());
 
         // if there is no sstable to compact in standard way, try compacting single sstable whose droppable tombstone
         // ratio is greater than threshold.
