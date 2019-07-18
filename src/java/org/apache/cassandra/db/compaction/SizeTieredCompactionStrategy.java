@@ -100,7 +100,7 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
         if (!mostInteresting.isEmpty()) {
             if (logger.isTraceEnabled())
             {
-                logger.trace("Most interesting bucket for {}.{} is {}", cfs.keyspace.getName(), cfs.getTableName(), Arrays.toString(mostInteresting.toArray()));
+                logger.trace("Size of most interesting bucket for {}.{} is {}", cfs.keyspace.getName(), cfs.getTableName(), mostInteresting.size());
             }
             return mostInteresting;
         }
