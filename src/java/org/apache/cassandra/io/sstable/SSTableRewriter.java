@@ -126,7 +126,7 @@ public class SSTableRewriter extends Transactional.AbstractTransactional impleme
                 boolean save = false;
                 for (SSTableReader reader : transaction.originals())
                 {
-                    if (reader.getCachedPosition(row.key, false) != null)
+                    if (reader.getCachedPosition(row.key, false, true) != null)
                     {
                         save = true;
                         break;
