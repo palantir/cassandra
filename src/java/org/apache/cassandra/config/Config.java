@@ -396,7 +396,7 @@ public class Config
     public static enum CommitFailurePolicy
     {
         stop,
-        stop_on_setup,
+        stop_on_startup,
         stop_commit,
         ignore,
         die,
