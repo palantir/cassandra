@@ -474,6 +474,7 @@ public class CommitLog implements CommitLogMBean
             // Needed here for unit tests to not fail on default assertion
             case die:
             case stop:
+            case stop_on_setup:
                 StorageService.instance.stopTransports();
                 StorageService.instance.recordNonTransientError(
                         StorageService.NonTransientError.COMMIT_LOG_CORRUPTION,

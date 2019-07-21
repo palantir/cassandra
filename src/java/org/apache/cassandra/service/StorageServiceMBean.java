@@ -654,7 +654,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
 
     /**
      * Retrieve a map of non transient error type to a set of unique errors. every error is represented as a map from an
-     * attribute name to value
+     * attribute name to value.
      *
      * @return a map of all recorded non transient errors.
      */

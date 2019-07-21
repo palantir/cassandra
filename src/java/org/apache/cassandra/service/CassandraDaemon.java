@@ -50,6 +50,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -150,8 +151,10 @@ public class CassandraDaemon
      * This is a hook for concrete daemons to initialize themselves suitably.
      *
      * Subclasses should override this to finish the job (listening on ports, etc.)
+     *
+     * @return true if cassandra was initialized successfully, false if cassandra gracefully failed to initialize.
      */
-    protected void setup()
+    protected boolean setup()
     {
         FileUtils.setFSErrorHandler(new DefaultFSErrorHandler());
 
@@ -285,6 +288,11 @@ public class CassandraDaemon
         }
         catch (IOException e)
         {
+            if(DatabaseDescriptor.getCommitFailurePolicy() == Config.CommitFailurePolicy.stop_on_setup){
+                logger.error("Failed to recover commitlog due to non transient errors of type: {}",
+                             StorageService.instance.getNonTransientErrors().keySet());
+                return false;
+            }
             throw new RuntimeException(e);
         }
 
@@ -364,6 +372,7 @@ public class CassandraDaemon
         nativeServer = new org.apache.cassandra.transport.Server(nativeAddr, nativePort);
 
         completeSetup();
+        return true;
     }
 
     /*
@@ -545,7 +554,10 @@ public class CassandraDaemon
                 WindowsTimer.startTimerPeriod(DatabaseDescriptor.getWindowsTimerInterval());
             }
 
-            setup();
+            // TODO(mmoldawsky): how should we leave the JVM up when setup failed but we want to inspect through JMX
+            if (!setup()){
+                return;
+            }
 
             String pidFile = System.getProperty("cassandra-pidfile");
 
