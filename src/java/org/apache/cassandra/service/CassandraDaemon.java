@@ -288,8 +288,9 @@ public class CassandraDaemon
         }
         catch (IOException e)
         {
-            if(DatabaseDescriptor.getCommitFailurePolicy() == Config.CommitFailurePolicy.stop_on_setup){
-                logger.error("Failed to recover commitlog due to non transient errors of type: {}",
+            if(DatabaseDescriptor.getCommitFailurePolicy() == Config.CommitFailurePolicy.stop_on_setup
+               && StorageService.instance.hasNonTransientError(StorageService.NonTransientError.COMMIT_LOG_CORRUPTION)){
+                logger.error("Failed to recover from commitlog corruption due to some non transient errors: {}",
                              StorageService.instance.getNonTransientErrors().keySet());
                 return false;
             }

@@ -36,7 +36,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
-import org.apache.commons.lang3.EnumUtils;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,7 +185,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private Collection<Token> bootstrapTokens = null;
 
     public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
-    private final Map<String, Set<Map<String, String>>> nonTransientErrors;
+    private final HashMap<String, Set<Map<String, String>>> nonTransientErrors;
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -1344,8 +1344,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public Map<String, Set<Map<String, String>>> getNonTransientErrors() {
-        return nonTransientErrors;
+    public synchronized Map<String, Set<Map<String, String>>> getNonTransientErrors() {
+        return SerializationUtils.clone(nonTransientErrors);
     }
 
     public synchronized void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
@@ -1354,6 +1354,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         errors.add(Collections.unmodifiableMap(attributes));
     }
 
+    public synchronized boolean hasNonTransientError(NonTransientError nonTransientError) {
+        return nonTransientErrors.containsKey(nonTransientError.toString());
+    }
 
     public boolean isBootstrapMode()
     {
