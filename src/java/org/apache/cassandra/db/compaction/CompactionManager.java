@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 import javax.management.openmbean.OpenDataException;
 import javax.management.openmbean.TabularData;
 
@@ -57,6 +58,7 @@ import org.apache.cassandra.metrics.CompactionMetrics;
 import org.apache.cassandra.repair.Validator;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.tools.nodetool.Compact;
 import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.utils.concurrent.Refs;
@@ -80,6 +82,8 @@ public class CompactionManager implements CompactionManagerMBean
     public static final int NO_GC = Integer.MIN_VALUE;
     public static final int GC_ALL = Integer.MAX_VALUE;
 
+    private static final long CHEAP_COMPACTION_THRESHOLD = 10 * FileUtils.ONE_GB;
+
     // A thread local that tells us if the current thread is owned by the compaction manager. Used
     // by CounterContext to figure out if it should log a warning for invalid counter shards.
     public static final ThreadLocal<Boolean> isCompactionManager = new ThreadLocal<Boolean>()
@@ -98,11 +102,13 @@ public class CompactionManager implements CompactionManagerMBean
         MBeanWrapper.instance.registerMBean(instance, MBEAN_OBJECT_NAME);
     }
 
-    private final CompactionExecutor executor = new CompactionExecutor();
+    private final CompactionExecutor compactionExecutor = new CompactionExecutor();
+    private final CompactionExecutor cheapCompactionExecutor = new CheapCompactionExecutor();
+    private final CompactionDelegator compactionDelegator = new CompactionDelegator(compactionExecutor, cheapCompactionExecutor);
     private final CompactionExecutor validationExecutor = new ValidationExecutor();
     private final static CompactionExecutor cacheCleanupExecutor = new CacheCleanupExecutor();
 
-    private final CompactionMetrics metrics = new CompactionMetrics(executor, validationExecutor);
+    private final CompactionMetrics metrics = new CompactionMetrics(compactionExecutor, cheapCompactionExecutor, validationExecutor);
     @VisibleForTesting
     final Multiset<ColumnFamilyStore> compactingCF = ConcurrentHashMultiset.create();
 
@@ -155,7 +161,7 @@ public class CompactionManager implements CompactionManagerMBean
          * are idle threads stil. (CASSANDRA-4310)
          */
         int count = compactingCF.count(cfs);
-        if (count > 0 && executor.getActiveCount() >= executor.getMaximumPoolSize())
+        if (count > 0 && compactionDelegator.getActiveCount() >= executor.getMaximumPoolSize())
         {
             logger.trace("Background compaction is still running for {}.{} ({} remaining). Skipping",
                          cfs.keyspace.getName(), cfs.name, count);
@@ -168,7 +174,7 @@ public class CompactionManager implements CompactionManagerMBean
                      cfs.getCompactionStrategy().getName());
 
         List<Future<?>> futures = new ArrayList<>(1);
-        Future<?> fut = executor.submitIfRunning(new BackgroundCompactionCandidate(cfs), "background task");
+        Future<?> fut = compactionDelegator.delegate(new BackgroundCompactionCandidate(cfs), "background task");
         if (!fut.isCancelled())
             futures.add(fut);
         else
@@ -191,7 +197,8 @@ public class CompactionManager implements CompactionManagerMBean
     public void forceShutdown()
     {
         // shutdown executors to prevent further submission
-        executor.shutdown();
+        compactionExecutor.shutdown();
+        cheapCompactionExecutor.shutdown();
         validationExecutor.shutdown();
         cacheCleanupExecutor.shutdown();
 
@@ -204,7 +211,7 @@ public class CompactionManager implements CompactionManagerMBean
         // wait for tasks to terminate
         // compaction tasks are interrupted above, so it shuold be fairy quick
         // until not interrupted tasks to complete.
-        for (ExecutorService exec : Arrays.asList(executor, validationExecutor, cacheCleanupExecutor))
+        for (ExecutorService exec : Arrays.asList(compactionExecutor, cheapCompactionExecutor, validationExecutor, cacheCleanupExecutor))
         {
             try
             {
@@ -220,8 +227,10 @@ public class CompactionManager implements CompactionManagerMBean
 
     public void finishCompactionsAndShutdown(long timeout, TimeUnit unit) throws InterruptedException
     {
-        executor.shutdown();
-        executor.awaitTermination(timeout, unit);
+        cheapCompactionExecutor.shutdown();
+        compactionExecutor.shutdown();
+        cheapCompactionExecutor.awaitTermination(timeout, unit);
+        compactionExecutor.awaitTermination(timeout, unit);
     }
 
     // the actual sstables to compact are not determined until we run the BCT; that way, if new sstables
@@ -302,7 +311,7 @@ public class CompactionManager implements CompactionManagerMBean
                         return this;
                     }
                 };
-                Future<?> fut = executor.submitIfRunning(callable, "paralell sstable operation");
+                Future<?> fut = compactionDelegator.delegate(callable, "paralell sstable operation");
                 if (!fut.isCancelled())
                     futures.add(fut);
                 else
@@ -494,7 +503,7 @@ public class CompactionManager implements CompactionManagerMBean
         ListenableFuture<?> ret = null;
         try
         {
-            ret = executor.submitIfRunning(runnable, "anticompaction");
+            ret = compactionDelegator.delegate(runnable, "anticompaction");
             return ret;
         }
         finally
@@ -628,8 +637,7 @@ public class CompactionManager implements CompactionManagerMBean
                     task.execute(metrics);
                 }
             };
-
-            Future<?> fut = executor.submitIfRunning(runnable, "maximal task");
+            Future<?> fut = compactionDelegator.delegate(runnable, "maximal task");
             if (!fut.isCancelled())
                 futures.add(fut);
         }
@@ -663,6 +671,24 @@ public class CompactionManager implements CompactionManagerMBean
         FBUtilities.waitOnFutures(futures);
     }
 
+    private Collection<SSTableReader> lookupSSTables(final ColumnFamilyStore cfs, final Collection<Descriptor> dataFiles) {
+        Collection<SSTableReader> sstables = new ArrayList<>(dataFiles.size());
+        for (Descriptor desc : dataFiles)
+        {
+            // inefficient but not in a performance sensitive path
+            SSTableReader sstable = lookupSSTable(cfs, desc);
+            if (sstable == null)
+            {
+                logger.info("Will not compact {}: it is not an active sstable", desc);
+            }
+            else
+            {
+                sstables.add(sstable);
+            }
+        }
+        return sstables;
+    }
+
     public Future<?> submitUserDefined(final ColumnFamilyStore cfs, final Collection<Descriptor> dataFiles, final int gcBefore)
     {
         Runnable runnable = new WrappedRunnable()
@@ -671,20 +697,7 @@ public class CompactionManager implements CompactionManagerMBean
             {
                 // look up the sstables now that we're on the compaction executor, so we don't try to re-compact
                 // something that was already being compacted earlier.
-                Collection<SSTableReader> sstables = new ArrayList<>(dataFiles.size());
-                for (Descriptor desc : dataFiles)
-                {
-                    // inefficient but not in a performance sensitive path
-                    SSTableReader sstable = lookupSSTable(cfs, desc);
-                    if (sstable == null)
-                    {
-                        logger.info("Will not compact {}: it is not an active sstable", desc);
-                    }
-                    else
-                    {
-                        sstables.add(sstable);
-                    }
-                }
+                Collection<SSTableReader> sstables = lookupSSTables(cfs, dataFiles);
 
                 if (sstables.isEmpty())
                 {
@@ -699,7 +712,7 @@ public class CompactionManager implements CompactionManagerMBean
             }
         };
 
-        return executor.submitIfRunning(runnable, "user defined task");
+        return compactionDelegator.delegate(runnable, "user defined task", () -> lookupSSTables(cfs, dataFiles));
     }
 
     // This acquire a reference on the sstable
@@ -1370,7 +1383,7 @@ public class CompactionManager implements CompactionManagerMBean
             }
         };
 
-        return executor.submitIfRunning(runnable, "index build");
+        return compactionDelegator.delegate(runnable, "index build");
     }
 
     public Future<?> submitCacheWrite(final AutoSavingCache.Writer writer)
@@ -1403,7 +1416,7 @@ public class CompactionManager implements CompactionManagerMBean
             }
         };
 
-        return executor.submitIfRunning(runnable, "cache write");
+        return compactionDelegator.delegate(runnable, "cache write");
     }
 
     public List<SSTableReader> runIndexSummaryRedistribution(IndexSummaryRedistribution redistribution) throws IOException
@@ -1470,6 +1483,60 @@ public class CompactionManager implements CompactionManagerMBean
     public int getActiveCompactions()
     {
         return CompactionMetrics.getCompactions().size();
+    }
+
+    static class CompactionDelegator {
+        private final CompactionExecutor compactionExecutor;
+        private final CompactionExecutor cheapCompactionExecutor;
+        private final ThreadPoolExecutor delegationExecutor = DebuggableThreadPoolExecutor.createWithFixedPoolSize("CompactionDelegationExecutor", 2);
+
+        public CompactionDelegator(CompactionExecutor compactionExecutor, CompactionExecutor cheapCompactionExecutor)
+        {
+            this.compactionExecutor = compactionExecutor;
+            this.cheapCompactionExecutor = cheapCompactionExecutor;
+        }
+
+        public ListenableFuture<?> delegate(Runnable runnable, String taskName)
+        {
+            return delegate(Executors.callable(runnable, null), taskName, () -> ImmutableSet.of());
+        }
+
+        public ListenableFuture<?> delegate(Callable callable, String taskName)
+        {
+            return delegate(callable, taskName, () -> ImmutableSet.of());
+        }
+
+        public ListenableFuture<?> delegate(Callable runnable, String taskName, Supplier<Collection<SSTableReader>> ssTableReadersSupplier)
+        {
+            if (DatabaseDescriptor.getConcurrentCheapCompactors() == 0)
+            {
+                return compactionExecutor.submitIfRunning(runnable, taskName);
+            }
+            return delegationExecutor.submit(() -> getCompactionExecutor(ssTableReadersSupplier.get()).submitIfRunning(runnable, taskName).get()).get();
+        }
+
+        private CompactionExecutor getCompactionExecutor(Collection<SSTableReader> ssTableReaders)
+        {
+            if (ssTableReaders == null || ssTableReaders.isEmpty())
+            {
+                return compactionExecutor;
+            }
+
+            long totalOnDiskLength = 0;
+            for (SSTableReader ssTableReader : ssTableReaders)
+            {
+                totalOnDiskLength += ssTableReader.onDiskLength();
+            }
+
+            if (totalOnDiskLength > CHEAP_COMPACTION_THRESHOLD) {
+                return compactionExecutor;
+            }
+            return cheapCompactionExecutor;
+        }
+
+        public int getActiveCount() {
+            return cheapCompactionExecutor.getActiveCount() + compactionExecutor.getActiveCount();
+        }
     }
 
     static class CompactionExecutor extends JMXEnabledThreadPoolExecutor
@@ -1564,6 +1631,14 @@ public class CompactionManager implements CompactionManagerMBean
 
                 return Futures.immediateCancelledFuture();
             }
+        }
+    }
+
+    private static class CheapCompactionExecutor extends CompactionExecutor
+    {
+        public CheapCompactionExecutor()
+        {
+            super(1, "CheapCompactionExecutor");
         }
     }
 
