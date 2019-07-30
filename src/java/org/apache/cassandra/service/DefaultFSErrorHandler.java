@@ -20,7 +20,6 @@ package org.apache.cassandra.service;
 
 import java.io.File;
 
-import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +45,6 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         JVMStabilityInspector.inspectThrowable(e);
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
-            case stop:
-                StorageService.instance.recordNonTransientError(
-                        StorageService.NonTransientError.SSTABLE_CORRUPTION,
-                        ImmutableMap.of("path", e.path.toString()));
-                break;
             case stop_paranoid:
                 StorageService.instance.stopTransports();
                 break;
@@ -69,9 +63,6 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop_paranoid:
             case stop:
                 StorageService.instance.stopTransports();
-                StorageService.instance.recordNonTransientError(
-                        StorageService.NonTransientError.FS_ERROR,
-                        ImmutableMap.of("path", e.path.toString()));
                 break;
             case best_effort:
                 // for both read and write errors mark the path as unwritable.
