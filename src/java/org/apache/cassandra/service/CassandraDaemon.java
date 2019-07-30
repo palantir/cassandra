@@ -554,10 +554,8 @@ public class CassandraDaemon
                 WindowsTimer.startTimerPeriod(DatabaseDescriptor.getWindowsTimerInterval());
             }
 
-            // TODO(mmoldawsky): how should we leave the JVM up when setup failed but we want to inspect through JMX
-            if (!setup()){
+            if (!setup()) // Cassandra gracefully failed to initialize.
                 return;
-            }
 
             String pidFile = System.getProperty("cassandra-pidfile");
 
