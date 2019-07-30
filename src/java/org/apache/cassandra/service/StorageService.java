@@ -185,7 +185,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private Collection<Token> bootstrapTokens = null;
 
     public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
-    private final HashMap<String, Set<Map<String, String>>> nonTransientErrors;
+    private final SetMultimap<String, Map<String, String>> nonTransientErrors = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -235,7 +235,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         super(Executors.newSingleThreadExecutor());
 
         jmxObjectName = "org.apache.cassandra.db:type=StorageService";
-        nonTransientErrors = new HashMap<>();
         MBeanWrapper.instance.registerMBean(this, jmxObjectName);
         MBeanWrapper.instance.registerMBean(StreamManager.instance, StreamManager.OBJECT_NAME);
 
@@ -1344,17 +1343,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public synchronized Map<String, Set<Map<String, String>>> getNonTransientErrors() {
-        return SerializationUtils.clone(nonTransientErrors);
+    public Map<String, Set<Map<String, String>>> getNonTransientErrors() {
+        return Multimaps.asMap(ImmutableSetMultimap.copyOf(nonTransientErrors));
     }
 
-    public synchronized void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
-        Set<Map<String, String>> errors =
-                nonTransientErrors.computeIfAbsent(nonTransientError.toString(), err -> new HashSet<>());
-        errors.add(Collections.unmodifiableMap(attributes));
+    public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
+       nonTransientErrors.put(nonTransientError.toString(), Collections.unmodifiableMap(attributes));
     }
 
-    public synchronized boolean hasNonTransientError(NonTransientError nonTransientError) {
+    public boolean hasNonTransientError(NonTransientError nonTransientError) {
         return nonTransientErrors.containsKey(nonTransientError.toString());
     }
 
