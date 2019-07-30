@@ -486,7 +486,8 @@ public class CommitLog implements CommitLogMBean
                 StorageService.instance.stopTransports();
                 ImmutableMap<String, String> attributes = Optional.ofNullable(path)
                             .map(pathVal -> ImmutableMap.of("path", Paths.get(DatabaseDescriptor.getCommitLogLocation())
-                                                                         .relativize(Paths.get(pathVal))
+                                                                         .toAbsolutePath()
+                                                                         .relativize(Paths.get(pathVal).toAbsolutePath())
                                                                          .toString()))
                             .orElse(ImmutableMap.of());
                 StorageService.instance.recordNonTransientError(
