@@ -183,7 +183,7 @@ public class CommitLogFailurePolicyTest
     {
         CassandraDaemon daemon = new CassandraDaemon();
         StorageService.instance.registerDaemon(daemon);
-        daemon.completeSetup(); //startup must be completed, otherwise commit log failure must kill JVM regardless of failure policy
+        daemon.completeSetup(); //startup completed
 
         KillerForTests killerForTests = new KillerForTests();
         JVMStabilityInspector.Killer originalKiller = JVMStabilityInspector.replaceKiller(killerForTests);
