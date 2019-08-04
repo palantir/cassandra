@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.gms.Gossiper;
@@ -73,6 +74,21 @@ public class TokenAllocation
             if (ns.getStandardDeviation() > os.getStandardDeviation())
                 logger.warn("Unexpected growth in standard deviation after allocation.");
         }
+        return tokens;
+    }
+
+    public static Collection<Token> allocateTokens(final TokenMetadata tokenMetadata,
+                                                   final int replicas,
+                                                   final IPartitioner partitioner,
+                                                   final InetAddress endpoint,
+                                                   int numTokens)
+    {
+        TokenMetadata tokenMetadataCopy = tokenMetadata.cloneOnlyTokenMap();
+        StrategyAdapter strategy = getStrategy(tokenMetadataCopy, replicas, endpoint);
+        Collection<Token> tokens = create(tokenMetadata, strategy, partitioner).addUnit(endpoint, numTokens);
+        tokens = adjustForCrossDatacenterClashes(tokenMetadata, strategy, tokens);
+        logger.warn("Selected tokens {}", tokens);
+        // SummaryStatistics is not implemented for `allocate_tokens_for_local_replication_factor`
         return tokens;
     }
 
@@ -201,7 +217,17 @@ public class TokenAllocation
     {
         final String dc = snitch.getDatacenter(endpoint);
         final int replicas = rs.getReplicationFactor(dc);
+        return getStrategy(tokenMetadata, replicas, snitch, endpoint);
+    }
 
+    static StrategyAdapter getStrategy(final TokenMetadata tokenMetadata, final int replicas, final InetAddress endpoint)
+    {
+        return getStrategy(tokenMetadata, replicas, DatabaseDescriptor.getEndpointSnitch(), endpoint);
+    }
+
+    static StrategyAdapter getStrategy(final TokenMetadata tokenMetadata, final int replicas, final IEndpointSnitch snitch, final InetAddress endpoint)
+    {
+        final String dc = snitch.getDatacenter(endpoint);
         if (replicas == 0 || replicas == 1)
         {
             // No replication, each node is treated as separate.
