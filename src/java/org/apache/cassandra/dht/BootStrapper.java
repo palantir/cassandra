@@ -159,7 +159,8 @@ public class BootStrapper extends ProgressEventNotifierSupport
      */
     public static Collection<Token> getBootstrapTokens(final TokenMetadata metadata, InetAddress address, int schemaWaitDelay, Collection<String> initialTokens) throws ConfigurationException
     {
-        String allocationKeyspace = DatabaseDescriptor.getAllocateTokensKeyspace();
+        String allocationKeyspace = DatabaseDescriptor.getAllocateTokensForKeyspace();
+        Integer allocationLocalRf = DatabaseDescriptor.getAllocateTokensForLocalRf();
         if (initialTokens.size() > 0 && allocationKeyspace != null)
             logger.warn("manually specified tokens override automatic allocation");
 
@@ -173,6 +174,9 @@ public class BootStrapper extends ProgressEventNotifierSupport
 
         if (allocationKeyspace != null)
             return allocateTokens(metadata, address, allocationKeyspace, numTokens, schemaWaitDelay);
+
+        if (allocationLocalRf != null)
+            return allocateTokens(metadata, address, allocationLocalRf, numTokens, schemaWaitDelay);
 
         if (numTokens == 1)
             logger.warn("Picking random token for a single vnode.  You should probably add more vnodes and/or use the automatic token allocation mechanism.");
@@ -211,6 +215,20 @@ public class BootStrapper extends ProgressEventNotifierSupport
         AbstractReplicationStrategy rs = ks.getReplicationStrategy();
 
         return TokenAllocation.allocateTokens(metadata, rs, StorageService.getPartitioner(), address, numTokens);
+    }
+
+
+    static Collection<Token> allocateTokens(final TokenMetadata metadata,
+                                            InetAddress address,
+                                            int rf,
+                                            int numTokens,
+                                            int schemaWaitDelay)
+    {
+        StorageService.instance.waitForSchema(schemaWaitDelay);
+        if (!FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress()))
+            Gossiper.waitToSettle();
+
+        return TokenAllocation.allocateTokens(metadata, rf, StorageService.getPartitioner(), address, numTokens);
     }
 
     public static Collection<Token> getRandomTokens(TokenMetadata metadata, int numTokens)
