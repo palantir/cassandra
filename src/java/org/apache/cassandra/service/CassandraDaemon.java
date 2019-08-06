@@ -558,8 +558,6 @@ public class CassandraDaemon
             }
 
             setup();
-            if (!setupCompleted())
-                return;
 
             String pidFile = System.getProperty("cassandra-pidfile");
 
@@ -574,6 +572,7 @@ public class CassandraDaemon
                 System.err.close();
             }
 
+            if (setupCompleted())
                 start();
         }
         catch (Throwable e)
