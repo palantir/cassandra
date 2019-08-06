@@ -149,11 +149,14 @@ public class CassandraDaemon
     /**
      * This is a hook for concrete daemons to initialize themselves suitably.
      *
-     * Subclasses should override this to finish the job (listening on ports, etc.)
-     *
-     * @return true if cassandra was initialized successfully, false if cassandra gracefully failed to initialize.
+     * Subclasses should override this to finish the job (listening on ports, etc.).
+     * <p>
+     * If cassandra was initialized successfully {@link #setupCompleted()} returns true. If cassandra encountered a
+     * commitlog error and {@code commit_failure_policy} configuration is set to
+     * {@link Config.CommitFailurePolicy#stop_on_startup} no exception will be thrown and {@link #setupCompleted()}
+     * returns false.
      */
-    protected boolean setup()
+    protected void setup()
     {
         FileUtils.setFSErrorHandler(new DefaultFSErrorHandler());
 
@@ -287,12 +290,12 @@ public class CassandraDaemon
         }
         catch (IOException e)
         {
-            if(DatabaseDescriptor.getCommitFailurePolicy() == Config.CommitFailurePolicy.stop_on_startup
-               && StorageService.instance.hasNonTransientError(StorageService.NonTransientError.COMMIT_LOG_CORRUPTION))
+            if (DatabaseDescriptor.getCommitFailurePolicy() == Config.CommitFailurePolicy.stop_on_startup
+                && StorageService.instance.hasNonTransientError(StorageService.NonTransientError.COMMIT_LOG_CORRUPTION))
             {
                 logger.error("Failed to recover from commitlog corruption due to some non transient errors: {}",
                              StorageService.instance.getNonTransientErrors());
-                return false;
+                return;
             }
             throw new RuntimeException(e);
         }
@@ -373,7 +376,6 @@ public class CassandraDaemon
         nativeServer = new org.apache.cassandra.transport.Server(nativeAddr, nativePort);
 
         completeSetup();
-        return true;
     }
 
     /*
@@ -555,8 +557,7 @@ public class CassandraDaemon
                 WindowsTimer.startTimerPeriod(DatabaseDescriptor.getWindowsTimerInterval());
             }
 
-            if (!setup()) // Cassandra gracefully failed to initialize.
-                return;
+            setup();
 
             String pidFile = System.getProperty("cassandra-pidfile");
 
@@ -571,7 +572,8 @@ public class CassandraDaemon
                 System.err.close();
             }
 
-            start();
+            if (setupCompleted())
+                start();
         }
         catch (Throwable e)
         {
