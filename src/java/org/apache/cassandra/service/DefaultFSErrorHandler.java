@@ -46,8 +46,6 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         JVMStabilityInspector.inspectThrowable(e);
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
-            case ignore:
-            case best_effort:
             case stop:
                 // recording sstable non transient error
                 StorageService.instance.recordNonTransientError(
@@ -88,15 +86,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                     if (directory != null)
                         Keyspace.removeUnreadableSSTables(directory);
                 }
-                StorageService.instance.recordNonTransientError(
-                    StorageService.NonTransientError.FS_ERROR,
-                    ImmutableMap.of("path", e.path.toString()));
                 break;
             case ignore:
                 // already logged, so left nothing to do
-                StorageService.instance.recordNonTransientError(
-                    StorageService.NonTransientError.FS_ERROR,
-                    ImmutableMap.of("path", e.path.toString()));
                 break;
             default:
                 throw new IllegalStateException();
