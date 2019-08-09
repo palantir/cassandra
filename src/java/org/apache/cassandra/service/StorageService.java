@@ -167,7 +167,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -1347,7 +1347,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
-       nonTransientErrors.put(nonTransientError.toString(), Collections.unmodifiableMap(attributes));
+        setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
+        nonTransientErrors.put(nonTransientError.toString(), Collections.unmodifiableMap(attributes));
     }
 
     public boolean hasNonTransientError(NonTransientError nonTransientError) {
