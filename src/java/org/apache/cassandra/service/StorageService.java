@@ -167,7 +167,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -182,6 +182,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final String jmxObjectName;
 
     private Collection<Token> bootstrapTokens = null;
+
+    private final Set<ImmutableMap<String, String>> nonTransientErrors = Collections.synchronizedSet(new HashSet<>());
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -352,7 +354,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 }
             }
         }
-        
+
         daemon.thriftServer.start();
     }
 
@@ -1336,6 +1338,25 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Resuming bootstrap is requested, but the node is already bootstrapped.");
             return false;
         }
+    }
+
+    @Override
+    public Set<Map<String, String>> getNonTransientErrors() {
+        return ImmutableSet.copyOf(nonTransientErrors);
+    }
+
+    public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
+        setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
+        ImmutableMap<String, String> attributesWithErrorType =
+            ImmutableMap.<String, String>builder()
+            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
+            .putAll(attributes)
+            .build();
+        nonTransientErrors.add(attributesWithErrorType);
+    }
+
+    public boolean hasNonTransientError(NonTransientError nonTransientError) {
+        return nonTransientErrors.stream().anyMatch(errorAtrributes -> isErrorType(nonTransientError, errorAtrributes));
     }
 
     public boolean isBootstrapMode()
@@ -4604,4 +4625,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info(String.format("Updated hinted_handoff_throttle_in_kb to %d", throttleInKB));
     }
 
+    private boolean isErrorType(NonTransientError nonTransientError, Map<String, String> errorAtrributes)
+    {
+        return nonTransientError.name().equals(errorAtrributes.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
+    }
 }

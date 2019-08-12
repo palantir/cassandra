@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -32,6 +33,23 @@ import javax.management.openmbean.TabularData;
 
 public interface StorageServiceMBean extends NotificationEmitter
 {
+    /**
+     * Non transient error type key.
+     *
+     * @see NonTransientError
+     * @see #getNonTransientErrors()
+     */
+    static final String NON_TRANSIENT_ERROR_TYPE_KEY = "type";
+
+    /**
+     * Type of non transient errors.
+     */
+    public enum NonTransientError {
+        COMMIT_LOG_CORRUPTION,
+        SSTABLE_CORRUPTION,
+        FS_ERROR
+    }
+
     /**
      * Retrieve the list of live nodes in the cluster, where "liveness" is
      * determined by the failure detector of the node being queried.
@@ -212,7 +230,7 @@ public interface StorageServiceMBean extends NotificationEmitter
 
     /**
      * Takes the snapshot of a multiple column family from different keyspaces. A snapshot name must be specified.
-     * 
+     *
      * @param tag
      *            the tag given to the snapshot; may not be null or empty
      * @param columnFamilyList
@@ -399,11 +417,11 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * If level cannot be parsed, then the level will be defaulted to DEBUG<br>
      * <br>
      * The logback configuration should have < jmxConfigurator /> set
-     * 
+     *
      * @param classQualifier The logger's classQualifer
      * @param level The log level
-     * @throws Exception 
-     * 
+     * @throws Exception
+     *
      *  @see ch.qos.logback.classic.Level#toLevel(String)
      */
     public void setLoggingLevel(String classQualifier, String level) throws Exception;
@@ -650,4 +668,29 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @return true if the node successfully starts resuming. (this does not mean bootstrap streaming was success.)
      */
     public boolean resumeBootstrap();
+
+    /**
+     * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
+     *
+     * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} and the
+     * matching value from {@link NonTransientError} representing the type of the non transient error.
+     * <p>
+     * Non transient errors:
+     * <ul>
+     *      <li>{@link NonTransientError#COMMIT_LOG_CORRUPTION}
+     *          <ul>
+     *              <li>attributes:
+     *                  <ul>
+     *                      <li> {@code path} - optional field representing the corrupted commitlog file.</li>
+     *                  </ul>
+     *              </li>
+     *          </ul>
+     *      </li>
+     *      <li>{@link NonTransientError#SSTABLE_CORRUPTION}</li>
+     *      <li>{@link NonTransientError#FS_ERROR}</li>
+     * </ul>
+     *
+     * @return a map of all recorded non transient errors.
+     */
+    public Set<Map<String, String>> getNonTransientErrors();
 }
