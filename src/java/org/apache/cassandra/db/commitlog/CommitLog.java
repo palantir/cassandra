@@ -19,9 +19,13 @@ package org.apache.cassandra.db.commitlog;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Paths;
 import java.util.*;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -467,13 +471,28 @@ public class CommitLog implements CommitLogMBean
     @VisibleForTesting
     public static boolean handleCommitError(String message, Throwable t)
     {
+        return handleCommitError(message, t, null);
+    }
+
+    static boolean handleCommitError(String message, Throwable t, @Nullable String path)
+    {
         JVMStabilityInspector.inspectCommitLogThrowable(t);
         switch (DatabaseDescriptor.getCommitFailurePolicy())
         {
             // Needed here for unit tests to not fail on default assertion
             case die:
             case stop:
+            case stop_on_startup:
                 StorageService.instance.stopTransports();
+                ImmutableMap<String, String> attributes = Optional.ofNullable(path)
+                            .map(pathVal -> ImmutableMap.of("path", Paths.get(DatabaseDescriptor.getCommitLogLocation())
+                                                                         .toAbsolutePath()
+                                                                         .relativize(Paths.get(pathVal).toAbsolutePath())
+                                                                         .toString()))
+                            .orElse(ImmutableMap.of());
+                StorageService.instance.recordNonTransientError(
+                    StorageService.NonTransientError.COMMIT_LOG_CORRUPTION,
+                    attributes);
                 //$FALL-THROUGH$
             case stop_commit:
                 logger.error(String.format("%s. Commit disk failure policy is %s; terminating thread", message, DatabaseDescriptor.getCommitFailurePolicy()), t);

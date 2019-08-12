@@ -452,7 +452,7 @@ public class CommitLogStressTest
         int cells = 0;
 
         @Override
-        void replayMutation(byte[] inputBuffer, int size, final int entryLocation, final CommitLogDescriptor desc)
+        void replayMutation(byte[] inputBuffer, int size, final int entryLocation, final CommitLogDescriptor desc, String path)
         {
             if (desc.id < discardedPos.segment)
             {
