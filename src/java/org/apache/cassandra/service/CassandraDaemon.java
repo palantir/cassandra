@@ -59,6 +59,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,7 +175,12 @@ public class CassandraDaemon
     /**
      * This is a hook for concrete daemons to initialize themselves suitably.
      *
-     * Subclasses should override this to finish the job (listening on ports, etc.)
+     * Subclasses should override this to finish the job (listening on ports, etc.).
+     * <p>
+     * If cassandra was initialized successfully {@link #setupCompleted()} returns true. If cassandra encountered a
+     * commitlog error and {@code commit_failure_policy} configuration is set to
+     * {@link Config.CommitFailurePolicy#stop_on_startup} no exception will be thrown and {@link #setupCompleted()}
+     * returns false.
      */
     protected void setup()
     {
@@ -310,6 +316,13 @@ public class CassandraDaemon
         }
         catch (IOException e)
         {
+            if (DatabaseDescriptor.getCommitFailurePolicy() == Config.CommitFailurePolicy.stop_on_startup
+                && StorageService.instance.hasNonTransientError(StorageService.NonTransientError.COMMIT_LOG_CORRUPTION))
+            {
+                logger.error("Failed to recover from commitlog corruption due to some non transient errors: {}",
+                             StorageService.instance.getNonTransientErrors());
+                return;
+            }
             throw new RuntimeException(e);
         }
 
@@ -637,7 +650,8 @@ public class CassandraDaemon
                 System.err.close();
             }
 
-            start();
+            if (setupCompleted())
+                start();
         }
         catch (Throwable e)
         {
