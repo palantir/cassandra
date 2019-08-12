@@ -170,7 +170,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -185,6 +185,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final String jmxObjectName;
 
     private Collection<Token> bootstrapTokens = null;
+
+    public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
+    private final SetMultimap<String, Map<String, String>> nonTransientErrors = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -355,7 +358,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 }
             }
         }
-        
+
         daemon.thriftServer.start();
     }
 
@@ -1345,6 +1348,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Resuming bootstrap is requested, but the node is already bootstrapped.");
             return false;
         }
+    }
+
+    @Override
+    public Map<String, Set<Map<String, String>>> getNonTransientErrors() {
+        return Multimaps.asMap(ImmutableSetMultimap.copyOf(nonTransientErrors));
+    }
+
+    public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
+        setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
+        nonTransientErrors.put(nonTransientError.toString(), Collections.unmodifiableMap(attributes));
+    }
+
+    public boolean hasNonTransientError(NonTransientError nonTransientError) {
+        return nonTransientErrors.containsKey(nonTransientError.toString());
     }
 
     public boolean isBootstrapMode()
