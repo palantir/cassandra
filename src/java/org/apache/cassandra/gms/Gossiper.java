@@ -52,6 +52,7 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.joda.time.Instant;
 
 import static com.google.common.base.Preconditions.checkState;
 
