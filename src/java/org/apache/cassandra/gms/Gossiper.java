@@ -17,23 +17,42 @@
  */
 package org.apache.cassandra.gms;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.*;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
-
-import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +69,9 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.apache.cassandra.utils.Pair;
+
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * This module is responsible for Gossiping information for the local endpoint. This abstraction
@@ -134,12 +156,30 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     private volatile long lastProcessedMessageAt = System.currentTimeMillis();
 
+    private static void checkFilesystem() {
+        try {
+            Path file = Files.createTempFile("cassandra_healthcheck", null);
+            String healthCheckData = "healthcheck " + Instant.now();
+            Files.write(file, ImmutableList.of(healthCheckData), StandardCharsets.UTF_8);
+            String read = Iterables.getOnlyElement(Files.readAllLines(file, StandardCharsets.UTF_8));
+            checkState(read.equals(healthCheckData), "health check data did not match, written: %s read: %s",
+                       healthCheckData, read);
+            checkState(file.toFile().delete(), "Could not delete file, path: %s", file);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
     private class GossipTask implements Runnable
     {
         public void run()
         {
             try
             {
+                checkFilesystem();
+
                 //wait on messaging service to start listening
                 MessagingService.instance().waitUntilListening();
 
