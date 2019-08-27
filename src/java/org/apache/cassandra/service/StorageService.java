@@ -184,7 +184,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private Collection<Token> bootstrapTokens = null;
 
-    private final Set<ImmutableMap<String, String>> nonTransientErrors = new ConcurrentHashSet<>();
+    private final Set<ImmutableMap<String, String>> nonTransientErrors = Collections.synchronizedSet(new HashSet<>());
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
