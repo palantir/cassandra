@@ -34,6 +34,18 @@ import javax.management.openmbean.TabularData;
 public interface StorageServiceMBean extends NotificationEmitter
 {
     /**
+     * Non transient error type key.
+     *
+     * @see #getNonTransientErrors()
+     */
+    static final String NON_TRANSIENT_ERROR_TYPE_KEY = "type";
+
+    /**
+     * Type of non transient errors.
+     */
+    public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
+
+    /**
      * Retrieve the list of live nodes in the cluster, where "liveness" is
      * determined by the failure detector of the node being queried.
      *
@@ -653,10 +665,12 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public boolean resumeBootstrap();
 
     /**
-     * Retrieve a map of non transient error type to a set of unique errors. every error is represented as a map from an
-     * attribute name to value.
+     * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
+     *
+     * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} representing
+     * the type of the non transient error.
      *
      * @return a map of all recorded non transient errors.
      */
-    Map<String, Set<Map<String, String>>> getNonTransientErrors();
+    Set<Map<String, String>> getNonTransientErrors();
 }
