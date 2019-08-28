@@ -1349,7 +1349,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
         ImmutableMap<String, String> attributesWithErrorType =
             ImmutableMap.<String, String>builder()
-            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.toString())
+            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
             .putAll(attributes)
             .build();
         nonTransientErrors.add(attributesWithErrorType);
