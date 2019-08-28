@@ -692,5 +692,5 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      *
      * @return a map of all recorded non transient errors.
      */
-    Set<Map<String, String>> getNonTransientErrors();
+    public Set<Map<String, String>> getNonTransientErrors();
 }
