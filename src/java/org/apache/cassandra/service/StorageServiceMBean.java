@@ -675,7 +675,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} and the
      * matching value from {@link NonTransientError} representing the type of the non transient error.</br>
      * <p><p>
-     * Non transient errors attributes:
+     * Non transient errors:
      * <ul>
      *      <li>{@link NonTransientError#COMMIT_LOG_CORRUPTION}
      *          <ul>
