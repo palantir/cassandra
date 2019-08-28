@@ -46,6 +46,7 @@ import org.apache.cassandra.io.util.DataOutputBufferFixed;
 import org.apache.cassandra.metrics.CommitLogMetrics;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.CRC32Factory;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.MBeanWrapper;
@@ -492,7 +493,7 @@ public class CommitLog implements CommitLogMBean
                                                                          .toString()))
                             .orElse(ImmutableMap.of());
                 StorageService.instance.recordNonTransientError(
-                    StorageService.NonTransientError.COMMIT_LOG_CORRUPTION,
+                    StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION,
                     attributes);
                 //$FALL-THROUGH$
             case stop_commit:
