@@ -36,6 +36,7 @@ public interface StorageServiceMBean extends NotificationEmitter
     /**
      * Non transient error type key.
      *
+     * @see NonTransientError
      * @see #getNonTransientErrors()
      */
     static final String NON_TRANSIENT_ERROR_TYPE_KEY = "type";
@@ -43,7 +44,11 @@ public interface StorageServiceMBean extends NotificationEmitter
     /**
      * Type of non transient errors.
      */
-    public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
+    public enum NonTransientError {
+        COMMIT_LOG_CORRUPTION,
+        SSTABLE_CORRUPTION,
+        FS_ERROR
+    }
 
     /**
      * Retrieve the list of live nodes in the cluster, where "liveness" is
@@ -667,8 +672,23 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     /**
      * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
      *
-     * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} representing
-     * the type of the non transient error.
+     * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} and the
+     * matching value from {@link NonTransientError} representing the type of the non transient error.</br>
+     * <p><p>
+     * Non transient errors attributes:
+     * <ul>
+     *      <li>{@link NonTransientError#COMMIT_LOG_CORRUPTION}
+     *          <ul>
+     *              <li>attributes:
+     *                  <ul>
+     *                      <li> {@code path} - optional field representing the corrupted commitlog file.</li>
+     *                  </ul>
+     *              </li>
+     *          </ul>
+     *      </li>
+     *      <li>{@link NonTransientError#SSTABLE_CORRUPTION}</li>
+     *      <li>{@link NonTransientError#FS_ERROR}</li>
+     * </ul>
      *
      * @return a map of all recorded non transient errors.
      */
