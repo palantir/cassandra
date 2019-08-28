@@ -215,11 +215,11 @@ public class CommitLogFailurePolicyTest
 
     private Set<Map<String, String>> addCommitLogCorruptionAttribute(Set<Map<String, String>> errors)
     {
-        return errors.stream().map(error ->
-                                   ImmutableMap.<String, String>builder()
-                                        .putAll(error)
-                                        .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION.toString())
-                                        .build())
+        return errors.stream()
+                     .map(error -> ImmutableMap.<String, String>builder()
+                            .putAll(error)
+                            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION.toString())
+                            .build())
                      .collect(Collectors.toSet());
     }
 }
