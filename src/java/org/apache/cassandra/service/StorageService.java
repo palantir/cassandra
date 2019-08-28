@@ -78,7 +78,6 @@ import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventType;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
-import org.apache.mina.util.ConcurrentHashSet;
 
 /**
  * This abstraction contains the token/identifier of this node
