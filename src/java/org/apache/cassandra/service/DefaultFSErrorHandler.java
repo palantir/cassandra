@@ -49,12 +49,12 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop:
                 // recording sstable non transient error
                 StorageService.instance.recordNonTransientError(
-                    StorageService.NonTransientError.SSTABLE_CORRUPTION,
+                    StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
                 break;
             case stop_paranoid:
                 StorageService.instance.recordNonTransientError(
-                    StorageService.NonTransientError.SSTABLE_CORRUPTION,
+                    StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
                 StorageService.instance.stopTransports();
                 break;
@@ -74,7 +74,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop:
                 StorageService.instance.stopTransports();
                 StorageService.instance.recordNonTransientError(
-                        StorageService.NonTransientError.FS_ERROR,
+                        StorageServiceMBean.NonTransientError.FS_ERROR,
                         ImmutableMap.of("path", e.path.toString()));
                 break;
             case best_effort:

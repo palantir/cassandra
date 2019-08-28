@@ -183,8 +183,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private Collection<Token> bootstrapTokens = null;
 
-    public enum NonTransientError { COMMIT_LOG_CORRUPTION, SSTABLE_CORRUPTION, FS_ERROR }
-    private final SetMultimap<String, Map<String, String>> nonTransientErrors = Multimaps.synchronizedSetMultimap(HashMultimap.create());
+    private final Set<ImmutableMap<String, String>> nonTransientErrors = Collections.synchronizedSet(new HashSet<>());
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -1342,17 +1341,22 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public Map<String, Set<Map<String, String>>> getNonTransientErrors() {
-        return Multimaps.asMap(ImmutableSetMultimap.copyOf(nonTransientErrors));
+    public Set<Map<String, String>> getNonTransientErrors() {
+        return ImmutableSet.copyOf(nonTransientErrors);
     }
 
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
         setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
-        nonTransientErrors.put(nonTransientError.toString(), Collections.unmodifiableMap(attributes));
+        ImmutableMap<String, String> attributesWithErrorType =
+            ImmutableMap.<String, String>builder()
+            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
+            .putAll(attributes)
+            .build();
+        nonTransientErrors.add(attributesWithErrorType);
     }
 
     public boolean hasNonTransientError(NonTransientError nonTransientError) {
-        return nonTransientErrors.containsKey(nonTransientError.toString());
+        return nonTransientErrors.stream().anyMatch(errorAtrributes -> isErrorType(nonTransientError, errorAtrributes));
     }
 
     public boolean isBootstrapMode()
@@ -4621,4 +4625,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info(String.format("Updated hinted_handoff_throttle_in_kb to %d", throttleInKB));
     }
 
+    private boolean isErrorType(NonTransientError nonTransientError, Map<String, String> errorAtrributes)
+    {
+        return nonTransientError.name().equals(errorAtrributes.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
+    }
 }
