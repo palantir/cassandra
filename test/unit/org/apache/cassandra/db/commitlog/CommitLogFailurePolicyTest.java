@@ -20,13 +20,12 @@
 package org.apache.cassandra.db.commitlog;
 
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimaps;
+import com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,11 +33,11 @@ import org.junit.Test;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.KillerForTests;
 import org.assertj.core.api.Assertions;
@@ -166,7 +165,8 @@ public class CommitLogFailurePolicyTest
             String commitLogName = "CommitLog.log";
             CommitLog.handleCommitError("Testing stop_on_startup policy with path", new Throwable(), getResolvedCommitLogFilePath(commitLogName));
 
-            Map<String, Set<Map<String, String>>> expectedErrors = getExpectedNonTransientErrors(ImmutableMap.of(), ImmutableMap.of("path", commitLogName));
+            Set<Map<String, String>> expectedErrors =
+                addCommitLogCorruptionAttribute(ImmutableSet.of(ImmutableMap.of(), ImmutableMap.of("path", commitLogName)));
             Assertions.assertThat(StorageService.instance.getNonTransientErrors()).isEqualTo(expectedErrors);
             //policy is stop_on_startup, JVM shouldn't die even if cassandra wasn't succesfully initialized
             Assert.assertFalse(killerForTests.wasKilled());
@@ -195,7 +195,8 @@ public class CommitLogFailurePolicyTest
             String commitLogName = "CommitLog.log";
             CommitLog.handleCommitError("Testing stop_on_startup policy with path", new Throwable(), getResolvedCommitLogFilePath(commitLogName));
 
-            Map<String, Set<Map<String, String>>> expectedErrors = getExpectedNonTransientErrors(ImmutableMap.of(), ImmutableMap.of("path", commitLogName));
+            Set<Map<String, String>> expectedErrors =
+                addCommitLogCorruptionAttribute(ImmutableSet.of(ImmutableMap.of(), ImmutableMap.of("path", commitLogName)));
             Assertions.assertThat(StorageService.instance.getNonTransientErrors()).isEqualTo(expectedErrors);
             //error policy is set to stop_on_startup, so JVM must not be killed if error ocurs after startup
             Assert.assertFalse(killerForTests.wasKilled());
@@ -212,10 +213,13 @@ public class CommitLogFailurePolicyTest
         return Paths.get(DatabaseDescriptor.getCommitLogLocation()).resolve(commitLogName).toString();
     }
 
-    private Map<String, Set<Map<String, String>>> getExpectedNonTransientErrors(Map<String, String>... errors)
+    private Set<Map<String, String>> addCommitLogCorruptionAttribute(Set<Map<String, String>> errors)
     {
-        HashMultimap<String, Map<String, String>> multimap = HashMultimap.create();
-        multimap.putAll(StorageService.NonTransientError.COMMIT_LOG_CORRUPTION.toString(), Arrays.asList(errors));
-        return Multimaps.asMap(multimap);
+        return errors.stream()
+                     .map(error -> ImmutableMap.<String, String>builder()
+                            .putAll(error)
+                            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION.toString())
+                            .build())
+                     .collect(Collectors.toSet());
     }
 }
