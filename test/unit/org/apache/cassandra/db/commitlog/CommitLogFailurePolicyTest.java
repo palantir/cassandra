@@ -22,6 +22,7 @@ package org.apache.cassandra.db.commitlog;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -214,8 +215,11 @@ public class CommitLogFailurePolicyTest
 
     private Set<Map<String, String>> addCommitLogCorruptionAttribute(Set<Map<String, String>> errors)
     {
-        errors.forEach(error ->
-                       error.put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION.toString()));
-        return errors;
+        return errors.stream().map(error ->
+                                   ImmutableMap.<String, String>builder()
+                                        .putAll(error)
+                                        .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION.toString())
+                                        .build())
+                     .collect(Collectors.toSet());
     }
 }
