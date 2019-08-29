@@ -562,7 +562,7 @@ public class Schema
         boolean columnsDidChange = cfm.reload();
 
         Keyspace keyspace = Keyspace.open(cfm.ksName);
-        keyspace.getColumnFamilyStore(cfm.cfName).reload();
+        keyspace.getColumnFamilyStore(cfm.cfName).reload("CF schema update");
         MigrationManager.instance.notifyUpdateColumnFamily(cfm, columnsDidChange);
     }
 

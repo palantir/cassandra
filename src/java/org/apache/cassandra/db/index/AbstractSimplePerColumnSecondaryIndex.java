@@ -145,7 +145,7 @@ public abstract class AbstractSimplePerColumnSecondaryIndex extends PerColumnSec
         // we synchronise on the baseCfs to make sure we are ordered correctly with other flushes to the base CFS
         synchronized (baseCfs.getTracker())
         {
-            wait = indexCfs.forceFlush();
+            wait = indexCfs.forceFlush("");
         }
         FBUtilities.waitOnFuture(wait);
     }
@@ -173,7 +173,7 @@ public abstract class AbstractSimplePerColumnSecondaryIndex extends PerColumnSec
     public void reload()
     {
         indexCfs.metadata.reloadSecondaryIndexMetadata(baseCfs.metadata);
-        indexCfs.reload();
+        indexCfs.reload("Index reload");
     }
     
     public long estimateResultRows()
