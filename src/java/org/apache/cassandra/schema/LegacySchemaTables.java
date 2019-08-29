@@ -241,7 +241,7 @@ public class LegacySchemaTables
     private static void flushSchemaTables()
     {
         for (String table : ALL)
-            SystemKeyspace.forceBlockingFlush(table);
+            SystemKeyspace.forceBlockingFlush(table, "Flushing all schema tables for merging schemas");
     }
 
     /**

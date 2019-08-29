@@ -2273,7 +2273,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void excise(Collection<Token> tokens, InetAddress endpoint)
     {
         logger.info("Removing tokens {} for {}", tokens, endpoint);
-        HintedHandOffManager.instance.deleteHintsForEndpoint(endpoint);
+        HintedHandOffManager.instance.deleteHintsForEndpoint(endpoint, "Removing or decommissioning node");
         removeEndpoint(endpoint);
         tokenMetadata.removeEndpoint(endpoint);
         if (!tokens.isEmpty())
@@ -4117,7 +4117,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         // whilst we've flushed all the CFs, which will have recycled all completed segments, we want to ensure
         // there are no segments to replay, so we force the recycling of any remaining (should be at most one)
-        CommitLog.instance.forceRecycleAllSegments();
+        CommitLog.instance.forceRecycleAllSegments("Drain");
 
         CommitLog.instance.shutdownBlocking();
 

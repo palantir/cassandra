@@ -530,7 +530,7 @@ public class Schema
         keyspace.writeOrder.awaitNewBarrier();
 
         // force a new segment in the CL
-        CommitLog.instance.forceRecycleAllSegments(droppedCfs);
+        CommitLog.instance.forceRecycleAllSegments(droppedCfs, "Dropped keyspace");
 
         MigrationManager.instance.notifyDropKeyspace(ksm);
     }
@@ -586,7 +586,7 @@ public class Schema
         Keyspace.open(ksm.name).dropCf(cfm.cfId);
         MigrationManager.instance.notifyDropColumnFamily(cfm);
 
-        CommitLog.instance.forceRecycleAllSegments(Collections.singleton(cfm.cfId));
+        CommitLog.instance.forceRecycleAllSegments(Collections.singleton(cfm.cfId), "Dropped CF");
     }
 
     public void addType(UserType ut)
