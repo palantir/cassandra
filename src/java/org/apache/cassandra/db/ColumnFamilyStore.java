@@ -214,6 +214,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         reclaimExecutor.awaitTermination(60, TimeUnit.SECONDS);
     }
 
+    public void reload() {
+        reload("Unknown");
+    }
+
     public void reload(String reason)
     {
         // metadata object has been mutated directly. make all the members jibe with new settings.
@@ -1053,6 +1057,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
+    public ListenableFuture<ReplayPosition> forceFlush()
+    {
+        return forceFlush("Unknown");
+    }
+
     /**
      * Flush if there is unflushed data that was written to the CommitLog before @param flushIfDirtyBefore
      * (inclusive).
@@ -1096,6 +1105,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public ReplayPosition forceBlockingFlush(String reason)
     {
         return FBUtilities.waitOnFuture(forceFlush(reason));
+    }
+
+    public ReplayPosition forceBlockingFlush()
+    {
+        return forceBlockingFlush("Unknown");
     }
 
     /**
