@@ -1032,7 +1032,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
         }
 
-        logger.debug("Enqueuing flush for cause {} of {}: {}", name, flushReason, String.format("%d (%.0f%%) on-heap, %d (%.0f%%) off-heap",
+        logger.debug("Enqueuing flush of {} for cause {}: {}", name, flushReason, String.format("%d (%.0f%%) on-heap, %d (%.0f%%) off-heap",
                                                                      onHeapTotal, onHeapRatio * 100, offHeapTotal, offHeapRatio * 100));
     }
 
