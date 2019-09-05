@@ -2759,13 +2759,33 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     /**
+     *  Takes an ephemeral snapshot for the given keyspaces that will be cleared upon the next startup. A snapshot name must be specified.
+     *
+     * @param tag the tag given to the snapshot; may not be null or empty
+     * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
+     */
+    public void takeEphemeralSnapshot(String tag, String... keyspaceNames) throws IOException {
+        takeSnapshot(tag, true, keyspaceNames);
+    }
+
+    /**
      * Takes the snapshot for the given keyspaces. A snapshot name must be specified.
      *
      * @param tag the tag given to the snapshot; may not be null or empty
      * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
      */
-    public void takeSnapshot(String tag, String... keyspaceNames) throws IOException
-    {
+    public void takeSnapshot(String tag, String... keyspaceNames) throws IOException {
+        takeSnapshot(tag, false, keyspaceNames);
+    }
+
+    /**
+     * Takes the snapshot for the given keyspaces. A snapshot name must be specified.
+     *
+     * @param ephemeral If this flag is set to true, the snapshot will be cleaned up during next startup
+     * @param tag the tag given to the snapshot; may not be null or empty
+     * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
+     */
+    private void takeSnapshot(String tag, boolean ephemeral, String... keyspaceNames) throws IOException {
         if (operationMode == Mode.JOINING)
             throw new IOException("Cannot snapshot until bootstrap completes");
         if (tag == null || tag.equals(""))
@@ -2791,7 +2811,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
 
         for (Keyspace keyspace : keyspaces)
-            keyspace.snapshot(tag, null);
+            keyspace.snapshot(tag, null, ephemeral);
     }
 
     /**
