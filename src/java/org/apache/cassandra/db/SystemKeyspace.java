@@ -449,7 +449,7 @@ public final class SystemKeyspace
         String req = "UPDATE system.%s SET truncated_at = truncated_at + ? WHERE key = '%s'";
         executeInternal(String.format(req, LOCAL, LOCAL), truncationAsMapEntry(cfs, truncatedAt, position));
         truncationRecords = null;
-        forceBlockingFlush(LOCAL);
+        forceBlockingFlush(LOCAL, "Saving truncation record");
     }
 
     /**
@@ -460,7 +460,7 @@ public final class SystemKeyspace
         String req = "DELETE truncated_at[?] from system.%s WHERE key = '%s'";
         executeInternal(String.format(req, LOCAL, LOCAL), cfId);
         truncationRecords = null;
-        forceBlockingFlush(LOCAL);
+        forceBlockingFlush(LOCAL, "Removing truncation record");
     }
 
     private static Map<UUID, ByteBuffer> truncationAsMapEntry(ColumnFamilyStore cfs, long truncatedAt, ReplayPosition position)
@@ -544,7 +544,7 @@ public final class SystemKeyspace
     {
         String req = "INSERT INTO system.%s (peer, preferred_ip) VALUES (?, ?)";
         executeInternal(String.format(req, PEERS), ep, preferred_ip);
-        forceBlockingFlush(PEERS);
+        forceBlockingFlush(PEERS, "Updating preferred IP");
     }
 
     public static synchronized void updatePeerInfo(InetAddress ep, String columnName, Object value)
@@ -604,13 +604,13 @@ public final class SystemKeyspace
         assert !tokens.isEmpty() : "removeEndpoint should be used instead";
         String req = "INSERT INTO system.%s (key, tokens) VALUES ('%s', ?)";
         executeInternal(String.format(req, LOCAL, LOCAL), tokensAsSet(tokens));
-        forceBlockingFlush(LOCAL);
+        forceBlockingFlush(LOCAL, "Updating tokens");
     }
 
-    public static void forceBlockingFlush(String cfname)
+    public static void forceBlockingFlush(String cfname, String reason)
     {
         if (!Boolean.getBoolean("cassandra.unsafesystem"))
-            FBUtilities.waitOnFuture(Keyspace.open(NAME).getColumnFamilyStore(cfname).forceFlush());
+            FBUtilities.waitOnFuture(Keyspace.open(NAME).getColumnFamilyStore(cfname).forceFlush(reason));
     }
 
     /**
@@ -796,7 +796,7 @@ public final class SystemKeyspace
 
         req = "INSERT INTO system.%s (key, gossip_generation) VALUES ('%s', ?)";
         executeInternal(String.format(req, LOCAL, LOCAL), generation);
-        forceBlockingFlush(LOCAL);
+        forceBlockingFlush(LOCAL, "Incrementing gossip generation");
 
         return generation;
     }
@@ -826,7 +826,7 @@ public final class SystemKeyspace
     {
         String req = "INSERT INTO system.%s (key, bootstrapped) VALUES ('%s', ?)";
         executeInternal(String.format(req, LOCAL, LOCAL), state.name());
-        forceBlockingFlush(LOCAL);
+        forceBlockingFlush(LOCAL, "Setting bootstrap state");
     }
 
     public static boolean isIndexBuilt(String keyspaceName, String indexName)
@@ -844,7 +844,7 @@ public final class SystemKeyspace
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(NAME, BUILT_INDEXES);
         cf.addColumn(new BufferCell(cf.getComparator().makeCellName(indexName), ByteBufferUtil.EMPTY_BYTE_BUFFER, FBUtilities.timestampMicros()));
         new Mutation(NAME, ByteBufferUtil.bytes(keyspaceName), cf).apply();
-        forceBlockingFlush(BUILT_INDEXES);
+        forceBlockingFlush(BUILT_INDEXES, "Setting index as built");
     }
 
     public static void setIndexRemoved(String keyspaceName, String indexName)
@@ -852,7 +852,7 @@ public final class SystemKeyspace
         Mutation mutation = new Mutation(NAME, ByteBufferUtil.bytes(keyspaceName));
         mutation.delete(BUILT_INDEXES, BuiltIndexes.comparator.makeCellName(indexName), FBUtilities.timestampMicros());
         mutation.apply();
-        forceBlockingFlush(BUILT_INDEXES);
+        forceBlockingFlush(BUILT_INDEXES, "Setting index as removed");
     }
 
     /**
