@@ -210,7 +210,7 @@ public class KeyCacheCqlTest extends CQLTester
         if (index != null)
         {
             StorageService.instance.disableAutoCompaction(KEYSPACE, table + '.' + index);
-            Keyspace.open(KEYSPACE).getColumnFamilyStore(table).indexManager.getIndexesByNames(ImmutableSet.of(table + "." + index)).iterator().next().forceBlockingFlush();
+            Keyspace.open(KEYSPACE).getColumnFamilyStore(table).indexManager.getIndexesByNames(ImmutableSet.of(table + "." + index)).iterator().next().forceBlockingFlush("test");
         }
 
         for (int i = 0; i < 100; i++)
@@ -233,9 +233,9 @@ public class KeyCacheCqlTest extends CQLTester
 
             if (i % 10 == 9)
             {
-                Keyspace.open(KEYSPACE).getColumnFamilyStore(table).forceFlush().get();
+                Keyspace.open(KEYSPACE).getColumnFamilyStore(table).forceFlush("test").get();
                 if (index != null)
-                    Keyspace.open(KEYSPACE).getColumnFamilyStore(table).indexManager.getIndexesByNames(ImmutableSet.of(table + "." + index)).iterator().next().forceBlockingFlush();
+                    Keyspace.open(KEYSPACE).getColumnFamilyStore(table).indexManager.getIndexesByNames(ImmutableSet.of(table + "." + index)).iterator().next().forceBlockingFlush("test");
             }
         }
     }

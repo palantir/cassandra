@@ -55,7 +55,7 @@ public class CompactionsInProgressFlusher {
     private final Supplier<ReplayPosition> flusher = () -> FBUtilities.waitOnFuture(
             Keyspace.open(SystemKeyspace.NAME)
                     .getColumnFamilyStore(SystemKeyspace.COMPACTIONS_IN_PROGRESS)
-                    .forceFlush());
+                    .forceFlush("CompactionsInProgressFlusher"));
     private final Supplier<ReplayPosition> coalescingFlusher = new CoalescingSupplier<ReplayPosition>(flusher);
     
     private CompactionsInProgressFlusher() { }

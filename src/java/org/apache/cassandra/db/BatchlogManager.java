@@ -450,7 +450,7 @@ public class BatchlogManager implements BatchlogManagerMBean
     private void cleanup() throws ExecutionException, InterruptedException
     {
         ColumnFamilyStore cfs = Keyspace.open(SystemKeyspace.NAME).getColumnFamilyStore(SystemKeyspace.BATCHLOG);
-        cfs.forceBlockingFlush();
+        cfs.forceBlockingFlush("replayAllFailedBatches cleanup");
         Collection<Descriptor> descriptors = new ArrayList<>();
         for (SSTableReader sstr : cfs.getSSTables())
             descriptors.add(sstr.descriptor);

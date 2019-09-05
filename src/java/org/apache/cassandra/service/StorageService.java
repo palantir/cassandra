@@ -643,7 +643,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     if (!ksm.durableWrites)
                     {
                         for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
-                            flushes.add(cfs.forceFlush());
+                            flushes.add(cfs.forceFlush("Shutting down"));
                     }
                 }
                 try
@@ -2282,7 +2282,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void excise(Collection<Token> tokens, InetAddress endpoint)
     {
         logger.info("Removing tokens {} for {}", tokens, endpoint);
-        HintedHandOffManager.instance.deleteHintsForEndpoint(endpoint);
+        HintedHandOffManager.instance.deleteHintsForEndpoint(endpoint, "Removing or decommissioning node");
         removeEndpoint(endpoint);
         tokenMetadata.removeEndpoint(endpoint);
         if (!tokens.isEmpty())
@@ -3006,7 +3006,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (ColumnFamilyStore cfStore : getValidColumnFamilies(true, false, keyspaceName, columnFamilies))
         {
             logger.debug("Forcing flush on keyspace {}, CF {}", keyspaceName, cfStore.name);
-            cfStore.forceBlockingFlush();
+            cfStore.forceBlockingFlush("requested through StorageService");
         }
     }
 
@@ -3643,7 +3643,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         // StreamPlan will not fail if there are zero files to transfer, so flush anyway (need to get any in-memory hints, as well)
         ColumnFamilyStore hintsCF = Keyspace.open(SystemKeyspace.NAME).getColumnFamilyStore(SystemKeyspace.HINTS);
-        FBUtilities.waitOnFuture(hintsCF.forceFlush());
+        FBUtilities.waitOnFuture(hintsCF.forceFlush("Streaming hints"));
 
         // gather all live nodes in the cluster that aren't also leaving
         List<InetAddress> candidates = new ArrayList<>(StorageService.instance.getTokenMetadata().cloneAfterAllLeft().getAllEndpoints());
@@ -4095,7 +4095,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (Keyspace keyspace : Keyspace.nonSystem())
         {
             for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
-                flushes.add(cfs.forceFlush());
+                flushes.add(cfs.forceFlush("Drain"));
         }
         // wait for the flushes.
         // TODO this is a godawful way to track progress, since they flush in parallel.  a long one could
@@ -4128,13 +4128,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (Keyspace keyspace : Keyspace.system())
         {
             for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
-                flushes.add(cfs.forceFlush());
+                flushes.add(cfs.forceFlush("Drain"));
         }
         FBUtilities.waitOnFutures(flushes);
 
         // whilst we've flushed all the CFs, which will have recycled all completed segments, we want to ensure
         // there are no segments to replay, so we force the recycling of any remaining (should be at most one)
-        CommitLog.instance.forceRecycleAllSegments();
+        CommitLog.instance.forceRecycleAllSegments("Drain");
 
         CommitLog.instance.shutdownBlocking();
 

@@ -405,7 +405,7 @@ public class PerRowSecondaryIndexTest
         }
 
         @Override
-        public void forceBlockingFlush()
+        public void forceBlockingFlush(String reason)
         {
         }
 

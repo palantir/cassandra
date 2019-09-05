@@ -708,7 +708,7 @@ public class StreamSession implements IEndpointStateChangeSubscriber
     {
         List<Future<?>> flushes = new ArrayList<>();
         for (ColumnFamilyStore cfs : stores)
-            flushes.add(cfs.forceFlush());
+            flushes.add(cfs.forceFlush("Streaming for transfer task"));
         FBUtilities.waitOnFutures(flushes);
     }
 

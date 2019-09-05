@@ -139,7 +139,7 @@ public class CommitLogSegmentManager
                                     if (spaceToReclaim + unused >= 0)
                                         break;
                                 }
-                                flushDataFrom(segmentsToRecycle, false);
+                                flushDataFrom(segmentsToRecycle, false, "Commitlog full");
                             }
 
                             try
@@ -283,8 +283,10 @@ public class CommitLogSegmentManager
      *
      * Flushes any dirty CFs for this segment and any older segments, and then recycles
      * the segments
+     *
+     * @param reason String description of the cause of the forceRecycleAll
      */
-    void forceRecycleAll(Iterable<UUID> droppedCfs)
+    void forceRecycleAll(Iterable<UUID> droppedCfs, String reason)
     {
         List<CommitLogSegment> segmentsToRecycle = new ArrayList<>(activeSegments);
         CommitLogSegment last = segmentsToRecycle.get(segmentsToRecycle.size() - 1);
@@ -306,7 +308,7 @@ public class CommitLogSegmentManager
             keyspace.writeOrder.awaitNewBarrier();
 
         // flush and wait for all CFs that are dirty in segments up-to and including 'last'
-        Future<?> future = flushDataFrom(segmentsToRecycle, true);
+        Future<?> future = flushDataFrom(segmentsToRecycle, true, reason);
         try
         {
             future.get();
@@ -433,9 +435,11 @@ public class CommitLogSegmentManager
     /**
      * Force a flush on all CFs that are still dirty in @param segments.
      *
+     * @param reason String description of the cause of the flush
+     *
      * @return a Future that will finish when all the flushes are complete.
      */
-    private Future<?> flushDataFrom(List<CommitLogSegment> segments, boolean force)
+    private Future<?> flushDataFrom(List<CommitLogSegment> segments, boolean force, String reason)
     {
         if (segments.isEmpty())
             return Futures.immediateFuture(null);
@@ -462,7 +466,7 @@ public class CommitLogSegmentManager
                     final ColumnFamilyStore cfs = Keyspace.open(keyspace).getColumnFamilyStore(dirtyCFId);
                     // can safely call forceFlush here as we will only ever block (briefly) for other attempts to flush,
                     // no deadlock possibility since switchLock removal
-                    flushes.put(dirtyCFId, force ? cfs.forceFlush() : cfs.forceFlush(maxReplayPosition));
+                    flushes.put(dirtyCFId, force ? cfs.forceFlush(reason) : cfs.forceFlush(maxReplayPosition, reason));
                 }
             }
         }
