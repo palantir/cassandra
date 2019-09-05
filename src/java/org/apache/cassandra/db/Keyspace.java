@@ -324,7 +324,7 @@ public class Keyspace
     // disassociate a cfs from this keyspace instance.
     private void unloadCf(ColumnFamilyStore cfs)
     {
-        cfs.forceBlockingFlush();
+        cfs.forceBlockingFlush("Dropping CF");
         cfs.invalidate();
     }
 
@@ -351,7 +351,7 @@ public class Keyspace
             // on this node and it's getting repopulated from the rest of the cluster.
             assert cfs.name.equals(metadata.cfName);
             cfs.metadata.reload();
-            cfs.reload();
+            cfs.reload("CF initialization");
         }
     }
 
@@ -448,7 +448,7 @@ public class Keyspace
     {
         List<Future<?>> futures = new ArrayList<>(columnFamilyStores.size());
         for (ColumnFamilyStore cfs : columnFamilyStores.values())
-            futures.add(cfs.forceFlush());
+            futures.add(cfs.forceFlush("Blocking for writes upon recovery"));
         return futures;
     }
 

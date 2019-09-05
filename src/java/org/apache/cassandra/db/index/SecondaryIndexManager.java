@@ -171,7 +171,7 @@ public class SecondaryIndexManager
         Future<?> future = CompactionManager.instance.submitIndexBuild(builder);
         FBUtilities.waitOnFuture(future);
 
-        flushIndexesBlocking();
+        flushIndexesBlocking("Rebuild of indexes of specific sstables");
 
         logger.info("Index build of {} complete", idxNames);
     }
@@ -343,7 +343,7 @@ public class SecondaryIndexManager
     /**
      * Flush all indexes to disk
      */
-    public void flushIndexesBlocking()
+    public void flushIndexesBlocking(String reason)
     {
         // despatch flushes for all CFS backed indexes
         List<Future<?>> wait = new ArrayList<>();
@@ -351,13 +351,13 @@ public class SecondaryIndexManager
         {
             for (SecondaryIndex index : allIndexes)
                 if (index.getIndexCfs() != null)
-                    wait.add(index.getIndexCfs().forceFlush());
+                    wait.add(index.getIndexCfs().forceFlush(reason));
         }
 
         // blockingFlush any non-CFS-backed indexes
         for (SecondaryIndex index : allIndexes)
             if (index.getIndexCfs() == null)
-                index.forceBlockingFlush();
+                index.forceBlockingFlush(reason);
 
         // wait for the CFS-backed index flushes to complete
         FBUtilities.waitOnFutures(wait);

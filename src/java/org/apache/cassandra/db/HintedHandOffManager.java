@@ -190,7 +190,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         try
         {
             InetAddress endpoint = InetAddress.getByName(ipOrHostname);
-            deleteHintsForEndpoint(endpoint);
+            deleteHintsForEndpoint(endpoint, "Truncating hints (requested via nodetool)");
         }
         catch (UnknownHostException e)
         {
@@ -199,7 +199,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         }
     }
 
-    public void deleteHintsForEndpoint(final InetAddress endpoint)
+    public void deleteHintsForEndpoint(final InetAddress endpoint, String reason)
     {
         if (!StorageService.instance.getTokenMetadata().isMember(endpoint))
             return;
@@ -221,7 +221,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
                 {
                     logger.info("Deleting any stored hints for {}", endpoint);
                     mutation.apply();
-                    hintStore.forceBlockingFlush();
+                    hintStore.forceBlockingFlush(reason);
                     compact();
                 }
                 catch (Exception e)
@@ -483,7 +483,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         }
 
         // Flush all the tombstones to disk
-        hintStore.forceBlockingFlush();
+        hintStore.forceBlockingFlush("Forcing a flush after delivering hints");
     }
 
     // read less columns (mutations) per page if they are very large
