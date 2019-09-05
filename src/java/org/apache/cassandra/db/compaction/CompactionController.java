@@ -31,8 +31,10 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.OverlapIterator;
 import org.apache.cassandra.utils.concurrent.Refs;
 
@@ -198,6 +200,10 @@ public class CompactionController implements AutoCloseable
     public Predicate<Long> getPurgeEvaluator(DecoratedKey key)
     {
         if (NEVER_PURGE_TOMBSTONES)
+            return Predicates.alwaysFalse();
+
+        // if data is currently moving to this node, don't pre-maturely purge tombstones that exceed gc_grace_seconds
+        if (StorageService.instance.getTokenMetadata().getPendingRanges(getKeyspace(), FBUtilities.getBroadcastAddress()).size() > 0)
             return Predicates.alwaysFalse();
 
         overlapIterator.update(key);
