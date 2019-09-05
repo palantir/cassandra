@@ -189,7 +189,7 @@ public abstract class SecondaryIndex
     /**
      * Forces this indexes' in memory data to disk
      */
-    public abstract void forceBlockingFlush();
+    public abstract void forceBlockingFlush(String reason);
 
     /**
      * Allow access to the underlying column family store if there is one
@@ -232,7 +232,7 @@ public abstract class SecondaryIndex
                                                                       new ReducingKeyIterator(sstables));
             Future<?> future = CompactionManager.instance.submitIndexBuild(builder);
             FBUtilities.waitOnFuture(future);
-            forceBlockingFlush();
+            forceBlockingFlush("Building index");
             setIndexBuilt();
         }
         logger.info("Index build of {} complete", getIndexName());
@@ -277,7 +277,7 @@ public abstract class SecondaryIndex
         {
             public void run()
             {
-                baseCfs.forceBlockingFlush();
+                baseCfs.forceBlockingFlush("Async index building");
                 buildIndexBlocking();
             }
         };

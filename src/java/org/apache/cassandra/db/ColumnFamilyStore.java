@@ -216,7 +216,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
 
-    public void reload()
+    public void reload() {
+        reload("Unknown");
+    }
+
+    public void reload(String reason)
     {
         // metadata object has been mutated directly. make all the members jibe with new settings.
 
@@ -237,7 +241,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         // If the CF comparator has changed, we need to change the memtable,
         // because the old one still aliases the previous comparator.
         if (data.getView().getCurrentMemtable().initialComparator != metadata.comparator)
-            switchMemtable();
+            switchMemtable(reason);
     }
 
     void scheduleFlush()
@@ -264,7 +268,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                             else
                             {
                                 // we'll be rescheduled by the constructor of the Memtable.
-                                forceFlush();
+                                forceFlush("Scheduled flush according to memtableFlushPeriod");
                             }
                         }
                     }
@@ -948,13 +952,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      * Switches the memtable iff the live memtable is the one provided
      *
      * @param memtable
+     * @param reason String description of the cause of the memtable switch
      */
-    public ListenableFuture<ReplayPosition> switchMemtableIfCurrent(Memtable memtable)
+    public ListenableFuture<ReplayPosition> switchMemtableIfCurrent(Memtable memtable, String reason)
     {
         synchronized (data)
         {
             if (data.getView().getCurrentMemtable() == memtable)
-                return switchMemtable();
+                return switchMemtable(reason);
         }
         return waitForFlushes();
     }
@@ -966,7 +971,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      * not complete until the Memtable (and all prior Memtables) have been successfully flushed, and the CL
      * marked clean up to the position owned by the Memtable.
      */
-    public ListenableFuture<ReplayPosition> switchMemtable()
+    public ListenableFuture<ReplayPosition> switchMemtable(String reason)
     {
         synchronized (data)
         {
@@ -974,7 +979,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 throw new IllegalStateException("A flush previously failed with the error below. To prevent data loss, "
                                               + "no flushes can be carried out until the node is restarted.",
                                                 previousFlushFailure);
-            logFlush();
+            logFlush(reason);
             Flush flush = new Flush(false);
             ListenableFutureTask<Void> flushTask = ListenableFutureTask.create(flush, null);
             flushExecutor.execute(flushTask);
@@ -1000,8 +1005,13 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
-    // print out size of all memtables we're enqueuing
-    private void logFlush()
+
+    /**
+     * print out size of all memtables we're enqueuing
+     *
+     * @param flushReason String description of the cause of the flush
+     */
+    private void logFlush(String flushReason)
     {
         // reclaiming includes that which we are GC-ing;
         float onHeapRatio = 0, offHeapRatio = 0;
@@ -1024,7 +1034,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
         }
 
-        logger.debug("Enqueuing flush of {}: {}", name, String.format("%d (%.0f%%) on-heap, %d (%.0f%%) off-heap",
+        logger.debug("Enqueuing flush of {} for cause {}: {}", name, flushReason, String.format("%d (%.0f%%) on-heap, %d (%.0f%%) off-heap",
                                                                      onHeapTotal, onHeapRatio * 100, offHeapTotal, offHeapRatio * 100));
     }
 
@@ -1032,35 +1042,44 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     /**
      * Flush if there is unflushed data in the memtables
      *
+     * @param reason String description of the cause of the force flush
+     *
      * @return a Future yielding the commit log position that can be guaranteed to have been successfully written
      *         to sstables for this table once the future completes
      */
-    public ListenableFuture<ReplayPosition> forceFlush()
+    public ListenableFuture<ReplayPosition> forceFlush(String reason)
     {
         synchronized (data)
         {
             Memtable current = data.getView().getCurrentMemtable();
             for (ColumnFamilyStore cfs : concatWithIndexes())
                 if (!cfs.data.getView().getCurrentMemtable().isClean())
-                    return switchMemtableIfCurrent(current);
+                    return switchMemtableIfCurrent(current, reason);
             return waitForFlushes();
         }
+    }
+
+    public ListenableFuture<ReplayPosition> forceFlush()
+    {
+        return forceFlush("Unknown");
     }
 
     /**
      * Flush if there is unflushed data that was written to the CommitLog before @param flushIfDirtyBefore
      * (inclusive).
      *
+     * @param reason String description of the cause of the force flush
+     *
      * @return a Future yielding the commit log position that can be guaranteed to have been successfully written
      *         to sstables for this table once the future completes
      */
-    public ListenableFuture<ReplayPosition> forceFlush(ReplayPosition flushIfDirtyBefore)
+    public ListenableFuture<ReplayPosition> forceFlush(ReplayPosition flushIfDirtyBefore, String reason)
     {
         // we don't loop through the remaining memtables since here we only care about commit log dirtiness
         // and this does not vary between a table and its table-backed indexes
         Memtable current = data.getView().getCurrentMemtable();
         if (current.mayContainDataBefore(flushIfDirtyBefore))
-            return switchMemtableIfCurrent(current);
+            return switchMemtableIfCurrent(current, reason);
         return waitForFlushes();
     }
 
@@ -1085,9 +1104,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return task;
     }
 
+    public ReplayPosition forceBlockingFlush(String reason)
+    {
+        return FBUtilities.waitOnFuture(forceFlush(reason));
+    }
+
     public ReplayPosition forceBlockingFlush()
     {
-        return FBUtilities.waitOnFuture(forceFlush());
+        return forceBlockingFlush("Unknown");
     }
 
     /**
@@ -1133,7 +1157,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 {
                     // flush any non-cfs backed indexes
                     logger.info("Flushing SecondaryIndex {}", index);
-                    index.forceBlockingFlush();
+                    index.forceBlockingFlush("Flushing secondary index post-flush");
                 }
             }
 
@@ -1388,7 +1412,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 logger.debug("Flushing largest {} to free up room. Used total: {}, live: {}, flushing: {}, this: {}",
                             largest.cfs, ratio(usedOnHeap, usedOffHeap), ratio(liveOnHeap, liveOffHeap),
                             ratio(flushingOnHeap, flushingOffHeap), ratio(thisOnHeap, thisOffHeap));
-                largest.cfs.switchMemtableIfCurrent(largest);
+                largest.cfs.switchMemtableIfCurrent(largest, "Flushing largest memtable to free up memtable space");
             }
         }
     }
@@ -2705,7 +2729,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public Set<SSTableReader> snapshot(String snapshotName, Predicate<SSTableReader> predicate, boolean ephemeral)
     {
-        forceBlockingFlush();
+        forceBlockingFlush("Snapshot");
         return snapshotWithoutFlush(snapshotName, predicate, ephemeral);
     }
 
@@ -2951,7 +2975,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         if (keyspace.getMetadata().durableWrites || takeSnapshot)
         {
-            replayAfter = forceBlockingFlush();
+            replayAfter = forceBlockingFlush("Truncate");
         }
         else
         {

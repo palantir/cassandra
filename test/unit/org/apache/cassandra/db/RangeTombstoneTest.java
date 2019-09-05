@@ -765,7 +765,7 @@ public class RangeTombstoneTest
 
         protected SecondaryIndexSearcher createSecondaryIndexSearcher(Set<ByteBuffer> columns){ return null; }
 
-        public void forceBlockingFlush(){}
+        public void forceBlockingFlush(String reason){}
 
         public ColumnFamilyStore getIndexCfs(){ return null; }
 
