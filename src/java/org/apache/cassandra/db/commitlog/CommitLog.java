@@ -198,17 +198,17 @@ public class CommitLog implements CommitLogMBean
     /**
      * Flushes all dirty CFs, waiting for them to free and recycle any segments they were retaining
      */
-    public void forceRecycleAllSegments(Iterable<UUID> droppedCfs)
+    public void forceRecycleAllSegments(Iterable<UUID> droppedCfs, String reason)
     {
-        allocator.forceRecycleAll(droppedCfs);
+        allocator.forceRecycleAll(droppedCfs, reason);
     }
 
     /**
      * Flushes all dirty CFs, waiting for them to free and recycle any segments they were retaining
      */
-    public void forceRecycleAllSegments()
+    public void forceRecycleAllSegments(String reason)
     {
-        allocator.forceRecycleAll(Collections.<UUID>emptyList());
+        allocator.forceRecycleAll(Collections.<UUID>emptyList(), reason);
     }
 
     /**
