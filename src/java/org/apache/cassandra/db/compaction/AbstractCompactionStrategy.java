@@ -19,6 +19,7 @@ package org.apache.cassandra.db.compaction;
 
 import java.util.*;
 
+import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.base.Predicate;
@@ -36,6 +37,8 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 
 /**
@@ -360,6 +363,12 @@ public abstract class AbstractCompactionStrategy
     {
         if (disableTombstoneCompactions || CompactionController.NEVER_PURGE_TOMBSTONES)
             return false;
+
+        if (CompactionController.pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("Ignoring sstable because there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return false;
+        }
+
         // since we use estimations to calculate, there is a chance that compaction will not drop tombstones actually.
         // if that happens we will end up in infinite compaction loop, so first we check enough if enough time has
         // elapsed since SSTable created.

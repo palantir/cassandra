@@ -17,11 +17,14 @@
  */
 package org.apache.cassandra.db.compaction;
 
+import java.net.InetAddress;
 import java.util.*;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
+import org.apache.cassandra.dht.Range;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +34,7 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
+import org.apache.cassandra.locator.PendingRangeMaps;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
@@ -82,6 +86,11 @@ public class CompactionController implements AutoCloseable
             return;
         }
 
+        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return;
+        }
+
         for (SSTableReader reader : overlappingSSTables)
         {
             if (reader.isMarkedCompacted())
@@ -96,6 +105,11 @@ public class CompactionController implements AutoCloseable
     {
         if (NEVER_PURGE_TOMBSTONES)
             return;
+
+        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return;
+        }
 
         if (this.overlappingSSTables != null)
             overlappingSSTables.release();
@@ -134,6 +148,11 @@ public class CompactionController implements AutoCloseable
 
         if (compacting == null || NEVER_PURGE_TOMBSTONES)
             return Collections.<SSTableReader>emptySet();
+
+        if (pendingRangesExistForKeyspace(cfStore.keyspace.getName())) {
+            logger.debug("Not looking for expired sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
+            return Collections.<SSTableReader>emptySet();
+        }
 
         List<SSTableReader> candidates = new ArrayList<>();
 
@@ -199,12 +218,16 @@ public class CompactionController implements AutoCloseable
      */
     public Predicate<Long> getPurgeEvaluator(DecoratedKey key)
     {
+        logger.debug("Creating purge evaluator.");
+
         if (NEVER_PURGE_TOMBSTONES)
             return Predicates.alwaysFalse();
 
         // if data is currently moving to this node, don't pre-maturely purge tombstones that exceed gc_grace_seconds
-        if (StorageService.instance.getTokenMetadata().getPendingRanges(getKeyspace(), FBUtilities.getBroadcastAddress()).size() > 0)
+        if (pendingRangesExistForKeyspace(getKeyspace())) {
+            logger.debug("Purge evaluator always returning false because there are pending ranges for keyspace {}", getKeyspace());
             return Predicates.alwaysFalse();
+        }
 
         overlapIterator.update(key);
         Set<SSTableReader> filteredSSTables = overlapIterator.overlaps();
@@ -257,4 +280,7 @@ public class CompactionController implements AutoCloseable
             overlappingSSTables.release();
     }
 
+    public static boolean pendingRangesExistForKeyspace(String keyspace) {
+        return StorageService.instance.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
+    }
 }
