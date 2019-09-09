@@ -39,7 +39,7 @@ public class CommitLogMetrics
     public Gauge<Long> pendingTasks;
     /** Current size used by all the commit log segments */
     public Gauge<Long> totalCommitLogSize;
-    /** Max total space for all commit log segments, as set in cassandra.yaml */
+    /** Max total size for all commit log segments, as set in cassandra.yaml */
     public Gauge<Long> maxTotalCommitLogSizeBytes;
     /** Time spent waiting for a CLS to be allocated - under normal conditions this should be zero */
     public final Timer waitingOnSegmentAllocation;
