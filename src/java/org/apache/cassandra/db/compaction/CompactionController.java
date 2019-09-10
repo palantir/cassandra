@@ -17,14 +17,11 @@
  */
 package org.apache.cassandra.db.compaction;
 
-import java.net.InetAddress;
 import java.util.*;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
-import org.apache.cassandra.dht.Range;
-import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +31,6 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
-import org.apache.cassandra.locator.PendingRangeMaps;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
@@ -150,7 +146,7 @@ public class CompactionController implements AutoCloseable
             return Collections.<SSTableReader>emptySet();
 
         if (pendingRangesExistForKeyspace(cfStore.keyspace.getName())) {
-            logger.debug("Not looking for expired sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
+            logger.debug("not looking for droppable sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
             return Collections.<SSTableReader>emptySet();
         }
 
@@ -218,14 +214,11 @@ public class CompactionController implements AutoCloseable
      */
     public Predicate<Long> getPurgeEvaluator(DecoratedKey key)
     {
-        logger.debug("Creating purge evaluator.");
-
         if (NEVER_PURGE_TOMBSTONES)
             return Predicates.alwaysFalse();
 
-        // if data is currently moving to this node, don't pre-maturely purge tombstones that exceed gc_grace_seconds
         if (pendingRangesExistForKeyspace(getKeyspace())) {
-            logger.debug("Purge evaluator always returning false because there are pending ranges for keyspace {}", getKeyspace());
+            logger.debug("Purge evaluator always returning false - there are pending ranges for keyspace {}", getKeyspace());
             return Predicates.alwaysFalse();
         }
 
@@ -280,6 +273,11 @@ public class CompactionController implements AutoCloseable
             overlappingSSTables.release();
     }
 
+    /**
+     * @param keyspace
+     * @return true if this node is currently receiving data as part of a range movement (e.g., bootstrap, decommission, move)
+     * If pending ranges exist, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds
+     */
     public static boolean pendingRangesExistForKeyspace(String keyspace) {
         return StorageService.instance.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
     }
