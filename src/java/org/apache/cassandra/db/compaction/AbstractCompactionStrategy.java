@@ -360,6 +360,12 @@ public abstract class AbstractCompactionStrategy
     {
         if (disableTombstoneCompactions || CompactionController.NEVER_PURGE_TOMBSTONES)
             return false;
+
+        if (CompactionController.pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("Ignoring sstable because there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return false;
+        }
+
         // since we use estimations to calculate, there is a chance that compaction will not drop tombstones actually.
         // if that happens we will end up in infinite compaction loop, so first we check enough if enough time has
         // elapsed since SSTable created.
