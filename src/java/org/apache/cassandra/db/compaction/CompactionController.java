@@ -31,8 +31,10 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.OverlapIterator;
 import org.apache.cassandra.utils.concurrent.Refs;
 
@@ -80,6 +82,11 @@ public class CompactionController implements AutoCloseable
             return;
         }
 
+        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return;
+        }
+
         for (SSTableReader reader : overlappingSSTables)
         {
             if (reader.isMarkedCompacted())
@@ -94,6 +101,11 @@ public class CompactionController implements AutoCloseable
     {
         if (NEVER_PURGE_TOMBSTONES)
             return;
+
+        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return;
+        }
 
         if (this.overlappingSSTables != null)
             overlappingSSTables.release();
@@ -132,6 +144,11 @@ public class CompactionController implements AutoCloseable
 
         if (compacting == null || NEVER_PURGE_TOMBSTONES)
             return Collections.<SSTableReader>emptySet();
+
+        if (pendingRangesExistForKeyspace(cfStore.keyspace.getName())) {
+            logger.debug("not looking for droppable sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
+            return Collections.<SSTableReader>emptySet();
+        }
 
         List<SSTableReader> candidates = new ArrayList<>();
 
@@ -200,6 +217,11 @@ public class CompactionController implements AutoCloseable
         if (NEVER_PURGE_TOMBSTONES)
             return Predicates.alwaysFalse();
 
+        if (pendingRangesExistForKeyspace(getKeyspace())) {
+            logger.debug("Purge evaluator always returning false - there are pending ranges for keyspace {}", getKeyspace());
+            return Predicates.alwaysFalse();
+        }
+
         overlapIterator.update(key);
         Set<SSTableReader> filteredSSTables = overlapIterator.overlaps();
         Iterable<Memtable> memtables = cfs.getTracker().getView().getAllMemtables();
@@ -251,4 +273,12 @@ public class CompactionController implements AutoCloseable
             overlappingSSTables.release();
     }
 
+    /**
+     * @param keyspace
+     * @return true if this node is currently receiving data as part of a range movement (e.g., bootstrap, decommission, move)
+     * If pending ranges exist, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds
+     */
+    public static boolean pendingRangesExistForKeyspace(String keyspace) {
+        return StorageService.instance.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
+    }
 }
