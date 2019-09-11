@@ -77,6 +77,10 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics writeLatency;
     /** Estimated number of tasks pending for this column family */
     public final Counter pendingFlushes;
+    /** Total number of bytes flushed since server [re]start */
+    public final Counter bytesFlushed;
+    /** Total number of bytes written by compaction since server [re]start */
+    public final Counter compactionBytesWritten;
     /** Estimate of number of pending compactios for this CF */
     public final Gauge<Integer> pendingCompactions;
     /** Total number of compactions since server [re]start */
@@ -383,6 +387,8 @@ public class ColumnFamilyMetrics
         coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
+        bytesFlushed = createColumnFamilyCounter("BytesFlushed");
+        compactionBytesWritten = createColumnFamilyCounter("CompactionBytesWritten");
         pendingCompactions = createColumnFamilyGauge("PendingCompactions", new Gauge<Integer>()
         {
             public Integer getValue()
