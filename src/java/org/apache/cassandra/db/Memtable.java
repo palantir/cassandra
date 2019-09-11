@@ -382,11 +382,12 @@ public class Memtable implements Comparable<Memtable>
                     writer.append((DecoratedKey)entry.getKey(), cf);
             }
 
-            if (writer.getFilePointer() > 0)
+            long bytesFlushed = writer.getFilePointer();
+            if (bytesFlushed > 0)
             {
                 logger.debug(String.format("Completed flushing %s (%s) for commitlog position %s",
                                            writer.getFilename(),
-                                           FBUtilities.prettyPrintMemory(writer.getOnDiskFilePointer()),
+                                           FBUtilities.prettyPrintMemory(bytesFlushed),
                                            commitLogUpperBound));
 
                 // temp sstables should contain non-repaired data.
@@ -399,6 +400,9 @@ public class Memtable implements Comparable<Memtable>
                 writer.abort();
                 ssTable = null;
             }
+
+            // Update the metrics
+            cfs.metric.bytesFlushed.inc(bytesFlushed);
 
             if (heavilyContendedRowCount > 0)
                 logger.trace(String.format("High update contention in %d/%d partitions of %s ", heavilyContendedRowCount, rows.size(), Memtable.this.toString()));
