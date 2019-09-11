@@ -189,6 +189,20 @@ public class Keyspace
      */
     public void snapshot(String snapshotName, String columnFamilyName) throws IOException
     {
+        snapshot(snapshotName, columnFamilyName, false);
+    }
+
+    /**
+     * Take a snapshot of the specific column family, or the entire set of column families
+     * if columnFamily is null with a given timestamp
+     *
+     * @param snapshotName     the tag associated with the name of the snapshot.  This value may not be null
+     * @param columnFamilyName the column family to snapshot or all on null
+     * @param ephemeral If this flag is set to true, the snapshot will be cleaned up during next startup
+     * @throws IOException if the column family doesn't exist
+     */
+    public void snapshot(String snapshotName, String columnFamilyName, boolean ephemeral) throws IOException
+    {
         assert snapshotName != null;
         boolean tookSnapShot = false;
         for (ColumnFamilyStore cfStore : columnFamilyStores.values())
@@ -196,7 +210,7 @@ public class Keyspace
             if (columnFamilyName == null || cfStore.name.equals(columnFamilyName))
             {
                 tookSnapShot = true;
-                cfStore.snapshot(snapshotName);
+                cfStore.snapshot(snapshotName, null, ephemeral);
             }
         }
 
