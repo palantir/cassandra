@@ -2723,7 +2723,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return snapshot(snapshotName, null, false);
     }
 
-
     /**
      * @param ephemeral If this flag is set to true, the snapshot will be cleaned up during next startup
      */
