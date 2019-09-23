@@ -477,10 +477,11 @@ class Shell(cmd.Cmd):
             kwargs = {}
             if protocol_version is not None:
                 kwargs['protocol_version'] = protocol_version
+            ssl_enable, ssl_options = sslhandling.ssl_settings(hostname, CONFIG_FILE)
             self.conn = Cluster(contact_points=(self.hostname,), port=self.port, cql_version=cqlver,
                                 auth_provider=self.auth_provider,
                                 no_compact=no_compact,
-                                ssl_options=sslhandling.ssl_settings(hostname, CONFIG_FILE) if ssl else None,
+                                ssl_options=ssl_options if ssl or ssl_enable else None,
                                 load_balancing_policy=WhiteListRoundRobinPolicy([self.hostname]),
                                 control_connection_timeout=connect_timeout,
                                 connect_timeout=connect_timeout,
