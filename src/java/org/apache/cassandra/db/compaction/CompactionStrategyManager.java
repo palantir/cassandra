@@ -18,6 +18,7 @@
 package org.apache.cassandra.db.compaction;
 
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -44,6 +45,7 @@ import org.apache.cassandra.db.lifecycle.SSTableSet;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.index.Index;
+import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.SSTableMultiWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -52,6 +54,7 @@ import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
 import org.apache.cassandra.notifications.*;
 import org.apache.cassandra.schema.CompactionParams;
 import org.apache.cassandra.service.ActiveRepairService;
+import org.apache.cassandra.utils.Pair;
 
 /**
  * Manages the compaction strategies.
@@ -77,6 +80,9 @@ public class CompactionStrategyManager implements INotificationConsumer
     private final ColumnFamilyStore cfs;
     private final boolean partitionSSTablesByTokenRange;
     private final Supplier<DiskBoundaries> boundariesSupplier;
+
+    private static final boolean UNREPAIR_ON_STARTUP = Boolean.parseBoolean(System.getProperty("palantir_cassandra.unrepair_on_startup", "true"));
+    private static final int MAX_SSTABLES_TO_UNREPAIR_PER_CF = Integer.parseInt(System.getProperty("palantir_cassandra.max_sstables_to_unrepair_per_cf", "100"));
 
     /**
      * Performs mutual exclusion on the variables below
@@ -210,10 +216,24 @@ public class CompactionStrategyManager implements INotificationConsumer
         writeLock.lock();
         try
         {
+            Map<Pair<String, String>, Integer> unrepairedTablesPerCf = new HashMap<>();
             for (SSTableReader sstable : cfs.getSSTables(SSTableSet.CANONICAL))
             {
                 if (sstable.openReason != SSTableReader.OpenReason.EARLY)
+                {
+                    Pair<String, String> ksAndCFName = sstable.metadata.ksAndCFName;
+                    if (UNREPAIR_ON_STARTUP && sstable.isRepaired() && isWithinUnrepairThreshold(unrepairedTablesPerCf, ksAndCFName))
+                    {
+                        tryUnrepairingSSTable(sstable);
+                        incrementUnrepairCount(unrepairedTablesPerCf, ksAndCFName);
+
+                        if (unrepairedTablesPerCf.get(ksAndCFName) == MAX_SSTABLES_TO_UNREPAIR_PER_CF) {
+                            logger.info("Unrepair threshold has been hit. Will not unrepair any more sstables for {}", ksAndCFName);
+                        }
+                    }
+
                     compactionStrategyFor(sstable).addSSTable(sstable);
+                }
             }
             repaired.forEach(AbstractCompactionStrategy::startup);
             unrepaired.forEach(AbstractCompactionStrategy::startup);
@@ -230,6 +250,34 @@ public class CompactionStrategyManager implements INotificationConsumer
         unrepaired.forEach(AbstractCompactionStrategy::startup);
         if (Stream.concat(repaired.stream(), unrepaired.stream()).anyMatch(cs -> cs.logAll))
             compactionLogger.enable();
+    }
+
+    private boolean isWithinUnrepairThreshold(Map<Pair<String, String>, Integer> unrepairedTablesPerCf, Pair<String, String> ksAndCFName)
+    {
+        return !unrepairedTablesPerCf.containsKey(ksAndCFName)
+               || unrepairedTablesPerCf.get(ksAndCFName) < MAX_SSTABLES_TO_UNREPAIR_PER_CF;
+    }
+
+    private void incrementUnrepairCount(Map<Pair<String, String>, Integer> unrepairedTablesPerCf, Pair<String, String> ksAndCFName)
+    {
+        Integer previousValue = unrepairedTablesPerCf.containsKey(ksAndCFName)
+                                ? unrepairedTablesPerCf.get(ksAndCFName)
+                                : 0;
+        unrepairedTablesPerCf.put(ksAndCFName, previousValue + 1);
+    }
+
+    private void tryUnrepairingSSTable(SSTableReader sstable)
+    {
+        logger.info("Trying to unrepair sstable {}", sstable.descriptor.filenameFor(Component.DATA));
+        try
+        {
+            sstable.descriptor.getMetadataSerializer().mutateRepairedAt(sstable.descriptor, ActiveRepairService.UNREPAIRED_SSTABLE);
+            sstable.reloadSSTableMetadata();
+        }
+        catch (IOException e)
+        {
+            logger.error("Could not unrepair sstable {}, moving on...", sstable.descriptor.filenameFor(Component.DATA), e);
+        }
     }
 
     /**
