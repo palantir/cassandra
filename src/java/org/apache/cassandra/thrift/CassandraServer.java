@@ -1971,7 +1971,7 @@ public class CassandraServer implements Cassandra.Iface
         try
         {
             ThriftValidation.validateKeyspaceNotSystem(ks_def.name);
-            state().hasAllKeyspacesAccess(Permission.CREATE);
+            state().hasKeyspaceAccess(ks_def.name, Permission.CREATE);
             ThriftValidation.validateKeyspaceNotYetExisting(ks_def.name);
 
             // generate a meaningful error if the user setup keyspace and/or column definition incorrectly
