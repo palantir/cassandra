@@ -70,8 +70,8 @@ public class Repair extends NodeToolCmd
     @Option(title = "primary_range", name = {"-pr", "--partitioner-range"}, description = "Use -pr to repair only the first range returned by the partitioner")
     private boolean primaryRange = false;
 
-    @Option(title = "full", name = {"-full", "--full"}, description = "Use -full to issue a full repair.")
-    private boolean fullRepair = false;
+    @Option(title = "incremental", name = {"-inc", "--incremental"}, description = "Use -inc to issue an incremental repair.")
+    private boolean incrementalRepair = false;
 
     @Option(title = "job_threads", name = {"-j", "--job-threads"}, description = "Number of threads to run repair jobs. " +
                                                                                  "Usually this means number of CFs to repair concurrently. " +
@@ -107,7 +107,7 @@ public class Repair extends NodeToolCmd
                 parallelismDegree = RepairParallelism.DATACENTER_AWARE;
             options.put(RepairOption.PARALLELISM_KEY, parallelismDegree.getName());
             options.put(RepairOption.PRIMARY_RANGE_KEY, Boolean.toString(primaryRange));
-            options.put(RepairOption.INCREMENTAL_KEY, Boolean.toString(!fullRepair));
+            options.put(RepairOption.INCREMENTAL_KEY, Boolean.toString(incrementalRepair));
             options.put(RepairOption.JOB_THREADS_KEY, Integer.toString(numJobThreads));
             options.put(RepairOption.TRACE_KEY, Boolean.toString(trace));
             options.put(RepairOption.COLUMNFAMILIES_KEY, StringUtils.join(cfnames, ","));
