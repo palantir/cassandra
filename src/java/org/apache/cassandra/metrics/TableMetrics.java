@@ -147,8 +147,8 @@ public class TableMetrics
     /** percent of the data that is repaired */
     public final Gauge<Double> percentRepaired;
 
-    public final Timer coordinatorReadLatency;
-    public final Timer coordinatorScanLatency;
+    public final LatencyMetrics coordinatorReadLatency;
+    public final LatencyMetrics coordinatorScanLatency;
 
     /** Time spent waiting for free memtable space, either on- or off-heap */
     public final Histogram waitingOnFreeMemtableSpace;
@@ -408,6 +408,9 @@ public class TableMetrics
         readLatency = new LatencyMetrics(factory, "Read", cfs.keyspace.metric.readLatency, globalReadLatency);
         writeLatency = new LatencyMetrics(factory, "Write", cfs.keyspace.metric.writeLatency, globalWriteLatency);
         rangeLatency = new LatencyMetrics(factory, "Range", cfs.keyspace.metric.rangeLatency, globalRangeLatency);
+        coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalFactory, "CoordinatorRead"));
+        coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalFactory, "CoordinatorScan"));
+
         pendingFlushes = createTableCounter("PendingFlushes");
         bytesFlushed = createTableCounter("BytesFlushed");
         compactionBytesWritten = createTableCounter("CompactionBytesWritten");
@@ -665,8 +668,6 @@ public class TableMetrics
         tombstoneScannedHistogram = createTableHistogram("TombstoneScannedHistogram", cfs.keyspace.metric.tombstoneScannedHistogram, false);
         liveScannedHistogram = createTableHistogram("LiveScannedHistogram", cfs.keyspace.metric.liveScannedHistogram, false);
         colUpdateTimeDeltaHistogram = createTableHistogram("ColUpdateTimeDeltaHistogram", cfs.keyspace.metric.colUpdateTimeDeltaHistogram, false);
-        coordinatorReadLatency = Metrics.timer(factory.createMetricName("CoordinatorReadLatency"));
-        coordinatorScanLatency = Metrics.timer(factory.createMetricName("CoordinatorScanLatency"));
         waitingOnFreeMemtableSpace = Metrics.histogram(factory.createMetricName("WaitingOnFreeMemtableSpace"), false);
 
         // We do not want to capture view mutation specific metrics for a view
