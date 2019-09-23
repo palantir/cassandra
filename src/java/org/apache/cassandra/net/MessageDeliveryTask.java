@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.filter.TombstoneOverwhelmingException;
+import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.exceptions.RequestFailureReason;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.index.IndexNotAvailableException;
@@ -75,6 +76,13 @@ public class MessageDeliveryTask implements Runnable
             handleFailure(e);
             logger.error(e.getMessage());
         }
+        catch (IsBootstrappingException e)
+        {
+            handleFailure(e);
+            if (READ_VERBS.contains(verb))
+                logger.debug("Suppressing error message for verb type {} during bootstrap", verb);
+            else throw e;
+        }
         catch (Throwable t)
         {
             handleFailure(t);
@@ -112,4 +120,7 @@ public class MessageDeliveryTask implements Runnable
     private static final EnumSet<MessagingService.Verb> GOSSIP_VERBS = EnumSet.of(MessagingService.Verb.GOSSIP_DIGEST_ACK,
                                                                                   MessagingService.Verb.GOSSIP_DIGEST_ACK2,
                                                                                   MessagingService.Verb.GOSSIP_DIGEST_SYN);
+
+    private static final EnumSet<MessagingService.Verb> READ_VERBS = EnumSet.of(MessagingService.Verb.READ,
+                                                                                MessagingService.Verb.RANGE_SLICE);
 }
