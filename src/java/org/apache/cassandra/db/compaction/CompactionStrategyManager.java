@@ -78,6 +78,8 @@ public class CompactionStrategyManager implements INotificationConsumer
     private final boolean partitionSSTablesByTokenRange;
     private final Supplier<DiskBoundaries> boundariesSupplier;
 
+    private static final boolean unrepairOnStartup = Boolean.parseBoolean(System.getProperty("palantir_cassandra.unrepair_on_startup", "true"));
+
     /**
      * Performs mutual exclusion on the variables below
      */
@@ -251,10 +253,10 @@ public class CompactionStrategyManager implements INotificationConsumer
         try
         {
             int index = compactionStrategyIndexFor(sstable);
-            if (sstable.isRepaired())
-                return repaired.get(index);
-            else
+            if (unrepairOnStartup || !sstable.isRepaired())
                 return unrepaired.get(index);
+            else
+                return repaired.get(index);
         }
         finally
         {
