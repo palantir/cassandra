@@ -447,9 +447,14 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
         ParentRepairSession prs = getParentRepairSession(parentRepairSession);
         //A repair will be marked as not global if it is a subrange repair to avoid many small anti-compactions
         //in addition to other scenarios such as repairs not involving all DCs or hosts
-        if (!prs.isGlobal)
+        //Additionally, we also disable anticompaction for any repairs that are NOT incremental
+        if (!prs.isGlobal || !prs.isIncremental)
         {
-            logger.info("[repair #{}] Not a global repair, will not do anticompaction", parentRepairSession);
+            if (!prs.isGlobal)
+                logger.info("[repair #{}] Not a global repair, will not do anticompaction", parentRepairSession);
+            else
+                logger.info("[repair #{}] Not an incremental repair, will not do anticompaction", parentRepairSession);
+
             removeParentRepairSession(parentRepairSession);
             return Futures.immediateFuture(Collections.emptyList());
         }
