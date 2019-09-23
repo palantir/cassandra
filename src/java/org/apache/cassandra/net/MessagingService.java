@@ -1334,7 +1334,7 @@ public final class MessagingService implements MessagingServiceMBean
                 }
                 catch (SSLHandshakeException e)
                 {
-                    logger.error("SSL handshake error for inbound connection from " + socket, e);
+                    logger.debug("SSL handshake error for inbound connection from " + socket, e);
                     FileUtils.closeQuietly(socket);
                 }
                 catch (Throwable t)
