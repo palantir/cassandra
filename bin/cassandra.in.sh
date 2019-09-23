@@ -14,12 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [ "x$CASSANDRA_HOME" = "x" ]; then
+SERVICE_HOME=$(cd "$(dirname "$0")/../../" && pwd)
+
+if [ -d "$SERVICE_HOME" ]; then
+    CASSANDRA_HOME="$SERVICE_HOME/service"
+    CASSANDRA_CONF="$SERVICE_HOME/var/conf"
+fi
+
+if [ -z "$CASSANDRA_HOME" ] || [ ! -d "$CASSANDRA_HOME" ]; then
     CASSANDRA_HOME="`dirname "$0"`/.."
 fi
 
 # The directory where Cassandra's configs live (required)
-if [ "x$CASSANDRA_CONF" = "x" ]; then
+if [ -z "$CASSANDRA_CONF" ] || [ ! -d "$CASSANDRA_CONF" ]; then
     CASSANDRA_CONF="$CASSANDRA_HOME/conf"
 fi
 
