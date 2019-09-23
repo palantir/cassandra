@@ -242,9 +242,17 @@ public class CommitLog implements CommitLogMBean
             int totalSize = size + ENTRY_OVERHEAD_SIZE;
             if (totalSize > MAX_MUTATION_SIZE)
             {
-                throw new IllegalArgumentException(String.format("Mutation of %s is too large for the maximum size of %s",
-                                                                 FBUtilities.prettyPrintMemory(totalSize),
-                                                                 FBUtilities.prettyPrintMemory(MAX_MUTATION_SIZE)));
+                String keyspaceName = mutation.getKeyspaceName();
+
+                StringBuilder columnFamilies = new StringBuilder();
+                for (UUID cfId : mutation.getColumnFamilyIds())
+                {
+                    columnFamilies.append(Keyspace.open(mutation.getKeyspaceName()).getColumnFamilyStore(cfId).name);
+                    columnFamilies.append(',');
+                }
+
+                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
+                                                                 keyspaceName, columnFamilies.toString(), totalSize, MAX_MUTATION_SIZE));
             }
 
             Allocation alloc = segmentManager.allocate(mutation, totalSize);
