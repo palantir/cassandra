@@ -102,7 +102,7 @@ public class StartupMessage extends Message.Request
         if (options.containsKey(NO_COMPACT) && Boolean.parseBoolean(options.get(NO_COMPACT)))
             state.getClientState().setNoCompactMode();
 
-        if (DatabaseDescriptor.getAuthenticator().requireAuthentication())
+        if (DatabaseDescriptor.getAuthenticator().requireAuthentication() || DatabaseDescriptor.getAuthenticator().requireSaslAuthentication())
             return new AuthenticateMessage(DatabaseDescriptor.getAuthenticator().getClass().getName());
         else
             return new ReadyMessage();

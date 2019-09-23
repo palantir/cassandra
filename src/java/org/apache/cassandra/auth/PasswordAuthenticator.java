@@ -77,6 +77,12 @@ public class PasswordAuthenticator implements IAuthenticator
     private CredentialsCache cache;
 
     // No anonymous access.
+    public boolean requireSaslAuthentication()
+    {
+        return true;
+    }
+
+    // No anonymous access.
     public boolean requireAuthentication()
     {
         return true;
