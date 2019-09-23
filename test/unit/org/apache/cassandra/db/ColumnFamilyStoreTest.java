@@ -32,6 +32,7 @@ import org.junit.runner.RunWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import org.apache.cassandra.*;
 import org.apache.cassandra.config.*;
@@ -539,5 +540,41 @@ public class ColumnFamilyStoreTest
         List<File> ssTableFiles = new Directories(cfs.metadata).sstableLister(Directories.OnTxnErr.THROW).listFiles();
         assertNotNull(ssTableFiles);
         assertEquals(0, ssTableFiles.size());
+    }
+
+    @Test
+    public void testGetRepairedAtPerSstable() throws IOException
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_STANDARD1);
+        cfs.truncateBlocking();
+        cfs.disableAutoCompaction();
+
+        new RowUpdateBuilder(cfs.metadata, 1, "key1").clustering("name").add("val", "1").build().applyUnsafe();
+        cfs.forceBlockingFlush();
+
+        new RowUpdateBuilder(cfs.metadata, 2, "key2").clustering("name").add("val", "2").build().applyUnsafe();
+        cfs.forceBlockingFlush();
+
+        assertEquals(getUnrepairedSSTables(cfs).size(), 2);
+
+        Iterator<SSTableReader> sstables = getUnrepairedSSTables(cfs).iterator();
+        SSTableReader sstableToRepair = sstables.next();
+        sstableToRepair.descriptor.getMetadataSerializer().mutateRepairedAt(sstableToRepair.descriptor, 1234567L);
+        sstableToRepair.reloadSSTableMetadata();
+        String repairedSstable = sstableToRepair.descriptor.relativeFilenameFor(Component.DATA);
+
+        Map<String, Long> repairedAtPerSstable = cfs.getRepairedAtPerSstable();
+        assertTrue(repairedAtPerSstable.containsKey(repairedSstable));
+        assertEquals(1234567L, repairedAtPerSstable.get(repairedSstable).longValue());
+
+        String unrepairedSstable = sstables.next().descriptor.relativeFilenameFor(Component.DATA);
+        assertTrue(repairedAtPerSstable.containsKey(unrepairedSstable));
+        assertEquals(0L, repairedAtPerSstable.get(unrepairedSstable).longValue());
+    }
+
+    private static Set<SSTableReader> getUnrepairedSSTables(ColumnFamilyStore cfs)
+    {
+        return ImmutableSet.copyOf(cfs.getTracker().getView().sstables(SSTableSet.LIVE, (s) -> !s.isRepaired()));
     }
 }
