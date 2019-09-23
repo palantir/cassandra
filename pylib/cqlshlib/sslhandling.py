@@ -59,6 +59,11 @@ def ssl_settings(host, config_file, env=os.environ):
                 return getattr(ssl, protocol)
         return None
 
+    ssl_enable = env.get('SSL_ENABLE')
+    if ssl_enable is None:
+        ssl_enable = get_option('ssl', 'enable')
+    ssl_enable = ssl_enable is not None and ssl_enable.lower() == 'true'
+
     ssl_validate = env.get('SSL_VALIDATE')
     if ssl_validate is None:
         ssl_validate = get_option('ssl', 'validate')
@@ -93,7 +98,7 @@ def ssl_settings(host, config_file, env=os.environ):
     if usercert:
         usercert = os.path.expanduser(usercert)
 
-    return dict(ca_certs=ssl_certfile,
+    return ssl_enable, dict(ca_certs=ssl_certfile,
                 cert_reqs=ssl.CERT_REQUIRED if ssl_validate else ssl.CERT_NONE,
                 ssl_version=ssl_version,
                 keyfile=userkey, certfile=usercert)
