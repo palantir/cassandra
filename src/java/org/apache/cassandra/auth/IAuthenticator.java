@@ -27,6 +27,13 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 public interface IAuthenticator
 {
     /**
+     * Whether or not the authenticator requires explicit login for clients authenticating via
+     * SASL negotiation.  The result of this function is only checked if requireAuthentication() is false.
+     * If false will instantiate user with AuthenticatedUser.ANONYMOUS_USER.
+     */
+    boolean requireSaslAuthentication();
+
+    /**
      * Whether or not the authenticator requires explicit login.
      * If false will instantiate user with AuthenticatedUser.ANONYMOUS_USER.
      */
