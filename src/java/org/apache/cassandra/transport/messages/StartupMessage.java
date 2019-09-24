@@ -105,7 +105,7 @@ public class StartupMessage extends Message.Request
 
         connection.setThrowOnOverload("1".equals(options.get(THROW_ON_OVERLOAD)));
 
-        if (DatabaseDescriptor.getAuthenticator().requireAuthentication())
+        if (DatabaseDescriptor.getAuthenticator().requireAuthentication() || DatabaseDescriptor.getAuthenticator().requireSaslAuthentication())
             return new AuthenticateMessage(DatabaseDescriptor.getAuthenticator().getClass().getName());
         else
             return new ReadyMessage();
