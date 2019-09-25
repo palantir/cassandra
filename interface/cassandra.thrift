@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0"
+const string VERSION = "20.1.0-pt0"
 
 
 #
@@ -726,6 +726,24 @@ service Cassandra {
                 4:list<Column> updates,
                 5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
                 6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+       throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
+   * Atomic put unless exists.
+   *
+   * A cas() where the columns being updated are expected to not already exist.
+   *
+   * This is different from a cas() where expected is an empty list. In that case cas() will fail if the column family
+   * has any columns at all, whereas this method will succeed as long as any of the existing columns in the column
+   * family do not overlap with the set of columns being updated.
+   *
+   * Otherwise, the semantic of a put_unless_exists() are equivalent to that of cas().
+   */
+  CASResult put_unless_exists(1:required binary key,
+                              2:required string column_family,
+                              3:list<Column> updates,
+                              4:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
+                              5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
