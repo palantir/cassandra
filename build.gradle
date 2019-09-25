@@ -1,0 +1,92 @@
+/*
+ * (c) Copyright 2018 Palantir Technologies Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+buildscript {
+    repositories {
+        jcenter()
+        maven { url 'https://palantir.bintray.com/releases'}
+    }
+
+    dependencies {
+        classpath 'com.palantir.gradle.docker:gradle-docker:0.22.1'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+        classpath 'com.netflix.nebula:nebula-publishing-plugin:9.5.0'
+        classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.3'
+    }
+}
+
+// Because controlling dependency flow between the ant and gradle tasks is complex and error-prone,
+// it is up to the user to ensure that the artifacts desired by the varios publish tasks in this
+// repo have already been generated.
+
+apply from: "${project.rootDir}/gradle/publish-dist.gradle"
+
+apply plugin: 'com.palantir.git-version'
+
+repositories {
+    jcenter()
+    maven {
+        url 'https://dl.bintray.com/palantir/releases/'
+    }
+}
+
+allprojects {
+    ant.importBuild("${project.rootDir}/build.xml") { antTaskName ->
+        'ant-' + antTaskName
+    }
+
+    version ant.'base.version' + '-' + gitVersion()
+    group 'com.palantir.cassandra'
+
+    // so the artifacts have our name and version, not apache's
+    ant.'version' = project.version
+    ant.'final.name' = 'palantir-cassandra-' + project.version
+}
+
+task distTar (type: Tar) {
+    from tarTree(file("${project.rootDir}/build/${ant.'final.name'}-bin.tar.gz"))
+    destinationDir file("${project.rootDir}/build/distributions")
+    baseName 'palantir-cassandra'
+    version project.version
+    extension 'tgz'
+    compression = Compression.GZIP
+}
+
+apply plugin: 'com.palantir.docker'
+docker {
+    name "palantirtechnologies/${rootProject.name}:${project.version}"
+    dockerfile file("${project.rootDir}/docker/Dockerfile")
+    tags 'latest', 'snapshot'
+    buildArgs([BUILD_VERSION: project.version])
+    files distTar.outputs,
+            file("${project.rootDir}/docker/cassandra.yaml"),
+            file("${project.rootDir}/docker/docker-entrypoint.sh"),
+            file("${project.rootDir}/conf/cassandra-env.sh")
+
+}
+publish.dependsOn dockerPush
+dockerPush.onlyIf {
+    versionDetails().isCleanTag
+}
+
+publishing {
+    publications {
+        dist(MavenPublication) {
+            artifact distTar
+            artifactId 'palantir-cassandra'
+        }
+    }
+}
