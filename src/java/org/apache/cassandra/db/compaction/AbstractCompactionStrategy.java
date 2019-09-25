@@ -422,7 +422,7 @@ public abstract class AbstractCompactionStrategy
      */
     protected boolean worthDroppingTombstones(SSTableReader sstable, int gcBefore)
     {
-        if (disableTombstoneCompactions || CompactionController.NEVER_PURGE_TOMBSTONES)
+        if (disableTombstoneCompactions || CompactionController.NEVER_PURGE_TOMBSTONES || CompactionController.pendingRangesExistForKeyspace(cfs.keyspace.getName()))
             return false;
         // since we use estimations to calculate, there is a chance that compaction will not drop tombstones actually.
         // if that happens we will end up in infinite compaction loop, so first we check enough if enough time has
