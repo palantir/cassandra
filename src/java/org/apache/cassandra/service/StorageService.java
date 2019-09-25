@@ -3174,7 +3174,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void takeSnapshot(String tag, String... keyspaceNames) throws IOException
     {
-        takeSnapshot(tag, false, keyspaceNames);
+        takeSnapshot(tag, false, false, keyspaceNames);
     }
 
     /**
@@ -3189,18 +3189,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             throws IOException
     {
         takeMultipleTableSnapshot(tag, false, tableList);
-    }
-
-    /**
-     * Takes the snapshot for the given keyspaces. A snapshot name must be specified.
-     *
-     * @param tag the tag given to the snapshot; may not be null or empty
-     * @param skipFlush Skip blocking flush of memtable
-     * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
-     */
-    private void takeSnapshot(String tag, boolean skipFlush, String... keyspaceNames) throws IOException
-    {
-        takeSnapshot(tag, skipFlush, false, keyspaceNames);
     }
 
     /**
@@ -3301,7 +3289,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (Entry<Keyspace, List<String>> entry : keyspaceColumnfamily.entrySet())
         {
             for (String table : entry.getValue())
-                entry.getKey().snapshot(tag, table, skipFlush);
+                entry.getKey().snapshot(tag, table, skipFlush, false);
         }
 
     }
