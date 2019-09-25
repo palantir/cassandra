@@ -221,7 +221,7 @@ public class Keyspace
      * @param skipFlush Skip blocking flush of memtable
      * @throws IOException if the column family doesn't exist
      */
-    public void snapshot(String snapshotName, String columnFamilyName, boolean skipFlush) throws IOException
+    public void snapshot(String snapshotName, String columnFamilyName, boolean skipFlush, boolean ephemeral) throws IOException
     {
         assert snapshotName != null;
         boolean tookSnapShot = false;
@@ -230,7 +230,7 @@ public class Keyspace
             if (columnFamilyName == null || cfStore.name.equals(columnFamilyName))
             {
                 tookSnapShot = true;
-                cfStore.snapshot(snapshotName, skipFlush);
+                cfStore.snapshot(snapshotName, null, skipFlush, ephemeral);
             }
         }
 
@@ -248,7 +248,7 @@ public class Keyspace
      */
     public void snapshot(String snapshotName, String columnFamilyName) throws IOException
     {
-        snapshot(snapshotName, columnFamilyName, false);
+        snapshot(snapshotName, columnFamilyName, false, false);
     }
 
     /**
