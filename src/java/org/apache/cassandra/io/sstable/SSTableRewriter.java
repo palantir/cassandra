@@ -138,7 +138,7 @@ public class SSTableRewriter extends Transactional.AbstractTransactional impleme
         {
             for (SSTableReader reader : transaction.originals())
             {
-                if (reader.getCachedPosition(key, false) != null)
+                if (reader.getCachedPosition(key, false, true) != null)
                 {
                     cachedKeys.put(key, index);
                     break;
