@@ -61,6 +61,7 @@ public class MigrationManager
     public static final int MIGRATION_DELAY_IN_MS = 60000;
 
     private static final int MIGRATION_TASK_WAIT_IN_SECONDS = Integer.parseInt(System.getProperty("cassandra.migration_task_wait_in_seconds", "1"));
+    private static final Boolean UNSAFE_SCHEMA_MIGRATION = Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration");
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -78,16 +79,21 @@ public class MigrationManager
 
     public static void scheduleSchemaPull(InetAddress endpoint, EndpointState state)
     {
+        scheduleSchemaPull(endpoint, state, false);
+    }
+
+    public static void scheduleSchemaPull(InetAddress endpoint, EndpointState state, boolean onChange)
+    {
         UUID schemaVersion = state.getSchemaVersion();
         if (!endpoint.equals(FBUtilities.getBroadcastAddress()) && schemaVersion != null)
-            maybeScheduleSchemaPull(schemaVersion, endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value);
+            maybeScheduleSchemaPull(schemaVersion, endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value, onChange);
     }
 
     /**
      * If versions differ this node sends request with local migration list to the endpoint
      * and expecting to receive a list of migrations to apply locally.
      */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion)
+    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion, boolean onChange)
     {
         String ourMajorVersion = FBUtilities.getReleaseVersionMajor();
         if (!releaseVersion.startsWith(ourMajorVersion))
@@ -127,6 +133,14 @@ public class MigrationManager
                          Schema.schemaVersionToString(Schema.instance.getAltVersion()),
                          Schema.schemaVersionToString(theirVersion));
             submitMigrationTask(endpoint);
+        }
+
+        if (onChange && UNSAFE_SCHEMA_MIGRATION)
+        {
+            // if we're scheduling due to a schema change (and not because a node is newly alive or joined)
+            // and we're in unsafe_schema_migration mode, then don't submit a MigrationTask
+            logger.warn("Not pulling schema because of schema change while in unsafe schema migration mode");
+            return;
         }
         else
         {
