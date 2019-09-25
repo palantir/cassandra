@@ -38,7 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.*;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.OverlapIterator;
 import org.apache.cassandra.utils.concurrent.Refs;
 
@@ -111,6 +113,11 @@ public class CompactionController implements AutoCloseable
             return;
         }
 
+        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            return;
+        }
+
         for (SSTableReader reader : overlappingSSTables)
         {
             if (reader.isMarkedCompacted())
@@ -123,7 +130,7 @@ public class CompactionController implements AutoCloseable
 
     private void refreshOverlaps()
     {
-        if (NEVER_PURGE_TOMBSTONES)
+        if (NEVER_PURGE_TOMBSTONES || pendingRangesExistForKeyspace(cfs.keyspace.getName()))
             return;
 
         if (this.overlappingSSTables != null)
@@ -166,7 +173,7 @@ public class CompactionController implements AutoCloseable
     {
         logger.trace("Checking droppable sstables in {}", cfStore);
 
-        if (NEVER_PURGE_TOMBSTONES || compacting == null)
+        if (NEVER_PURGE_TOMBSTONES || compacting == null || pendingRangesExistForKeyspace(cfStore.keyspace.getName()))
             return Collections.emptySet();
 
         if (cfStore.getCompactionStrategyManager().onlyPurgeRepairedTombstones() && !Iterables.all(compacting, SSTableReader::isRepaired))
@@ -261,7 +268,7 @@ public class CompactionController implements AutoCloseable
      */
     public Predicate<Long> getPurgeEvaluator(DecoratedKey key)
     {
-        if (NEVER_PURGE_TOMBSTONES || !compactingRepaired())
+        if (NEVER_PURGE_TOMBSTONES || !compactingRepaired() || pendingRangesExistForKeyspace(getKeyspace()))
             return time -> false;
 
         overlapIterator.update(key);
@@ -326,7 +333,7 @@ public class CompactionController implements AutoCloseable
     // caller must close iterators
     public Iterable<UnfilteredRowIterator> shadowSources(DecoratedKey key, boolean tombstoneOnly)
     {
-        if (!provideTombstoneSources() || !compactingRepaired() || NEVER_PURGE_TOMBSTONES)
+        if (!provideTombstoneSources() || !compactingRepaired() || NEVER_PURGE_TOMBSTONES || pendingRangesExistForKeyspace(getKeyspace()))
             return null;
         overlapIterator.update(key);
         return Iterables.filter(Iterables.transform(overlapIterator.overlaps(),
@@ -368,5 +375,14 @@ public class CompactionController implements AutoCloseable
     private FileDataInput openDataFile(SSTableReader reader)
     {
         return limiter != null ? reader.openDataReader(limiter) : reader.openDataReader();
+    }
+
+    /**
+     * @param keyspace
+     * @return true if this node is currently receiving data as part of a range movement (e.g., bootstrap, decommission, move)
+     * If pending ranges exist, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds
+     */
+    public static boolean pendingRangesExistForKeyspace(String keyspace) {
+        return StorageService.instance.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
     }
 }
