@@ -88,6 +88,8 @@ public class TableMetrics
     public final Counter bytesFlushed;
     /** Total number of bytes written by compaction since server [re]start */
     public final Counter compactionBytesWritten;
+    /** Total number of compactions since server [re]start */
+    public final Counter compactionsCompleted;
     /** Estimate of number of pending compactios for this table */
     public final Gauge<Integer> pendingCompactions;
     /** Number of SSTables on disk for this CF */
@@ -411,6 +413,7 @@ public class TableMetrics
         pendingFlushes = createTableCounter("PendingFlushes");
         bytesFlushed = createTableCounter("BytesFlushed");
         compactionBytesWritten = createTableCounter("CompactionBytesWritten");
+        compactionsCompleted = createTableCounter("CompactionsCompleted");
         pendingCompactions = createTableGauge("PendingCompactions", new Gauge<Integer>()
         {
             public Integer getValue()
