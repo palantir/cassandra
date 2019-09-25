@@ -244,6 +244,32 @@ public class Keyspace
      *
      * @param snapshotName     the tag associated with the name of the snapshot.  This value may not be null
      * @param columnFamilyName the column family to snapshot or all on null
+     * @param skipFlush Skip blocking flush of memtable
+     * @throws IOException if the column family doesn't exist
+     */
+    public void snapshot(String snapshotName, String columnFamilyName, boolean skipFlush, boolean ephemeral) throws IOException
+    {
+        assert snapshotName != null;
+        boolean tookSnapShot = false;
+        for (ColumnFamilyStore cfStore : columnFamilyStores.values())
+        {
+            if (columnFamilyName == null || cfStore.name.equals(columnFamilyName))
+            {
+                tookSnapShot = true;
+                cfStore.snapshot(snapshotName, null, skipFlush, ephemeral);
+            }
+        }
+
+        if ((columnFamilyName != null) && !tookSnapShot)
+            throw new IOException("Failed taking snapshot. Table " + columnFamilyName + " does not exist.");
+    }
+
+    /**
+     * Take a snapshot of the specific column family, or the entire set of column families
+     * if columnFamily is null with a given timestamp
+     *
+     * @param snapshotName     the tag associated with the name of the snapshot.  This value may not be null
+     * @param columnFamilyName the column family to snapshot or all on null
      * @throws IOException if the column family doesn't exist
      */
     public void snapshot(String snapshotName, String columnFamilyName) throws IOException

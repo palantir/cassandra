@@ -18,7 +18,6 @@
 package org.apache.cassandra.service;
 
 import java.io.*;
-import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -3120,7 +3119,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * @param tag
      *            the tag given to the snapshot; may not be null or empty
      * @param options
-     *            Map of options (skipFlush is the only supported option for now)
+     *            Map of options (skipFlush and ephemeral are supported)
      * @param entities
      *            list of keyspaces / tables in the form of empty | ks1 ks2 ... | ks1.cf1,ks2.cf2,...
      */
@@ -3128,6 +3127,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void takeSnapshot(String tag, Map<String, String> options, String... entities) throws IOException
     {
         boolean skipFlush = Boolean.parseBoolean(options.getOrDefault("skipFlush", "false"));
+        boolean ephemeral = Boolean.parseBoolean(options.getOrDefault("ephemeral", "false"));
 
         if (entities != null && entities.length > 0 && entities[0].contains("."))
         {
@@ -3135,7 +3135,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
         else
         {
-            takeSnapshot(tag, skipFlush, entities);
+            takeSnapshot(tag, skipFlush, ephemeral, entities);
         }
     }
 
@@ -3200,6 +3200,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     private void takeSnapshot(String tag, boolean skipFlush, String... keyspaceNames) throws IOException
     {
+        takeSnapshot(tag, skipFlush, false, keyspaceNames);
+    }
+
+    /**
+     * Takes the snapshot for the given keyspaces. A snapshot name must be specified.
+     *
+     * @param tag the tag given to the snapshot; may not be null or empty
+     * @param skipFlush Skip blocking flush of memtable
+     * @param ephemeral Clear the snapshot on next startup
+     * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
+     */
+    private void takeSnapshot(String tag, boolean skipFlush, boolean ephemeral, String... keyspaceNames) throws IOException
+    {
         if (operationMode == Mode.JOINING)
             throw new IOException("Cannot snapshot until bootstrap completes");
         if (tag == null || tag.equals(""))
@@ -3225,7 +3238,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
 
         for (Keyspace keyspace : keyspaces)
-            keyspace.snapshot(tag, null, skipFlush);
+            keyspace.snapshot(tag, null, skipFlush, ephemeral);
     }
 
     /**
