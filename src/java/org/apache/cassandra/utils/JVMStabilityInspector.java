@@ -97,7 +97,8 @@ public final class JVMStabilityInspector
 
     public static void inspectCommitLogThrowable(Throwable t)
     {
-        if (!StorageService.instance.isDaemonSetupCompleted())
+        if (!StorageService.instance.isDaemonSetupCompleted()
+            && DatabaseDescriptor.getCommitFailurePolicy() != Config.CommitFailurePolicy.stop_on_startup)
         {
             logger.error("Exiting due to error while processing commit log during initialization.", t);
             killer.killCurrentJVM(t, true);
