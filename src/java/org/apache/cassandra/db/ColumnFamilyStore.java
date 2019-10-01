@@ -2706,4 +2706,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     {
         diskBoundaryManager.invalidate();
     }
+
+    /**
+     * @return map of sstable file path to repaired at value
+     */
+    public Map<String, Long> getRepairedAtPerSstable() {
+        Collection<SSTableReader> ssTables = getLiveSSTables();
+        Map<String, Long> repairedAtPerSstable = new HashMap<>(ssTables.size());
+        for (SSTableReader sstable : ssTables)
+        {
+            repairedAtPerSstable.put(sstable.descriptor.relativeFilenameFor(Component.DATA),
+                                     sstable.getSSTableMetadata().repairedAt);
+        }
+        return repairedAtPerSstable;
+    }
 }
