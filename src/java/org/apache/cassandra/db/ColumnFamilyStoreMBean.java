@@ -192,4 +192,9 @@ public interface ColumnFamilyStoreMBean
        Enable/Disable compaction space check
      */
     public void compactionDiskSpaceCheck(boolean enable);
+
+    /**
+     * @return map of sstable relative path to repaired at value
+     */
+    public Map<String, Long> getRepairedAtPerSstable();
 }
