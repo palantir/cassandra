@@ -576,6 +576,53 @@ public class CassandraServer implements Cassandra.Iface
         return getSlice(commands, column_parent.isSetSuper_column(), limits.perPartitionCount(), consistencyLevel, cState, queryStartNanoTime);
     }
 
+    private List<SinglePartitionReadCommand> validateKeyPredicatesAndCreateCommands(List<KeyPredicate> keyPredicates,
+                                                                                    ColumnParent column_parent,
+                                                                                    int nowInSec,
+                                                                                    CFMetaData metadata)
+    {
+        List<SinglePartitionReadCommand> commands = new ArrayList<>(keyPredicates.size());
+        validateKeyPredicates(keyPredicates, column_parent, metadata);
+
+        Map<SlicePredicate, ColumnFilter> columnFilters = Maps.newHashMap();
+        Map<SlicePredicate, ClusteringIndexFilter> clusteringIndexFilters = Maps.newHashMap();
+        Map<SlicePredicate, DataLimits> limitsMap = Maps.newHashMap();
+
+        for (KeyPredicate keyPredicate : keyPredicates)
+        {
+            ByteBuffer key = keyPredicate.key;
+            SlicePredicate predicate = keyPredicate.predicate;
+
+            ColumnFilter columnFilterToUse = columnFilters.computeIfAbsent(predicate, slicePredicate -> makeColumnFilter(metadata, column_parent, slicePredicate));
+            ClusteringIndexFilter filterToUse = clusteringIndexFilters.computeIfAbsent(predicate, slicePredicate -> toInternalFilter(metadata, column_parent, slicePredicate));
+            DataLimits limits = limitsMap.computeIfAbsent(predicate, slicePredicate -> getLimits(1, metadata.isSuper() && !column_parent.isSetSuper_column(), predicate));
+
+            DecoratedKey dk = metadata.decorateKey(key);
+            commands.add(SinglePartitionReadCommand.create(true, metadata, nowInSec, columnFilterToUse, RowFilter.NONE, limits, dk, filterToUse));
+        }
+
+        return commands;
+    }
+
+    private void validateKeyPredicates(List<KeyPredicate> keyPredicates, ColumnParent column_parent, CFMetaData metadata)
+    {
+        Set<ByteBuffer> validatedKeys = Sets.newHashSet();
+        Set<SlicePredicate> validatedPredicates = Sets.newHashSet();
+        for (KeyPredicate keyPredicate : keyPredicates)
+        {
+            if (!validatedKeys.contains(keyPredicate.key))
+            {
+                ThriftValidation.validateKey(metadata, keyPredicate.key);
+                validatedKeys.add(keyPredicate.key);
+            }
+            if (!validatedPredicates.contains(keyPredicate.predicate))
+            {
+                ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
+                validatedPredicates.add(keyPredicate.predicate);
+            }
+        }
+    }
+
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)
     throws InvalidRequestException, NotFoundException, UnavailableException, TimedOutException
     {
