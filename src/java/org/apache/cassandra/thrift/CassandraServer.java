@@ -393,6 +393,42 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        long queryStartNanoTime = System.nanoTime();
+        if (startSessionIfRequested())
+        {
+            List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
+            for (KeyPredicate keyPredicate : request)
+                keyPredicates.add(Pair.create(ByteBufferUtil.bytesToHex(keyPredicate.key), keyPredicate.predicate));
+            Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
+                                                                  "column_parent", column_parent.toString(),
+                                                                  "consistency_level", consistency_level.name());
+            Tracing.instance.begin("multiget_multislice", traceParameters);
+        }
+        else
+        {
+            logger.trace("multiget_multislice");
+        }
+
+        try
+        {
+            ClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            return multigetMultisliceInternal(keyspace, request, column_parent, FBUtilities.nowInSeconds(), consistency_level, cState, queryStartNanoTime);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
     private ClusteringIndexFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SliceRange range)
     {
         if (metadata.isSuper() && parent.isSetSuper_column())
