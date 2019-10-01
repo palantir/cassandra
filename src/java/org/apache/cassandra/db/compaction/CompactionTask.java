@@ -272,6 +272,7 @@ public class CompactionTask extends AbstractCompactionTask
 
             // update the metrics
             cfs.metric.compactionBytesWritten.inc(endsize);
+            cfs.metric.compactionsCompleted.inc();
         }
     }
 
