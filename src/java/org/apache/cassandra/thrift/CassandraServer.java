@@ -29,6 +29,7 @@ import java.util.zip.Inflater;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
@@ -289,9 +290,13 @@ public class CassandraServer implements Cassandra.Iface
     private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<SinglePartitionReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long queryStartNanoTime)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
-        Map<DecoratedKey, DataLimits> dataLimitsByKey = new HashMap<>();
-        for (SinglePartitionReadCommand command : commands)
-            dataLimitsByKey.put(command.partitionKey(), command.limits());
+        Multimap<DecoratedKey, SinglePartitionReadCommand> commandsByKey = partitionCommandsByKey(commands);
+        Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
+        for (Map.Entry<DecoratedKey, Collection<SinglePartitionReadCommand>> entry : commandsByKey.asMap().entrySet())
+        {
+            ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(entry.getValue());
+            detailsByKey.put(entry.getKey(), details);
+        }
 
         try (PartitionIterator results = read(commands, consistency_level, cState, queryStartNanoTime))
         {
@@ -300,7 +305,8 @@ public class CassandraServer implements Cassandra.Iface
             {
                 try (RowIterator iter = results.next())
                 {
-                    List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, iter.isReverseOrder(), dataLimitsByKey.get(iter.partitionKey()).perPartitionCount());
+                    ThriftifyColumnFamilyDetails details = detailsByKey.get(iter.partitionKey());
+                    List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, details.reversed(), details.limitsPerPartitionCount);
                     columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
                 }
             }
@@ -2912,6 +2918,88 @@ public class CassandraServer implements Cassandra.Iface
         private UnfilteredRowIterator expectedToUnfilteredRowIterator()
         {
             return LegacyLayout.toUnfilteredRowIterator(metadata, key, LegacyLayout.LegacyDeletionInfo.live(), expected.iterator());
+        }
+    }
+
+    private enum SlicePredicateType {
+        NAMED_COLUMNS,
+        FORWARD_KEY_RANGE,
+        REVERSED_KEY_RANGE,
+    }
+
+    private static class ThriftifyColumnFamilyDetails
+    {
+        private final SlicePredicateType slicePredicateType;
+        private final int limitsPerPartitionCount;
+        private final long timestamp;
+
+        private ThriftifyColumnFamilyDetails(SlicePredicateType slicePredicateType, int limitsPerPartitionCount, long timestamp)
+        {
+            this.slicePredicateType = slicePredicateType;
+            this.limitsPerPartitionCount = limitsPerPartitionCount;
+            this.timestamp = timestamp;
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommand(SinglePartitionReadCommand readCommand) {
+            SlicePredicateType type;
+            ClusteringIndexFilter filter = readCommand.clusteringIndexFilter();
+            if (filter.kind() == ClusteringIndexFilter.Kind.NAMES)
+                type = SlicePredicateType.NAMED_COLUMNS;
+            else
+                type = filter.isReversed()
+                       ? SlicePredicateType.REVERSED_KEY_RANGE
+                       : SlicePredicateType.FORWARD_KEY_RANGE;
+
+            return new ThriftifyColumnFamilyDetails(type, readCommand.limits().perPartitionCount(), readCommand.nowInSec());
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommands(Collection<SinglePartitionReadCommand> readCommands)
+        {
+            Preconditions.checkArgument(!readCommands.isEmpty(),
+                                        "Cannot identify thriftify details for zero commands");
+            Set<ThriftifyColumnFamilyDetails> detailsForCommands = Sets.newHashSet();
+            for (SinglePartitionReadCommand readCommand : readCommands)
+            {
+                detailsForCommands.add(forReadCommand(readCommand));
+            }
+
+            Preconditions.checkState(detailsForCommands.size() == 1,
+                                     "Multiple versions of thriftify details found: " + detailsForCommands);
+            return detailsForCommands.iterator().next();
+        }
+
+        private boolean reversed() {
+            return slicePredicateType == SlicePredicateType.REVERSED_KEY_RANGE;
+        }
+
+        public boolean equals(Object o)
+        {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            ThriftifyColumnFamilyDetails that = (ThriftifyColumnFamilyDetails) o;
+
+            if (timestamp != that.timestamp) return false;
+            if (limitsPerPartitionCount != that.limitsPerPartitionCount) return false;
+            return slicePredicateType == that.slicePredicateType;
+        }
+
+        public int hashCode()
+        {
+            int result = slicePredicateType != null ? slicePredicateType.hashCode() : 0;
+            result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+            result = 31 * result + limitsPerPartitionCount ^ (limitsPerPartitionCount >>> 32);
+            return result;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ThriftifyColumnFamilyDetails{" +
+                   "slicePredicateType=" + slicePredicateType +
+                   ", limitsPerPartitionCount=" + limitsPerPartitionCount +
+                   ", timestamp=" + timestamp +
+                   '}';
         }
     }
 }
