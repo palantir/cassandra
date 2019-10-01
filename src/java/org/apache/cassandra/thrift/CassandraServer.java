@@ -576,6 +576,25 @@ public class CassandraServer implements Cassandra.Iface
         return getSlice(commands, column_parent.isSetSuper_column(), limits.perPartitionCount(), consistencyLevel, cState, queryStartNanoTime);
     }
 
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multigetMultisliceInternal(String keyspace,
+                                                                                        List<KeyPredicate> keyPredicates,
+                                                                                        ColumnParent column_parent,
+                                                                                        int nowInSec,
+                                                                                        ConsistencyLevel consistency_level,
+                                                                                        ClientState cState,
+                                                                                        long queryStartNanoTime)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
+        ThriftValidation.validateColumnParent(metadata, column_parent);
+
+        org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
+        consistencyLevel.validateForRead(keyspace);
+
+        List<SinglePartitionReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyPredicates, column_parent, nowInSec, metadata);
+        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+    }
+
     private List<SinglePartitionReadCommand> validateKeyPredicatesAndCreateCommands(List<KeyPredicate> keyPredicates,
                                                                                     ColumnParent column_parent,
                                                                                     int nowInSec,
