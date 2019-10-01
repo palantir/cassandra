@@ -19,16 +19,21 @@ package org.apache.cassandra.db;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.Set;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.codahale.metrics.*;
+import com.google.common.collect.ImmutableSet;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.db.lifecycle.SSTableSet;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.TableMetrics;
@@ -285,5 +290,50 @@ public class ColumnFamilyMetricTest
         {
 
         }
+    }
+
+    @Test
+    public void testRepairedAtSSTableCount() throws IOException
+    {
+        Keyspace keyspace = Keyspace.open("Keyspace1");
+        ColumnFamilyStore store = keyspace.getColumnFamilyStore("Standard2");
+
+        store.disableAutoCompaction();
+
+        store.truncateBlocking();
+
+        for (int j = 0; j < 5; j++)
+        {
+            new RowUpdateBuilder(store.metadata, FBUtilities.timestampMicros(), String.valueOf(j))
+                    .clustering("0")
+                    .add("val", ByteBufferUtil.EMPTY_BYTE_BUFFER)
+                    .build()
+                    .applyUnsafe();
+            store.forceBlockingFlush();
+        }
+
+        assertEquals(getUnrepairedSSTables(store).size(), 5);
+        assertEquals(0, store.metric.repairedAtSSTableCount.getValue().longValue());
+
+        Iterator<SSTableReader> sstables = getUnrepairedSSTables(store).iterator();
+        SSTableReader sstableToRepair = sstables.next();
+        sstableToRepair.descriptor.getMetadataSerializer().mutateRepairedAt(sstableToRepair.descriptor, 1234567L);
+        sstableToRepair.reloadSSTableMetadata();
+
+        assertEquals(1, store.metric.repairedAtSSTableCount.getValue().longValue());
+
+        while (sstables.hasNext())
+        {
+            sstableToRepair = sstables.next();
+            sstableToRepair.descriptor.getMetadataSerializer().mutateRepairedAt(sstableToRepair.descriptor, 1234567L);
+            sstableToRepair.reloadSSTableMetadata();
+        }
+
+        assertEquals(5, store.metric.repairedAtSSTableCount.getValue().longValue());
+    }
+
+    private static Set<SSTableReader> getUnrepairedSSTables(ColumnFamilyStore cfs)
+    {
+        return ImmutableSet.copyOf(cfs.getTracker().getView().sstables(SSTableSet.LIVE, (s) -> !s.isRepaired()));
     }
 }

@@ -41,6 +41,7 @@ import org.apache.cassandra.index.SecondaryIndexManager;
 import org.apache.cassandra.io.compress.CompressionMetadata;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
+import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.utils.EstimatedHistogram;
 import org.apache.cassandra.utils.TopKSampler;
 
@@ -93,6 +94,8 @@ public class TableMetrics
     public final Gauge<Integer> pendingCompactions;
     /** Number of SSTables on disk for this CF */
     public final Gauge<Integer> liveSSTableCount;
+    /** Number of SSTables that have a repairedAt timestamp > 0 (from incremental repairs) */
+    public final Gauge<Integer> repairedAtSSTableCount;
     /** Disk space used by SSTables belonging to this table */
     public final Counter liveDiskSpaceUsed;
     /** Total disk space used by SSTables belonging to this table, including obsolete ones waiting to be GC'd */
@@ -432,6 +435,19 @@ public class TableMetrics
             public Integer getValue()
             {
                 return cfs.getTracker().getView().liveSSTables().size();
+            }
+        });
+        repairedAtSSTableCount = createTableGauge("RepairedAtSSTableCount", new Gauge<Integer>()
+        {
+            public Integer getValue()
+            {
+                int repairedAtCount = 0;
+                for (Long repairedAt : cfs.getRepairedAtPerSstable().values())
+                {
+                    if (repairedAt > ActiveRepairService.UNREPAIRED_SSTABLE)
+                        repairedAtCount++;
+                }
+                return repairedAtCount;
             }
         });
         liveDiskSpaceUsed = createTableCounter("LiveDiskSpaceUsed");
