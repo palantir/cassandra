@@ -286,6 +286,28 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<SinglePartitionReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long queryStartNanoTime)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        Map<DecoratedKey, DataLimits> dataLimitsByKey = new HashMap<>();
+        for (SinglePartitionReadCommand command : commands)
+            dataLimitsByKey.put(command.partitionKey(), command.limits());
+
+        try (PartitionIterator results = read(commands, consistency_level, cState, queryStartNanoTime))
+        {
+            ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
+            while (results.hasNext())
+            {
+                try (RowIterator iter = results.next())
+                {
+                    List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, iter.isReverseOrder(), dataLimitsByKey.get(iter.partitionKey()).perPartitionCount());
+                    columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
+                }
+            }
+            return Multimaps.asMap(columnFamiliesMap);
+        }
+    }
+
     public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
@@ -601,7 +623,7 @@ public class CassandraServer implements Cassandra.Iface
         consistencyLevel.validateForRead(keyspace);
 
         List<SinglePartitionReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyPredicates, column_parent, nowInSec, metadata);
-        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState, queryStartNanoTime);
     }
 
     private List<SinglePartitionReadCommand> validateKeyPredicatesAndCreateCommands(List<KeyPredicate> keyPredicates,
