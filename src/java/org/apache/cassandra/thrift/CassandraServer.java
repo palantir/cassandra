@@ -259,6 +259,15 @@ public class CassandraServer implements Cassandra.Iface
              : result;
     }
 
+    private Multimap<DecoratedKey, SinglePartitionReadCommand> partitionCommandsByKey(List<SinglePartitionReadCommand> commands)
+    {
+        Multimap<DecoratedKey, SinglePartitionReadCommand> result = ArrayListMultimap.create();
+        for (SinglePartitionReadCommand readCommand : commands) {
+            result.put(readCommand.partitionKey(), readCommand);
+        }
+        return result;
+    }
+
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> getSlice(List<SinglePartitionReadCommand> commands, boolean subColumnsOnly, int cellLimit, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long queryStartNanoTime)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
