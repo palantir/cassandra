@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.zip.CRC32;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.ParameterizedClass;
 import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.exceptions.WriteTimeoutException;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.compress.ICompressor;
@@ -43,7 +45,6 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.security.EncryptionContext;
 import org.apache.cassandra.service.StorageService;
-import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.MBeanWrapper;
 
@@ -244,15 +245,26 @@ public class CommitLog implements CommitLogMBean
             {
                 String keyspaceName = mutation.getKeyspaceName();
 
-                StringBuilder columnFamilies = new StringBuilder();
-                for (UUID cfId : mutation.getColumnFamilyIds())
+                Set<String> columnFamilies = new HashSet<>();
+                Set<DecoratedKey> keys = new HashSet<>();
+                for (PartitionUpdate update : mutation.getPartitionUpdates())
                 {
-                    columnFamilies.append(Keyspace.open(mutation.getKeyspaceName()).getColumnFamilyStore(cfId).name);
-                    columnFamilies.append(',');
+                    columnFamilies.add(update.metadata().cfName);
+                    keys.add(update.partitionKey());
                 }
 
-                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
-                                                                 keyspaceName, columnFamilies.toString(), totalSize, MAX_MUTATION_SIZE));
+                // Don't add more than 10 column families or partition keys to the error string so that it doesn't get too long
+                int limit = 10;
+
+                int cfsOverLimit = columnFamilies.size() - limit;
+                String columnFamiliesString = Iterables.limit(columnFamilies, limit).toString() +
+                                              (cfsOverLimit > 0 ? String.format(" (and %s more)", cfsOverLimit) : "");
+                int keysOverLimit = columnFamilies.size() - limit;
+                String keysString = Iterables.limit(keys, limit).toString() +
+                                              (keysOverLimit > 0 ? String.format(" (and %s more)", keysOverLimit) : "");
+
+                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s and partition keys %s of %s bytes is too large for the maximum size of %s",
+                                                                 keyspaceName, columnFamiliesString, keysString, totalSize, MAX_MUTATION_SIZE));
             }
 
             Allocation alloc = segmentManager.allocate(mutation, totalSize);
