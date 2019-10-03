@@ -47,6 +47,7 @@ import org.apache.cassandra.security.EncryptionContext;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.MBeanWrapper;
+import org.apache.cassandra.utils.Pair;
 
 import static org.apache.cassandra.db.commitlog.CommitLogSegment.Allocation;
 import static org.apache.cassandra.db.commitlog.CommitLogSegment.CommitLogSegmentFileComparator;
@@ -245,26 +246,23 @@ public class CommitLog implements CommitLogMBean
             {
                 String keyspaceName = mutation.getKeyspaceName();
 
-                Set<String> columnFamilies = new HashSet<>();
-                Set<DecoratedKey> keys = new HashSet<>();
-                for (PartitionUpdate update : mutation.getPartitionUpdates())
-                {
-                    columnFamilies.add(update.metadata().cfName);
-                    keys.add(update.partitionKey());
-                }
-
-                // Don't add more than 10 column families or partition keys to the error string so that it doesn't get too long
+                // Don't add more than 10 cfs/keys to the error string so that it doesn't get too long
                 int limit = 10;
 
-                int cfsOverLimit = columnFamilies.size() - limit;
-                String columnFamiliesString = Iterables.limit(columnFamilies, limit).toString() +
-                                              (cfsOverLimit > 0 ? String.format(" (and %s more)", cfsOverLimit) : "");
-                int keysOverLimit = columnFamilies.size() - limit;
-                String keysString = Iterables.limit(keys, limit).toString() +
-                                              (keysOverLimit > 0 ? String.format(" (and %s more)", keysOverLimit) : "");
+                Set<Pair<String, DecoratedKey>> updatesToSurface = new HashSet<>();
+                Iterator<PartitionUpdate> partitionUpdateIterator = mutation.getPartitionUpdates().iterator();
+                while (updatesToSurface.size() < limit && partitionUpdateIterator.hasNext())
+                {
+                    PartitionUpdate update = partitionUpdateIterator.next();
+                    updatesToSurface.add(Pair.create(update.metadata().cfName, update.partitionKey()));
+                }
 
-                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s and partition keys %s of %s bytes is too large for the maximum size of %s",
-                                                                 keyspaceName, columnFamiliesString, keysString, totalSize, MAX_MUTATION_SIZE));
+                int updatesOverLimit = mutation.getPartitionUpdates().size() - updatesToSurface.size();
+                String updatesString = updatesToSurface.toString() +
+                                       (updatesOverLimit > 0 ? String.format(" (and %s more)", updatesOverLimit) : "");
+
+                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables/partition keys %s of %s bytes is too large for the maximum size of %s",
+                                                                 keyspaceName, updatesString, totalSize, MAX_MUTATION_SIZE));
             }
 
             Allocation alloc = segmentManager.allocate(mutation, totalSize);
