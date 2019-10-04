@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.zip.CRC32;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.ParameterizedClass;
 import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.exceptions.WriteTimeoutException;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.compress.ICompressor;
@@ -46,6 +48,7 @@ import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.MBeanWrapper;
+import org.apache.cassandra.utils.Pair;
 
 import static org.apache.cassandra.db.commitlog.CommitLogSegment.Allocation;
 import static org.apache.cassandra.db.commitlog.CommitLogSegment.CommitLogSegmentFileComparator;
@@ -242,9 +245,24 @@ public class CommitLog implements CommitLogMBean
             int totalSize = size + ENTRY_OVERHEAD_SIZE;
             if (totalSize > MAX_MUTATION_SIZE)
             {
-                throw new IllegalArgumentException(String.format("Mutation of %s is too large for the maximum size of %s",
-                                                                 FBUtilities.prettyPrintMemory(totalSize),
-                                                                 FBUtilities.prettyPrintMemory(MAX_MUTATION_SIZE)));
+                // Don't add more than 10 cfs/keys to the error message so that it doesn't get too long
+                int limit = 10;
+
+                Set<Pair<String, DecoratedKey>> updatesToSurface = new HashSet<>();
+                Iterator<PartitionUpdate> partitionUpdateIterator = mutation.getPartitionUpdates().iterator();
+                while (updatesToSurface.size() < limit && partitionUpdateIterator.hasNext())
+                {
+                    PartitionUpdate update = partitionUpdateIterator.next();
+                    updatesToSurface.add(Pair.create(update.metadata().cfName, update.partitionKey()));
+                }
+
+                int updatesOverLimit = mutation.getPartitionUpdates().size() - updatesToSurface.size();
+                String updatesString = updatesToSurface.toString() +
+                                       (updatesOverLimit > 0 ? String.format(" (and %s more)", updatesOverLimit) : "");
+
+                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables/partition keys %s of %s is too large for the maximum size of %s",
+                                                                 mutation.getKeyspaceName(), updatesString,
+                                                                 FBUtilities.prettyPrintMemory(totalSize), FBUtilities.prettyPrintMemory(MAX_MUTATION_SIZE)));
             }
 
             Allocation alloc = segmentManager.allocate(mutation, totalSize);
