@@ -45,6 +45,7 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.security.EncryptionContext;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.MBeanWrapper;
 import org.apache.cassandra.utils.Pair;
@@ -259,8 +260,9 @@ public class CommitLog implements CommitLogMBean
                 String updatesString = updatesToSurface.toString() +
                                        (updatesOverLimit > 0 ? String.format(" (and %s more)", updatesOverLimit) : "");
 
-                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables/partition keys %s of %s bytes is too large for the maximum size of %s",
-                                                                 mutation.getKeyspaceName(), updatesString, totalSize, MAX_MUTATION_SIZE));
+                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables/partition keys %s of %s is too large for the maximum size of %s",
+                                                                 mutation.getKeyspaceName(), updatesString,
+                                                                 FBUtilities.prettyPrintMemory(totalSize), FBUtilities.prettyPrintMemory(MAX_MUTATION_SIZE)));
             }
 
             Allocation alloc = segmentManager.allocate(mutation, totalSize);
