@@ -244,9 +244,7 @@ public class CommitLog implements CommitLogMBean
             int totalSize = size + ENTRY_OVERHEAD_SIZE;
             if (totalSize > MAX_MUTATION_SIZE)
             {
-                String keyspaceName = mutation.getKeyspaceName();
-
-                // Don't add more than 10 cfs/keys to the error string so that it doesn't get too long
+                // Don't add more than 10 cfs/keys to the error message so that it doesn't get too long
                 int limit = 10;
 
                 Set<Pair<String, DecoratedKey>> updatesToSurface = new HashSet<>();
@@ -262,7 +260,7 @@ public class CommitLog implements CommitLogMBean
                                        (updatesOverLimit > 0 ? String.format(" (and %s more)", updatesOverLimit) : "");
 
                 throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables/partition keys %s of %s bytes is too large for the maximum size of %s",
-                                                                 keyspaceName, updatesString, totalSize, MAX_MUTATION_SIZE));
+                                                                 mutation.getKeyspaceName(), updatesString, totalSize, MAX_MUTATION_SIZE));
             }
 
             Allocation alloc = segmentManager.allocate(mutation, totalSize);
