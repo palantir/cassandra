@@ -139,6 +139,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 {
     private static final Logger logger = LoggerFactory.getLogger(SSTableReader.class);
 
+    private static final boolean DISABLE_SSTABLE_REWRITE_KEYCACHE = Boolean.getBoolean("palantir_cassandra.disable_sstablerewrite_keycache");
+
     private static final ScheduledThreadPoolExecutor syncExecutor = initSyncExecutor();
     private static ScheduledThreadPoolExecutor initSyncExecutor()
     {
@@ -1555,7 +1557,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         // Lock contention in the cache causes unnecessary overhead during compactions that slows the overall compaction
         // speed to a crawl. We don't need to update the cache on the basis of values read during a compaction anyway
         // because they don't represent real read load.
-        if (isSstableRewrite && Boolean.getBoolean("palantir_cassandra.disable_sstablerewrite_keycache"))
+        if (isSstableRewrite && DISABLE_SSTABLE_REWRITE_KEYCACHE)
         {
             logger.trace("Not returning cached position of row for SSTable rewrite");
             return null;
