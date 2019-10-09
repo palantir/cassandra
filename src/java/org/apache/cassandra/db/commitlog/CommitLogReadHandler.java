@@ -50,19 +50,21 @@ public interface CommitLogReadHandler
      * Handle an error during segment read, signaling whether or not you want the reader to skip the remainder of the
      * current segment on error.
      *
+     * @param path Path to the commitlog file on disk
      * @param exception CommitLogReadException w/details on exception state
      * @return boolean indicating whether to stop reading
      * @throws IOException In the event the handler wants forceful termination of all processing, throw IOException.
      */
-    boolean shouldSkipSegmentOnError(CommitLogReadException exception) throws IOException;
+    boolean shouldSkipSegmentOnError(String path, CommitLogReadException exception) throws IOException;
 
     /**
      * In instances where we cannot recover from a specific error and don't care what the reader thinks
      *
+     * @param path Path to the commitlog file on disk
      * @param exception CommitLogReadException w/details on exception state
      * @throws IOException
      */
-    void handleUnrecoverableError(CommitLogReadException exception) throws IOException;
+    void handleUnrecoverableError(String path, CommitLogReadException exception) throws IOException;
 
     /**
      * Process a deserialized mutation
