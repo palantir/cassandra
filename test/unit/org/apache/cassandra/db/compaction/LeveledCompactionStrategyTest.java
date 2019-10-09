@@ -480,4 +480,65 @@ public class LeveledCompactionStrategyTest
             lastMaxTimeStamp = sstable.getMaxTimestamp();
         }
     }
+
+
+    @Test
+    public void testLevelSettingOnLoadNewSSTables() throws InterruptedException
+    {
+        byte [] b = new byte[100 * 1024];
+        new Random().nextBytes(b);
+        ByteBuffer value = ByteBuffer.wrap(b); // 100 KB value, make it easy to have multiple files
+
+        // Enough data to have a level 1 and 2
+        int rows = 20;
+        int columns = 10;
+
+        // Adds enough data to trigger multiple sstable per level
+        for (int r = 0; r < rows; r++)
+        {
+            UpdateBuilder update = UpdateBuilder.create(cfs.metadata, String.valueOf(r));
+            for (int c = 0; c < columns; c++)
+                update.newRow("column" + c).add("val", value);
+            update.applyUnsafe();
+            cfs.forceBlockingFlush();
+        }
+
+        waitForLeveling(cfs);
+        cfs.forceBlockingFlush();
+        Thread.sleep(100); // let all compactions complete so they can't cause flakes later
+        cfs.disableAutoCompaction();
+        LeveledCompactionStrategy strategy = (LeveledCompactionStrategy) cfs.getCompactionStrategyManager().getStrategies().get(1).get(0);
+        strategy.pause();
+        int[] originalLevelSizes = strategy.getAllLevelSize();
+        assertTrue(originalLevelSizes[1] > 0);
+
+        // when assumeCfIsEmpty is true loadNewSSTables should keep original levels
+        resetState();
+        cfs.loadNewSSTables(true);
+        int[] levelSizes = strategy.getAllLevelSize();
+        for (int i = 0; i < levelSizes.length; i++) {
+            assertTrue(levelSizes[i] == originalLevelSizes[i]);
+        }
+
+        // when assumeCfIsEmpty is false loadNewSSTables should re-level everything to 0
+        resetState();
+        cfs.loadNewSSTables(false);
+        levelSizes = strategy.getAllLevelSize();
+        assertTrue(levelSizes[0] > 0);
+        for (int i = 1; i < levelSizes.length; i++) {
+            assertTrue(levelSizes[i] == 0);
+        }
+    }
+
+    private void resetState() {
+        Collection<SSTableReader> sstables = cfs.getLiveSSTables();
+        cfs.clearUnsafe(); // clears sstable file handles from memory
+        cfs.disableAutoCompaction();
+
+        // manually remove sstables from manifest that we no longer have file handles for b/c clearUnsafe doesn't do this
+        LeveledCompactionStrategy strategy = (LeveledCompactionStrategy) cfs.getCompactionStrategyManager().getStrategies().get(1).get(0);
+        for(SSTableReader reader : sstables) {
+            strategy.manifest.remove(reader);
+        }
+    }
 }

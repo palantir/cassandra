@@ -24,6 +24,7 @@ import io.airlift.command.Command;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.airlift.command.Option;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
@@ -33,10 +34,14 @@ public class Refresh extends NodeToolCmd
     @Arguments(usage = "<keyspace> <table>", description = "The keyspace and table name")
     private List<String> args = new ArrayList<>();
 
+    @Option(title = "empty", name = { "-emp", "--empty"}, description = "Use -emp to indicate the target table is empty"
+                                                                        + " and will not be written to until after the new SSTables have completed being loaded")
+    private boolean empty = false;
+
     @Override
     public void execute(NodeProbe probe)
     {
         checkArgument(args.size() == 2, "refresh requires ks and cf args");
-        probe.loadNewSSTables(args.get(0), args.get(1));
+        probe.loadNewSSTables(args.get(0), args.get(1), empty);
     }
 }
