@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0"
+const string VERSION = "20.1.0-pt2"
 
 
 #
@@ -116,7 +116,6 @@ struct ColumnOrSuperColumn {
     3: optional CounterColumn counter_column,
     4: optional CounterSuperColumn counter_super_column
 }
-
 
 #
 # Exceptions
@@ -306,6 +305,15 @@ struct SliceRange {
 struct SlicePredicate {
     1: optional list<binary> column_names,
     2: optional SliceRange   slice_range,
+}
+
+/**
+ * A pair of a row (key) and selection of columns, used in calls to multiget_multislice() specifying which rows should
+ * be queried and which columns within said rows.
+ */
+struct KeyPredicate {
+    1: optional binary key,
+    2: optional SlicePredicate predicate,
 }
 
 enum IndexOperator {
@@ -648,6 +656,22 @@ service Cassandra {
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
+    Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
+    users may specify more than one <code>KeyPredicate</code> for each distinct key in the <code>request</code>.
+    Each list of <code>ColumnOrSuperColumn</code> present in the list associated with a specific key in the result
+    map corresponds to the result of a get_slice for one of the <code>KeyPredicate</code>s provided that matches
+    that key.
+    If there is more than one <code>KeyPredicate</code> associated with a specific key, we require that the types
+    of associated <code>SlicePredicate</code>s are of the same type (where type is defined as named columns,
+    slice range or reversed slice range).
+    We also do not make guarantees on the ordering of the lists for each key.
+  */
+  map<binary,list<list<ColumnOrSuperColumn>>> multiget_multislice(1:required list<KeyPredicate> request,
+                                                                  2:required ColumnParent column_parent,
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
     Perform a get_count in parallel on the given {@code List<binary>} keys. The return value maps keys to the count found.
   */
   map<binary, i32> multiget_count(1:required list<binary> keys,
@@ -726,6 +750,24 @@ service Cassandra {
                 4:list<Column> updates,
                 5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
                 6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+       throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
+   * Atomic put unless exists.
+   *
+   * A cas() where the columns being updated are expected to not already exist.
+   *
+   * This is different from a cas() where expected is an empty list. In that case cas() will fail if the column family
+   * has any columns at all, whereas this method will succeed as long as any of the existing columns in the column
+   * family do not overlap with the set of columns being updated.
+   *
+   * Otherwise, the semantic of a put_unless_exists() are equivalent to that of cas().
+   */
+  CASResult put_unless_exists(1:required binary key,
+                              2:required string column_family,
+                              3:list<Column> updates,
+                              4:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
+                              5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
