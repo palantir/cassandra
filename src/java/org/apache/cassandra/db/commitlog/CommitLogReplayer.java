@@ -381,13 +381,13 @@ public class CommitLogReplayer implements CommitLogReadHandler
         }
     }
 
-    public boolean shouldSkipSegmentOnError(CommitLogReadException exception) throws IOException
+    public boolean shouldSkipSegmentOnError(String path, CommitLogReadException exception) throws IOException
     {
         if (exception.permissible)
             logger.error("Ignoring commit log replay error likely due to incomplete flush to disk", exception);
         else if (Boolean.getBoolean(IGNORE_REPLAY_ERRORS_PROPERTY))
             logger.error("Ignoring commit log replay error", exception);
-        else if (!CommitLog.handleCommitError("Failed commit log replay", exception))
+        else if (!CommitLog.handleCommitError("Failed commit log replay", exception, path))
         {
             logger.error("Replay stopped. If you wish to override this error and continue starting the node ignoring " +
                          "commit log replay problems, specify -D" + IGNORE_REPLAY_ERRORS_PROPERTY + "=true " +
@@ -400,10 +400,10 @@ public class CommitLogReplayer implements CommitLogReadHandler
     /**
      * The logic for whether or not we throw on an error is identical for the replayer between recoverable or non.
      */
-    public void handleUnrecoverableError(CommitLogReadException exception) throws IOException
+    public void handleUnrecoverableError(String path, CommitLogReadException exception) throws IOException
     {
         // Don't care about return value, use this simply to throw exception as appropriate.
-        shouldSkipSegmentOnError(exception);
+        shouldSkipSegmentOnError(path, exception);
     }
 
     @SuppressWarnings("serial")

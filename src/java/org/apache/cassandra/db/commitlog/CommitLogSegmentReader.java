@@ -107,7 +107,7 @@ public class CommitLogSegmentReader implements Iterable<CommitLogSegmentReader.S
                 {
                     try
                     {
-                        handler.handleUnrecoverableError(new CommitLogReadException(
+                        handler.handleUnrecoverableError(reader.getPath(), new CommitLogReadException(
                                                     e.getMessage(),
                                                     CommitLogReadErrorReason.UNRECOVERABLE_DESCRIPTOR_ERROR,
                                                     !e.invalidCrc && tolerateTruncation));
@@ -123,7 +123,7 @@ public class CommitLogSegmentReader implements Iterable<CommitLogSegmentReader.S
                     {
                         boolean tolerateErrorsInSection = tolerateTruncation & segmenter.tolerateSegmentErrors(end, reader.length());
                         // if no exception is thrown, the while loop will continue
-                        handler.handleUnrecoverableError(new CommitLogReadException(
+                        handler.handleUnrecoverableError(reader.getPath(), new CommitLogReadException(
                                                     e.getMessage(),
                                                     CommitLogReadErrorReason.UNRECOVERABLE_DESCRIPTOR_ERROR,
                                                     tolerateErrorsInSection));
