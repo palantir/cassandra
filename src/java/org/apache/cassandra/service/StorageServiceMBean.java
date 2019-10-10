@@ -34,6 +34,23 @@ import javax.management.openmbean.TabularData;
 public interface StorageServiceMBean extends NotificationEmitter
 {
     /**
+     * Non transient error type key.
+     *
+     * @see NonTransientError
+     * @see #getNonTransientErrors()
+     */
+    static final String NON_TRANSIENT_ERROR_TYPE_KEY = "type";
+
+    /**
+     * Type of non transient errors.
+     */
+    public enum NonTransientError {
+        COMMIT_LOG_CORRUPTION,
+        SSTABLE_CORRUPTION,
+        FS_ERROR
+    }
+
+    /**
      * Retrieve the list of live nodes in the cluster, where "liveness" is
      * determined by the failure detector of the node being queried.
      *
@@ -723,4 +740,29 @@ public interface StorageServiceMBean extends NotificationEmitter
 
     /** Returns a map of schema version -> list of endpoints reporting that version that we need schema updates for */
     public Map<String, Set<InetAddress>> getOutstandingSchemaVersions();
+
+    /**
+     * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
+     *
+     * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} and the
+     * matching value from {@link NonTransientError} representing the type of the non transient error.
+     * <p>
+     * Non transient errors:
+     * <ul>
+     *      <li>{@link NonTransientError#COMMIT_LOG_CORRUPTION}
+     *          <ul>
+     *              <li>attributes:
+     *                  <ul>
+     *                      <li> {@code path} - optional field representing the corrupted commitlog file.</li>
+     *                  </ul>
+     *              </li>
+     *          </ul>
+     *      </li>
+     *      <li>{@link NonTransientError#SSTABLE_CORRUPTION}</li>
+     *      <li>{@link NonTransientError#FS_ERROR}</li>
+     * </ul>
+     *
+     * @return a map of all recorded non transient errors.
+     */
+    public Set<Map<String, String>> getNonTransientErrors();
 }

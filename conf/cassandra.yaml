@@ -239,6 +239,10 @@ disk_failure_policy: stop
 #   shut down gossip and Thrift, leaving the node effectively dead, but
 #   can still be inspected via JMX.
 #
+# stop_on_startup
+#   shut down gossip and Thrift, leaving the node effectively dead, but
+#   can still be inspected via JMX even if setup wasn't completed.
+#
 # stop_commit
 #   shutdown the commit log, letting writes collect but
 #   continuing to service reads, as in pre-2.0.5 Cassandra

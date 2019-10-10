@@ -21,18 +21,14 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.UUID;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.zip.CRC32;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +50,7 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.security.EncryptionContext;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.MBeanWrapper;
@@ -502,13 +499,27 @@ public class CommitLog implements CommitLogMBean
     @VisibleForTesting
     public static boolean handleCommitError(String message, Throwable t)
     {
+        return handleCommitError(message, t, null);
+    }
+
+    @VisibleForTesting
+    public static boolean handleCommitError(String message, Throwable t, @Nullable String path)
+    {
         JVMStabilityInspector.inspectCommitLogThrowable(t);
         switch (DatabaseDescriptor.getCommitFailurePolicy())
         {
             // Needed here for unit tests to not fail on default assertion
             case die:
             case stop:
+            case stop_on_startup:
                 StorageService.instance.stopTransports();
+                ImmutableMap<String, String> attributes = Optional.ofNullable(path)
+                    .map(pathVal -> ImmutableMap.of("path", Paths.get(DatabaseDescriptor.getCommitLogLocation())
+                                                                 .toAbsolutePath()
+                                                                 .relativize(Paths.get(pathVal).toAbsolutePath())
+                                                                 .toString()))
+                    .orElse(ImmutableMap.of());
+                StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION, attributes);
                 //$FALL-THROUGH$
             case stop_commit:
                 String errorMsg = String.format("%s. Commit disk failure policy is %s; terminating thread.", message, DatabaseDescriptor.getCommitFailurePolicy());

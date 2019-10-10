@@ -401,6 +401,7 @@
 
           <dependency groupId="net.bytebuddy" artifactId="byte-buddy" version="${bytebuddy.version}" />
           <dependency groupId="net.bytebuddy" artifactId="byte-buddy-agent" version="${bytebuddy.version}" />
+          <dependency groupId="org.assertj" artifactId="assertj-core" version="3.10.0" scope="test"/>
 
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-core" version="1.21" scope="test"/>
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess" version="1.21" scope="test"/>
@@ -515,6 +516,7 @@
                 version="${version}"
                 relativePath="${final.name}-parent.pom"/>
         <dependency groupId="junit" artifactId="junit"/>
+        <dependency groupId="org.assertj" artifactId="assertj-core"/>
         <dependency groupId="commons-io" artifactId="commons-io"/>
         <dependency groupId="org.mockito" artifactId="mockito-core" />
         <dependency groupId="org.quicktheories" artifactId="quicktheories" />
