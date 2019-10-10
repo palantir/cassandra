@@ -1547,19 +1547,6 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
 
     public RowIndexEntry getCachedPosition(DecoratedKey key, boolean updateStats, boolean isSstableRewrite)
     {
-        return getCachedPosition(
-                new KeyCacheKey(metadata.ksAndCFName, descriptor, key.getKey()),
-                updateStats,
-                isSstableRewrite);
-    }
-
-    protected RowIndexEntry getCachedPosition(KeyCacheKey unifiedKey, boolean updateStats)
-    {
-        return getCachedPosition(unifiedKey, updateStats, false);
-    }
-
-    protected RowIndexEntry getCachedPosition(KeyCacheKey unifiedKey, boolean updateStats, boolean isSstableRewrite)
-    {
         //Lock contention in the cache causes unnecessary overhead during compactions that slows the overall compaction
         //speed to a crawl. We don't need to update the cache on the basis of values read during a compaction anyway
         //because they don't represent real read load.
@@ -1569,6 +1556,13 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             return null;
         }
 
+        return getCachedPosition(
+                new KeyCacheKey(metadata.ksAndCFName, descriptor, key.getKey()),
+                updateStats);
+    }
+
+    protected RowIndexEntry getCachedPosition(KeyCacheKey unifiedKey, boolean updateStats)
+    {
         if (keyCache != null && keyCache.getCapacity() > 0 && metadata.getCaching().keyCache.isEnabled()) {
             if (updateStats)
             {
