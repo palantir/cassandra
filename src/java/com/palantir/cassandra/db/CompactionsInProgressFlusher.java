@@ -50,6 +50,8 @@ import com.palantir.common.concurrent.CoalescingSupplier;
  * @author tpetracca
  */
 public class CompactionsInProgressFlusher {
+    private static final boolean COALESCE_FLUSHES = Boolean.getBoolean("palantir_cassandra.coalesce_cip_flushes");
+
     public static final CompactionsInProgressFlusher INSTANCE = new CompactionsInProgressFlusher();
     
     private final Supplier<ReplayPosition> flusher = () -> FBUtilities.waitOnFuture(
@@ -61,7 +63,7 @@ public class CompactionsInProgressFlusher {
     private CompactionsInProgressFlusher() { }
     
     public ReplayPosition forceBlockingFlush() {
-        if (Boolean.getBoolean("palantir_cassandra.coalesce_cip_flushes")) {
+        if (COALESCE_FLUSHES) {
             return coalescingFlusher.get();
         }
         return flusher.get();
