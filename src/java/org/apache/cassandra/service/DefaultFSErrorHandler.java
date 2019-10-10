@@ -20,6 +20,7 @@ package org.apache.cassandra.service;
 
 import java.io.File;
 
+import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +45,18 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
+            case stop:
+                // recording sstable non transient error
+                StorageService.instance.recordNonTransientError(
+                    StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
+                    ImmutableMap.of("path", e.path.toString()));
+                break;
             case stop_paranoid:
                 // exception not logged here on purpose as it is already logged
                 logger.error("Stopping transports as disk_failure_policy is " + DatabaseDescriptor.getDiskFailurePolicy());
+                StorageService.instance.recordNonTransientError(
+                    StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
+                    ImmutableMap.of("path", e.path.toString()));
                 StorageService.instance.stopTransports();
                 break;
         }
@@ -64,6 +74,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop:
                 // exception not logged here on purpose as it is already logged
                 logger.error("Stopping transports as disk_failure_policy is " + DatabaseDescriptor.getDiskFailurePolicy());
+                StorageService.instance.recordNonTransientError(
+                    StorageServiceMBean.NonTransientError.FS_ERROR,
+                    ImmutableMap.of("path", e.path.toString()));
                 StorageService.instance.stopTransports();
                 break;
             case best_effort:

@@ -59,7 +59,8 @@ public class CommitLogTestReplayer extends CommitLogReplayer
                                     int size,
                                     CommitLogPosition minPosition,
                                     final int entryLocation,
-                                    final CommitLogDescriptor desc) throws IOException
+                                    final CommitLogDescriptor desc,
+                                    final String path) throws IOException
         {
             RebufferingInputStream bufIn = new DataInputBuffer(inputBuffer, 0, size);
             Mutation mutation;
