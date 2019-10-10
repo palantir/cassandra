@@ -426,7 +426,8 @@ public abstract class CommitLogStressTest
                                     int size,
                                     CommitLogPosition minPosition,
                                     final int entryLocation,
-                                    final CommitLogDescriptor desc) throws IOException
+                                    final CommitLogDescriptor desc,
+                                    final String path) throws IOException
         {
             if (desc.id < discardedPos.segmentId)
             {
@@ -478,9 +479,9 @@ public abstract class CommitLogStressTest
 
     static class DummyHandler implements CommitLogReadHandler
     {
-        public boolean shouldSkipSegmentOnError(CommitLogReadException exception) throws IOException { return false; }
+        public boolean shouldSkipSegmentOnError(String path, CommitLogReadException exception) throws IOException { return false; }
 
-        public void handleUnrecoverableError(CommitLogReadException exception) throws IOException { }
+        public void handleUnrecoverableError(String path, CommitLogReadException exception) throws IOException { }
 
         public void handleMutation(Mutation m, int size, int entryLocation, CommitLogDescriptor desc) { }
     }
