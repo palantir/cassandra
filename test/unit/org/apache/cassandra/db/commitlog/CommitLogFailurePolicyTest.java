@@ -148,7 +148,6 @@ public class CommitLogFailurePolicyTest
         }
     }
 
-
     @Test
     public void testCommitFailurePolicy_stop_on_startup_beforeStartup()
     {
