@@ -1665,7 +1665,7 @@ public class StorageProxy implements StorageProxyMBean
             readMetrics.addNano(latency);
             casReadMetrics.addNano(latency);
             readMetricsMap.get(consistencyLevel).addNano(latency);
-            Keyspace.open(metadata.ksName).getColumnFamilyStore(metadata.cfName).metric.coordinatorReadLatency.update(latency, TimeUnit.NANOSECONDS);
+            Keyspace.open(metadata.ksName).getColumnFamilyStore(metadata.cfName).metric.coordinatorReadLatency.addNano(latency);
         }
 
         return result;
@@ -1713,7 +1713,7 @@ public class StorageProxy implements StorageProxyMBean
             readMetricsMap.get(consistencyLevel).addNano(latency);
             // TODO avoid giving every command the same latency number.  Can fix this in CASSADRA-5329
             for (ReadCommand command : group.commands)
-                Keyspace.openAndGetStore(command.metadata()).metric.coordinatorReadLatency.update(latency, TimeUnit.NANOSECONDS);
+                Keyspace.openAndGetStore(command.metadata()).metric.coordinatorReadLatency.addNano(latency);
         }
     }
 
@@ -2295,7 +2295,7 @@ public class StorageProxy implements StorageProxyMBean
             {
                 long latency = System.nanoTime() - startTime;
                 rangeMetrics.addNano(latency);
-                Keyspace.openAndGetStore(command.metadata()).metric.coordinatorScanLatency.update(latency, TimeUnit.NANOSECONDS);
+                Keyspace.openAndGetStore(command.metadata()).metric.coordinatorScanLatency.addNano(latency);
             }
         }
 
