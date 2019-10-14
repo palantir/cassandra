@@ -139,6 +139,13 @@ public class MigrationManager
                     }
                     VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
                     UUID currentVersion = UUID.fromString(value.value);
+
+                    if (!currentVersion.equals(theirVersion)) {
+                        logger.debug("A subsequent change has been made to their schema version; we should wait for " +
+                                     "their task before trying to update.  Endpoint {}", endpoint);
+                        return;
+                    }
+
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
