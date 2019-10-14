@@ -141,8 +141,9 @@ public class MigrationManager
                     UUID currentVersion = UUID.fromString(value.value);
 
                     if (!currentVersion.equals(theirVersion)) {
-                        logger.debug("A subsequent change has been made to their schema version; we should wait for " +
-                                     "their task before trying to update.  Endpoint {}", endpoint);
+                        logger.debug("A subsequent change has been made to the other endpoint's schema version and " +
+                                     "so we should wait for the subsequently scheduled task instead of trying to " +
+                                     "do the work in this one.  Endpoint {}", endpoint);
                         return;
                     }
 
