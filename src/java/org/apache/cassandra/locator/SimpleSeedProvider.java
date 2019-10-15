@@ -49,12 +49,14 @@ public class SimpleSeedProvider implements SeedProvider
         }
         String[] hosts = conf.seed_provider.parameters.get("seeds").split(",", -1);
         List<InetAddress> seeds = new ArrayList<InetAddress>(hosts.length);
+        boolean seenSelf = false;
         for (String host : hosts)
         {
             try
             {
                 InetAddress seed = InetAddress.getByName(host.trim());
                 if (seed.equals(FBUtilities.getBroadcastAddress())) {
+                    seenSelf = true;
                     continue;
                 }
                 seeds.add(seed);
@@ -65,7 +67,7 @@ public class SimpleSeedProvider implements SeedProvider
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
         }
-        if (seeds.isEmpty()) {
+        if (seeds.isEmpty() && seenSelf) {
             seeds.add(FBUtilities.getBroadcastAddress());
         }
         return Collections.unmodifiableList(seeds);
