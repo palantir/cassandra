@@ -5208,7 +5208,31 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (!isInitialized())
             throw new RuntimeException("Not yet initialized, can't load new sstables");
-        ColumnFamilyStore.loadNewSSTables(ksName, cfName);
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public int loadNewSSTablesWithCount(String ksName, String cfName)
+    {
+        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
     }
 
     /**
