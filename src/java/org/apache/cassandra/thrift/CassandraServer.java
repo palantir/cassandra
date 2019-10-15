@@ -27,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.*;
 import com.google.common.primitives.Longs;
@@ -911,6 +912,95 @@ public class CassandraServer implements Cassandra.Iface
         catch (RequestValidationException e)
         {
             throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
+    public CASResult put_unless_exists(ByteBuffer key,
+                                       String column_family,
+                                       List<Column> updates,
+                                       ConsistencyLevel serial_consistency_level,
+                                       ConsistencyLevel commit_consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        long queryStartNanoTime = System.nanoTime();
+        if (startSessionIfRequested()) {
+            ImmutableMap.Builder<String,String> builder = ImmutableMap.builder();
+            builder.put("key", ByteBufferUtil.bytesToHex(key));
+            builder.put("column_family", column_family);
+            builder.put("updates", updates.toString());
+            builder.put("consistency_level", commit_consistency_level.name());
+            builder.put("serial_consistency_level", serial_consistency_level.name());
+            Map<String,String> traceParameters = builder.build();
+
+            Tracing.instance.begin("put_unless_exists", traceParameters);
+        }
+        else
+        {
+            logger.trace("put_unless_exists");
+        }
+
+        try
+        {
+            ThriftClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            cState.hasColumnFamilyAccess(keyspace, column_family, Permission.MODIFY);
+            cState.hasColumnFamilyAccess(keyspace, column_family, Permission.SELECT);
+
+            CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_family, false);
+            if (metadata.isView())
+                throw new org.apache.cassandra.exceptions.InvalidRequestException("Cannot modify Materialized Views directly");
+
+            ThriftValidation.validateKey(metadata, key);
+            if (metadata.isSuper())
+                throw new org.apache.cassandra.exceptions.InvalidRequestException("CAS does not support supercolumns");
+
+            Iterable<ByteBuffer> names = Iterables.transform(updates, column -> column.name);
+            ThriftValidation.validateColumnNames(metadata, new ColumnParent(column_family), names);
+            for (Column column : updates)
+                ThriftValidation.validateColumnData(metadata, null, column);
+
+            DecoratedKey dk = metadata.decorateKey(key);
+            int nowInSec = FBUtilities.nowInSeconds();
+
+            List<LegacyLayout.LegacyCell> legacyCells = toLegacyCells(metadata, updates, nowInSec);
+            PartitionUpdate partitionUpdates = PartitionUpdate.fromIterator(LegacyLayout.toRowIterator(metadata, dk, legacyCells.iterator(), nowInSec), ColumnFilter.all(metadata));
+            // Indexed column values cannot be larger than 64K.  See CASSANDRA-3057/4240 for more details
+            Keyspace.open(metadata.ksName).getColumnFamilyStore(metadata.cfName).indexManager.validate(partitionUpdates);
+
+            schedule(DatabaseDescriptor.getWriteRpcTimeout());
+            try (RowIterator result = StorageProxy.cas(cState.getKeyspace(),
+                                                       column_family,
+                                                       dk,
+                                                       new ThriftPutUnlessExistsRequest(legacyCells, partitionUpdates),
+                                                       ThriftConversion.fromThrift(serial_consistency_level),
+                                                       ThriftConversion.fromThrift(commit_consistency_level),
+                                                       cState,
+                                                       queryStartNanoTime))
+            {
+                return result == null
+                       ? new CASResult(true)
+                       : new CASResult(false).setCurrent_values(thriftifyColumnsAsColumns(metadata, LegacyLayout.fromRowIterator(result).right));
+            }
+        }
+        catch (UnknownColumnException e)
+        {
+            throw new InvalidRequestException(e.getMessage());
+        }
+        catch (RequestTimeoutException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        catch (RequestExecutionException e)
+        {
+            throw ThriftConversion.rethrow(e);
         }
         finally
         {
@@ -2542,6 +2632,51 @@ public class CassandraServer implements Cassandra.Iface
                 return ThriftSessionManager.instance.getConnectedClients();
             }
         });
+    }
+
+    @VisibleForTesting
+    static class ThriftPutUnlessExistsRequest implements CASRequest
+    {
+        private final CFMetaData metadata;
+        private final DecoratedKey key;
+        private final List<LegacyLayout.LegacyCell> legacyUpdates; // updates in a different form
+        private final PartitionUpdate updates;
+
+        @VisibleForTesting
+        ThriftPutUnlessExistsRequest(List<LegacyLayout.LegacyCell> legacyUpdates, PartitionUpdate updates)
+        {
+            this.metadata = updates.metadata();
+            this.key = updates.partitionKey();
+            this.legacyUpdates = legacyUpdates;
+            this.updates = updates;
+        }
+
+        public SinglePartitionReadCommand readCommand(int nowInSec)
+        {
+            // Gather the clustering for the expected values and query those.
+            BTreeSet.Builder<Clustering> clusterings = BTreeSet.builder(metadata.comparator);
+            FilteredPartition expectedPartition =
+            FilteredPartition.create(LegacyLayout.toRowIterator(metadata, key, legacyUpdates.iterator(), nowInSec));
+
+            for (Row row : expectedPartition)
+                clusterings.add(row.clustering());
+
+            PartitionColumns columns = expectedPartition.staticRow().isEmpty()
+                                       ? metadata.partitionColumns().withoutStatics()
+                                       : metadata.partitionColumns();
+            ClusteringIndexNamesFilter filter = new ClusteringIndexNamesFilter(clusterings.build(), false);
+            return SinglePartitionReadCommand.create(true, metadata, nowInSec, ColumnFilter.selection(columns), RowFilter.NONE, DataLimits.NONE, key, filter);
+        }
+
+        public boolean appliesTo(FilteredPartition current)
+        {
+            return current.isEmpty();
+        }
+
+        public PartitionUpdate makeUpdates(FilteredPartition current)
+        {
+            return updates;
+        }
     }
 
     private static class ThriftCASRequest implements CASRequest

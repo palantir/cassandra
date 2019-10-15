@@ -6,7 +6,7 @@
  */
 package org.apache.cassandra.thrift;
 /*
- * 
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -14,18 +14,17 @@ package org.apache.cassandra.thrift;
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
-
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.thrift.scheme.IScheme;
@@ -105,7 +104,7 @@ public class Cassandra {
     public Map<ByteBuffer,List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
-     * Perform a get_count in parallel on the given list<binary> keys. The return value maps keys to the count found.
+     * Perform a get_count in parallel on the given {@code List<binary>} keys. The return value maps keys to the count found.
      * 
      * @param keys
      * @param column_parent
@@ -189,6 +188,25 @@ public class Cassandra {
      * @param commit_consistency_level
      */
     public CASResult cas(ByteBuffer key, String column_family, List<Column> expected, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+
+    /**
+     * Atomic put unless exists.
+     * 
+     * A cas() where the columns being updated are expected to not already exist.
+     * 
+     * This is different from a cas() where expected is an empty list. In that case cas() will fail if the column family
+     * has any columns at all, whereas this method will succeed as long as any of the existing columns in the column
+     * family do not overlap with the set of columns being updated.
+     * 
+     * Otherwise, the semantic of a put_unless_exists() are equivalent to that of cas().
+     * 
+     * @param key
+     * @param column_family
+     * @param updates
+     * @param serial_consistency_level
+     * @param commit_consistency_level
+     */
+    public CASResult put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * Remove data from the row specified by key at the granularity specified by column_path, and the given timestamp. Note
@@ -476,6 +494,8 @@ public class Cassandra {
     public void add(ByteBuffer key, ColumnParent column_parent, CounterColumn column, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void cas(ByteBuffer key, String column_family, List<Column> expected, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
+
+    public void put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void remove(ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
@@ -993,6 +1013,42 @@ public class Cassandra {
         throw result.te;
       }
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "cas failed: unknown result");
+    }
+
+    public CASResult put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    {
+      send_put_unless_exists(key, column_family, updates, serial_consistency_level, commit_consistency_level);
+      return recv_put_unless_exists();
+    }
+
+    public void send_put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws org.apache.thrift.TException
+    {
+      put_unless_exists_args args = new put_unless_exists_args();
+      args.setKey(key);
+      args.setColumn_family(column_family);
+      args.setUpdates(updates);
+      args.setSerial_consistency_level(serial_consistency_level);
+      args.setCommit_consistency_level(commit_consistency_level);
+      sendBase("put_unless_exists", args);
+    }
+
+    public CASResult recv_put_unless_exists() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    {
+      put_unless_exists_result result = new put_unless_exists_result();
+      receiveBase(result, "put_unless_exists");
+      if (result.isSetSuccess()) {
+        return result.success;
+      }
+      if (result.ire != null) {
+        throw result.ire;
+      }
+      if (result.ue != null) {
+        throw result.ue;
+      }
+      if (result.te != null) {
+        throw result.te;
+      }
+      throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "put_unless_exists failed: unknown result");
     }
 
     public void remove(ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
@@ -2436,6 +2492,50 @@ public class Cassandra {
       }
     }
 
+    public void put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      put_unless_exists_call method_call = new put_unless_exists_call(key, column_family, updates, serial_consistency_level, commit_consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class put_unless_exists_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private ByteBuffer key;
+      private String column_family;
+      private List<Column> updates;
+      private ConsistencyLevel serial_consistency_level;
+      private ConsistencyLevel commit_consistency_level;
+      public put_unless_exists_call(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.key = key;
+        this.column_family = column_family;
+        this.updates = updates;
+        this.serial_consistency_level = serial_consistency_level;
+        this.commit_consistency_level = commit_consistency_level;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("put_unless_exists", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        put_unless_exists_args args = new put_unless_exists_args();
+        args.setKey(key);
+        args.setColumn_family(column_family);
+        args.setUpdates(updates);
+        args.setSerial_consistency_level(serial_consistency_level);
+        args.setCommit_consistency_level(commit_consistency_level);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public CASResult getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_put_unless_exists();
+      }
+    }
+
     public void remove(ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
       checkReady();
       remove_call method_call = new remove_call(key, column_path, timestamp, consistency_level, resultHandler, this, ___protocolFactory, ___transport);
@@ -3525,6 +3625,7 @@ public class Cassandra {
       processMap.put("insert", new insert());
       processMap.put("add", new add());
       processMap.put("cas", new cas());
+      processMap.put("put_unless_exists", new put_unless_exists());
       processMap.put("remove", new remove());
       processMap.put("remove_counter", new remove_counter());
       processMap.put("batch_mutate", new batch_mutate());
@@ -3910,6 +4011,34 @@ public class Cassandra {
         cas_result result = new cas_result();
         try {
           result.success = iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level);
+        } catch (InvalidRequestException ire) {
+          result.ire = ire;
+        } catch (UnavailableException ue) {
+          result.ue = ue;
+        } catch (TimedOutException te) {
+          result.te = te;
+        }
+        return result;
+      }
+    }
+
+    public static class put_unless_exists<I extends Iface> extends org.apache.thrift.ProcessFunction<I, put_unless_exists_args> {
+      public put_unless_exists() {
+        super("put_unless_exists");
+      }
+
+      public put_unless_exists_args getEmptyArgsInstance() {
+        return new put_unless_exists_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public put_unless_exists_result getResult(I iface, put_unless_exists_args args) throws org.apache.thrift.TException {
+        put_unless_exists_result result = new put_unless_exists_result();
+        try {
+          result.success = iface.put_unless_exists(args.key, args.column_family, args.updates, args.serial_consistency_level, args.commit_consistency_level);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -4757,6 +4886,7 @@ public class Cassandra {
       processMap.put("insert", new insert());
       processMap.put("add", new add());
       processMap.put("cas", new cas());
+      processMap.put("put_unless_exists", new put_unless_exists());
       processMap.put("remove", new remove());
       processMap.put("remove_counter", new remove_counter());
       processMap.put("batch_mutate", new batch_mutate());
@@ -5647,6 +5777,73 @@ public class Cassandra {
 
       public void start(I iface, cas_args args, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws TException {
         iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level,resultHandler);
+      }
+    }
+
+    public static class put_unless_exists<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, put_unless_exists_args, CASResult> {
+      public put_unless_exists() {
+        super("put_unless_exists");
+      }
+
+      public put_unless_exists_args getEmptyArgsInstance() {
+        return new put_unless_exists_args();
+      }
+
+      public AsyncMethodCallback<CASResult> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
+        final org.apache.thrift.AsyncProcessFunction fcall = this;
+        return new AsyncMethodCallback<CASResult>() { 
+          public void onComplete(CASResult o) {
+            put_unless_exists_result result = new put_unless_exists_result();
+            result.success = o;
+            try {
+              fcall.sendResponse(fb,result, org.apache.thrift.protocol.TMessageType.REPLY,seqid);
+              return;
+            } catch (Exception e) {
+              LOGGER.error("Exception writing to internal frame buffer", e);
+            }
+            fb.close();
+          }
+          public void onError(Exception e) {
+            byte msgType = org.apache.thrift.protocol.TMessageType.REPLY;
+            org.apache.thrift.TBase msg;
+            put_unless_exists_result result = new put_unless_exists_result();
+            if (e instanceof InvalidRequestException) {
+                        result.ire = (InvalidRequestException) e;
+                        result.setIreIsSet(true);
+                        msg = result;
+            }
+            else             if (e instanceof UnavailableException) {
+                        result.ue = (UnavailableException) e;
+                        result.setUeIsSet(true);
+                        msg = result;
+            }
+            else             if (e instanceof TimedOutException) {
+                        result.te = (TimedOutException) e;
+                        result.setTeIsSet(true);
+                        msg = result;
+            }
+             else 
+            {
+              msgType = org.apache.thrift.protocol.TMessageType.EXCEPTION;
+              msg = (org.apache.thrift.TBase)new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, e.getMessage());
+            }
+            try {
+              fcall.sendResponse(fb,msg,msgType,seqid);
+              return;
+            } catch (Exception ex) {
+              LOGGER.error("Exception writing to internal frame buffer", ex);
+            }
+            fb.close();
+          }
+        };
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public void start(I iface, put_unless_exists_args args, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws TException {
+        iface.put_unless_exists(args.key, args.column_family, args.updates, args.serial_consistency_level, args.commit_consistency_level,resultHandler);
       }
     }
 
@@ -24870,6 +25067,1561 @@ public class Cassandra {
 
   }
 
+  public static class put_unless_exists_args implements org.apache.thrift.TBase<put_unless_exists_args, put_unless_exists_args._Fields>, java.io.Serializable, Cloneable, Comparable<put_unless_exists_args>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("put_unless_exists_args");
+
+    private static final org.apache.thrift.protocol.TField KEY_FIELD_DESC = new org.apache.thrift.protocol.TField("key", org.apache.thrift.protocol.TType.STRING, (short)1);
+    private static final org.apache.thrift.protocol.TField COLUMN_FAMILY_FIELD_DESC = new org.apache.thrift.protocol.TField("column_family", org.apache.thrift.protocol.TType.STRING, (short)2);
+    private static final org.apache.thrift.protocol.TField UPDATES_FIELD_DESC = new org.apache.thrift.protocol.TField("updates", org.apache.thrift.protocol.TType.LIST, (short)3);
+    private static final org.apache.thrift.protocol.TField SERIAL_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("serial_consistency_level", org.apache.thrift.protocol.TType.I32, (short)4);
+    private static final org.apache.thrift.protocol.TField COMMIT_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("commit_consistency_level", org.apache.thrift.protocol.TType.I32, (short)5);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new put_unless_exists_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new put_unless_exists_argsTupleSchemeFactory());
+    }
+
+    public ByteBuffer key; // required
+    public String column_family; // required
+    public List<Column> updates; // required
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel serial_consistency_level; // required
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel commit_consistency_level; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      KEY((short)1, "key"),
+      COLUMN_FAMILY((short)2, "column_family"),
+      UPDATES((short)3, "updates"),
+      /**
+       * 
+       * @see ConsistencyLevel
+       */
+      SERIAL_CONSISTENCY_LEVEL((short)4, "serial_consistency_level"),
+      /**
+       * 
+       * @see ConsistencyLevel
+       */
+      COMMIT_CONSISTENCY_LEVEL((short)5, "commit_consistency_level");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // KEY
+            return KEY;
+          case 2: // COLUMN_FAMILY
+            return COLUMN_FAMILY;
+          case 3: // UPDATES
+            return UPDATES;
+          case 4: // SERIAL_CONSISTENCY_LEVEL
+            return SERIAL_CONSISTENCY_LEVEL;
+          case 5: // COMMIT_CONSISTENCY_LEVEL
+            return COMMIT_CONSISTENCY_LEVEL;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.KEY, new org.apache.thrift.meta_data.FieldMetaData("key", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING          , true)));
+      tmpMap.put(_Fields.COLUMN_FAMILY, new org.apache.thrift.meta_data.FieldMetaData("column_family", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.UPDATES, new org.apache.thrift.meta_data.FieldMetaData("updates", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
+              new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, Column.class))));
+      tmpMap.put(_Fields.SERIAL_CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("serial_consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.COMMIT_CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("commit_consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(put_unless_exists_args.class, metaDataMap);
+    }
+
+    public put_unless_exists_args() {
+      this.serial_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.SERIAL;
+
+      this.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.QUORUM;
+
+    }
+
+    public put_unless_exists_args(
+      ByteBuffer key,
+      String column_family,
+      List<Column> updates,
+      ConsistencyLevel serial_consistency_level,
+      ConsistencyLevel commit_consistency_level)
+    {
+      this();
+      this.key = key;
+      this.column_family = column_family;
+      this.updates = updates;
+      this.serial_consistency_level = serial_consistency_level;
+      this.commit_consistency_level = commit_consistency_level;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public put_unless_exists_args(put_unless_exists_args other) {
+      if (other.isSetKey()) {
+        this.key = org.apache.thrift.TBaseHelper.copyBinary(other.key);
+;
+      }
+      if (other.isSetColumn_family()) {
+        this.column_family = other.column_family;
+      }
+      if (other.isSetUpdates()) {
+        List<Column> __this__updates = new ArrayList<Column>(other.updates.size());
+        for (Column other_element : other.updates) {
+          __this__updates.add(new Column(other_element));
+        }
+        this.updates = __this__updates;
+      }
+      if (other.isSetSerial_consistency_level()) {
+        this.serial_consistency_level = other.serial_consistency_level;
+      }
+      if (other.isSetCommit_consistency_level()) {
+        this.commit_consistency_level = other.commit_consistency_level;
+      }
+    }
+
+    public put_unless_exists_args deepCopy() {
+      return new put_unless_exists_args(this);
+    }
+
+    @Override
+    public void clear() {
+      this.key = null;
+      this.column_family = null;
+      this.updates = null;
+      this.serial_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.SERIAL;
+
+      this.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.QUORUM;
+
+    }
+
+    public byte[] getKey() {
+      setKey(org.apache.thrift.TBaseHelper.rightSize(key));
+      return key == null ? null : key.array();
+    }
+
+    public ByteBuffer bufferForKey() {
+      return key;
+    }
+
+    public put_unless_exists_args setKey(byte[] key) {
+      setKey(key == null ? (ByteBuffer)null : ByteBuffer.wrap(key));
+      return this;
+    }
+
+    public put_unless_exists_args setKey(ByteBuffer key) {
+      this.key = key;
+      return this;
+    }
+
+    public void unsetKey() {
+      this.key = null;
+    }
+
+    /** Returns true if field key is set (has been assigned a value) and false otherwise */
+    public boolean isSetKey() {
+      return this.key != null;
+    }
+
+    public void setKeyIsSet(boolean value) {
+      if (!value) {
+        this.key = null;
+      }
+    }
+
+    public String getColumn_family() {
+      return this.column_family;
+    }
+
+    public put_unless_exists_args setColumn_family(String column_family) {
+      this.column_family = column_family;
+      return this;
+    }
+
+    public void unsetColumn_family() {
+      this.column_family = null;
+    }
+
+    /** Returns true if field column_family is set (has been assigned a value) and false otherwise */
+    public boolean isSetColumn_family() {
+      return this.column_family != null;
+    }
+
+    public void setColumn_familyIsSet(boolean value) {
+      if (!value) {
+        this.column_family = null;
+      }
+    }
+
+    public int getUpdatesSize() {
+      return (this.updates == null) ? 0 : this.updates.size();
+    }
+
+    public java.util.Iterator<Column> getUpdatesIterator() {
+      return (this.updates == null) ? null : this.updates.iterator();
+    }
+
+    public void addToUpdates(Column elem) {
+      if (this.updates == null) {
+        this.updates = new ArrayList<Column>();
+      }
+      this.updates.add(elem);
+    }
+
+    public List<Column> getUpdates() {
+      return this.updates;
+    }
+
+    public put_unless_exists_args setUpdates(List<Column> updates) {
+      this.updates = updates;
+      return this;
+    }
+
+    public void unsetUpdates() {
+      this.updates = null;
+    }
+
+    /** Returns true if field updates is set (has been assigned a value) and false otherwise */
+    public boolean isSetUpdates() {
+      return this.updates != null;
+    }
+
+    public void setUpdatesIsSet(boolean value) {
+      if (!value) {
+        this.updates = null;
+      }
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel getSerial_consistency_level() {
+      return this.serial_consistency_level;
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public put_unless_exists_args setSerial_consistency_level(ConsistencyLevel serial_consistency_level) {
+      this.serial_consistency_level = serial_consistency_level;
+      return this;
+    }
+
+    public void unsetSerial_consistency_level() {
+      this.serial_consistency_level = null;
+    }
+
+    /** Returns true if field serial_consistency_level is set (has been assigned a value) and false otherwise */
+    public boolean isSetSerial_consistency_level() {
+      return this.serial_consistency_level != null;
+    }
+
+    public void setSerial_consistency_levelIsSet(boolean value) {
+      if (!value) {
+        this.serial_consistency_level = null;
+      }
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel getCommit_consistency_level() {
+      return this.commit_consistency_level;
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public put_unless_exists_args setCommit_consistency_level(ConsistencyLevel commit_consistency_level) {
+      this.commit_consistency_level = commit_consistency_level;
+      return this;
+    }
+
+    public void unsetCommit_consistency_level() {
+      this.commit_consistency_level = null;
+    }
+
+    /** Returns true if field commit_consistency_level is set (has been assigned a value) and false otherwise */
+    public boolean isSetCommit_consistency_level() {
+      return this.commit_consistency_level != null;
+    }
+
+    public void setCommit_consistency_levelIsSet(boolean value) {
+      if (!value) {
+        this.commit_consistency_level = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case KEY:
+        if (value == null) {
+          unsetKey();
+        } else {
+          setKey((ByteBuffer)value);
+        }
+        break;
+
+      case COLUMN_FAMILY:
+        if (value == null) {
+          unsetColumn_family();
+        } else {
+          setColumn_family((String)value);
+        }
+        break;
+
+      case UPDATES:
+        if (value == null) {
+          unsetUpdates();
+        } else {
+          setUpdates((List<Column>)value);
+        }
+        break;
+
+      case SERIAL_CONSISTENCY_LEVEL:
+        if (value == null) {
+          unsetSerial_consistency_level();
+        } else {
+          setSerial_consistency_level((ConsistencyLevel)value);
+        }
+        break;
+
+      case COMMIT_CONSISTENCY_LEVEL:
+        if (value == null) {
+          unsetCommit_consistency_level();
+        } else {
+          setCommit_consistency_level((ConsistencyLevel)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case KEY:
+        return getKey();
+
+      case COLUMN_FAMILY:
+        return getColumn_family();
+
+      case UPDATES:
+        return getUpdates();
+
+      case SERIAL_CONSISTENCY_LEVEL:
+        return getSerial_consistency_level();
+
+      case COMMIT_CONSISTENCY_LEVEL:
+        return getCommit_consistency_level();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case KEY:
+        return isSetKey();
+      case COLUMN_FAMILY:
+        return isSetColumn_family();
+      case UPDATES:
+        return isSetUpdates();
+      case SERIAL_CONSISTENCY_LEVEL:
+        return isSetSerial_consistency_level();
+      case COMMIT_CONSISTENCY_LEVEL:
+        return isSetCommit_consistency_level();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof put_unless_exists_args)
+        return this.equals((put_unless_exists_args)that);
+      return false;
+    }
+
+    public boolean equals(put_unless_exists_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_key = true && this.isSetKey();
+      boolean that_present_key = true && that.isSetKey();
+      if (this_present_key || that_present_key) {
+        if (!(this_present_key && that_present_key))
+          return false;
+        if (!this.key.equals(that.key))
+          return false;
+      }
+
+      boolean this_present_column_family = true && this.isSetColumn_family();
+      boolean that_present_column_family = true && that.isSetColumn_family();
+      if (this_present_column_family || that_present_column_family) {
+        if (!(this_present_column_family && that_present_column_family))
+          return false;
+        if (!this.column_family.equals(that.column_family))
+          return false;
+      }
+
+      boolean this_present_updates = true && this.isSetUpdates();
+      boolean that_present_updates = true && that.isSetUpdates();
+      if (this_present_updates || that_present_updates) {
+        if (!(this_present_updates && that_present_updates))
+          return false;
+        if (!this.updates.equals(that.updates))
+          return false;
+      }
+
+      boolean this_present_serial_consistency_level = true && this.isSetSerial_consistency_level();
+      boolean that_present_serial_consistency_level = true && that.isSetSerial_consistency_level();
+      if (this_present_serial_consistency_level || that_present_serial_consistency_level) {
+        if (!(this_present_serial_consistency_level && that_present_serial_consistency_level))
+          return false;
+        if (!this.serial_consistency_level.equals(that.serial_consistency_level))
+          return false;
+      }
+
+      boolean this_present_commit_consistency_level = true && this.isSetCommit_consistency_level();
+      boolean that_present_commit_consistency_level = true && that.isSetCommit_consistency_level();
+      if (this_present_commit_consistency_level || that_present_commit_consistency_level) {
+        if (!(this_present_commit_consistency_level && that_present_commit_consistency_level))
+          return false;
+        if (!this.commit_consistency_level.equals(that.commit_consistency_level))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      HashCodeBuilder builder = new HashCodeBuilder();
+
+      boolean present_key = true && (isSetKey());
+      builder.append(present_key);
+      if (present_key)
+        builder.append(key);
+
+      boolean present_column_family = true && (isSetColumn_family());
+      builder.append(present_column_family);
+      if (present_column_family)
+        builder.append(column_family);
+
+      boolean present_updates = true && (isSetUpdates());
+      builder.append(present_updates);
+      if (present_updates)
+        builder.append(updates);
+
+      boolean present_serial_consistency_level = true && (isSetSerial_consistency_level());
+      builder.append(present_serial_consistency_level);
+      if (present_serial_consistency_level)
+        builder.append(serial_consistency_level.getValue());
+
+      boolean present_commit_consistency_level = true && (isSetCommit_consistency_level());
+      builder.append(present_commit_consistency_level);
+      if (present_commit_consistency_level)
+        builder.append(commit_consistency_level.getValue());
+
+      return builder.toHashCode();
+    }
+
+    @Override
+    public int compareTo(put_unless_exists_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(isSetKey()).compareTo(other.isSetKey());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetKey()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.key, other.key);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetColumn_family()).compareTo(other.isSetColumn_family());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetColumn_family()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.column_family, other.column_family);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetUpdates()).compareTo(other.isSetUpdates());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetUpdates()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.updates, other.updates);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetSerial_consistency_level()).compareTo(other.isSetSerial_consistency_level());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSerial_consistency_level()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.serial_consistency_level, other.serial_consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetCommit_consistency_level()).compareTo(other.isSetCommit_consistency_level());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetCommit_consistency_level()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.commit_consistency_level, other.commit_consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("put_unless_exists_args(");
+      boolean first = true;
+
+      sb.append("key:");
+      if (this.key == null) {
+        sb.append("null");
+      } else {
+        org.apache.thrift.TBaseHelper.toString(this.key, sb);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("column_family:");
+      if (this.column_family == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.column_family);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("updates:");
+      if (this.updates == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.updates);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("serial_consistency_level:");
+      if (this.serial_consistency_level == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.serial_consistency_level);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("commit_consistency_level:");
+      if (this.commit_consistency_level == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.commit_consistency_level);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      if (key == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'key' was not present! Struct: " + toString());
+      }
+      if (column_family == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'column_family' was not present! Struct: " + toString());
+      }
+      if (serial_consistency_level == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'serial_consistency_level' was not present! Struct: " + toString());
+      }
+      if (commit_consistency_level == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'commit_consistency_level' was not present! Struct: " + toString());
+      }
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class put_unless_exists_argsStandardSchemeFactory implements SchemeFactory {
+      public put_unless_exists_argsStandardScheme getScheme() {
+        return new put_unless_exists_argsStandardScheme();
+      }
+    }
+
+    private static class put_unless_exists_argsStandardScheme extends StandardScheme<put_unless_exists_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, put_unless_exists_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // KEY
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.key = iprot.readBinary();
+                struct.setKeyIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // COLUMN_FAMILY
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.column_family = iprot.readString();
+                struct.setColumn_familyIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // UPDATES
+              if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
+                {
+                  org.apache.thrift.protocol.TList _list316 = iprot.readListBegin();
+                  struct.updates = new ArrayList<Column>(_list316.size);
+                  for (int _i317 = 0; _i317 < _list316.size; ++_i317)
+                  {
+                    Column _elem318;
+                    _elem318 = new Column();
+                    _elem318.read(iprot);
+                    struct.updates.add(_elem318);
+                  }
+                  iprot.readListEnd();
+                }
+                struct.setUpdatesIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 4: // SERIAL_CONSISTENCY_LEVEL
+              if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+                struct.serial_consistency_level = ConsistencyLevel.findByValue(iprot.readI32());
+                struct.setSerial_consistency_levelIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 5: // COMMIT_CONSISTENCY_LEVEL
+              if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+                struct.commit_consistency_level = ConsistencyLevel.findByValue(iprot.readI32());
+                struct.setCommit_consistency_levelIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, put_unless_exists_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.key != null) {
+          oprot.writeFieldBegin(KEY_FIELD_DESC);
+          oprot.writeBinary(struct.key);
+          oprot.writeFieldEnd();
+        }
+        if (struct.column_family != null) {
+          oprot.writeFieldBegin(COLUMN_FAMILY_FIELD_DESC);
+          oprot.writeString(struct.column_family);
+          oprot.writeFieldEnd();
+        }
+        if (struct.updates != null) {
+          oprot.writeFieldBegin(UPDATES_FIELD_DESC);
+          {
+            oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.updates.size()));
+            for (Column _iter319 : struct.updates)
+            {
+              _iter319.write(oprot);
+            }
+            oprot.writeListEnd();
+          }
+          oprot.writeFieldEnd();
+        }
+        if (struct.serial_consistency_level != null) {
+          oprot.writeFieldBegin(SERIAL_CONSISTENCY_LEVEL_FIELD_DESC);
+          oprot.writeI32(struct.serial_consistency_level.getValue());
+          oprot.writeFieldEnd();
+        }
+        if (struct.commit_consistency_level != null) {
+          oprot.writeFieldBegin(COMMIT_CONSISTENCY_LEVEL_FIELD_DESC);
+          oprot.writeI32(struct.commit_consistency_level.getValue());
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class put_unless_exists_argsTupleSchemeFactory implements SchemeFactory {
+      public put_unless_exists_argsTupleScheme getScheme() {
+        return new put_unless_exists_argsTupleScheme();
+      }
+    }
+
+    private static class put_unless_exists_argsTupleScheme extends TupleScheme<put_unless_exists_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, put_unless_exists_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        oprot.writeBinary(struct.key);
+        oprot.writeString(struct.column_family);
+        oprot.writeI32(struct.serial_consistency_level.getValue());
+        oprot.writeI32(struct.commit_consistency_level.getValue());
+        BitSet optionals = new BitSet();
+        if (struct.isSetUpdates()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetUpdates()) {
+          {
+            oprot.writeI32(struct.updates.size());
+            for (Column _iter320 : struct.updates)
+            {
+              _iter320.write(oprot);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, put_unless_exists_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        struct.key = iprot.readBinary();
+        struct.setKeyIsSet(true);
+        struct.column_family = iprot.readString();
+        struct.setColumn_familyIsSet(true);
+        struct.serial_consistency_level = ConsistencyLevel.findByValue(iprot.readI32());
+        struct.setSerial_consistency_levelIsSet(true);
+        struct.commit_consistency_level = ConsistencyLevel.findByValue(iprot.readI32());
+        struct.setCommit_consistency_levelIsSet(true);
+        BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          {
+            org.apache.thrift.protocol.TList _list321 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.updates = new ArrayList<Column>(_list321.size);
+            for (int _i322 = 0; _i322 < _list321.size; ++_i322)
+            {
+              Column _elem323;
+              _elem323 = new Column();
+              _elem323.read(iprot);
+              struct.updates.add(_elem323);
+            }
+          }
+          struct.setUpdatesIsSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class put_unless_exists_result implements org.apache.thrift.TBase<put_unless_exists_result, put_unless_exists_result._Fields>, java.io.Serializable, Cloneable, Comparable<put_unless_exists_result>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("put_unless_exists_result");
+
+    private static final org.apache.thrift.protocol.TField SUCCESS_FIELD_DESC = new org.apache.thrift.protocol.TField("success", org.apache.thrift.protocol.TType.STRUCT, (short)0);
+    private static final org.apache.thrift.protocol.TField IRE_FIELD_DESC = new org.apache.thrift.protocol.TField("ire", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+    private static final org.apache.thrift.protocol.TField UE_FIELD_DESC = new org.apache.thrift.protocol.TField("ue", org.apache.thrift.protocol.TType.STRUCT, (short)2);
+    private static final org.apache.thrift.protocol.TField TE_FIELD_DESC = new org.apache.thrift.protocol.TField("te", org.apache.thrift.protocol.TType.STRUCT, (short)3);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new put_unless_exists_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new put_unless_exists_resultTupleSchemeFactory());
+    }
+
+    public CASResult success; // required
+    public InvalidRequestException ire; // required
+    public UnavailableException ue; // required
+    public TimedOutException te; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      SUCCESS((short)0, "success"),
+      IRE((short)1, "ire"),
+      UE((short)2, "ue"),
+      TE((short)3, "te");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          case 1: // IRE
+            return IRE;
+          case 2: // UE
+            return UE;
+          case 3: // TE
+            return TE;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, CASResult.class)));
+      tmpMap.put(_Fields.IRE, new org.apache.thrift.meta_data.FieldMetaData("ire", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.UE, new org.apache.thrift.meta_data.FieldMetaData("ue", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.TE, new org.apache.thrift.meta_data.FieldMetaData("te", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(put_unless_exists_result.class, metaDataMap);
+    }
+
+    public put_unless_exists_result() {
+    }
+
+    public put_unless_exists_result(
+      CASResult success,
+      InvalidRequestException ire,
+      UnavailableException ue,
+      TimedOutException te)
+    {
+      this();
+      this.success = success;
+      this.ire = ire;
+      this.ue = ue;
+      this.te = te;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public put_unless_exists_result(put_unless_exists_result other) {
+      if (other.isSetSuccess()) {
+        this.success = new CASResult(other.success);
+      }
+      if (other.isSetIre()) {
+        this.ire = new InvalidRequestException(other.ire);
+      }
+      if (other.isSetUe()) {
+        this.ue = new UnavailableException(other.ue);
+      }
+      if (other.isSetTe()) {
+        this.te = new TimedOutException(other.te);
+      }
+    }
+
+    public put_unless_exists_result deepCopy() {
+      return new put_unless_exists_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.success = null;
+      this.ire = null;
+      this.ue = null;
+      this.te = null;
+    }
+
+    public CASResult getSuccess() {
+      return this.success;
+    }
+
+    public put_unless_exists_result setSuccess(CASResult success) {
+      this.success = success;
+      return this;
+    }
+
+    public void unsetSuccess() {
+      this.success = null;
+    }
+
+    /** Returns true if field success is set (has been assigned a value) and false otherwise */
+    public boolean isSetSuccess() {
+      return this.success != null;
+    }
+
+    public void setSuccessIsSet(boolean value) {
+      if (!value) {
+        this.success = null;
+      }
+    }
+
+    public InvalidRequestException getIre() {
+      return this.ire;
+    }
+
+    public put_unless_exists_result setIre(InvalidRequestException ire) {
+      this.ire = ire;
+      return this;
+    }
+
+    public void unsetIre() {
+      this.ire = null;
+    }
+
+    /** Returns true if field ire is set (has been assigned a value) and false otherwise */
+    public boolean isSetIre() {
+      return this.ire != null;
+    }
+
+    public void setIreIsSet(boolean value) {
+      if (!value) {
+        this.ire = null;
+      }
+    }
+
+    public UnavailableException getUe() {
+      return this.ue;
+    }
+
+    public put_unless_exists_result setUe(UnavailableException ue) {
+      this.ue = ue;
+      return this;
+    }
+
+    public void unsetUe() {
+      this.ue = null;
+    }
+
+    /** Returns true if field ue is set (has been assigned a value) and false otherwise */
+    public boolean isSetUe() {
+      return this.ue != null;
+    }
+
+    public void setUeIsSet(boolean value) {
+      if (!value) {
+        this.ue = null;
+      }
+    }
+
+    public TimedOutException getTe() {
+      return this.te;
+    }
+
+    public put_unless_exists_result setTe(TimedOutException te) {
+      this.te = te;
+      return this;
+    }
+
+    public void unsetTe() {
+      this.te = null;
+    }
+
+    /** Returns true if field te is set (has been assigned a value) and false otherwise */
+    public boolean isSetTe() {
+      return this.te != null;
+    }
+
+    public void setTeIsSet(boolean value) {
+      if (!value) {
+        this.te = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unsetSuccess();
+        } else {
+          setSuccess((CASResult)value);
+        }
+        break;
+
+      case IRE:
+        if (value == null) {
+          unsetIre();
+        } else {
+          setIre((InvalidRequestException)value);
+        }
+        break;
+
+      case UE:
+        if (value == null) {
+          unsetUe();
+        } else {
+          setUe((UnavailableException)value);
+        }
+        break;
+
+      case TE:
+        if (value == null) {
+          unsetTe();
+        } else {
+          setTe((TimedOutException)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return getSuccess();
+
+      case IRE:
+        return getIre();
+
+      case UE:
+        return getUe();
+
+      case TE:
+        return getTe();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case SUCCESS:
+        return isSetSuccess();
+      case IRE:
+        return isSetIre();
+      case UE:
+        return isSetUe();
+      case TE:
+        return isSetTe();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof put_unless_exists_result)
+        return this.equals((put_unless_exists_result)that);
+      return false;
+    }
+
+    public boolean equals(put_unless_exists_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true && this.isSetSuccess();
+      boolean that_present_success = true && that.isSetSuccess();
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (!this.success.equals(that.success))
+          return false;
+      }
+
+      boolean this_present_ire = true && this.isSetIre();
+      boolean that_present_ire = true && that.isSetIre();
+      if (this_present_ire || that_present_ire) {
+        if (!(this_present_ire && that_present_ire))
+          return false;
+        if (!this.ire.equals(that.ire))
+          return false;
+      }
+
+      boolean this_present_ue = true && this.isSetUe();
+      boolean that_present_ue = true && that.isSetUe();
+      if (this_present_ue || that_present_ue) {
+        if (!(this_present_ue && that_present_ue))
+          return false;
+        if (!this.ue.equals(that.ue))
+          return false;
+      }
+
+      boolean this_present_te = true && this.isSetTe();
+      boolean that_present_te = true && that.isSetTe();
+      if (this_present_te || that_present_te) {
+        if (!(this_present_te && that_present_te))
+          return false;
+        if (!this.te.equals(that.te))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      HashCodeBuilder builder = new HashCodeBuilder();
+
+      boolean present_success = true && (isSetSuccess());
+      builder.append(present_success);
+      if (present_success)
+        builder.append(success);
+
+      boolean present_ire = true && (isSetIre());
+      builder.append(present_ire);
+      if (present_ire)
+        builder.append(ire);
+
+      boolean present_ue = true && (isSetUe());
+      builder.append(present_ue);
+      if (present_ue)
+        builder.append(ue);
+
+      boolean present_te = true && (isSetTe());
+      builder.append(present_te);
+      if (present_te)
+        builder.append(te);
+
+      return builder.toHashCode();
+    }
+
+    @Override
+    public int compareTo(put_unless_exists_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(other.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.success, other.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetIre()).compareTo(other.isSetIre());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetIre()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ire, other.ire);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetUe()).compareTo(other.isSetUe());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetUe()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ue, other.ue);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetTe()).compareTo(other.isSetTe());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTe()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.te, other.te);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("put_unless_exists_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      if (this.success == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.success);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("ire:");
+      if (this.ire == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.ire);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("ue:");
+      if (this.ue == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.ue);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("te:");
+      if (this.te == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.te);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+      if (success != null) {
+        success.validate();
+      }
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class put_unless_exists_resultStandardSchemeFactory implements SchemeFactory {
+      public put_unless_exists_resultStandardScheme getScheme() {
+        return new put_unless_exists_resultStandardScheme();
+      }
+    }
+
+    private static class put_unless_exists_resultStandardScheme extends StandardScheme<put_unless_exists_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, put_unless_exists_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 0: // SUCCESS
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.success = new CASResult();
+                struct.success.read(iprot);
+                struct.setSuccessIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 1: // IRE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.ire = new InvalidRequestException();
+                struct.ire.read(iprot);
+                struct.setIreIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // UE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.ue = new UnavailableException();
+                struct.ue.read(iprot);
+                struct.setUeIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // TE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.te = new TimedOutException();
+                struct.te.read(iprot);
+                struct.setTeIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, put_unless_exists_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.success != null) {
+          oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+          struct.success.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.ire != null) {
+          oprot.writeFieldBegin(IRE_FIELD_DESC);
+          struct.ire.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.ue != null) {
+          oprot.writeFieldBegin(UE_FIELD_DESC);
+          struct.ue.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.te != null) {
+          oprot.writeFieldBegin(TE_FIELD_DESC);
+          struct.te.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class put_unless_exists_resultTupleSchemeFactory implements SchemeFactory {
+      public put_unless_exists_resultTupleScheme getScheme() {
+        return new put_unless_exists_resultTupleScheme();
+      }
+    }
+
+    private static class put_unless_exists_resultTupleScheme extends TupleScheme<put_unless_exists_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, put_unless_exists_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetSuccess()) {
+          optionals.set(0);
+        }
+        if (struct.isSetIre()) {
+          optionals.set(1);
+        }
+        if (struct.isSetUe()) {
+          optionals.set(2);
+        }
+        if (struct.isSetTe()) {
+          optionals.set(3);
+        }
+        oprot.writeBitSet(optionals, 4);
+        if (struct.isSetSuccess()) {
+          struct.success.write(oprot);
+        }
+        if (struct.isSetIre()) {
+          struct.ire.write(oprot);
+        }
+        if (struct.isSetUe()) {
+          struct.ue.write(oprot);
+        }
+        if (struct.isSetTe()) {
+          struct.te.write(oprot);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, put_unless_exists_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(4);
+        if (incoming.get(0)) {
+          struct.success = new CASResult();
+          struct.success.read(iprot);
+          struct.setSuccessIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.ire = new InvalidRequestException();
+          struct.ire.read(iprot);
+          struct.setIreIsSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.ue = new UnavailableException();
+          struct.ue.read(iprot);
+          struct.setUeIsSet(true);
+        }
+        if (incoming.get(3)) {
+          struct.te = new TimedOutException();
+          struct.te.read(iprot);
+          struct.setTeIsSet(true);
+        }
+      }
+    }
+
+  }
+
   public static class remove_args implements org.apache.thrift.TBase<remove_args, remove_args._Fields>, java.io.Serializable, Cloneable, Comparable<remove_args>   {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("remove_args");
 
@@ -27759,38 +29511,38 @@ public class Cassandra {
             case 1: // MUTATION_MAP
               if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
                 {
-                  org.apache.thrift.protocol.TMap _map316 = iprot.readMapBegin();
-                  struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map316.size);
-                  for (int _i317 = 0; _i317 < _map316.size; ++_i317)
+                  org.apache.thrift.protocol.TMap _map324 = iprot.readMapBegin();
+                  struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map324.size);
+                  for (int _i325 = 0; _i325 < _map324.size; ++_i325)
                   {
-                    ByteBuffer _key318;
-                    Map<String,List<Mutation>> _val319;
-                    _key318 = iprot.readBinary();
+                    ByteBuffer _key326;
+                    Map<String,List<Mutation>> _val327;
+                    _key326 = iprot.readBinary();
                     {
-                      org.apache.thrift.protocol.TMap _map320 = iprot.readMapBegin();
-                      _val319 = new HashMap<String,List<Mutation>>(2*_map320.size);
-                      for (int _i321 = 0; _i321 < _map320.size; ++_i321)
+                      org.apache.thrift.protocol.TMap _map328 = iprot.readMapBegin();
+                      _val327 = new HashMap<String,List<Mutation>>(2*_map328.size);
+                      for (int _i329 = 0; _i329 < _map328.size; ++_i329)
                       {
-                        String _key322;
-                        List<Mutation> _val323;
-                        _key322 = iprot.readString();
+                        String _key330;
+                        List<Mutation> _val331;
+                        _key330 = iprot.readString();
                         {
-                          org.apache.thrift.protocol.TList _list324 = iprot.readListBegin();
-                          _val323 = new ArrayList<Mutation>(_list324.size);
-                          for (int _i325 = 0; _i325 < _list324.size; ++_i325)
+                          org.apache.thrift.protocol.TList _list332 = iprot.readListBegin();
+                          _val331 = new ArrayList<Mutation>(_list332.size);
+                          for (int _i333 = 0; _i333 < _list332.size; ++_i333)
                           {
-                            Mutation _elem326;
-                            _elem326 = new Mutation();
-                            _elem326.read(iprot);
-                            _val323.add(_elem326);
+                            Mutation _elem334;
+                            _elem334 = new Mutation();
+                            _elem334.read(iprot);
+                            _val331.add(_elem334);
                           }
                           iprot.readListEnd();
                         }
-                        _val319.put(_key322, _val323);
+                        _val327.put(_key330, _val331);
                       }
                       iprot.readMapEnd();
                     }
-                    struct.mutation_map.put(_key318, _val319);
+                    struct.mutation_map.put(_key326, _val327);
                   }
                   iprot.readMapEnd();
                 }
@@ -27826,19 +29578,19 @@ public class Cassandra {
           oprot.writeFieldBegin(MUTATION_MAP_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, struct.mutation_map.size()));
-            for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter327 : struct.mutation_map.entrySet())
+            for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter335 : struct.mutation_map.entrySet())
             {
-              oprot.writeBinary(_iter327.getKey());
+              oprot.writeBinary(_iter335.getKey());
               {
-                oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, _iter327.getValue().size()));
-                for (Map.Entry<String, List<Mutation>> _iter328 : _iter327.getValue().entrySet())
+                oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, _iter335.getValue().size()));
+                for (Map.Entry<String, List<Mutation>> _iter336 : _iter335.getValue().entrySet())
                 {
-                  oprot.writeString(_iter328.getKey());
+                  oprot.writeString(_iter336.getKey());
                   {
-                    oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, _iter328.getValue().size()));
-                    for (Mutation _iter329 : _iter328.getValue())
+                    oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, _iter336.getValue().size()));
+                    for (Mutation _iter337 : _iter336.getValue())
                     {
-                      _iter329.write(oprot);
+                      _iter337.write(oprot);
                     }
                     oprot.writeListEnd();
                   }
@@ -27874,19 +29626,19 @@ public class Cassandra {
         TTupleProtocol oprot = (TTupleProtocol) prot;
         {
           oprot.writeI32(struct.mutation_map.size());
-          for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter330 : struct.mutation_map.entrySet())
+          for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter338 : struct.mutation_map.entrySet())
           {
-            oprot.writeBinary(_iter330.getKey());
+            oprot.writeBinary(_iter338.getKey());
             {
-              oprot.writeI32(_iter330.getValue().size());
-              for (Map.Entry<String, List<Mutation>> _iter331 : _iter330.getValue().entrySet())
+              oprot.writeI32(_iter338.getValue().size());
+              for (Map.Entry<String, List<Mutation>> _iter339 : _iter338.getValue().entrySet())
               {
-                oprot.writeString(_iter331.getKey());
+                oprot.writeString(_iter339.getKey());
                 {
-                  oprot.writeI32(_iter331.getValue().size());
-                  for (Mutation _iter332 : _iter331.getValue())
+                  oprot.writeI32(_iter339.getValue().size());
+                  for (Mutation _iter340 : _iter339.getValue())
                   {
-                    _iter332.write(oprot);
+                    _iter340.write(oprot);
                   }
                 }
               }
@@ -27900,36 +29652,36 @@ public class Cassandra {
       public void read(org.apache.thrift.protocol.TProtocol prot, batch_mutate_args struct) throws org.apache.thrift.TException {
         TTupleProtocol iprot = (TTupleProtocol) prot;
         {
-          org.apache.thrift.protocol.TMap _map333 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, iprot.readI32());
-          struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map333.size);
-          for (int _i334 = 0; _i334 < _map333.size; ++_i334)
+          org.apache.thrift.protocol.TMap _map341 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, iprot.readI32());
+          struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map341.size);
+          for (int _i342 = 0; _i342 < _map341.size; ++_i342)
           {
-            ByteBuffer _key335;
-            Map<String,List<Mutation>> _val336;
-            _key335 = iprot.readBinary();
+            ByteBuffer _key343;
+            Map<String,List<Mutation>> _val344;
+            _key343 = iprot.readBinary();
             {
-              org.apache.thrift.protocol.TMap _map337 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
-              _val336 = new HashMap<String,List<Mutation>>(2*_map337.size);
-              for (int _i338 = 0; _i338 < _map337.size; ++_i338)
+              org.apache.thrift.protocol.TMap _map345 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
+              _val344 = new HashMap<String,List<Mutation>>(2*_map345.size);
+              for (int _i346 = 0; _i346 < _map345.size; ++_i346)
               {
-                String _key339;
-                List<Mutation> _val340;
-                _key339 = iprot.readString();
+                String _key347;
+                List<Mutation> _val348;
+                _key347 = iprot.readString();
                 {
-                  org.apache.thrift.protocol.TList _list341 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-                  _val340 = new ArrayList<Mutation>(_list341.size);
-                  for (int _i342 = 0; _i342 < _list341.size; ++_i342)
+                  org.apache.thrift.protocol.TList _list349 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+                  _val348 = new ArrayList<Mutation>(_list349.size);
+                  for (int _i350 = 0; _i350 < _list349.size; ++_i350)
                   {
-                    Mutation _elem343;
-                    _elem343 = new Mutation();
-                    _elem343.read(iprot);
-                    _val340.add(_elem343);
+                    Mutation _elem351;
+                    _elem351 = new Mutation();
+                    _elem351.read(iprot);
+                    _val348.add(_elem351);
                   }
                 }
-                _val336.put(_key339, _val340);
+                _val344.put(_key347, _val348);
               }
             }
-            struct.mutation_map.put(_key335, _val336);
+            struct.mutation_map.put(_key343, _val344);
           }
         }
         struct.setMutation_mapIsSet(true);
@@ -28963,38 +30715,38 @@ public class Cassandra {
             case 1: // MUTATION_MAP
               if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
                 {
-                  org.apache.thrift.protocol.TMap _map344 = iprot.readMapBegin();
-                  struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map344.size);
-                  for (int _i345 = 0; _i345 < _map344.size; ++_i345)
+                  org.apache.thrift.protocol.TMap _map352 = iprot.readMapBegin();
+                  struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map352.size);
+                  for (int _i353 = 0; _i353 < _map352.size; ++_i353)
                   {
-                    ByteBuffer _key346;
-                    Map<String,List<Mutation>> _val347;
-                    _key346 = iprot.readBinary();
+                    ByteBuffer _key354;
+                    Map<String,List<Mutation>> _val355;
+                    _key354 = iprot.readBinary();
                     {
-                      org.apache.thrift.protocol.TMap _map348 = iprot.readMapBegin();
-                      _val347 = new HashMap<String,List<Mutation>>(2*_map348.size);
-                      for (int _i349 = 0; _i349 < _map348.size; ++_i349)
+                      org.apache.thrift.protocol.TMap _map356 = iprot.readMapBegin();
+                      _val355 = new HashMap<String,List<Mutation>>(2*_map356.size);
+                      for (int _i357 = 0; _i357 < _map356.size; ++_i357)
                       {
-                        String _key350;
-                        List<Mutation> _val351;
-                        _key350 = iprot.readString();
+                        String _key358;
+                        List<Mutation> _val359;
+                        _key358 = iprot.readString();
                         {
-                          org.apache.thrift.protocol.TList _list352 = iprot.readListBegin();
-                          _val351 = new ArrayList<Mutation>(_list352.size);
-                          for (int _i353 = 0; _i353 < _list352.size; ++_i353)
+                          org.apache.thrift.protocol.TList _list360 = iprot.readListBegin();
+                          _val359 = new ArrayList<Mutation>(_list360.size);
+                          for (int _i361 = 0; _i361 < _list360.size; ++_i361)
                           {
-                            Mutation _elem354;
-                            _elem354 = new Mutation();
-                            _elem354.read(iprot);
-                            _val351.add(_elem354);
+                            Mutation _elem362;
+                            _elem362 = new Mutation();
+                            _elem362.read(iprot);
+                            _val359.add(_elem362);
                           }
                           iprot.readListEnd();
                         }
-                        _val347.put(_key350, _val351);
+                        _val355.put(_key358, _val359);
                       }
                       iprot.readMapEnd();
                     }
-                    struct.mutation_map.put(_key346, _val347);
+                    struct.mutation_map.put(_key354, _val355);
                   }
                   iprot.readMapEnd();
                 }
@@ -29030,19 +30782,19 @@ public class Cassandra {
           oprot.writeFieldBegin(MUTATION_MAP_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, struct.mutation_map.size()));
-            for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter355 : struct.mutation_map.entrySet())
+            for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter363 : struct.mutation_map.entrySet())
             {
-              oprot.writeBinary(_iter355.getKey());
+              oprot.writeBinary(_iter363.getKey());
               {
-                oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, _iter355.getValue().size()));
-                for (Map.Entry<String, List<Mutation>> _iter356 : _iter355.getValue().entrySet())
+                oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, _iter363.getValue().size()));
+                for (Map.Entry<String, List<Mutation>> _iter364 : _iter363.getValue().entrySet())
                 {
-                  oprot.writeString(_iter356.getKey());
+                  oprot.writeString(_iter364.getKey());
                   {
-                    oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, _iter356.getValue().size()));
-                    for (Mutation _iter357 : _iter356.getValue())
+                    oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, _iter364.getValue().size()));
+                    for (Mutation _iter365 : _iter364.getValue())
                     {
-                      _iter357.write(oprot);
+                      _iter365.write(oprot);
                     }
                     oprot.writeListEnd();
                   }
@@ -29078,19 +30830,19 @@ public class Cassandra {
         TTupleProtocol oprot = (TTupleProtocol) prot;
         {
           oprot.writeI32(struct.mutation_map.size());
-          for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter358 : struct.mutation_map.entrySet())
+          for (Map.Entry<ByteBuffer, Map<String,List<Mutation>>> _iter366 : struct.mutation_map.entrySet())
           {
-            oprot.writeBinary(_iter358.getKey());
+            oprot.writeBinary(_iter366.getKey());
             {
-              oprot.writeI32(_iter358.getValue().size());
-              for (Map.Entry<String, List<Mutation>> _iter359 : _iter358.getValue().entrySet())
+              oprot.writeI32(_iter366.getValue().size());
+              for (Map.Entry<String, List<Mutation>> _iter367 : _iter366.getValue().entrySet())
               {
-                oprot.writeString(_iter359.getKey());
+                oprot.writeString(_iter367.getKey());
                 {
-                  oprot.writeI32(_iter359.getValue().size());
-                  for (Mutation _iter360 : _iter359.getValue())
+                  oprot.writeI32(_iter367.getValue().size());
+                  for (Mutation _iter368 : _iter367.getValue())
                   {
-                    _iter360.write(oprot);
+                    _iter368.write(oprot);
                   }
                 }
               }
@@ -29104,36 +30856,36 @@ public class Cassandra {
       public void read(org.apache.thrift.protocol.TProtocol prot, atomic_batch_mutate_args struct) throws org.apache.thrift.TException {
         TTupleProtocol iprot = (TTupleProtocol) prot;
         {
-          org.apache.thrift.protocol.TMap _map361 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, iprot.readI32());
-          struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map361.size);
-          for (int _i362 = 0; _i362 < _map361.size; ++_i362)
+          org.apache.thrift.protocol.TMap _map369 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, iprot.readI32());
+          struct.mutation_map = new HashMap<ByteBuffer,Map<String,List<Mutation>>>(2*_map369.size);
+          for (int _i370 = 0; _i370 < _map369.size; ++_i370)
           {
-            ByteBuffer _key363;
-            Map<String,List<Mutation>> _val364;
-            _key363 = iprot.readBinary();
+            ByteBuffer _key371;
+            Map<String,List<Mutation>> _val372;
+            _key371 = iprot.readBinary();
             {
-              org.apache.thrift.protocol.TMap _map365 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
-              _val364 = new HashMap<String,List<Mutation>>(2*_map365.size);
-              for (int _i366 = 0; _i366 < _map365.size; ++_i366)
+              org.apache.thrift.protocol.TMap _map373 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
+              _val372 = new HashMap<String,List<Mutation>>(2*_map373.size);
+              for (int _i374 = 0; _i374 < _map373.size; ++_i374)
               {
-                String _key367;
-                List<Mutation> _val368;
-                _key367 = iprot.readString();
+                String _key375;
+                List<Mutation> _val376;
+                _key375 = iprot.readString();
                 {
-                  org.apache.thrift.protocol.TList _list369 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-                  _val368 = new ArrayList<Mutation>(_list369.size);
-                  for (int _i370 = 0; _i370 < _list369.size; ++_i370)
+                  org.apache.thrift.protocol.TList _list377 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+                  _val376 = new ArrayList<Mutation>(_list377.size);
+                  for (int _i378 = 0; _i378 < _list377.size; ++_i378)
                   {
-                    Mutation _elem371;
-                    _elem371 = new Mutation();
-                    _elem371.read(iprot);
-                    _val368.add(_elem371);
+                    Mutation _elem379;
+                    _elem379 = new Mutation();
+                    _elem379.read(iprot);
+                    _val376.add(_elem379);
                   }
                 }
-                _val364.put(_key367, _val368);
+                _val372.put(_key375, _val376);
               }
             }
-            struct.mutation_map.put(_key363, _val364);
+            struct.mutation_map.put(_key371, _val372);
           }
         }
         struct.setMutation_mapIsSet(true);
@@ -31573,14 +33325,14 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list372 = iprot.readListBegin();
-                  struct.success = new ArrayList<ColumnOrSuperColumn>(_list372.size);
-                  for (int _i373 = 0; _i373 < _list372.size; ++_i373)
+                  org.apache.thrift.protocol.TList _list380 = iprot.readListBegin();
+                  struct.success = new ArrayList<ColumnOrSuperColumn>(_list380.size);
+                  for (int _i381 = 0; _i381 < _list380.size; ++_i381)
                   {
-                    ColumnOrSuperColumn _elem374;
-                    _elem374 = new ColumnOrSuperColumn();
-                    _elem374.read(iprot);
-                    struct.success.add(_elem374);
+                    ColumnOrSuperColumn _elem382;
+                    _elem382 = new ColumnOrSuperColumn();
+                    _elem382.read(iprot);
+                    struct.success.add(_elem382);
                   }
                   iprot.readListEnd();
                 }
@@ -31635,9 +33387,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.success.size()));
-            for (ColumnOrSuperColumn _iter375 : struct.success)
+            for (ColumnOrSuperColumn _iter383 : struct.success)
             {
-              _iter375.write(oprot);
+              _iter383.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -31692,9 +33444,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (ColumnOrSuperColumn _iter376 : struct.success)
+            for (ColumnOrSuperColumn _iter384 : struct.success)
             {
-              _iter376.write(oprot);
+              _iter384.write(oprot);
             }
           }
         }
@@ -31715,14 +33467,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(4);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list377 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-            struct.success = new ArrayList<ColumnOrSuperColumn>(_list377.size);
-            for (int _i378 = 0; _i378 < _list377.size; ++_i378)
+            org.apache.thrift.protocol.TList _list385 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.success = new ArrayList<ColumnOrSuperColumn>(_list385.size);
+            for (int _i386 = 0; _i386 < _list385.size; ++_i386)
             {
-              ColumnOrSuperColumn _elem379;
-              _elem379 = new ColumnOrSuperColumn();
-              _elem379.read(iprot);
-              struct.success.add(_elem379);
+              ColumnOrSuperColumn _elem387;
+              _elem387 = new ColumnOrSuperColumn();
+              _elem387.read(iprot);
+              struct.success.add(_elem387);
             }
           }
           struct.setSuccessIsSet(true);
@@ -32399,25 +34151,25 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
                 {
-                  org.apache.thrift.protocol.TMap _map380 = iprot.readMapBegin();
-                  struct.success = new HashMap<String,List<String>>(2*_map380.size);
-                  for (int _i381 = 0; _i381 < _map380.size; ++_i381)
+                  org.apache.thrift.protocol.TMap _map388 = iprot.readMapBegin();
+                  struct.success = new HashMap<String,List<String>>(2*_map388.size);
+                  for (int _i389 = 0; _i389 < _map388.size; ++_i389)
                   {
-                    String _key382;
-                    List<String> _val383;
-                    _key382 = iprot.readString();
+                    String _key390;
+                    List<String> _val391;
+                    _key390 = iprot.readString();
                     {
-                      org.apache.thrift.protocol.TList _list384 = iprot.readListBegin();
-                      _val383 = new ArrayList<String>(_list384.size);
-                      for (int _i385 = 0; _i385 < _list384.size; ++_i385)
+                      org.apache.thrift.protocol.TList _list392 = iprot.readListBegin();
+                      _val391 = new ArrayList<String>(_list392.size);
+                      for (int _i393 = 0; _i393 < _list392.size; ++_i393)
                       {
-                        String _elem386;
-                        _elem386 = iprot.readString();
-                        _val383.add(_elem386);
+                        String _elem394;
+                        _elem394 = iprot.readString();
+                        _val391.add(_elem394);
                       }
                       iprot.readListEnd();
                     }
-                    struct.success.put(_key382, _val383);
+                    struct.success.put(_key390, _val391);
                   }
                   iprot.readMapEnd();
                 }
@@ -32454,14 +34206,14 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, struct.success.size()));
-            for (Map.Entry<String, List<String>> _iter387 : struct.success.entrySet())
+            for (Map.Entry<String, List<String>> _iter395 : struct.success.entrySet())
             {
-              oprot.writeString(_iter387.getKey());
+              oprot.writeString(_iter395.getKey());
               {
-                oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, _iter387.getValue().size()));
-                for (String _iter388 : _iter387.getValue())
+                oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, _iter395.getValue().size()));
+                for (String _iter396 : _iter395.getValue())
                 {
-                  oprot.writeString(_iter388);
+                  oprot.writeString(_iter396);
                 }
                 oprot.writeListEnd();
               }
@@ -32503,14 +34255,14 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (Map.Entry<String, List<String>> _iter389 : struct.success.entrySet())
+            for (Map.Entry<String, List<String>> _iter397 : struct.success.entrySet())
             {
-              oprot.writeString(_iter389.getKey());
+              oprot.writeString(_iter397.getKey());
               {
-                oprot.writeI32(_iter389.getValue().size());
-                for (String _iter390 : _iter389.getValue())
+                oprot.writeI32(_iter397.getValue().size());
+                for (String _iter398 : _iter397.getValue())
                 {
-                  oprot.writeString(_iter390);
+                  oprot.writeString(_iter398);
                 }
               }
             }
@@ -32527,24 +34279,24 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TMap _map391 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
-            struct.success = new HashMap<String,List<String>>(2*_map391.size);
-            for (int _i392 = 0; _i392 < _map391.size; ++_i392)
+            org.apache.thrift.protocol.TMap _map399 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.LIST, iprot.readI32());
+            struct.success = new HashMap<String,List<String>>(2*_map399.size);
+            for (int _i400 = 0; _i400 < _map399.size; ++_i400)
             {
-              String _key393;
-              List<String> _val394;
-              _key393 = iprot.readString();
+              String _key401;
+              List<String> _val402;
+              _key401 = iprot.readString();
               {
-                org.apache.thrift.protocol.TList _list395 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-                _val394 = new ArrayList<String>(_list395.size);
-                for (int _i396 = 0; _i396 < _list395.size; ++_i396)
+                org.apache.thrift.protocol.TList _list403 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+                _val402 = new ArrayList<String>(_list403.size);
+                for (int _i404 = 0; _i404 < _list403.size; ++_i404)
                 {
-                  String _elem397;
-                  _elem397 = iprot.readString();
-                  _val394.add(_elem397);
+                  String _elem405;
+                  _elem405 = iprot.readString();
+                  _val402.add(_elem405);
                 }
               }
-              struct.success.put(_key393, _val394);
+              struct.success.put(_key401, _val402);
             }
           }
           struct.setSuccessIsSet(true);
@@ -33205,14 +34957,14 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list398 = iprot.readListBegin();
-                  struct.success = new ArrayList<KsDef>(_list398.size);
-                  for (int _i399 = 0; _i399 < _list398.size; ++_i399)
+                  org.apache.thrift.protocol.TList _list406 = iprot.readListBegin();
+                  struct.success = new ArrayList<KsDef>(_list406.size);
+                  for (int _i407 = 0; _i407 < _list406.size; ++_i407)
                   {
-                    KsDef _elem400;
-                    _elem400 = new KsDef();
-                    _elem400.read(iprot);
-                    struct.success.add(_elem400);
+                    KsDef _elem408;
+                    _elem408 = new KsDef();
+                    _elem408.read(iprot);
+                    struct.success.add(_elem408);
                   }
                   iprot.readListEnd();
                 }
@@ -33249,9 +35001,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.success.size()));
-            for (KsDef _iter401 : struct.success)
+            for (KsDef _iter409 : struct.success)
             {
-              _iter401.write(oprot);
+              _iter409.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -33290,9 +35042,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (KsDef _iter402 : struct.success)
+            for (KsDef _iter410 : struct.success)
             {
-              _iter402.write(oprot);
+              _iter410.write(oprot);
             }
           }
         }
@@ -33307,14 +35059,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list403 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-            struct.success = new ArrayList<KsDef>(_list403.size);
-            for (int _i404 = 0; _i404 < _list403.size; ++_i404)
+            org.apache.thrift.protocol.TList _list411 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.success = new ArrayList<KsDef>(_list411.size);
+            for (int _i412 = 0; _i412 < _list411.size; ++_i412)
             {
-              KsDef _elem405;
-              _elem405 = new KsDef();
-              _elem405.read(iprot);
-              struct.success.add(_elem405);
+              KsDef _elem413;
+              _elem413 = new KsDef();
+              _elem413.read(iprot);
+              struct.success.add(_elem413);
             }
           }
           struct.setSuccessIsSet(true);
@@ -35299,14 +37051,14 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list406 = iprot.readListBegin();
-                  struct.success = new ArrayList<TokenRange>(_list406.size);
-                  for (int _i407 = 0; _i407 < _list406.size; ++_i407)
+                  org.apache.thrift.protocol.TList _list414 = iprot.readListBegin();
+                  struct.success = new ArrayList<TokenRange>(_list414.size);
+                  for (int _i415 = 0; _i415 < _list414.size; ++_i415)
                   {
-                    TokenRange _elem408;
-                    _elem408 = new TokenRange();
-                    _elem408.read(iprot);
-                    struct.success.add(_elem408);
+                    TokenRange _elem416;
+                    _elem416 = new TokenRange();
+                    _elem416.read(iprot);
+                    struct.success.add(_elem416);
                   }
                   iprot.readListEnd();
                 }
@@ -35343,9 +37095,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.success.size()));
-            for (TokenRange _iter409 : struct.success)
+            for (TokenRange _iter417 : struct.success)
             {
-              _iter409.write(oprot);
+              _iter417.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -35384,9 +37136,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (TokenRange _iter410 : struct.success)
+            for (TokenRange _iter418 : struct.success)
             {
-              _iter410.write(oprot);
+              _iter418.write(oprot);
             }
           }
         }
@@ -35401,14 +37153,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list411 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-            struct.success = new ArrayList<TokenRange>(_list411.size);
-            for (int _i412 = 0; _i412 < _list411.size; ++_i412)
+            org.apache.thrift.protocol.TList _list419 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.success = new ArrayList<TokenRange>(_list419.size);
+            for (int _i420 = 0; _i420 < _list419.size; ++_i420)
             {
-              TokenRange _elem413;
-              _elem413 = new TokenRange();
-              _elem413.read(iprot);
-              struct.success.add(_elem413);
+              TokenRange _elem421;
+              _elem421 = new TokenRange();
+              _elem421.read(iprot);
+              struct.success.add(_elem421);
             }
           }
           struct.setSuccessIsSet(true);
@@ -36175,14 +37927,14 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list414 = iprot.readListBegin();
-                  struct.success = new ArrayList<TokenRange>(_list414.size);
-                  for (int _i415 = 0; _i415 < _list414.size; ++_i415)
+                  org.apache.thrift.protocol.TList _list422 = iprot.readListBegin();
+                  struct.success = new ArrayList<TokenRange>(_list422.size);
+                  for (int _i423 = 0; _i423 < _list422.size; ++_i423)
                   {
-                    TokenRange _elem416;
-                    _elem416 = new TokenRange();
-                    _elem416.read(iprot);
-                    struct.success.add(_elem416);
+                    TokenRange _elem424;
+                    _elem424 = new TokenRange();
+                    _elem424.read(iprot);
+                    struct.success.add(_elem424);
                   }
                   iprot.readListEnd();
                 }
@@ -36219,9 +37971,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.success.size()));
-            for (TokenRange _iter417 : struct.success)
+            for (TokenRange _iter425 : struct.success)
             {
-              _iter417.write(oprot);
+              _iter425.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -36260,9 +38012,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (TokenRange _iter418 : struct.success)
+            for (TokenRange _iter426 : struct.success)
             {
-              _iter418.write(oprot);
+              _iter426.write(oprot);
             }
           }
         }
@@ -36277,14 +38029,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list419 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-            struct.success = new ArrayList<TokenRange>(_list419.size);
-            for (int _i420 = 0; _i420 < _list419.size; ++_i420)
+            org.apache.thrift.protocol.TList _list427 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.success = new ArrayList<TokenRange>(_list427.size);
+            for (int _i428 = 0; _i428 < _list427.size; ++_i428)
             {
-              TokenRange _elem421;
-              _elem421 = new TokenRange();
-              _elem421.read(iprot);
-              struct.success.add(_elem421);
+              TokenRange _elem429;
+              _elem429 = new TokenRange();
+              _elem429.read(iprot);
+              struct.success.add(_elem429);
             }
           }
           struct.setSuccessIsSet(true);
@@ -36939,15 +38691,15 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
                 {
-                  org.apache.thrift.protocol.TMap _map422 = iprot.readMapBegin();
-                  struct.success = new HashMap<String,String>(2*_map422.size);
-                  for (int _i423 = 0; _i423 < _map422.size; ++_i423)
+                  org.apache.thrift.protocol.TMap _map430 = iprot.readMapBegin();
+                  struct.success = new HashMap<String,String>(2*_map430.size);
+                  for (int _i431 = 0; _i431 < _map430.size; ++_i431)
                   {
-                    String _key424;
-                    String _val425;
-                    _key424 = iprot.readString();
-                    _val425 = iprot.readString();
-                    struct.success.put(_key424, _val425);
+                    String _key432;
+                    String _val433;
+                    _key432 = iprot.readString();
+                    _val433 = iprot.readString();
+                    struct.success.put(_key432, _val433);
                   }
                   iprot.readMapEnd();
                 }
@@ -36984,10 +38736,10 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, struct.success.size()));
-            for (Map.Entry<String, String> _iter426 : struct.success.entrySet())
+            for (Map.Entry<String, String> _iter434 : struct.success.entrySet())
             {
-              oprot.writeString(_iter426.getKey());
-              oprot.writeString(_iter426.getValue());
+              oprot.writeString(_iter434.getKey());
+              oprot.writeString(_iter434.getValue());
             }
             oprot.writeMapEnd();
           }
@@ -37026,10 +38778,10 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (Map.Entry<String, String> _iter427 : struct.success.entrySet())
+            for (Map.Entry<String, String> _iter435 : struct.success.entrySet())
             {
-              oprot.writeString(_iter427.getKey());
-              oprot.writeString(_iter427.getValue());
+              oprot.writeString(_iter435.getKey());
+              oprot.writeString(_iter435.getValue());
             }
           }
         }
@@ -37044,15 +38796,15 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TMap _map428 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-            struct.success = new HashMap<String,String>(2*_map428.size);
-            for (int _i429 = 0; _i429 < _map428.size; ++_i429)
+            org.apache.thrift.protocol.TMap _map436 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+            struct.success = new HashMap<String,String>(2*_map436.size);
+            for (int _i437 = 0; _i437 < _map436.size; ++_i437)
             {
-              String _key430;
-              String _val431;
-              _key430 = iprot.readString();
-              _val431 = iprot.readString();
-              struct.success.put(_key430, _val431);
+              String _key438;
+              String _val439;
+              _key438 = iprot.readString();
+              _val439 = iprot.readString();
+              struct.success.put(_key438, _val439);
             }
           }
           struct.setSuccessIsSet(true);
@@ -40270,13 +42022,13 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list432 = iprot.readListBegin();
-                  struct.success = new ArrayList<String>(_list432.size);
-                  for (int _i433 = 0; _i433 < _list432.size; ++_i433)
+                  org.apache.thrift.protocol.TList _list440 = iprot.readListBegin();
+                  struct.success = new ArrayList<String>(_list440.size);
+                  for (int _i441 = 0; _i441 < _list440.size; ++_i441)
                   {
-                    String _elem434;
-                    _elem434 = iprot.readString();
-                    struct.success.add(_elem434);
+                    String _elem442;
+                    _elem442 = iprot.readString();
+                    struct.success.add(_elem442);
                   }
                   iprot.readListEnd();
                 }
@@ -40313,9 +42065,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.success.size()));
-            for (String _iter435 : struct.success)
+            for (String _iter443 : struct.success)
             {
-              oprot.writeString(_iter435);
+              oprot.writeString(_iter443);
             }
             oprot.writeListEnd();
           }
@@ -40354,9 +42106,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (String _iter436 : struct.success)
+            for (String _iter444 : struct.success)
             {
-              oprot.writeString(_iter436);
+              oprot.writeString(_iter444);
             }
           }
         }
@@ -40371,13 +42123,13 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list437 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-            struct.success = new ArrayList<String>(_list437.size);
-            for (int _i438 = 0; _i438 < _list437.size; ++_i438)
+            org.apache.thrift.protocol.TList _list445 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+            struct.success = new ArrayList<String>(_list445.size);
+            for (int _i446 = 0; _i446 < _list445.size; ++_i446)
             {
-              String _elem439;
-              _elem439 = iprot.readString();
-              struct.success.add(_elem439);
+              String _elem447;
+              _elem447 = iprot.readString();
+              struct.success.add(_elem447);
             }
           }
           struct.setSuccessIsSet(true);
@@ -42066,14 +43818,14 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list440 = iprot.readListBegin();
-                  struct.success = new ArrayList<CfSplit>(_list440.size);
-                  for (int _i441 = 0; _i441 < _list440.size; ++_i441)
+                  org.apache.thrift.protocol.TList _list448 = iprot.readListBegin();
+                  struct.success = new ArrayList<CfSplit>(_list448.size);
+                  for (int _i449 = 0; _i449 < _list448.size; ++_i449)
                   {
-                    CfSplit _elem442;
-                    _elem442 = new CfSplit();
-                    _elem442.read(iprot);
-                    struct.success.add(_elem442);
+                    CfSplit _elem450;
+                    _elem450 = new CfSplit();
+                    _elem450.read(iprot);
+                    struct.success.add(_elem450);
                   }
                   iprot.readListEnd();
                 }
@@ -42110,9 +43862,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.success.size()));
-            for (CfSplit _iter443 : struct.success)
+            for (CfSplit _iter451 : struct.success)
             {
-              _iter443.write(oprot);
+              _iter451.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -42151,9 +43903,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (CfSplit _iter444 : struct.success)
+            for (CfSplit _iter452 : struct.success)
             {
-              _iter444.write(oprot);
+              _iter452.write(oprot);
             }
           }
         }
@@ -42168,14 +43920,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list445 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-            struct.success = new ArrayList<CfSplit>(_list445.size);
-            for (int _i446 = 0; _i446 < _list445.size; ++_i446)
+            org.apache.thrift.protocol.TList _list453 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.success = new ArrayList<CfSplit>(_list453.size);
+            for (int _i454 = 0; _i454 < _list453.size; ++_i454)
             {
-              CfSplit _elem447;
-              _elem447 = new CfSplit();
-              _elem447.read(iprot);
-              struct.success.add(_elem447);
+              CfSplit _elem455;
+              _elem455 = new CfSplit();
+              _elem455.read(iprot);
+              struct.success.add(_elem455);
             }
           }
           struct.setSuccessIsSet(true);
@@ -52770,13 +54522,13 @@ public class Cassandra {
             case 2: // VALUES
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list448 = iprot.readListBegin();
-                  struct.values = new ArrayList<ByteBuffer>(_list448.size);
-                  for (int _i449 = 0; _i449 < _list448.size; ++_i449)
+                  org.apache.thrift.protocol.TList _list456 = iprot.readListBegin();
+                  struct.values = new ArrayList<ByteBuffer>(_list456.size);
+                  for (int _i457 = 0; _i457 < _list456.size; ++_i457)
                   {
-                    ByteBuffer _elem450;
-                    _elem450 = iprot.readBinary();
-                    struct.values.add(_elem450);
+                    ByteBuffer _elem458;
+                    _elem458 = iprot.readBinary();
+                    struct.values.add(_elem458);
                   }
                   iprot.readListEnd();
                 }
@@ -52810,9 +54562,9 @@ public class Cassandra {
           oprot.writeFieldBegin(VALUES_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.values.size()));
-            for (ByteBuffer _iter451 : struct.values)
+            for (ByteBuffer _iter459 : struct.values)
             {
-              oprot.writeBinary(_iter451);
+              oprot.writeBinary(_iter459);
             }
             oprot.writeListEnd();
           }
@@ -52838,9 +54590,9 @@ public class Cassandra {
         oprot.writeI32(struct.itemId);
         {
           oprot.writeI32(struct.values.size());
-          for (ByteBuffer _iter452 : struct.values)
+          for (ByteBuffer _iter460 : struct.values)
           {
-            oprot.writeBinary(_iter452);
+            oprot.writeBinary(_iter460);
           }
         }
       }
@@ -52851,13 +54603,13 @@ public class Cassandra {
         struct.itemId = iprot.readI32();
         struct.setItemIdIsSet(true);
         {
-          org.apache.thrift.protocol.TList _list453 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.values = new ArrayList<ByteBuffer>(_list453.size);
-          for (int _i454 = 0; _i454 < _list453.size; ++_i454)
+          org.apache.thrift.protocol.TList _list461 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.values = new ArrayList<ByteBuffer>(_list461.size);
+          for (int _i462 = 0; _i462 < _list461.size; ++_i462)
           {
-            ByteBuffer _elem455;
-            _elem455 = iprot.readBinary();
-            struct.values.add(_elem455);
+            ByteBuffer _elem463;
+            _elem463 = iprot.readBinary();
+            struct.values.add(_elem463);
           }
         }
         struct.setValuesIsSet(true);
@@ -54168,13 +55920,13 @@ public class Cassandra {
             case 2: // VALUES
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list456 = iprot.readListBegin();
-                  struct.values = new ArrayList<ByteBuffer>(_list456.size);
-                  for (int _i457 = 0; _i457 < _list456.size; ++_i457)
+                  org.apache.thrift.protocol.TList _list464 = iprot.readListBegin();
+                  struct.values = new ArrayList<ByteBuffer>(_list464.size);
+                  for (int _i465 = 0; _i465 < _list464.size; ++_i465)
                   {
-                    ByteBuffer _elem458;
-                    _elem458 = iprot.readBinary();
-                    struct.values.add(_elem458);
+                    ByteBuffer _elem466;
+                    _elem466 = iprot.readBinary();
+                    struct.values.add(_elem466);
                   }
                   iprot.readListEnd();
                 }
@@ -54216,9 +55968,9 @@ public class Cassandra {
           oprot.writeFieldBegin(VALUES_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.values.size()));
-            for (ByteBuffer _iter459 : struct.values)
+            for (ByteBuffer _iter467 : struct.values)
             {
-              oprot.writeBinary(_iter459);
+              oprot.writeBinary(_iter467);
             }
             oprot.writeListEnd();
           }
@@ -54249,9 +56001,9 @@ public class Cassandra {
         oprot.writeI32(struct.itemId);
         {
           oprot.writeI32(struct.values.size());
-          for (ByteBuffer _iter460 : struct.values)
+          for (ByteBuffer _iter468 : struct.values)
           {
-            oprot.writeBinary(_iter460);
+            oprot.writeBinary(_iter468);
           }
         }
         oprot.writeI32(struct.consistency.getValue());
@@ -54263,13 +56015,13 @@ public class Cassandra {
         struct.itemId = iprot.readI32();
         struct.setItemIdIsSet(true);
         {
-          org.apache.thrift.protocol.TList _list461 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.values = new ArrayList<ByteBuffer>(_list461.size);
-          for (int _i462 = 0; _i462 < _list461.size; ++_i462)
+          org.apache.thrift.protocol.TList _list469 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.values = new ArrayList<ByteBuffer>(_list469.size);
+          for (int _i470 = 0; _i470 < _list469.size; ++_i470)
           {
-            ByteBuffer _elem463;
-            _elem463 = iprot.readBinary();
-            struct.values.add(_elem463);
+            ByteBuffer _elem471;
+            _elem471 = iprot.readBinary();
+            struct.values.add(_elem471);
           }
         }
         struct.setValuesIsSet(true);
