@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import junit.framework.Assert;
 import org.apache.cassandra.SchemaLoader;
@@ -45,13 +46,12 @@ import org.apache.thrift.transport.TTransportException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class PutUnlessExistsTest
+public class CasTest
 {
-    private static final String KEYSPACE1 = "PutUnlessExistsTest";
+    private static final String KEYSPACE1 = "CasTest";
     private static final String CF_STANDARD = "Standard1";
 
     private static final String COLUMN_1 = "col1";
-    private static final String COLUMN_2 = "col2";
     private static final String VALUE_1 = "val1";
     private static final String VALUE_2 = "val2";
 
@@ -78,25 +78,33 @@ public class PutUnlessExistsTest
                                                       .build());
     }
 
-    private CASResult makePutUnlessExistsRequest(String key, String columnName, String value) throws TException
+    private CASResult makeCasRequest(String key, String columnName, Optional<String> expected, String update) throws TException
     {
-        return makePutUnlessExistsRequest(key, ImmutableMap.of(columnName, value));
+        Map<String, String> expectedMap = expected.isPresent() ? ImmutableMap.of(columnName, expected.get()) : ImmutableMap.of();
+        return makeCasRequest(key, expectedMap, ImmutableMap.of(columnName, update));
     }
 
-    private CASResult makePutUnlessExistsRequest(String key, Map<String, String> columns) throws TException {
+    private CASResult makeCasRequest(String key, Map<String, String> expected, Map<String, String> updates) throws TException {
         ByteBuffer key_user_id = ByteBufferUtil.bytes(key);
 
         long timestamp = System.currentTimeMillis();
 
-        List<Column> cols = new ArrayList<Column>(columns.entrySet().size());
-        for (Map.Entry<String, String> column : columns.entrySet()) {
-            cols.add(new Column(ByteBufferUtil.bytes(column.getKey()))
+        List<Column> expectedCols = new ArrayList<Column>(expected.entrySet().size());
+        for (Map.Entry<String, String> column : expected.entrySet()) {
+            expectedCols.add(new Column(ByteBufferUtil.bytes(column.getKey()))
+                             .setValue(ByteBufferUtil.bytes(column.getValue()))
+                             .setTimestamp(timestamp - 1));
+        }
+
+        List<Column> updateCols = new ArrayList<Column>(updates.entrySet().size());
+        for (Map.Entry<String, String> column : updates.entrySet()) {
+            updateCols.add(new Column(ByteBufferUtil.bytes(column.getKey()))
                      .setValue(ByteBufferUtil.bytes(column.getValue()))
                      .setTimestamp(timestamp));
         }
 
         try {
-           return getClient().put_unless_exists(key_user_id, CF_STANDARD, cols, ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE);
+            return getClient().cas(key_user_id, CF_STANDARD, expectedCols, updateCols, ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE);
         } catch (InvalidRequestException | UnavailableException | TimedOutException e) {
             throw new RuntimeException(e);
         }
@@ -115,12 +123,12 @@ public class PutUnlessExistsTest
     }
 
     @Test
-    public void testPutUnlessExistsSemanticsOnSingleColumn() throws TException
+    public void testCasSemanticsOnSingleColumn() throws TException
     {
         String key = "single_column_test";
 
-        // first pue attempt is succesfull
-        CASResult result = makePutUnlessExistsRequest(key, COLUMN_1, VALUE_1);
+        // first cas attempt is successful
+        CASResult result = makeCasRequest(key, COLUMN_1, Optional.empty(), VALUE_1);
         Assert.assertTrue(result.isSetSuccess());
         Assert.assertTrue(result.isSuccess());
 
@@ -128,69 +136,30 @@ public class PutUnlessExistsTest
         Assert.assertTrue(value.isSetColumn());
         Assert.assertEquals(new String(value.getColumn().getValue()), VALUE_1);
 
-        // second attempt fails and value is still first pue value
-        result = makePutUnlessExistsRequest(key, COLUMN_1, VALUE_2);
+        // second attempt fails and value is still first cas value
+        result = makeCasRequest(key, COLUMN_1, Optional.of(VALUE_2), VALUE_2);
         Assert.assertTrue(result.isSetSuccess());
         Assert.assertFalse(result.isSuccess());
 
         value = fetchColumnValues(key, COLUMN_1);
         Assert.assertTrue(value.isSetColumn());
         Assert.assertEquals(new String(value.getColumn().getValue()), VALUE_1);
-    }
 
-    @Test
-    public void testPutUnlessExistsSucceedsForUniqueColumn() throws TException {
-        String key = "same_key_different_columns";
-
-        // set up first column
-        CASResult result = makePutUnlessExistsRequest(key, COLUMN_1, VALUE_1);
+        // third cas attempt is successful
+        result = makeCasRequest(key, COLUMN_1, Optional.of(VALUE_1), VALUE_2);
         Assert.assertTrue(result.isSetSuccess());
         Assert.assertTrue(result.isSuccess());
 
-        ColumnOrSuperColumn value = fetchColumnValues(key, COLUMN_1);
-        Assert.assertTrue(value.isSetColumn());
-        Assert.assertEquals(new String(value.getColumn().getValue()), VALUE_1);
-
-        // a PUE of a different column in same column family should succeed
-        result = makePutUnlessExistsRequest(key, COLUMN_2, VALUE_2);
-        Assert.assertTrue(result.isSetSuccess());
-        Assert.assertTrue(result.isSuccess());
-
-        value = fetchColumnValues(key, COLUMN_2);
+        value = fetchColumnValues(key, COLUMN_1);
         Assert.assertTrue(value.isSetColumn());
         Assert.assertEquals(new String(value.getColumn().getValue()), VALUE_2);
     }
 
-    @Test(expected = NotFoundException.class)
-    public void testPutUnlessExistsFailsIfAnyColumnOverlaps() throws TException {
-        String key = "same_key_overlapping_columns";
-
-        // set up first column
-        CASResult result = makePutUnlessExistsRequest(key, COLUMN_1, VALUE_1);
-        Assert.assertTrue(result.isSetSuccess());
-        Assert.assertTrue(result.isSuccess());
-
-        ColumnOrSuperColumn value = fetchColumnValues(key, COLUMN_1);
-        Assert.assertTrue(value.isSetColumn());
-        Assert.assertEquals(new String(value.getColumn().getValue()), VALUE_1);
-
-        // a PUE with any overlap with existing columns should fail
-        result = makePutUnlessExistsRequest(key, ImmutableMap.of(COLUMN_1, "this-write-fails", COLUMN_2, VALUE_2));
-        Assert.assertTrue(result.isSetSuccess());
-        Assert.assertFalse(result.isSuccess());
-
-        value = fetchColumnValues(key, COLUMN_1);
-        Assert.assertTrue(value.isSetColumn());
-        Assert.assertEquals(new String(value.getColumn().getValue()), VALUE_1);
-
-        fetchColumnValues(key, COLUMN_2);
-    }
-
     @Test
-    public void testPutUnlessExistsWithEmptyUpdateSucceeds() throws TException {
+    public void testCasWithEmptyUpdateSucceeds() throws TException {
         String key = "empty_update";
 
-        CASResult result = makePutUnlessExistsRequest(key, ImmutableMap.of());
+        CASResult result = makeCasRequest(key, ImmutableMap.of(), ImmutableMap.of());
         Assert.assertTrue(result.isSetSuccess());
         Assert.assertTrue(result.isSuccess());
     }
