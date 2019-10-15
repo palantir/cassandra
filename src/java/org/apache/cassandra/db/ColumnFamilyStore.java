@@ -718,9 +718,21 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public static void loadNewSSTables(String ksName, String cfName)
     {
+        loadNewSSTables(ksName, cfName, false);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTables(String, String)} for more info
+     *
+     * @param ksName The keyspace name
+     * @param cfName The columnFamily name
+     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     */
+    public static void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
         /** ks/cf existence checks will be done by open and getCFS methods for us */
         Keyspace keyspace = Keyspace.open(ksName);
-        keyspace.getColumnFamilyStore(cfName).loadNewSSTables();
+        keyspace.getColumnFamilyStore(cfName).loadNewSSTables(assumeCfIsEmpty);
     }
 
     /**
@@ -728,7 +740,55 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public synchronized void loadNewSSTables()
     {
-        logger.info("Loading new SSTables for {}/{}...", keyspace.getName(), name);
+        loadNewSSTables(false);
+    }
+
+    public synchronized void loadNewSSTables(boolean assumeCfIsEmpty) {
+        loadNewSSTablesWithCount(assumeCfIsEmpty);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
+     *
+     * @param ksName The keyspace name
+     * @param cfName The columnFamily name
+     *
+     * @return the number of new sstables loaded
+     */
+    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName)
+    {
+        return loadNewSSTablesWithCount(ksName, cfName, false);
+    }
+
+    /**
+     * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
+     *
+     * @param ksName        The keyspace name
+     * @param cfName        The columnFamily name
+     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     *
+     * @return the number of new sstables loaded
+     */
+    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    {
+        /** ks/cf existence checks will be done by open and getCFS methods for us */
+        Keyspace keyspace = Keyspace.open(ksName);
+        return keyspace.getColumnFamilyStore(cfName).loadNewSSTablesWithCount(assumeCfIsEmpty);
+    }
+
+    /**
+     * #{@inheritDoc}
+     */
+    public synchronized int loadNewSSTablesWithCount()
+    {
+        return loadNewSSTablesWithCount(false);
+    }
+
+    public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
+    {
+        logger.info("Loading new SSTables for {}/{}{}...",
+                    keyspace.getName(), name,
+                    assumeCfIsEmpty ? " assuming the columnfamily is empty" : "");
 
         Set<Descriptor> currentDescriptors = new HashSet<>();
         for (SSTableReader sstable : getSSTables(SSTableSet.CANONICAL))
@@ -751,7 +811,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             // force foreign sstables to level 0
             try
             {
-                if (new File(descriptor.filenameFor(Component.STATS)).exists())
+                if (!assumeCfIsEmpty && new File(descriptor.filenameFor(Component.STATS)).exists())
                     descriptor.getMetadataSerializer().mutateLevel(descriptor, 0);
             }
             catch (IOException e)
@@ -808,7 +868,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         if (newSSTables.isEmpty())
         {
             logger.info("No new SSTables were found for {}/{}", keyspace.getName(), name);
-            return;
+            return 0;
         }
 
         logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}", keyspace.getName(), name, newSSTables);
@@ -820,6 +880,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         logger.info("Done loading load new SSTables for {}/{}", keyspace.getName(), name);
+        return newSSTables.size();
     }
 
     public void rebuildSecondaryIndex(String idxName)
