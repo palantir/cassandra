@@ -26,6 +26,7 @@ import java.util.Map;
 
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.utils.FBUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,13 +53,20 @@ public class SimpleSeedProvider implements SeedProvider
         {
             try
             {
-                seeds.add(InetAddress.getByName(host.trim()));
+                InetAddress seed = InetAddress.getByName(host.trim());
+                if (seed.equals(FBUtilities.getBroadcastAddress())) {
+                    continue;
+                }
+                seeds.add(seed);
             }
             catch (UnknownHostException ex)
             {
                 // not fatal... DD will bark if there end up being zero seeds.
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
+        }
+        if (seeds.isEmpty()) {
+            seeds.add(FBUtilities.getBroadcastAddress());
         }
         return Collections.unmodifiableList(seeds);
     }
