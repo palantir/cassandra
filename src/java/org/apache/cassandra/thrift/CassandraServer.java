@@ -2639,32 +2639,24 @@ public class CassandraServer implements Cassandra.Iface
     {
         private final CFMetaData metadata;
         private final DecoratedKey key;
-        private final List<LegacyLayout.LegacyCell> expected;
+        private final List<LegacyLayout.LegacyCell> legacyUpdates; // updates in a different form
         private final PartitionUpdate updates;
 
         @VisibleForTesting
-        ThriftPutUnlessExistsRequest(List<LegacyLayout.LegacyCell> expected, PartitionUpdate updates)
+        ThriftPutUnlessExistsRequest(List<LegacyLayout.LegacyCell> legacyUpdates, PartitionUpdate updates)
         {
             this.metadata = updates.metadata();
             this.key = updates.partitionKey();
-            this.expected = expected;
+            this.legacyUpdates = legacyUpdates;
             this.updates = updates;
         }
 
         public SinglePartitionReadCommand readCommand(int nowInSec)
         {
-            if (expected.isEmpty())
-            {
-                // We want to know if the partition exists, so just fetch a single cell.
-                ClusteringIndexSliceFilter filter = new ClusteringIndexSliceFilter(Slices.ALL, false);
-                DataLimits limits = DataLimits.thriftLimits(1, 1);
-                return SinglePartitionReadCommand.create(true, metadata, nowInSec, ColumnFilter.all(metadata), RowFilter.NONE, limits, key, filter);
-            }
-
             // Gather the clustering for the expected values and query those.
             BTreeSet.Builder<Clustering> clusterings = BTreeSet.builder(metadata.comparator);
             FilteredPartition expectedPartition =
-            FilteredPartition.create(LegacyLayout.toRowIterator(metadata, key, expected.iterator(), nowInSec));
+            FilteredPartition.create(LegacyLayout.toRowIterator(metadata, key, legacyUpdates.iterator(), nowInSec));
 
             for (Row row : expectedPartition)
                 clusterings.add(row.clustering());
