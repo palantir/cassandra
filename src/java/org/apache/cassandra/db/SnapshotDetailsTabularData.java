@@ -34,13 +34,15 @@ public class SnapshotDetailsTabularData
             "Keyspace name",
             "Column family name",
             "True size",
-            "Size on disk"};
+            "Size on disk",
+			"Creation Ts Ms"};
 
     private static final String[] ITEM_DESCS = new String[]{"snapshot_name",
             "keyspace_name",
             "columnfamily_name",
             "TrueDiskSpaceUsed",
-            "TotalDiskSpaceUsed"};
+            "TotalDiskSpaceUsed",
+			"CreationTsMs"};
 
     private static final String TYPE_NAME = "SnapshotDetails";
 
@@ -56,7 +58,7 @@ public class SnapshotDetailsTabularData
     {
         try
         {
-            ITEM_TYPES = new OpenType[]{ SimpleType.STRING, SimpleType.STRING, SimpleType.STRING, SimpleType.STRING, SimpleType.STRING };
+            ITEM_TYPES = new OpenType[]{ SimpleType.STRING, SimpleType.STRING, SimpleType.STRING, SimpleType.STRING, SimpleType.STRING, SimpleType.STRING };
 
             COMPOSITE_TYPE = new CompositeType(TYPE_NAME, ROW_DESC, ITEM_NAMES, ITEM_DESCS, ITEM_TYPES);
 
@@ -69,14 +71,14 @@ public class SnapshotDetailsTabularData
     }
 
 
-    public static void from(final String snapshot, final String ks, final String cf, Map.Entry<String, Pair<Long,Long>> snapshotDetail, TabularDataSupport result)
+    public static void from(final String snapshot, final String ks, final String cf, Map.Entry<String, Pair<Long,Long>> snapshotDetail, long millisTsCreated, TabularDataSupport result)
     {
         try
         {
             final String totalSize = FileUtils.stringifyFileSize(snapshotDetail.getValue().left);
             final String liveSize =  FileUtils.stringifyFileSize(snapshotDetail.getValue().right);
             result.put(new CompositeDataSupport(COMPOSITE_TYPE, ITEM_NAMES,
-                    new Object[]{ snapshot, ks, cf, liveSize, totalSize }));
+                    new Object[]{ snapshot, ks, cf, liveSize, totalSize, millisTsCreated }));
         }
         catch (OpenDataException e)
         {
