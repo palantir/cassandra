@@ -156,6 +156,11 @@ public abstract class AbstractCompactionStrategy
     public abstract AbstractCompactionTask getNextBackgroundTask(final int gcBefore);
 
     /**
+     * Returns a higher-priority task that must occur soon for safety reasons, if one exists. E.g. LCS STCS L0 compactions.
+     */
+    public abstract AbstractCompactionTask getNextCriticalBackgroundTask(final int gcBefore);
+
+    /**
      * @param gcBefore throw away tombstones older than this
      *
      * @return a compaction task that should be run to compact this columnfamilystore

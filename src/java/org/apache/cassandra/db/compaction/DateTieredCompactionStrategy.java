@@ -75,6 +75,12 @@ public class DateTieredCompactionStrategy extends AbstractCompactionStrategy
         }
     }
 
+    @Override
+    public AbstractCompactionTask getNextCriticalBackgroundTask(int gcBefore)
+    {
+        return null;
+    }
+
     /**
      *
      * @param gcBefore

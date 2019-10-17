@@ -124,6 +124,24 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
         }
     }
 
+    @Override
+    public synchronized AbstractCompactionTask getNextCriticalBackgroundTask(int gcBefore)
+    {
+        while (true) {
+            LeveledManifest.CompactionCandidate candidate = manifest.getSTCSInL0CompactionCandidate();
+            if (candidate == null) {
+                return null;
+            }
+            LifecycleTransaction txn = cfs.getTracker().tryModify(candidate.sstables, OperationType.COMPACTION);
+            if (txn != null)
+            {
+                LeveledCompactionTask newTask = new LeveledCompactionTask(cfs, txn, candidate.level, gcBefore, candidate.maxSSTableBytes, false);
+                newTask.setCompactionType(OperationType.COMPACTION);
+                return newTask;
+            }
+        }
+    }
+
     @SuppressWarnings("resource")
     public synchronized Collection<AbstractCompactionTask> getMaximalTask(int gcBefore, boolean splitOutput)
     {

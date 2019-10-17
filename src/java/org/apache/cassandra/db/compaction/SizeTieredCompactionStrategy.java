@@ -202,6 +202,12 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
         }
     }
 
+    @Override
+    public AbstractCompactionTask getNextCriticalBackgroundTask(int gcBefore)
+    {
+        return null;
+    }
+
     @SuppressWarnings("resource")
     public Collection<AbstractCompactionTask> getMaximalTask(final int gcBefore, boolean splitOutput)
     {
