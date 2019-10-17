@@ -81,12 +81,10 @@ public class ColumnFamilyMetrics
     public final Counter bytesFlushed;
     /** Total number of bytes written by compaction since server [re]start */
     public final Counter compactionBytesWritten;
-    /** Estimate of number of pending compactios for this CF */
-    public final Gauge<Integer> pendingCompactions;
     /** Total number of compactions since server [re]start */
-    public final Meter totalCompactionsCompleted;
-    /** Total number of bytes compacted since server [re]start */
-    public final Meter bytesCompacted;
+    public final Counter compactionsCompleted;
+    /** Estimate of number of pending compactios for this table */
+    public final Gauge<Integer> pendingCompactions;
     /** Number of SSTables that have a repairedAt timestamp > 0 (from incremental repairs) */
     public final Gauge<Long> repairedAtSSTableCount;
     /** Number of SSTables on disk for this CF */
@@ -389,6 +387,7 @@ public class ColumnFamilyMetrics
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
         compactionBytesWritten = createColumnFamilyCounter("CompactionBytesWritten");
+        compactionsCompleted = createColumnFamilyCounter("CompactionsCompleted");
         pendingCompactions = createColumnFamilyGauge("PendingCompactions", new Gauge<Integer>()
         {
             public Integer getValue()
@@ -396,8 +395,6 @@ public class ColumnFamilyMetrics
                 return cfs.getCompactionStrategy().getEstimatedRemainingTasks();
             }
         });
-        totalCompactionsCompleted = Metrics.meter(factory.createMetricName("TotalCompactionsCompleted"));
-        bytesCompacted = Metrics.meter(factory.createMetricName("BytesCompacted"));
         liveSSTableCount = createColumnFamilyGauge("LiveSSTableCount", new Gauge<Integer>()
         {
             public Integer getValue()
