@@ -19,9 +19,13 @@ package org.apache.cassandra.locator;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.utils.FBUtilities;
@@ -68,7 +72,7 @@ public class SimpleSeedProvider implements SeedProvider
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
         }
-        if (seeds.isEmpty() && Arrays.asList(hosts).contains(self.getHostName())) {
+        if (seeds.isEmpty() && ImmutableSet.copyOf(hosts).contains(self.getHostName())) {
             seeds.add(self);
         }
         return Collections.unmodifiableList(seeds);
