@@ -19,14 +19,13 @@ package org.apache.cassandra.locator;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.utils.FBUtilities;
@@ -51,11 +50,10 @@ public class SimpleSeedProvider implements SeedProvider
             throw new AssertionError(e);
         }
         String[] hosts = conf.seed_provider.parameters.get("seeds").split(",", -1);
-        return Collections.unmodifiableList(new ArrayList<>(getSeedsFromHosts(hosts, FBUtilities.getBroadcastAddress())));
+        return ImmutableList.copyOf(getSeedsFromHosts(hosts, FBUtilities.getBroadcastAddress()));
     }
     
-    @VisibleForTesting
-    Set<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self) {
+    private Set<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self) {
         Set<InetAddress> seeds = new HashSet<>(hosts.length);
         boolean seenSelf = false;
         for (String host : hosts)
