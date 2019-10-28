@@ -50,11 +50,11 @@ public class SimpleSeedProvider implements SeedProvider
             throw new AssertionError(e);
         }
         String[] hosts = conf.seed_provider.parameters.get("seeds").split(",", -1);
-        return getSeedsFromHosts(hosts, FBUtilities.getBroadcastAddress());
+        return ImmutableList.copyOf(getSeedsFromHosts(hosts, FBUtilities.getBroadcastAddress()));
     }
     
-    private ImmutableList<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self) {
-        ImmutableList.Builder<InetAddress> seedsBuilder = ImmutableList.builder();
+    private Set<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self) {
+        Set<InetAddress> seeds = new HashSet<>(hosts.length);
         boolean seenSelf = false;
         for (String host : hosts)
         {
@@ -65,7 +65,7 @@ public class SimpleSeedProvider implements SeedProvider
                 	seenSelf = true;
                     continue;
                 }
-                seedsBuilder.add(seed);
+                seeds.add(seed);
             }
             catch (UnknownHostException ex)
             {
@@ -73,9 +73,9 @@ public class SimpleSeedProvider implements SeedProvider
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
         }
-        if (seedsBuilder.build().isEmpty() && seenSelf) {
-            seedsBuilder.add(self);
+        if (seeds.isEmpty() && seenSelf) {
+            seeds.add(self);
         }
-        return seedsBuilder.build();
+        return seeds;
     }
 }
