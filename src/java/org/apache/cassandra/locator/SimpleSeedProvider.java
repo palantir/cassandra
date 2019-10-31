@@ -53,7 +53,8 @@ public class SimpleSeedProvider implements SeedProvider
         return getSeedsFromHosts(hosts, FBUtilities.getBroadcastAddress());
     }
     
-    private ImmutableList<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self) {
+    private ImmutableList<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self)
+    {
         ImmutableList.Builder<InetAddress> seedsBuilder = ImmutableList.builder();
         boolean seenSelf = false;
         for (String host : hosts)
@@ -61,8 +62,9 @@ public class SimpleSeedProvider implements SeedProvider
             try
             {
                 InetAddress seed = InetAddress.getByName(host.trim());
-                if (seed.equals(self)) {
-                	seenSelf = true;
+                if (seed.equals(self))
+                {
+                    seenSelf = true;
                     continue;
                 }
                 seedsBuilder.add(seed);
@@ -73,7 +75,8 @@ public class SimpleSeedProvider implements SeedProvider
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
         }
-        if (seedsBuilder.build().isEmpty() && seenSelf) {
+        if (seedsBuilder.build().isEmpty() && seenSelf)
+        {
             seedsBuilder.add(self);
         }
         return seedsBuilder.build();
