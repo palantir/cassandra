@@ -29,6 +29,7 @@ import java.util.zip.Inflater;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
@@ -259,6 +260,15 @@ public class CassandraServer implements Cassandra.Iface
              : result;
     }
 
+    private Multimap<DecoratedKey, SinglePartitionReadCommand> partitionCommandsByKey(List<SinglePartitionReadCommand> commands)
+    {
+        Multimap<DecoratedKey, SinglePartitionReadCommand> result = ArrayListMultimap.create();
+        for (SinglePartitionReadCommand readCommand : commands) {
+            result.put(readCommand.partitionKey(), readCommand);
+        }
+        return result;
+    }
+
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> getSlice(List<SinglePartitionReadCommand> commands, boolean subColumnsOnly, int cellLimit, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long queryStartNanoTime)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
@@ -274,6 +284,33 @@ public class CassandraServer implements Cassandra.Iface
                 }
             }
             return columnFamiliesMap;
+        }
+    }
+
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<SinglePartitionReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long queryStartNanoTime)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        Multimap<DecoratedKey, SinglePartitionReadCommand> commandsByKey = partitionCommandsByKey(commands);
+        Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
+        for (Map.Entry<DecoratedKey, Collection<SinglePartitionReadCommand>> entry : commandsByKey.asMap().entrySet())
+        {
+            ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(entry.getValue());
+            detailsByKey.put(entry.getKey(), details);
+        }
+
+        try (PartitionIterator results = read(commands, consistency_level, cState, queryStartNanoTime))
+        {
+            ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
+            while (results.hasNext())
+            {
+                try (RowIterator iter = results.next())
+                {
+                    ThriftifyColumnFamilyDetails details = detailsByKey.get(iter.partitionKey());
+                    List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, details.reversed(), details.limitsPerPartitionCount);
+                    columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
+                }
+            }
+            return Multimaps.asMap(columnFamiliesMap);
         }
     }
 
@@ -351,6 +388,42 @@ public class CassandraServer implements Cassandra.Iface
             String keyspace = cState.getKeyspace();
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             return multigetSliceInternal(keyspace, keys, column_parent, FBUtilities.nowInSeconds(), predicate, consistency_level, cState, queryStartNanoTime);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
+    public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        long queryStartNanoTime = System.nanoTime();
+        if (startSessionIfRequested())
+        {
+            List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
+            for (KeyPredicate keyPredicate : request)
+                keyPredicates.add(Pair.create(ByteBufferUtil.bytesToHex(keyPredicate.key), keyPredicate.predicate));
+            Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
+                                                                  "column_parent", column_parent.toString(),
+                                                                  "consistency_level", consistency_level.name());
+            Tracing.instance.begin("multiget_multislice", traceParameters);
+        }
+        else
+        {
+            logger.trace("multiget_multislice");
+        }
+
+        try
+        {
+            ClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            return multigetMultisliceInternal(keyspace, request, column_parent, FBUtilities.nowInSeconds(), consistency_level, cState, queryStartNanoTime);
         }
         catch (RequestValidationException e)
         {
@@ -574,6 +647,72 @@ public class CassandraServer implements Cassandra.Iface
         }
 
         return getSlice(commands, column_parent.isSetSuper_column(), limits.perPartitionCount(), consistencyLevel, cState, queryStartNanoTime);
+    }
+
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multigetMultisliceInternal(String keyspace,
+                                                                                        List<KeyPredicate> keyPredicates,
+                                                                                        ColumnParent column_parent,
+                                                                                        int nowInSec,
+                                                                                        ConsistencyLevel consistency_level,
+                                                                                        ClientState cState,
+                                                                                        long queryStartNanoTime)
+    throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
+        ThriftValidation.validateColumnParent(metadata, column_parent);
+
+        org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
+        consistencyLevel.validateForRead(keyspace);
+
+        List<SinglePartitionReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyPredicates, column_parent, nowInSec, metadata);
+        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState, queryStartNanoTime);
+    }
+
+    private List<SinglePartitionReadCommand> validateKeyPredicatesAndCreateCommands(List<KeyPredicate> keyPredicates,
+                                                                                    ColumnParent column_parent,
+                                                                                    int nowInSec,
+                                                                                    CFMetaData metadata)
+    {
+        List<SinglePartitionReadCommand> commands = new ArrayList<>(keyPredicates.size());
+        validateKeyPredicates(keyPredicates, column_parent, metadata);
+
+        Map<SlicePredicate, ColumnFilter> columnFilters = Maps.newHashMap();
+        Map<SlicePredicate, ClusteringIndexFilter> clusteringIndexFilters = Maps.newHashMap();
+        Map<SlicePredicate, DataLimits> limitsMap = Maps.newHashMap();
+
+        for (KeyPredicate keyPredicate : keyPredicates)
+        {
+            ByteBuffer key = keyPredicate.key;
+            SlicePredicate predicate = keyPredicate.predicate;
+
+            ColumnFilter columnFilterToUse = columnFilters.computeIfAbsent(predicate, slicePredicate -> makeColumnFilter(metadata, column_parent, slicePredicate));
+            ClusteringIndexFilter filterToUse = clusteringIndexFilters.computeIfAbsent(predicate, slicePredicate -> toInternalFilter(metadata, column_parent, slicePredicate));
+            DataLimits limits = limitsMap.computeIfAbsent(predicate, slicePredicate -> getLimits(1, metadata.isSuper() && !column_parent.isSetSuper_column(), predicate));
+
+            DecoratedKey dk = metadata.decorateKey(key);
+            commands.add(SinglePartitionReadCommand.create(true, metadata, nowInSec, columnFilterToUse, RowFilter.NONE, limits, dk, filterToUse));
+        }
+
+        return commands;
+    }
+
+    private void validateKeyPredicates(List<KeyPredicate> keyPredicates, ColumnParent column_parent, CFMetaData metadata)
+    {
+        Set<ByteBuffer> validatedKeys = Sets.newHashSet();
+        Set<SlicePredicate> validatedPredicates = Sets.newHashSet();
+        for (KeyPredicate keyPredicate : keyPredicates)
+        {
+            if (!validatedKeys.contains(keyPredicate.key))
+            {
+                ThriftValidation.validateKey(metadata, keyPredicate.key);
+                validatedKeys.add(keyPredicate.key);
+            }
+            if (!validatedPredicates.contains(keyPredicate.predicate))
+            {
+                ThriftValidation.validatePredicate(metadata, column_parent, keyPredicate.predicate);
+                validatedPredicates.add(keyPredicate.predicate);
+            }
+        }
     }
 
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)
@@ -2779,6 +2918,92 @@ public class CassandraServer implements Cassandra.Iface
         private UnfilteredRowIterator expectedToUnfilteredRowIterator()
         {
             return LegacyLayout.toUnfilteredRowIterator(metadata, key, LegacyLayout.LegacyDeletionInfo.live(), expected.iterator());
+        }
+    }
+
+    private enum SlicePredicateType {
+        NAMED_COLUMNS,
+        FORWARD_KEY_RANGE,
+        REVERSED_KEY_RANGE,
+    }
+
+    private static class ThriftifyColumnFamilyDetails
+    {
+        private final SlicePredicateType slicePredicateType;
+        private final int limitsPerPartitionCount;
+        private final long timestamp;
+
+        private ThriftifyColumnFamilyDetails(SlicePredicateType slicePredicateType, int limitsPerPartitionCount, long timestamp)
+        {
+            this.slicePredicateType = slicePredicateType;
+            this.limitsPerPartitionCount = limitsPerPartitionCount;
+            this.timestamp = timestamp;
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommand(SinglePartitionReadCommand readCommand) {
+            SlicePredicateType type;
+            ClusteringIndexFilter filter = readCommand.clusteringIndexFilter();
+            if (filter.kind() == ClusteringIndexFilter.Kind.NAMES)
+            {
+                type = SlicePredicateType.NAMED_COLUMNS;
+            }
+            else
+            {
+                type = filter.isReversed()
+                       ? SlicePredicateType.REVERSED_KEY_RANGE
+                       : SlicePredicateType.FORWARD_KEY_RANGE;
+            }
+
+            return new ThriftifyColumnFamilyDetails(type, readCommand.limits().perPartitionCount(), readCommand.nowInSec());
+        }
+
+        private static ThriftifyColumnFamilyDetails forReadCommands(Collection<SinglePartitionReadCommand> readCommands)
+        {
+            Preconditions.checkArgument(!readCommands.isEmpty(),
+                                        "Cannot identify thriftify details for zero commands");
+            Set<ThriftifyColumnFamilyDetails> detailsForCommands = Sets.newHashSet();
+            for (SinglePartitionReadCommand readCommand : readCommands)
+            {
+                detailsForCommands.add(forReadCommand(readCommand));
+            }
+
+            Preconditions.checkState(detailsForCommands.size() == 1,
+                                     "Multiple versions of thriftify details found: " + Arrays.toString(detailsForCommands.toArray()));
+            return detailsForCommands.iterator().next();
+        }
+
+        private boolean reversed() {
+            return slicePredicateType == SlicePredicateType.REVERSED_KEY_RANGE;
+        }
+
+        public boolean equals(Object o)
+        {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            ThriftifyColumnFamilyDetails that = (ThriftifyColumnFamilyDetails) o;
+
+            if (timestamp != that.timestamp) return false;
+            if (limitsPerPartitionCount != that.limitsPerPartitionCount) return false;
+            return slicePredicateType == that.slicePredicateType;
+        }
+
+        public int hashCode()
+        {
+            int result = slicePredicateType != null ? slicePredicateType.hashCode() : 0;
+            result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+            result = 31 * result + limitsPerPartitionCount ^ (limitsPerPartitionCount >>> 32);
+            return result;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ThriftifyColumnFamilyDetails{" +
+                   "slicePredicateType=" + slicePredicateType +
+                   ", limitsPerPartitionCount=" + limitsPerPartitionCount +
+                   ", timestamp=" + timestamp +
+                   '}';
         }
     }
 }
