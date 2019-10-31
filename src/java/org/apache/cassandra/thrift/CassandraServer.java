@@ -2944,11 +2944,15 @@ public class CassandraServer implements Cassandra.Iface
             SlicePredicateType type;
             ClusteringIndexFilter filter = readCommand.clusteringIndexFilter();
             if (filter.kind() == ClusteringIndexFilter.Kind.NAMES)
+            {
                 type = SlicePredicateType.NAMED_COLUMNS;
+            }
             else
+            {
                 type = filter.isReversed()
                        ? SlicePredicateType.REVERSED_KEY_RANGE
                        : SlicePredicateType.FORWARD_KEY_RANGE;
+            }
 
             return new ThriftifyColumnFamilyDetails(type, readCommand.limits().perPartitionCount(), readCommand.nowInSec());
         }
@@ -2964,7 +2968,7 @@ public class CassandraServer implements Cassandra.Iface
             }
 
             Preconditions.checkState(detailsForCommands.size() == 1,
-                                     "Multiple versions of thriftify details found: " + detailsForCommands);
+                                     "Multiple versions of thriftify details found: " + Arrays.toString(detailsForCommands.toArray()));
             return detailsForCommands.iterator().next();
         }
 
