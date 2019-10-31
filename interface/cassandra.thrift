@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0-pt0"
+const string VERSION = "20.1.0-pt2"
 
 
 #
@@ -116,7 +116,6 @@ struct ColumnOrSuperColumn {
     3: optional CounterColumn counter_column,
     4: optional CounterSuperColumn counter_super_column
 }
-
 
 #
 # Exceptions
@@ -306,6 +305,15 @@ struct SliceRange {
 struct SlicePredicate {
     1: optional list<binary> column_names,
     2: optional SliceRange   slice_range,
+}
+
+/**
+ * A pair of a row (key) and selection of columns, used in calls to multiget_multislice() specifying which rows should
+ * be queried and which columns within said rows.
+ */
+struct KeyPredicate {
+    1: optional binary key,
+    2: optional SlicePredicate predicate,
 }
 
 enum IndexOperator {
@@ -645,6 +653,22 @@ service Cassandra {
                                                        2:required ColumnParent column_parent, 
                                                        3:required SlicePredicate predicate, 
                                                        4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
+    Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
+    users may specify more than one <code>KeyPredicate</code> for each distinct key in the <code>request</code>.
+    Each list of <code>ColumnOrSuperColumn</code> present in the list associated with a specific key in the result
+    map corresponds to the result of a get_slice for one of the <code>KeyPredicate</code>s provided that matches
+    that key.
+    If there is more than one <code>KeyPredicate</code> associated with a specific key, we require that the types
+    of associated <code>SlicePredicate</code>s are of the same type (where type is defined as named columns,
+    slice range or reversed slice range).
+    We also do not make guarantees on the ordering of the lists for each key.
+  */
+  map<binary,list<list<ColumnOrSuperColumn>>> multiget_multislice(1:required list<KeyPredicate> request,
+                                                                  2:required ColumnParent column_parent,
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
