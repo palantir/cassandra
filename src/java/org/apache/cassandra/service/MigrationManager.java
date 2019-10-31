@@ -154,11 +154,24 @@ public class MigrationManager
                     logger.debug("epState vanished for {}, not submitting migration task", endpoint);
                     return;
                 }
+
+                if (!epSchemaVersion.equals(theirVersion))
+                {
+                    logger.debug("A subsequent change has been made to the other endpoint's schema version and " +
+                                 "so we should wait for the subsequently scheduled task instead of trying to do the " +
+                                 "work in this one. Endpoint: {}; Former schema version: {}; Current schema version: {}",
+                                 endpoint,
+                                 theirVersion,
+                                 epSchemaVersion);
+                    return;
+                }
+
                 if (Schema.instance.isSameVersion(epSchemaVersion))
                 {
                     logger.debug("Not submitting migration task for {} because our versions match ({})", endpoint, epSchemaVersion);
                     return;
                 }
+
                 logger.debug("submitting migration task for {}, schema version mismatch: local/real={}, local/compatible={}, remote={}",
                              endpoint,
                              Schema.schemaVersionToString(Schema.instance.getRealVersion()),
