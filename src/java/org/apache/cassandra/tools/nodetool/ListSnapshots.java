@@ -29,7 +29,7 @@ import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 import org.apache.cassandra.tools.nodetool.formatter.TableBuilder;
 
-@Command(name = "listsnapshots", description = "Lists all the snapshots along with the size on disk and true size.")
+@Command(name = "listsnapshots", description = "Lists all the snapshots along with the size on disk, true size and creation epoch time.")
 public class ListSnapshots extends NodeToolCmd
 {
     @Override
