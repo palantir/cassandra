@@ -19,13 +19,16 @@ package org.apache.cassandra.locator;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.utils.FBUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,12 +50,24 @@ public class SimpleSeedProvider implements SeedProvider
             throw new AssertionError(e);
         }
         String[] hosts = conf.seed_provider.parameters.get("seeds").split(",", -1);
-        List<InetAddress> seeds = new ArrayList<InetAddress>(hosts.length);
+        return getSeedsFromHosts(hosts, FBUtilities.getBroadcastAddress());
+    }
+    
+    private ImmutableList<InetAddress> getSeedsFromHosts(String[] hosts, InetAddress self)
+    {
+        ImmutableList.Builder<InetAddress> seedsBuilder = ImmutableList.builder();
+        boolean seenSelf = false;
         for (String host : hosts)
         {
             try
             {
-                seeds.add(InetAddress.getByName(host.trim()));
+                InetAddress seed = InetAddress.getByName(host.trim());
+                if (seed.equals(self))
+                {
+                    seenSelf = true;
+                    continue;
+                }
+                seedsBuilder.add(seed);
             }
             catch (UnknownHostException ex)
             {
@@ -60,6 +75,10 @@ public class SimpleSeedProvider implements SeedProvider
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
         }
-        return Collections.unmodifiableList(seeds);
+        if (seedsBuilder.build().isEmpty() && seenSelf)
+        {
+            seedsBuilder.add(self);
+        }
+        return seedsBuilder.build();
     }
 }
