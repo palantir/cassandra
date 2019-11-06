@@ -17,16 +17,12 @@
  */
 package org.apache.cassandra.db;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.OpenDataException;
-
-import org.apache.cassandra.dht.Range;
-import org.apache.cassandra.dht.Token;
 
 /**
  * The MBean interface for ColumnFamilyStore
@@ -48,15 +44,6 @@ public interface ColumnFamilyStoreMBean
      */
     public void forceMajorCompaction(boolean splitOutput) throws ExecutionException, InterruptedException;
 
-    /**
-     * Forces a major compaction of specified token ranges in this column family.
-     * <p>
-     * The token ranges will be interpreted as closed intervals to match the closed interval defined by the first and
-     * last keys of a sstable, even though the {@link Range} class is suppossed to be half-open by definition.
-     *
-     * @param tokenRanges The token ranges to be compacted, interpreted as closed intervals.
-     */
-    public void forceCompactionForTokenRange(Collection<Range<Token>> tokenRanges) throws ExecutionException, InterruptedException;
     /**
      * Gets the minimum number of sstables in queue before compaction kicks off
      */
