@@ -22,6 +22,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -59,7 +61,9 @@ public class CassandraVersion implements Comparable<CassandraVersion>
     public CassandraVersion(String version)
     {
         String stripped = SNAPSHOT.matcher(version).replaceFirst("");
-        Matcher matcher = pattern.matcher(stripped);
+        String cassandraVersion = Iterables.get(Splitter.on("-pt-").split(stripped), 0);
+
+        Matcher matcher = pattern.matcher(cassandraVersion);
         if (!matcher.matches())
             throw new IllegalArgumentException("Invalid version value: " + version);
 
