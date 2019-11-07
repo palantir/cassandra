@@ -52,6 +52,21 @@ public class CassandraVersionTest
     }
 
     @Test
+    public void testPalantirVersionsParse()
+    {
+        CassandraVersion version;
+
+        version = new CassandraVersion("2.2.14-pt-1.10.0");
+        assertTrue(version.major == 2 && version.minor == 2 && version.patch == 14);
+
+        version = new CassandraVersion("3.11.4-pt-2.0.0");
+        assertTrue(version.major == 3 && version.minor == 11 && version.patch == 4);
+
+        version = new CassandraVersion("3.11.4-pt-2.0.0-rc1");
+        assertTrue(version.major == 3 && version.minor == 11 && version.patch == 4);
+    }
+
+    @Test
     public void testComparison()
     {
         CassandraVersion v1, v2;
