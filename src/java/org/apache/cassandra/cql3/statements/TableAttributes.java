@@ -46,7 +46,11 @@ public final class TableAttributes extends PropertyDefinitions
             validBuilder.add(option.toString());
         validBuilder.add(KW_ID);
         validKeywords = validBuilder.build();
-        obsoleteKeywords = ImmutableSet.of();
+        // These keywords are no longer used, but still supported by the Thrift API
+        obsoleteKeywords = ImmutableSet.of(
+            "index_interval",
+            "replicate_on_write",
+            "populate_io_cache_on_flush");
     }
 
     public void validate()
