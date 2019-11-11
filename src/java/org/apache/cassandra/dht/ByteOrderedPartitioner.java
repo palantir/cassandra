@@ -167,7 +167,7 @@ public class ByteOrderedPartitioner implements IPartitioner
      * Convert a byte array containing the most significant of 'sigbytes' bytes
      * representing a big-endian magnitude into a BigInteger.
      */
-    private BigInteger bigForBytes(byte[] bytes, int sigbytes)
+    protected BigInteger bigForBytes(byte[] bytes, int sigbytes)
     {
         byte[] b;
         if (sigbytes != bytes.length)
@@ -184,7 +184,7 @@ public class ByteOrderedPartitioner implements IPartitioner
      * If remainder is true, an additional byte with the high order bit enabled
      * will be added to the end of the array
      */
-    private byte[] bytesForBig(BigInteger big, int sigbytes, boolean remainder)
+    protected byte[] bytesForBig(BigInteger big, int sigbytes, boolean remainder)
     {
         byte[] bytes = new byte[sigbytes + (remainder ? 1 : 0)];
         if (remainder)
