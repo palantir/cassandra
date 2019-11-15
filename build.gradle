@@ -21,6 +21,7 @@ buildscript {
     }
 
     dependencies {
+        classpath 'com.palantir.gradle.docker:gradle-docker:0.22.1'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
         classpath 'com.netflix.nebula:nebula-publishing-plugin:9.5.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.2'
@@ -62,6 +63,22 @@ task distTar (type: Tar) {
     version project.version
     extension 'tgz'
     compression = Compression.GZIP
+}
+
+apply plugin: 'com.palantir.docker'
+docker {
+    name "palantirtechnologies/${rootProject.name}:${project.version}"
+    dockerfile file("${project.rootDir}/docker/Dockerfile")
+    tags 'latest', 'snapshot'
+    files distTar.outputs,
+            file("${project.rootDir}/docker/cassandra.yaml"),
+            file("${project.rootDir}/docker/entrypoint.sh"),
+            file("${project.rootDir}/conf/cassandra-env.sh")
+
+}
+publish.dependsOn dockerPush
+dockerPush.onlyIf {
+    versionDetails().isCleanTag
 }
 
 publishing {
