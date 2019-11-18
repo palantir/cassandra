@@ -21,7 +21,6 @@ COPY cassandra.yaml $CASSANDRA_YAML
 COPY cassandra-env.sh $CASSANDRA_ENV
 
 # Entry set up
-ENV CASSANDRA_COMMAND cassandra
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN ["chmod", "+x", "/docker-entrypoint.sh"]
 
