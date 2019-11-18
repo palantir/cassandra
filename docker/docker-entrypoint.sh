@@ -7,11 +7,11 @@ set -e
 # first arg is `-f` or `--some-option`
 # or there are no args
 if [ "$#" -eq 0 ] || [ "${1#-}" != "$1" ]; then
-	set -- cassandra -f "$@"
+	set -- $CASSANDRA_COMMAND -f "$@"
 fi
 
 # allow the container to be started with `--user`
-if [ "$1" = 'cassandra' -a "$(id -u)" = '0' ]; then
+if [ "$1" = $CASSANDRA_COMMAND -a "$(id -u)" = '0' ]; then
 	find /var/lib/cassandra /var/log/cassandra "$CASSANDRA_CONFIG" \
 		\! -user cassandra -exec chown cassandra '{}' +
 	exec gosu cassandra "$BASH_SOURCE" "$@"
@@ -39,7 +39,7 @@ _sed-in-place() {
 	rm "$tempFile"
 }
 
-if [ "$1" = 'cassandra' ]; then
+if [ "$1" = $CASSANDRA_COMMAND ]; then
 	: ${CASSANDRA_RPC_ADDRESS='0.0.0.0'}
 
 	: ${CASSANDRA_LISTEN_ADDRESS='auto'}
