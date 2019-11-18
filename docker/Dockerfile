@@ -7,9 +7,10 @@ ENV CASSANDRA_ENV $CASSANDRA_CONFIG/cassandra-env.sh
 
 COPY cassandra.yaml $CASSANDRA_YAML
 COPY cassandra-env.sh $CASSANDRA_ENV
+
 COPY entrypoint.sh /entrypoint.sh
+RUN ["chmod", "+x", "/entrypoint.sh"]
 
 EXPOSE 7000 7001 7199 9042 9160
-
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["cassandra", "-f"]
