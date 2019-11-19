@@ -20,6 +20,8 @@ ENV CASSANDRA_ENV $CASSANDRA_CONFIG/cassandra-env.sh
 COPY cassandra.yaml $CASSANDRA_YAML
 COPY cassandra-env.sh $CASSANDRA_ENV
 
+ENV _JAVA_OPTIONS=-Dcassandra.skip_wait_for_gossip_to_settle=0
+
 # Entry set up
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN ["chmod", "+x", "/docker-entrypoint.sh"]
