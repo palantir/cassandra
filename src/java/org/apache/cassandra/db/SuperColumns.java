@@ -213,7 +213,7 @@ public class SuperColumns
             Composite finish = filter.finish().isEmpty()
                              ? Composites.EMPTY
                              : builder.buildWith(filter.finish().toByteBuffer()).withEOC(filter.reversed ? Composite.EOC.START : Composite.EOC.END);
-            return new SliceQueryFilter(start, finish, filter.reversed, filter.count, 1);
+            return new SliceQueryFilter(start, finish, filter.reversed, filter.count(), 1);
         }
         else
         {
@@ -224,7 +224,7 @@ public class SuperColumns
             Composite end = filter.finish().isEmpty()
                           ? builder.build().withEOC(filter.reversed ? Composite.EOC.START : Composite.EOC.END)
                           : builder.buildWith(filter.finish().toByteBuffer());
-            return new SliceQueryFilter(start, end, filter.reversed, filter.count);
+            return new SliceQueryFilter(start, end, filter.reversed, filter.count());
         }
     }
 }

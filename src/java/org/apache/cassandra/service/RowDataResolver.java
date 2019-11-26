@@ -38,6 +38,7 @@ import org.apache.cassandra.utils.FBUtilities;
 public class RowDataResolver extends AbstractRowResolver
 {
     private int maxLiveCount = 0;
+    private int maxLiveBytes = 0;
     public List<AsyncOneResponse> repairResults = Collections.emptyList();
     private final IDiskAtomFilter filter;
     private final long timestamp;
@@ -81,6 +82,9 @@ public class RowDataResolver extends AbstractRowResolver
                 int liveCount = cf == null ? 0 : filter.getLiveCount(cf, timestamp);
                 if (liveCount > maxLiveCount)
                     maxLiveCount = liveCount;
+                int liveBytes = cf == null ? 0 : filter.getLiveBytes(cf, timestamp);
+                if (liveBytes > maxLiveBytes)
+                    maxLiveBytes = liveBytes;
             }
 
             resolved = resolveSuperset(versions, timestamp);
@@ -171,6 +175,11 @@ public class RowDataResolver extends AbstractRowResolver
     }
 
     public int getMaxLiveCount()
+    {
+        return maxLiveCount;
+    }
+
+    public int getMaxLiveBytes()
     {
         return maxLiveCount;
     }

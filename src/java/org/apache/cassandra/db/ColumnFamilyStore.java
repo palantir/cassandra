@@ -1902,7 +1902,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // If the filter count is less than the number of rows cached, we simply extend it to make sure we do cover the
                 // number of rows to cache, and if that count is greater than the number of rows to cache, we simply filter what
                 // needs to be cached afterwards.
-                if (sliceFilter.count < rowsToCache)
+                if (sliceFilter.count() < rowsToCache)
                 {
                     toCache = getTopLevelColumns(cacheFilter, Integer.MIN_VALUE);
                     if (toCache != null)
@@ -1922,7 +1922,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                         if (sliceFilter.finish().isEmpty() || sliceFilter.lastCounted() >= rowsToCache)
                         {
                             toCache = filterColumnFamily(data, cacheFilter);
-                            Tracing.trace("Caching {} rows (out of {} requested)", cacheSlice.lastCounted(), sliceFilter.count);
+                            Tracing.trace("Caching {} rows (out of {} requested)", cacheSlice.lastCounted(), sliceFilter.count());
                         }
                         else
                         {
@@ -2409,7 +2409,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             assert sfilter.slices.length == 1;
             // create a new SliceQueryFilter that selects all cells, but pass the original slice start and finish
             // through to DataRange.Paging to be used on the first and last partitions
-            SliceQueryFilter newFilter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, sfilter.isReversed(), sfilter.count);
+            SliceQueryFilter newFilter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, sfilter.isReversed(), sfilter.count());
             dataRange = new DataRange.Paging(range, newFilter, sfilter.start(), sfilter.finish(), metadata);
         }
         else

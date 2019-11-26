@@ -139,6 +139,17 @@ public class NamesQueryFilter implements IDiskAtomFilter
         return count;
     }
 
+    public int getLiveBytes(ColumnFamily cf, long now)
+    {
+        int count = 0;
+        for (Cell cell : cf) {
+            if (cell.isLive(now)) {
+                count = Math.addExact(count, cell.cellDataSize());
+            }
+        }
+        return count;
+    }
+
     public boolean maySelectPrefix(CType type, Composite prefix)
     {
         for (CellName column : columns)

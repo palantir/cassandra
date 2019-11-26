@@ -186,7 +186,7 @@ public class PagedRangeCommand extends AbstractRangeCommand
             int limit = in.readInt();
             boolean countCQL3Rows = version >= MessagingService.VERSION_21
                                   ? in.readBoolean()
-                                  : predicate.compositesToGroup >= 0 || predicate.count != 1; // See #6857
+                                  : predicate.compositesToGroup >= 0 || predicate.count() != 1; // See #6857
             return new PagedRangeCommand(keyspace, columnFamily, timestamp, keyRange, predicate, start, stop, rowFilter, limit, countCQL3Rows);
         }
 

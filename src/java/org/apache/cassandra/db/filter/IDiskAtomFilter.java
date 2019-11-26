@@ -77,6 +77,7 @@ public interface IDiskAtomFilter
     public void updateColumnsLimit(int newLimit);
 
     public int getLiveCount(ColumnFamily cf, long now);
+    public int getLiveBytes(ColumnFamily cf, long now);
     public ColumnCounter columnCounter(CellNameType comparator, long now);
 
     public IDiskAtomFilter cloneShallow();

@@ -74,7 +74,7 @@ public class RangeSliceQueryPager extends AbstractQueryPager
     throws RequestExecutionException
     {
         SliceQueryFilter rawFilter = (SliceQueryFilter)columnFilter;
-        SliceQueryFilter sf = rawFilter.withUpdatedCount(Math.min(rawFilter.count, pageSize));
+        SliceQueryFilter sf = rawFilter.withUpdatedCount(Math.min(rawFilter.count(), pageSize));
         AbstractBounds<RowPosition> keyRange = lastReturnedKey == null ? command.keyRange : makeIncludingKeyBounds(lastReturnedKey);
         // For DISTINCT queries we can and must ignore the lastReturnedName (see CASSANDRA-13017)
         Composite start = lastReturnedName == null || isDistinct() ? sf.start() : lastReturnedName;

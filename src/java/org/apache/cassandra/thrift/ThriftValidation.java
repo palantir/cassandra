@@ -267,9 +267,6 @@ public class ThriftValidation
 
     public static void validateRange(CFMetaData metadata, ColumnParent column_parent, SliceRange range) throws org.apache.cassandra.exceptions.InvalidRequestException
     {
-        if (range.count < 0)
-            throw new org.apache.cassandra.exceptions.InvalidRequestException("get_slice requires non-negative count");
-
         int maxNameLength = Cell.MAX_NAME_LENGTH;
         if (range.start.remaining() > maxNameLength)
             throw new org.apache.cassandra.exceptions.InvalidRequestException("range start length cannot be larger than " + maxNameLength);
