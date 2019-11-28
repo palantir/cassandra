@@ -140,7 +140,8 @@ public class NodeTool
                 GetLoggingLevels.class,
                 FailureDetectorInfo.class,
                 RefreshSizeEstimates.class,
-                ForceTerminateRepairSessions.class
+                ForceTerminateRepairSessions.class,
+                DynamicEndpointSnitchStats.class
         );
 
         Cli.CliBuilder<Runnable> builder = Cli.builder("nodetool");
