@@ -52,7 +52,7 @@ public class DynamicEndpointSnitchStats extends NodeToolCmd
             Map<InetAddress, Double> snitchScores = dynamicSnitchProxy.getScores();
             for (InetAddress address : snitchScores.keySet())
             {
-                System.out.println(format("\t\t%s: %s%n", address.getCanonicalHostName(), snitchScores.get(address)));
+                System.out.println(format("\t%s: %s", address.getCanonicalHostName(), snitchScores.get(address)));
             }
         } catch (RuntimeException e) {
             if ((e.getCause() instanceof InstanceNotFoundException)) {
