@@ -24,31 +24,41 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 
+import javax.management.InstanceNotFoundException;
+
 import org.apache.cassandra.locator.DynamicEndpointSnitch;
 import org.apache.cassandra.locator.DynamicEndpointSnitchMBean;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
-@Command(name = "dynamicendpointsnitchstats", description = "Print the name, snitch, partitioner and schema version of a cluster")
+@Command(name = "dynamicendpointsnitchstats", description = "Print the dynamic snitch configurations of a cluster and the current scores of all nodes")
 public class DynamicEndpointSnitchStats extends NodeToolCmd
 {
     @Override
     public void execute(NodeProbe probe)
     {
-        DynamicEndpointSnitchMBean dynamicSnitchProxy = probe.getDynamicEndpointSnitchProxy();
-        // display snitch configuration
-        System.out.println("Dynamic Endpoint Snitch Configuration:");
-        System.out.println("\tUpdate Interval: " + dynamicSnitchProxy.getUpdateInterval());
-        System.out.println("\tReset Interval: " + dynamicSnitchProxy.getResetInterval());
-        System.out.println("\tBadness Threshold: " + dynamicSnitchProxy.getBadnessThreshold());
-        System.out.println("\tSubsnitch: " + dynamicSnitchProxy.getSubsnitchClassName());
-        System.out.println("\tSeverity: " + dynamicSnitchProxy.getSeverity());
-        // display snitch scores for each node
-        System.out.println("Dynamic Endpoint Snitch Scores:");
-        Map<InetAddress, Double> snitchScores = dynamicSnitchProxy.getScores();
-        for (InetAddress address : snitchScores.keySet())
+        try
         {
-            System.out.println(format("\t\t%s: %s%n", address.getCanonicalHostName(), snitchScores.get(address)));
+            DynamicEndpointSnitchMBean dynamicSnitchProxy = probe.getDynamicEndpointSnitchProxy();
+            // display snitch configuration
+            System.out.println("Dynamic Endpoint Snitch Configuration:");
+            System.out.println("\tUpdate Interval (ms): " + dynamicSnitchProxy.getUpdateInterval());
+            System.out.println("\tReset Interval (ms): " + dynamicSnitchProxy.getResetInterval());
+            System.out.println("\tBadness Threshold: " + dynamicSnitchProxy.getBadnessThreshold());
+            System.out.println("\tSubsnitch: " + dynamicSnitchProxy.getSubsnitchClassName());
+            System.out.println("\tSeverity: " + dynamicSnitchProxy.getSeverity());
+            // display snitch scores for each node
+            System.out.println("Dynamic Endpoint Snitch Scores:");
+            Map<InetAddress, Double> snitchScores = dynamicSnitchProxy.getScores();
+            for (InetAddress address : snitchScores.keySet())
+            {
+                System.out.println(format("\t\t%s: %s%n", address.getCanonicalHostName(), snitchScores.get(address)));
+            }
+        } catch (RuntimeException e) {
+            if ((e.getCause() instanceof InstanceNotFoundException)) {
+                System.out.println("Error getting DynamicEndpointSnitch proxy--Dynamic snitch may not be enabled on this cluster.");
+            }
         }
+
     }
 }
