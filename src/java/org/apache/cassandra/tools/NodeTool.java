@@ -153,7 +153,8 @@ public class NodeTool
                 GetLoggingLevels.class,
                 FailureDetectorInfo.class,
                 RefreshSizeEstimates.class,
-                ForceTerminateRepairSessions.class
+                ForceTerminateRepairSessions.class,
+                DynamicEndpointSnitchStats.class
         );
 
         Cli.CliBuilder<Consumer<INodeProbeFactory>> builder = Cli.builder("nodetool");

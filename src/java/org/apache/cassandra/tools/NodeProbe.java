@@ -63,6 +63,7 @@ import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.gms.FailureDetectorMBean;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.GossiperMBean;
+import org.apache.cassandra.locator.DynamicEndpointSnitchMBean;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics.Sampler;
@@ -723,6 +724,18 @@ public class NodeProbe implements AutoCloseable
         catch (IOException e)
         {
             throw new RuntimeException("Error while executing truncate", e);
+        }
+    }
+
+    public DynamicEndpointSnitchMBean getDynamicEndpointSnitchProxy()
+    {
+        try
+        {
+            return JMX.newMBeanProxy(mbeanServerConn, new ObjectName("org.apache.cassandra.db:type=DynamicEndpointSnitch"), DynamicEndpointSnitchMBean.class);
+        }
+        catch (MalformedObjectNameException e)
+        {
+            throw new RuntimeException(e);
         }
     }
 
