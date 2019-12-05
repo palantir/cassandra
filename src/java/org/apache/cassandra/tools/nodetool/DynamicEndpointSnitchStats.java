@@ -22,11 +22,15 @@ import io.airlift.command.Command;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import javax.management.InstanceNotFoundException;
+
+import com.google.common.collect.Lists;
 
 import io.airlift.command.Option;
 import org.apache.cassandra.locator.DynamicEndpointSnitch;
@@ -84,9 +88,18 @@ public class DynamicEndpointSnitchStats extends NodeToolCmd
             System.out.println(format("\t%s:", address.getCanonicalHostName()));
             try {
                 List<Double> scores = dynamicEndpointSnitch.dumpTimings(address.getHostName());
-                int limit = numTimings == 0 ? scores.size() : numTimings;
-                for (int i = 0; i < limit; i++) {
-                    System.out.println(String.format("\t\t%f", scores.get(i)));
+                Map<Double, Integer> scoresToCounts = new HashMap<>();
+                for (Double score : scores) {
+                    if (!scoresToCounts.containsKey(score)) {
+                        scoresToCounts.put(score, 0);
+                    }
+                    int prevCount = scoresToCounts.get(score);
+                    scoresToCounts.put(score, prevCount + 1);
+                }
+                List<Double> sortedScores = Lists.newArrayList(scoresToCounts.keySet());
+                Collections.sort(sortedScores);
+                for (Double score : sortedScores) {
+                    System.out.println(String.format("\t\t%f ms (%d occurrences)", score, scoresToCounts.get(score)));
                 }
             } catch (UnknownHostException e) {
                 System.out.println(String.format("Error getting timings for %s", address.getCanonicalHostName()));
