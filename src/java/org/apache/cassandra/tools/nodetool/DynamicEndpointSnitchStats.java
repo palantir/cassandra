@@ -45,9 +45,6 @@ public class DynamicEndpointSnitchStats extends NodeToolCmd
     @Option(title = "timings", name = { "-t", "--timings"}, description = "Use -t to additionally get a dump of timings for each node")
     private boolean timings = false;
 
-    @Option(title = "num_timings", name = { "-nt", "--num_timings"}, description = "Use -nt to specify the number of timing samples from each node. Use 0 to see all samples")
-    private int numTimings = 100;
-
     @Override
     public void execute(NodeProbe probe)
     {
