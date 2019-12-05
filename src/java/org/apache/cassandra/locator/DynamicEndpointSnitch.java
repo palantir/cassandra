@@ -24,10 +24,14 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
@@ -254,6 +258,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         {
             double mean = entry.getValue().getSnapshot().getMedian();
             if (mean > maxLatency)
+
                 maxLatency = mean;
         }
         // now make another pass to do the weighting based on the maximums we found before
