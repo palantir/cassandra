@@ -50,6 +50,8 @@ public abstract class AbstractCompactionStrategy
 {
     private static final Logger logger = LoggerFactory.getLogger(AbstractCompactionStrategy.class);
 
+    private static final boolean COMPACT_SMALL_TABLES = Boolean.getBoolean("palantir_cassandra.compact_small_tables");
+
     protected static final float DEFAULT_TOMBSTONE_THRESHOLD = 0.2f;
     // minimum interval needed to perform tombstone removal compaction in seconds, default 86400 or 1 day.
     protected static final long DEFAULT_TOMBSTONE_COMPACTION_INTERVAL = 86400;
@@ -403,6 +405,10 @@ public abstract class AbstractCompactionStrategy
             // what percentage of columns do we expect to compact outside of overlap?
             if (sstable.getIndexSummarySize() < 2)
             {
+                if (COMPACT_SMALL_TABLES) {
+                    return true;
+                }
+
                 // we have too few samples to estimate correct percentage
                 logger.debug("Ignoring sstable due to index summary being too small: {}",
                              sstable.descriptor.filenameFor(Component.DATA));
