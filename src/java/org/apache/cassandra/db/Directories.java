@@ -92,7 +92,7 @@ public class Directories
     // If conservative compaction is enabled, add a buffer of CONSERVATIVE_COMPACTION_BUFFER_SPACE to the
     // minimum required available space to perform a set of compactions
     private static final boolean CONSERVATIVE_COMPACTION = Boolean.getBoolean("palantir_cassandra.conservative_compaction");
-    private static final long CONSERVATIVE_COMPACTION_BUFFER_SPACE = 10 * FileUtils.ONE_GB;
+    private static final long CONSERVATIVE_COMPACTION_BUFFER_SPACE = CONSERVATIVE_COMPACTION ? 10 * FileUtils.ONE_GB : 0;
 
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
@@ -407,8 +407,7 @@ public class Directories
             totalAvailable += candidate.availableSpace;
         }
 
-        long availableSpaceBuffer = CONSERVATIVE_COMPACTION ? CONSERVATIVE_COMPACTION_BUFFER_SPACE : 0;
-        return (totalAvailable - availableSpaceBuffer) > expectedTotalWriteSize;
+        return (totalAvailable - CONSERVATIVE_COMPACTION_BUFFER_SPACE) > expectedTotalWriteSize;
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
