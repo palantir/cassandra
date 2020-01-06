@@ -1749,6 +1749,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             if (epState == null || Gossiper.instance.isDeadState(epState))
             {
                 logger.debug("Ignoring state change for dead or unknown endpoint: {}", endpoint);
+
+                if (getTokenMetadata().isMember(endpoint))
+                {
+                    logger.debug("Removing dead or unknown endpoint from token metadata: {}", endpoint);
+                    getTokenMetadata().removeEndpoint(endpoint);
+                }
                 return;
             }
 
