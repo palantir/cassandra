@@ -605,6 +605,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     Gossiper.instance.addSavedEndpoint(ep);
                 }
             }
+
+            // In rare scenarios, Cassandra may have an out-of-date entry in the peers table.
+            tokenMetadata.removeDuplicateSeedsFromTokenMetadata();
         }
 
         // daemon threads, like our executors', continue to run while shutdown hooks are invoked

@@ -1243,6 +1243,34 @@ public class TokenMetadata
         cachedTokenMap.set(null);
     }
 
+    public void removeDuplicateSeedsFromTokenMetadata() {
+        Map<UUID, Set<InetAddress>> hostIdToEndpointsMap = inverseWithDuplicates(endpointToHostIdMap);
+
+        for (UUID hostId : hostIdToEndpointsMap.keySet()) {
+            Set<InetAddress> endpoints = hostIdToEndpointsMap.get(hostId);
+            if (endpoints.size() > 1) {
+                // There are multiple endpoints associated with the same token range! This feels wrong.
+                logger.warn(String.format("Found multiple endpoints (%s) for a single host id (%s)",
+                                Arrays.toString(endpoints.toArray()),
+                                hostId));
+            }
+        }
+    }
+
+    private static Map<UUID, Set<InetAddress>> inverseWithDuplicates(BiMap<InetAddress, UUID> bimap) {
+        Map<UUID, Set<InetAddress>> inverseWithDuplicates = new HashMap<>(bimap.values().size());
+        for (InetAddress endpoint : bimap.keySet())
+        {
+            UUID uuid = bimap.get(endpoint);
+            if (!inverseWithDuplicates.containsKey(uuid))
+            {
+                inverseWithDuplicates.put(uuid, new HashSet<InetAddress>());
+            }
+            inverseWithDuplicates.get(uuid).add(endpoint);
+        }
+        return inverseWithDuplicates;
+    }
+
     /**
      * Tracks the assignment of racks and endpoints in each datacenter for all the "normal" endpoints
      * in this TokenMetadata. This allows faster calculation of endpoints in NetworkTopologyStrategy.
