@@ -1,4 +1,4 @@
-FROM cassandra:3.11
+FROM cassandra:2.2
 
 ENV _JAVA_OPTIONS=-Dcassandra.skip_wait_for_gossip_to_settle=0
 ENV CASSANDRA_CONFIG /etc/cassandra

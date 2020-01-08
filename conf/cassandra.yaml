@@ -161,7 +161,7 @@ disk_failure_policy: stop
 # stop_commit: shutdown the commit log, letting writes collect but
 #              continuing to service reads, as in pre-2.0.5 Cassandra
 # ignore: ignore fatal errors and let the batches fail
-commit_failure_policy: stop
+commit_failure_policy: stop_on_startup
 
 # Maximum size of the key cache in memory.
 #
