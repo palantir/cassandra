@@ -2294,12 +2294,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void removeEndpoint(InetAddress endpoint)
     {
         logger.info("LEON: Calling removeEndpoint on address {}", endpoint);
+        Gossiper.instance.removeEndpoint(endpoint);
+        logger.info("LEON: Removed from gossip.  Removing from System Keyspace.");
         if (Boolean.getBoolean("palantir_cassandra.crash_on_removeendpoint"))
         {
             logger.info("LEON: CRASHING before calling removeEndpoint on address {}", endpoint);
             System.exit(1);
         }
-        Gossiper.instance.removeEndpoint(endpoint);
         SystemKeyspace.removeEndpoint(endpoint);
     }
 
