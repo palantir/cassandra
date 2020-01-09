@@ -592,6 +592,7 @@ public final class SystemKeyspace
      */
     public static synchronized void removeEndpoint(InetAddress ep)
     {
+        logger.info("Deleting endpoint from peers table {}", ep);
         String req = "DELETE FROM system.%s WHERE peer = ?";
         executeInternal(String.format(req, PEERS), ep);
     }
