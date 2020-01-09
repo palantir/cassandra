@@ -20,8 +20,6 @@ package org.apache.cassandra.db.compaction;
 
 public class CompactionException extends Exception
 {
-    private static final long serialVersionUID = 4479771101308926462L;
-
     private static final String messageTemplate = "Exception on compaction task: %s, %s";
 
     public CompactionException(String taskId, String filenames, Exception wrapped)
