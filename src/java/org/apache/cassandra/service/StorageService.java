@@ -2292,6 +2292,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /** unlike excise we just need this endpoint gone without going through any notifications **/
     private void removeEndpoint(InetAddress endpoint)
     {
+        if (Boolean.getBoolean("palantir_cassandra.crash_on_removeendpoint"))
+        {
+            logger.info("LEON: CRASHING before calling removeEndpoint on address {}", endpoint);
+            System.exit(1);
+        }
         Gossiper.instance.removeEndpoint(endpoint);
         SystemKeyspace.removeEndpoint(endpoint);
     }
