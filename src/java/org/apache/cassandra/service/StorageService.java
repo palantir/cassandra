@@ -2124,6 +2124,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         boolean isMember = tokenMetadata.isMember(endpoint);
         boolean isMoving = tokenMetadata.isMoving(endpoint);
         tokenMetadata.updateNormalTokens(tokensToUpdateInMetadata, endpoint);
+        logger.info("LEON: We have endpoints to remove {}", endpointsToRemove);
         for (InetAddress ep : endpointsToRemove)
         {
             removeEndpoint(ep);
@@ -2292,6 +2293,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /** unlike excise we just need this endpoint gone without going through any notifications **/
     private void removeEndpoint(InetAddress endpoint)
     {
+        logger.info("LEON: Calling removeEndpoint on address {}", endpoint);
         if (Boolean.getBoolean("palantir_cassandra.crash_on_removeendpoint"))
         {
             logger.info("LEON: CRASHING before calling removeEndpoint on address {}", endpoint);
