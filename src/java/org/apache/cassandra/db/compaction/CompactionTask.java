@@ -196,6 +196,8 @@ public class CompactionTask extends AbstractCompactionTask
 
                         // don't replace old sstables yet, as we need to mark the compaction finished in the system table
                         newSStables = writer.finish();
+                    } catch (Exception e) {
+                        throw new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
                     }
                     finally
                     {
