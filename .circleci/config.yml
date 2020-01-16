@@ -64,7 +64,10 @@ jobs:
     environment:
       GRADLE_OPTS: -Dorg.gradle.console=plain -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
     steps:
+      - checkout
+      - setup_remote_docker
       - attach_workspace: { at: /home/circleci }
+      - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
       - run: ./gradlew --no-daemon --parallel --stacktrace --continue publish
 
 workflows:
