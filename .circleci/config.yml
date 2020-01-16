@@ -21,7 +21,7 @@ jobs:
     steps:
       - checkout
         #- restore_cache: { key: 'maven-ant-build-v2-{{ checksum "build.xml" }}' }
-      - run: ant clean && ant maven-ant-tasks-retrieve-build
+      - run: ant && ant -version && ant -debug build build-test
         #- save_cache:
         #   key: 'maven-ant-build-v2-{{ checksum "build.xml" }}'
         #   paths: [ build ]
