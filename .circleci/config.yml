@@ -16,7 +16,7 @@ version: 2
 jobs:
 
   build:
-    docker: [{ image: 'circleci/openjdk:8u171-node' }]
+    docker: [{ image: 'circleci/openjdk:8u222-node' }]
     resource_class: large
     steps:
       - checkout
