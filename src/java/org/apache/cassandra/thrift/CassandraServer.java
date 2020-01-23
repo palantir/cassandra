@@ -283,6 +283,7 @@ public class CassandraServer implements Cassandra.Iface
                     columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
                 }
             }
+            logger.trace(String.format("Get slice: %s", columnFamiliesMap));
             return columnFamiliesMap;
         }
     }
@@ -310,6 +311,8 @@ public class CassandraServer implements Cassandra.Iface
                     columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
                 }
             }
+
+            logger.trace(String.format("Get slices: %s", Multimaps.asMap(columnFamiliesMap)));
             return Multimaps.asMap(columnFamiliesMap);
         }
     }
@@ -627,6 +630,9 @@ public class CassandraServer implements Cassandra.Iface
                                                                              long queryStartNanoTime)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
+        logger.trace(String.format("Multiget_slice: [keyspace: %s, table: %s, keys: %s, slice_predicate: %s]",
+                                   keyspace, column_parent.column_family, keys, predicate));
+
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
         ThriftValidation.validateColumnParent(metadata, column_parent);
         ThriftValidation.validatePredicate(metadata, column_parent, predicate);
@@ -658,6 +664,9 @@ public class CassandraServer implements Cassandra.Iface
                                                                                         long queryStartNanoTime)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
+        logger.trace(String.format("Multiget_multislice: [keyspace: %s, table: %s, keyPredicates: %s]",
+                                   keyspace, column_parent.column_family, keyPredicates));
+
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
         ThriftValidation.validateColumnParent(metadata, column_parent);
 
