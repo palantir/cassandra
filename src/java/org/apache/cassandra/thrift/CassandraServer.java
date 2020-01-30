@@ -96,6 +96,7 @@ public class CassandraServer implements Cassandra.Iface
             schedule(DatabaseDescriptor.getReadRpcTimeout());
             try
             {
+
                 return StorageProxy.read(new SinglePartitionReadCommand.Group(commands, DataLimits.NONE), consistency_level, cState, queryStartNanoTime);
             }
             finally
@@ -291,6 +292,7 @@ public class CassandraServer implements Cassandra.Iface
     private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<SinglePartitionReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long queryStartNanoTime)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
+
         Multimap<DecoratedKey, SinglePartitionReadCommand> commandsByKey = partitionCommandsByKey(commands);
         Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
         for (Map.Entry<DecoratedKey, Collection<SinglePartitionReadCommand>> entry : commandsByKey.asMap().entrySet())
@@ -298,6 +300,10 @@ public class CassandraServer implements Cassandra.Iface
             ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(entry.getValue());
             detailsByKey.put(entry.getKey(), details);
         }
+
+        logger.trace("[timestamp: %s] read commands: %s", queryStartNanoTime, commands);
+        logger.trace("[timestamp: %s] sub columns only: %s", queryStartNanoTime, subColumnsOnly);
+        logger.trace("[timestamp: %s] Details by key: %s", queryStartNanoTime, detailsByKey);
 
         try (PartitionIterator results = read(commands, consistency_level, cState, queryStartNanoTime))
         {
@@ -307,7 +313,11 @@ public class CassandraServer implements Cassandra.Iface
                 try (RowIterator iter = results.next())
                 {
                     ThriftifyColumnFamilyDetails details = detailsByKey.get(iter.partitionKey());
+                    logger.trace("[timestamp: %s] partition key: %s", queryStartNanoTime, iter.partitionKey());
+                    logger.trace("[timestamp: %s] details: %s", queryStartNanoTime, details);
+
                     List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, details.reversed(), details.limitsPerPartitionCount);
+                    logger.trace("[timestamp: %s] thriftifiedColumns: %s", queryStartNanoTime, thriftifiedColumns);
                     columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
                 }
             }
@@ -673,14 +683,15 @@ public class CassandraServer implements Cassandra.Iface
         org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
         consistencyLevel.validateForRead(keyspace);
 
-        List<SinglePartitionReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyPredicates, column_parent, nowInSec, metadata);
+        List<SinglePartitionReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyPredicates, column_parent, nowInSec, metadata, queryStartNanoTime);
         return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState, queryStartNanoTime);
     }
 
     private List<SinglePartitionReadCommand> validateKeyPredicatesAndCreateCommands(List<KeyPredicate> keyPredicates,
                                                                                     ColumnParent column_parent,
                                                                                     int nowInSec,
-                                                                                    CFMetaData metadata)
+                                                                                    CFMetaData metadata,
+                                                                                    long queryStartNanoTime)
     {
         List<SinglePartitionReadCommand> commands = new ArrayList<>(keyPredicates.size());
         validateKeyPredicates(keyPredicates, column_parent, metadata);
@@ -700,6 +711,11 @@ public class CassandraServer implements Cassandra.Iface
 
             DecoratedKey dk = metadata.decorateKey(key);
             commands.add(SinglePartitionReadCommand.create(true, metadata, nowInSec, columnFilterToUse, RowFilter.NONE, limits, dk, filterToUse));
+
+            logger.trace("[timestamp: %s] key predicate: %s", queryStartNanoTime, keyPredicate);
+            logger.trace("[timestamp: %s] column filter to use: %s", queryStartNanoTime, columnFilterToUse);
+            logger.trace("[timestamp: %s] clustering filter to use: %s", queryStartNanoTime, filterToUse);
+            logger.trace("[timestamp: %s] data limits: %s", queryStartNanoTime, limits);
         }
 
         return commands;
