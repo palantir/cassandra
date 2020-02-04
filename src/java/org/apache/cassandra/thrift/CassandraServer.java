@@ -285,9 +285,12 @@ public class CassandraServer implements Cassandra.Iface
         return columnFamiliesMap;
     }
 
-    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
+    private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> getSlices(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState, long timestamp)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
+        if (commands.get(0).cfName.contains("schema_lease_version_store")) {
+            logger.trace("[timestamp: {}] Calling getSlices with commands: {}", timestamp, commands);
+        }
         Multimap<DecoratedKey, ReadCommand> commandsByKey = partitionCommandsByKey(commands);
         Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
         for (Map.Entry<DecoratedKey, Collection<ReadCommand>> entry : commandsByKey.asMap().entrySet()) {
@@ -296,13 +299,30 @@ public class CassandraServer implements Cassandra.Iface
         }
 
         Multimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
+        if (commands.get(0).cfName.contains("schema_lease_version_store")) {
+            logger.trace("[timestamp: {}] Called readColumnFamilies: {}", timestamp, columnFamilies);
+        }
+
         ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
         for (Map.Entry<DecoratedKey, ColumnFamily> entry : columnFamilies.entries())
         {
             ThriftifyColumnFamilyDetails details = detailsByKey.get(entry.getKey());
+            if (commands.get(0).cfName.contains("schema_lease_version_store")) {
+                logger.trace("[timestamp: {}] Got thriftify details: [key: {}, details: {}]", timestamp, entry.getKey(), details);
+            }
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(
                     entry.getValue(), subColumnsOnly, details.reversed(), details.timestamp);
+
+            if (commands.get(0).cfName.contains("schema_lease_version_store")) {
+                logger.trace("[timestamp: {}] Got thriftified columns: [key: {}, columns: {}]", timestamp, entry.getKey(), thriftifiedColumns);
+            }
+
             columnFamiliesMap.put(entry.getKey().getKey(), thriftifiedColumns);
+        }
+
+
+        if (commands.get(0).cfName.contains("schema_lease_version_store")) {
+            logger.trace("[timestamp: {}] Returning slices from multigetMultislice request: {}}", timestamp, columnFamiliesMap);
         }
 
         return Multimaps.asMap(columnFamiliesMap);
@@ -465,6 +485,9 @@ public class CassandraServer implements Cassandra.Iface
 
         Composite start = metadata.comparator.fromByteBuffer(range.start);
         Composite finish = metadata.comparator.fromByteBuffer(range.finish);
+        if (parent.column_family.contains("schema_lease_version_store")) {
+            logger.trace("Creating slice query filter with: [start: {}, finish: {}, reversed?: {}, count: {}]", start, finish, range.reversed, range.count);
+        }
         return new SliceQueryFilter(start, finish, range.reversed, range.count);
     }
 
@@ -487,11 +510,17 @@ public class CassandraServer implements Cassandra.Iface
                 SortedSet<CellName> s = new TreeSet<CellName>(metadata.comparator);
                 for (ByteBuffer bb : predicate.column_names)
                     s.add(metadata.comparator.cellFromByteBuffer(bb));
+                if (parent.column_family.contains("schema_lease_version_store")) {
+                    logger.trace("Creating names query filter with columns: {}", s);
+                }
                 filter = new NamesQueryFilter(s);
             }
         }
         else
         {
+            if (parent.column_family.contains("schema_lease_version_store")) {
+                logger.trace("Creating a slice range filter with predicate: {}", predicate);
+            }
             filter = toInternalFilter(metadata, parent, predicate.slice_range);
         }
         return filter;
@@ -542,11 +571,15 @@ public class CassandraServer implements Cassandra.Iface
         consistencyLevel.validateForRead(keyspace);
 
         List<ReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyspace, keyPredicates, column_parent, timestamp, metadata);
-        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
+        return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState, timestamp);
     }
 
     private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata)
     {
+        if (column_parent.column_family.contains("schema_lease_version_store")) {
+            logger.trace("[timestamp: {}] Called validateKeyPredicatesAndCreateCommands with keyPredicates: {}", timestamp, keyPredicates);
+        }
+
         List<ReadCommand> commands = new ArrayList<>(keyPredicates.size());
         validateKeyPredicates(keyPredicates, column_parent, metadata);
 
@@ -561,8 +594,14 @@ public class CassandraServer implements Cassandra.Iface
                 canonicalFilters.put(predicate, filter);
                 filterToUse = filter;
             }
-
-            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filterToUse.cloneShallow()));
+            if (column_parent.column_family.contains("schema_lease_version_store")) {
+                logger.trace("[timestamp: {}] Choosing filter: [key: {}, filter: {}]", timestamp, key, filterToUse);
+            }
+            ReadCommand command = ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filterToUse.cloneShallow());
+            commands.add(command);
+            if (column_parent.column_family.contains("schema_lease_version_store")) {
+                logger.trace("[timestamp: {}] Added command: {}", timestamp, command);
+            }
         }
         return commands;
     }
@@ -781,6 +820,10 @@ public class CassandraServer implements Cassandra.Iface
     private void internal_insert(ByteBuffer key, ColumnParent column_parent, Column column, ConsistencyLevel consistency_level)
     throws RequestValidationException, UnavailableException, TimedOutException
     {
+
+        if (column_parent.column_family.contains("schema_lease_version_store")) {
+            logger.trace("Calling internal insert: [key: {}, column: {}]", key, column);
+        }
         ThriftClientState cState = state();
         String keyspace = cState.getKeyspace();
         cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.MODIFY);
