@@ -627,6 +627,7 @@ public class CassandraServer implements Cassandra.Iface
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)
     throws InvalidRequestException, NotFoundException, UnavailableException, TimedOutException
     {
+
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -652,6 +653,10 @@ public class CassandraServer implements Cassandra.Iface
 
             ThriftValidation.validateKey(metadata, key);
 
+            if (metadata.cfName.contains("schema_lease_version_store")) {
+                logger.trace("Calling get: [key: {}, column: {}]", key, column_path);
+            }
+
             IDiskAtomFilter filter;
             if (metadata.isSuper())
             {
@@ -664,12 +669,17 @@ public class CassandraServer implements Cassandra.Iface
             {
                 SortedSet<CellName> names = new TreeSet<CellName>(metadata.comparator);
                 names.add(metadata.comparator.cellFromByteBuffer(column_path.column));
+                if (metadata.cfName.contains("schema_lease_version_store")) {
+                    logger.trace("Creating NamesQueryFilter with columns: {}", names);
+                }
                 filter = new NamesQueryFilter(names);
             }
 
             long now = System.currentTimeMillis();
             ReadCommand command = ReadCommand.create(keyspace, key, column_path.column_family, now, filter);
-
+            if (metadata.cfName.contains("schema_lease_version_store")) {
+                logger.trace("[timestamp: %s] Created read command: {}", now, command);
+            }
             Map<DecoratedKey, ColumnFamily> cfamilies = readColumnFamily(Arrays.asList(command), consistencyLevel, cState);
 
             ColumnFamily cf = cfamilies.get(StorageService.getPartitioner().decorateKey(command.key));
@@ -677,6 +687,9 @@ public class CassandraServer implements Cassandra.Iface
             if (cf == null)
                 throw new NotFoundException();
             List<ColumnOrSuperColumn> tcolumns = thriftifyColumnFamily(cf, metadata.isSuper() && column_path.column != null, false, now);
+            if (metadata.cfName.contains("schema_lease_version_store")) {
+                logger.trace("[timestamp: %s] Got thriftified column family: {}", now, tcolumns);
+            }
             if (tcolumns.isEmpty())
                 throw new NotFoundException();
             assert tcolumns.size() == 1;
@@ -820,7 +833,6 @@ public class CassandraServer implements Cassandra.Iface
     private void internal_insert(ByteBuffer key, ColumnParent column_parent, Column column, ConsistencyLevel consistency_level)
     throws RequestValidationException, UnavailableException, TimedOutException
     {
-
         if (column_parent.column_family.contains("schema_lease_version_store")) {
             logger.trace("Calling internal insert: [key: {}, column: {}]", key, column);
         }
