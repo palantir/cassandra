@@ -298,20 +298,23 @@ public class CassandraServer implements Cassandra.Iface
             detailsByKey.put(entry.getKey(), details);
         }
 
-        try (PartitionIterator results = read(commands, consistency_level, cState, queryStartNanoTime))
+        ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
+        for (SinglePartitionReadCommand command : commands)
         {
-            ListMultimap<ByteBuffer, List<ColumnOrSuperColumn>> columnFamiliesMap = ArrayListMultimap.create();
-            while (results.hasNext())
+            try (PartitionIterator results = read(Collections.singletonList(command), consistency_level, cState, queryStartNanoTime))
             {
-                try (RowIterator iter = results.next())
+                while (results.hasNext())
                 {
-                    ThriftifyColumnFamilyDetails details = detailsByKey.get(iter.partitionKey());
-                    List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, details.reversed(), details.limitsPerPartitionCount);
-                    columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
+                    try (RowIterator iter = results.next())
+                    {
+                        ThriftifyColumnFamilyDetails details = detailsByKey.get(iter.partitionKey());
+                        List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyPartition(iter, subColumnsOnly, details.reversed(), details.limitsPerPartitionCount);
+                        columnFamiliesMap.put(iter.partitionKey().getKey(), thriftifiedColumns);
+                    }
                 }
             }
-            return Multimaps.asMap(columnFamiliesMap);
         }
+        return Multimaps.asMap(columnFamiliesMap);
     }
 
     public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
@@ -687,7 +690,7 @@ public class CassandraServer implements Cassandra.Iface
 
             ColumnFilter columnFilterToUse = columnFilters.computeIfAbsent(predicate, slicePredicate -> makeColumnFilter(metadata, column_parent, slicePredicate));
             ClusteringIndexFilter filterToUse = clusteringIndexFilters.computeIfAbsent(predicate, slicePredicate -> toInternalFilter(metadata, column_parent, slicePredicate));
-            DataLimits limits = limitsMap.computeIfAbsent(predicate, slicePredicate -> getLimits(1, metadata.isSuper() && !column_parent.isSetSuper_column(), predicate));
+            DataLimits limits = limitsMap.computeIfAbsent(predicate, slicePredicate -> getLimits(1, metadata.isSuper() && !column_parent.isSetSuper_column(), slicePredicate));
 
             DecoratedKey dk = metadata.decorateKey(key);
             commands.add(SinglePartitionReadCommand.create(true, metadata, nowInSec, columnFilterToUse, RowFilter.NONE, limits, dk, filterToUse));
