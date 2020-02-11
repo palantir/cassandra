@@ -24,6 +24,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -39,6 +42,9 @@ import org.apache.cassandra.utils.MBeanWrapper;
  */
 public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILatencySubscriber, DynamicEndpointSnitchMBean
 {
+
+    private static final Logger logger = LoggerFactory.getLogger(DynamicEndpointSnitch.class);
+
     private static final boolean USE_SEVERITY = !Boolean.getBoolean("cassandra.ignore_dynamic_snitch_severity");
 
     private static final double ALPHA = 0.75; // set to 0.75 to make EDS more biased to towards the newer values
@@ -178,14 +184,26 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         Collections.sort(sortedScores);
 
         Iterator<Double> sortedScoreIterator = sortedScores.iterator();
+        Iterator<InetAddress> addressIterator = addresses.iterator();
         for (Double subsnitchScore : subsnitchOrderedScores)
         {
+            InetAddress addressToSort = addressIterator.next();
             if (subsnitchScore > (sortedScoreIterator.next() * (1.0 + BADNESS_THRESHOLD)))
             {
+                ArrayList<InetAddress> subsnitchOrder = new ArrayList<>(addresses);
                 sortByProximityWithScore(address, addresses);
+                logger.debug("Identified a sufficiently bad node {} while sorting by proximity to {}, using " +
+                             "dynamic endpoint snitch scoring order instead of subsnitch order. Previous " +
+                             "order {}, new order {}",
+                             addressToSort,
+                             address,
+                             subsnitchOrder,
+                             addresses);
                 return;
             }
         }
+        logger.debug("Using subsnitch ordering {} for sorting by proximity to {} because scores {} were not " +
+                     "sufficiently bad", addresses, address, subsnitchOrderedScores);
     }
 
     // Compare endpoints given an immutable snapshot of the scores
