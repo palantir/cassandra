@@ -24,7 +24,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
@@ -58,7 +57,8 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     private final int UPDATE_INTERVAL_IN_MS = DatabaseDescriptor.getDynamicUpdateInterval();
     private final int RESET_INTERVAL_IN_MS = DatabaseDescriptor.getDynamicResetInterval();
     private final double BADNESS_THRESHOLD = DatabaseDescriptor.getDynamicBadnessThreshold();
-    private static final double LOG_SAMPLING_RATIO = DatabaseDescriptor.getDynamicLoggingSamplingRatio();
+    private final double SUBSNITCH_LOG_SAMPLING_RATIO = DatabaseDescriptor.getDynamicSubsnitchLoggingSamplingRatio();
+    private final double OVERRIDE_LOG_SAMPLING_RATIO = DatabaseDescriptor.getDynamicOverrideLoggingSamplingRatio();
 
     // the score for a merged set of endpoints must be this much worse than the score for separate endpoints to
     // warrant not merging two ranges into a single range
@@ -283,7 +283,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
             newScores.put(entry.getKey(), score);
         }
         scores = newScores;
-        if (logger.isDebugEnabled() && LOG_SAMPLING_RATIO > ThreadLocalRandom.current().nextDouble() ) {
+        if (logger.isDebugEnabled()) {
             logAddressOrdering();
         }
     }
@@ -301,6 +301,9 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
             overridenCount = orderingOverridden.get();
         }
         long totalCount = totalOrderings.incrementAndGet();
+        Double random = ThreadLocalRandom.current().nextDouble();
+        if ((requiresOverride && OVERRIDE_LOG_SAMPLING_RATIO > random)
+            || (requiresOverride && SUBSNITCH_LOG_SAMPLING_RATIO > random))
         logger.debug("The most recent scores {}, when sorting by proximity to {}, result in {} when sorting by " +
                      "dynamic endpoint snitch scores and {} when sorting with the subsnitch. Whether overriding the " +
                      "subsnitch scores due to badness is necessary is {}. Of the past {} scorings, {} require " +
