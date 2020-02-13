@@ -283,6 +283,10 @@ public class CassandraDaemon
             logger.warn("Unable to start GCInspector (currently only supported on the Sun JVM)");
         }
 
+        recoverCommitlogAndCompleteSetup();
+    }
+
+    private void recoverCommitlogAndCompleteSetup() {
         // replay the log if necessary
         try
         {
@@ -696,6 +700,23 @@ public class CassandraDaemon
         public boolean isMemoryLockable()
         {
             return CLibrary.jnaMemoryLockable();
+        }
+
+        public void reinitializeFromCommitlogCorruption()
+        {
+            // TODO(tpetracca): add rails; check that currently in NTE mode with a commitlog corruption present
+            StorageService.instance.clearNonTransientErrors();
+            CassandraDaemon.instance.recoverCommitlogAndCompleteSetup();
+            if (CassandraDaemon.instance.setupCompleted())
+            {
+                CassandraDaemon.instance.start();
+            }
+
+        }
+
+        public void killDaemon()
+        {
+            System.exit(0);
         }
     }
 

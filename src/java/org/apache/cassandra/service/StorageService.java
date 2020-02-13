@@ -1340,6 +1340,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void clearNonTransientErrors() {
+        nonTransientErrors.clear();
+    }
+
     @Override
     public Set<Map<String, String>> getNonTransientErrors() {
         return ImmutableSet.copyOf(nonTransientErrors);

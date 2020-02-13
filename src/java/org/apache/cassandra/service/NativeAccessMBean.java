@@ -22,4 +22,8 @@ public interface NativeAccessMBean
     boolean isAvailable();
 
     boolean isMemoryLockable();
+
+    void reinitializeFromCommitlogCorruption();
+
+    void killDaemon();
 }
