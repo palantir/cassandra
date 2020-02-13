@@ -1577,6 +1577,16 @@ public class DatabaseDescriptor
         conf.dynamic_snitch_update_interval_in_ms = dynamicUpdateInterval;
     }
 
+    public static Double getDynamicLoggingSamplingRatio()
+    {
+        return conf.dynamic_snitch_logging_sampling_ratio;
+    }
+
+    public static void setDynamicLoggingSamplingRatio(Double dynamicLoggingSamplingRatio)
+    {
+        conf.dynamic_snitch_logging_sampling_ratio = dynamicLoggingSamplingRatio;
+    }
+
     public static int getDynamicResetInterval()
     {
         return conf.dynamic_snitch_reset_interval_in_ms;

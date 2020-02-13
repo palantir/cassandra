@@ -109,8 +109,8 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
             // Same as for writes, see AbstractWriteResponseHandler
             ReadTimeoutException ex = new ReadTimeoutException(consistencyLevel, received, blockfor, resolver.isDataPresent());
             Tracing.trace("Read timeout: {}", ex.toString());
-            if (logger.isTraceEnabled())
-                logger.trace("Read timeout: {}", ex.toString());
+            if (logger.isDebugEnabled())
+                logger.debug("Read timeout: {}", ex.toString());
             throw ex;
         }
 

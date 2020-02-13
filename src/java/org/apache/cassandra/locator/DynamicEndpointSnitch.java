@@ -22,7 +22,10 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,9 +53,12 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     private static final double ALPHA = 0.75; // set to 0.75 to make EDS more biased to towards the newer values
     private static final int WINDOW_SIZE = 100;
 
+    // percentage of score updates which should log whether the scoring order overrides subsnitch order
+
     private final int UPDATE_INTERVAL_IN_MS = DatabaseDescriptor.getDynamicUpdateInterval();
     private final int RESET_INTERVAL_IN_MS = DatabaseDescriptor.getDynamicResetInterval();
     private final double BADNESS_THRESHOLD = DatabaseDescriptor.getDynamicBadnessThreshold();
+    private static final double LOG_SAMPLING_RATIO = DatabaseDescriptor.getDynamicLoggingSamplingRatio();
 
     // the score for a merged set of endpoints must be this much worse than the score for separate endpoints to
     // warrant not merging two ranges into a single range
@@ -65,6 +71,9 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     private final ConcurrentHashMap<InetAddress, ExponentiallyDecayingReservoir> samples = new ConcurrentHashMap<>();
 
     public final IEndpointSnitch subsnitch;
+
+    public AtomicLong orderingOverridden = new AtomicLong(0);
+    public AtomicLong totalOrderings = new AtomicLong(0);
 
     public DynamicEndpointSnitch(IEndpointSnitch snitch)
     {
@@ -184,26 +193,14 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         Collections.sort(sortedScores);
 
         Iterator<Double> sortedScoreIterator = sortedScores.iterator();
-        Iterator<InetAddress> addressIterator = addresses.iterator();
         for (Double subsnitchScore : subsnitchOrderedScores)
         {
-            InetAddress addressToSort = addressIterator.next();
             if (subsnitchScore > (sortedScoreIterator.next() * (1.0 + BADNESS_THRESHOLD)))
             {
-                ArrayList<InetAddress> subsnitchOrder = new ArrayList<>(addresses);
                 sortByProximityWithScore(address, addresses);
-                logger.debug("Identified a sufficiently bad node {} while sorting by proximity to {}, using " +
-                             "dynamic endpoint snitch scoring order instead of subsnitch order. Previous " +
-                             "order {}, new order {}",
-                             addressToSort,
-                             address,
-                             subsnitchOrder,
-                             addresses);
                 return;
             }
         }
-        logger.debug("Using subsnitch ordering {} for sorting by proximity to {} because scores {} were not " +
-                     "sufficiently bad", addresses, address, subsnitchOrderedScores);
     }
 
     // Compare endpoints given an immutable snapshot of the scores
@@ -286,11 +283,42 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
             newScores.put(entry.getKey(), score);
         }
         scores = newScores;
+        if (logger.isDebugEnabled() && LOG_SAMPLING_RATIO > ThreadLocalRandom.current().nextDouble() ) {
+            logAddressOrdering();
+        }
+    }
+
+    private synchronized void logAddressOrdering() {
+        List<InetAddress> addresses = new ArrayList<>(scores.keySet());
+        InetAddress local = FBUtilities.getBroadcastAddress();
+        List<InetAddress> sortedBySubsnitch = subsnitch.getSortedListByProximity(local, addresses);
+        List<InetAddress> sortedByDynamicSnitch = getSortedListByProximity(local, addresses);
+        boolean requiresOverride = !sortedBySubsnitch.equals(sortedByDynamicSnitch);
+        long overridenCount;
+        if (requiresOverride) {
+            overridenCount = orderingOverridden.incrementAndGet();
+        } else {
+            overridenCount = orderingOverridden.get();
+        }
+        long totalCount = totalOrderings.incrementAndGet();
+        logger.debug("The most recent scores {}, when sorting by proximity to {}, result in {} when sorting by " +
+                     "dynamic endpoint snitch scores and {} when sorting with the subsnitch. Whether overriding the " +
+                     "subsnitch scores due to badness is necessary is {}. Of the past {} scorings, {} require " +
+                     "overriding the order",
+                     scores,
+                     local,
+                     sortedByDynamicSnitch,
+                     sortedBySubsnitch,
+                     requiresOverride,
+                     totalCount,
+                     overridenCount);
     }
 
     private void reset()
     {
        samples.clear();
+       orderingOverridden.set(0);
+       totalOrderings.set(0);
     }
 
     public Map<InetAddress, Double> getScores()
