@@ -52,12 +52,14 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     private static final double ALPHA = 0.75; // set to 0.75 to make EDS more biased to towards the newer values
     private static final int WINDOW_SIZE = 100;
 
-    // percentage of score updates which should log whether the scoring order overrides subsnitch order
-
     private final int UPDATE_INTERVAL_IN_MS = DatabaseDescriptor.getDynamicUpdateInterval();
     private final int RESET_INTERVAL_IN_MS = DatabaseDescriptor.getDynamicResetInterval();
     private final double BADNESS_THRESHOLD = DatabaseDescriptor.getDynamicBadnessThreshold();
+
+    // percentage of score updates to log ordering info, when the subsnitch ordering is used
     private final double SUBSNITCH_LOG_SAMPLING_RATIO = DatabaseDescriptor.getDynamicSubsnitchLoggingSamplingRatio();
+
+    // percentage of score updates to log ordering info, when the dynamic snitch scoring ordering is used
     private final double OVERRIDE_LOG_SAMPLING_RATIO = DatabaseDescriptor.getDynamicOverrideLoggingSamplingRatio();
 
     // the score for a merged set of endpoints must be this much worse than the score for separate endpoints to
@@ -303,18 +305,20 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         long totalCount = totalOrderings.incrementAndGet();
         Double random = ThreadLocalRandom.current().nextDouble();
         if ((requiresOverride && OVERRIDE_LOG_SAMPLING_RATIO > random)
-            || (requiresOverride && SUBSNITCH_LOG_SAMPLING_RATIO > random))
-        logger.debug("The most recent scores {}, when sorting by proximity to {}, result in {} when sorting by " +
-                     "dynamic endpoint snitch scores and {} when sorting with the subsnitch. Whether overriding the " +
-                     "subsnitch scores due to badness is necessary is {}. Of the past {} scorings, {} require " +
-                     "overriding the order",
-                     scores,
-                     local,
-                     sortedByDynamicSnitch,
-                     sortedBySubsnitch,
-                     requiresOverride,
-                     totalCount,
-                     overridenCount);
+            || (!requiresOverride && SUBSNITCH_LOG_SAMPLING_RATIO > random)) {
+            logger.debug("The most recent scores {}, when sorting by proximity to {}, result in {} when sorting by " +
+                         "dynamic endpoint snitch scores and {} when sorting with the subsnitch. Whether overriding the " +
+                         "subsnitch scores due to badness is necessary is {}. Of the past {} scorings, {} (ratio of {}) require " +
+                         "overriding the order",
+                         scores,
+                         local,
+                         sortedByDynamicSnitch,
+                         sortedBySubsnitch,
+                         requiresOverride,
+                         totalCount,
+                         overridenCount,
+                         (double) totalCount / overridenCount);
+        }
     }
 
     private void reset()
