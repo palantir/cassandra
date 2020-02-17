@@ -317,7 +317,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
                          requiresOverride,
                          totalCount,
                          overridenCount,
-                         (double) totalCount / overridenCount);
+                         (double) overridenCount / totalCount);
         }
     }
 
