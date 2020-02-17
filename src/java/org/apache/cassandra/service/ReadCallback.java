@@ -19,10 +19,15 @@ package org.apache.cassandra.service;
 
 import java.net.InetAddress;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,19 +112,35 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
         if (!await(command.getTimeout(), TimeUnit.MILLISECONDS))
         {
             // Same as for writes, see AbstractWriteResponseHandler
-            ReadTimeoutException ex = new ReadTimeoutException(consistencyLevel, received, blockfor, resolver.isDataPresent());
+            Map<String, String> receivedReplyMap = receivedReplyAtTimeout();
+            ReadTimeoutException ex = new ReadTimeoutException(
+                consistencyLevel,
+                String.format("Sent data request to %s, received reply map: %s", endpoints.get(0).getHostName(), receivedReplyMap.toString()),
+                received,
+                blockfor,
+                resolver.isDataPresent(),
+                endpoints.get(0).getHostName(),
+                receivedReplyAtTimeout());
             Tracing.trace("Read timeout: {}", ex.toString());
-            if (logger.isTraceEnabled())
-                logger.trace("Read timeout: {}", ex.toString());
+            if (logger.isDebugEnabled())
+                logger.debug("Read timeout: {}", ex.toString());
             throw ex;
         }
 
         if (blockfor + failures > endpoints.size())
         {
-            ReadFailureException ex = new ReadFailureException(consistencyLevel, received, failures, blockfor, resolver.isDataPresent());
-
-            if (logger.isTraceEnabled())
-                logger.trace("Read failure: {}", ex.toString());
+            Map<String, String> receivedReplyMap = receivedReplyAtTimeout();
+            ReadFailureException ex = new ReadFailureException(
+                consistencyLevel,
+                String.format("Sent data request to %s out of all target replicas %s received reply map: %s", endpoints.get(0).getHostName(), endpoints, receivedReplyMap.toString()),
+                received,
+                failures,
+                blockfor,
+                resolver.isDataPresent(),
+                endpoints.get(0).getHostName(),
+                receivedReplyMap);
+            if (logger.isDebugEnabled())
+                logger.debug("Read failure: {}", ex.toString());
             throw ex;
         }
 
@@ -146,6 +167,23 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
                 StageManager.getStage(Stage.READ_REPAIR).execute(new AsyncRepairRunner(traceState));
             }
         }
+    }
+
+    /*
+     * Returns a map indicatin whether or not a reply had been received at timeout, for each address the query was sent.
+     * This iterates through the one-use `messages` iterator on the resolver so can only be called after a query has
+     * timed out, for the purpose of extracting information for the failure
+     */
+    private Map<String, String> receivedReplyAtTimeout() {
+        Map<String, String> receivedReplyMap = new HashMap<>();
+        for (MessageIn<TMessage> message : resolver.getMessages()) {
+            receivedReplyMap.put(message.from.getHostName(), Boolean.toString(true));
+        }
+        Set<InetAddress> missingReplies = Sets.difference(new HashSet<>(endpoints), receivedReplyMap.keySet());
+        for (InetAddress missingAdddress : missingReplies) {
+            receivedReplyMap.put(missingAdddress.getHostName(), Boolean.toString(false));
+        }
+        return receivedReplyMap;
     }
 
     /**

@@ -26,7 +26,7 @@ public class WriteTimeoutException extends RequestTimeoutException
 
     public WriteTimeoutException(WriteType writeType, ConsistencyLevel consistency, int received, int blockFor)
     {
-        super(ExceptionCode.WRITE_TIMEOUT, consistency, received, blockFor);
+        super(ExceptionCode.WRITE_TIMEOUT, "", consistency, received, blockFor);
         this.writeType = writeType;
     }
 }

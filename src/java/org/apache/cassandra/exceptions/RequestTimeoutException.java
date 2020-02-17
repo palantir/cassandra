@@ -17,6 +17,10 @@
  */
 package org.apache.cassandra.exceptions;
 
+import java.net.InetAddress;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.cassandra.db.ConsistencyLevel;
 
 public class RequestTimeoutException extends RequestExecutionException
@@ -25,9 +29,9 @@ public class RequestTimeoutException extends RequestExecutionException
     public final int received;
     public final int blockFor;
 
-    protected RequestTimeoutException(ExceptionCode code, ConsistencyLevel consistency, int received, int blockFor)
+    protected RequestTimeoutException(ExceptionCode code, String message, ConsistencyLevel consistency, int received, int blockFor)
     {
-        super(code, String.format("Operation timed out - received only %d responses.", received));
+        super(code, String.format("Operation timed out - received only %d responses. %s", received, message));
         this.consistency = consistency;
         this.received = received;
         this.blockFor = blockFor;
