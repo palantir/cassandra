@@ -1306,11 +1306,11 @@ public class StorageProxy implements StorageProxyMBean
             }
             catch (WriteTimeoutException e)
             {
-                throw new ReadTimeoutException(consistencyLevel, "Timed out on committing paxos during a paxos read", 0, consistencyLevel.blockFor(Keyspace.open(command.ksName)), false, null, null);
+                throw new ReadTimeoutException(consistencyLevel, 0, consistencyLevel.blockFor(Keyspace.open(command.ksName)), false);
             }
             catch (WriteFailureException e)
             {
-                throw new ReadFailureException(consistencyLevel, "Failed on committing paxos during a paxos read", e.received, e.failures, e.blockFor, false, null, null);
+                throw new ReadFailureException(consistencyLevel, e.received, e.failures, e.blockFor, false);
             }
 
             rows = fetchRows(commands, consistencyForCommitOrFetch);
@@ -1520,7 +1520,7 @@ public class StorageProxy implements StorageProxyMBean
                         // the caught exception here will have CL.ALL from the repair command,
                         // not whatever CL the initial command was at (CASSANDRA-7947)
                         int blockFor = consistencyLevel.blockFor(Keyspace.open(command.getKeyspace()));
-                        throw new ReadTimeoutException(consistencyLevel, "Timed out waiting on digest mismatch repair requests", blockFor-1, blockFor, true, e.dataRequestEndpoint, e.wasReplyReceivedMap);
+                        throw new ReadTimeoutException(consistencyLevel, blockFor-1, blockFor, true);
                     }
 
                     RowDataResolver resolver = (RowDataResolver)handler.resolver;
@@ -1537,7 +1537,7 @@ public class StorageProxy implements StorageProxyMBean
                         else
                             logger.trace("Timed out waiting on digest mismatch repair acknowledgements");
                         int blockFor = consistencyLevel.blockFor(Keyspace.open(command.getKeyspace()));
-                        throw new ReadTimeoutException(consistencyLevel, "Timed out waiting on digest mismatch repair acknowledgements", blockFor-1, blockFor, true, null, null);
+                        throw new ReadTimeoutException(consistencyLevel, blockFor-1, blockFor, true);
                     }
 
                     // retry any potential short reads
@@ -1918,7 +1918,7 @@ public class StorageProxy implements StorageProxyMBean
                         Tracing.trace("Timed out while read-repairing after receiving all {} data and digest responses", blockFor);
                     else
                         logger.debug("Range slice timeout while read-repairing after receiving all {} data and digest responses", blockFor);
-                    throw new ReadTimeoutException(consistency_level, "Range slice timeout while read-repairing after receiving all {} data and digest responses", blockFor-1, blockFor, true, null, null);
+                    throw new ReadTimeoutException(consistency_level, blockFor-1, blockFor, true);
                 }
 
                 if (haveSufficientRows)

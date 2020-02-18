@@ -17,26 +17,15 @@
  */
 package org.apache.cassandra.exceptions;
 
-import java.util.Map;
-
 import org.apache.cassandra.db.ConsistencyLevel;
 
 public class ReadFailureException extends RequestFailureException
 {
     public final boolean dataPresent;
-    public final String dataRequestEndpoint;
-    public final Map<String, String> wasReplyReceivedMap;
 
-    public ReadFailureException(ConsistencyLevel consistency, int received, int failures, int blockFor, boolean dataPresent, String dataRequestEndpoint, Map<String, String> wasReplyReceivedMap)
+    public ReadFailureException(ConsistencyLevel consistency, int received, int failures, int blockFor, boolean dataPresent)
     {
-        this(consistency, "", received, failures, blockFor, dataPresent, dataRequestEndpoint, wasReplyReceivedMap);
-    }
-
-    public ReadFailureException(ConsistencyLevel consistency, String message, int received, int failures, int blockFor, boolean dataPresent, String dataRequestEndpoint, Map<String, String> wasReplyReceivedMap)
-    {
-        super(ExceptionCode.READ_FAILURE, message, consistency, received, failures, blockFor);
+        super(ExceptionCode.READ_FAILURE, consistency, received, failures, blockFor);
         this.dataPresent = dataPresent;
-        this.dataRequestEndpoint = dataRequestEndpoint;
-        this.wasReplyReceivedMap = wasReplyReceivedMap;
     }
 }

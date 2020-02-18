@@ -17,26 +17,15 @@
  */
 package org.apache.cassandra.exceptions;
 
-import java.util.Map;
-
 import org.apache.cassandra.db.ConsistencyLevel;
 
 public class ReadTimeoutException extends RequestTimeoutException
 {
     public final boolean dataPresent;
-    public final String dataRequestEndpoint;
-    public final Map<String, String> wasReplyReceivedMap;
 
-    public ReadTimeoutException(ConsistencyLevel consistency, int received, int blockFor, boolean dataPresent, String dataRequestEndpoint, Map<String, String> wasReplyReceivedMap)
+    public ReadTimeoutException(ConsistencyLevel consistency, int received, int blockFor, boolean dataPresent)
     {
-        this(consistency, "", received, blockFor, dataPresent, dataRequestEndpoint, wasReplyReceivedMap);
-    }
-
-    public ReadTimeoutException(ConsistencyLevel consistency, String message, int received, int blockFor, boolean dataPresent, String dataRequestEndpoint, Map<String, String> wasReplyReceivedMap)
-    {
-        super(ExceptionCode.READ_TIMEOUT, message, consistency, received, blockFor);
+        super(ExceptionCode.READ_TIMEOUT, consistency, received, blockFor);
         this.dataPresent = dataPresent;
-        this.dataRequestEndpoint = dataRequestEndpoint;
-        this.wasReplyReceivedMap = wasReplyReceivedMap;
     }
 }

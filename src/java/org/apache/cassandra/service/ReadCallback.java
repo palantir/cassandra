@@ -112,35 +112,20 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
         if (!await(command.getTimeout(), TimeUnit.MILLISECONDS))
         {
             // Same as for writes, see AbstractWriteResponseHandler
-            Map<String, String> receivedReplyMap = receivedReplyAtTimeout();
-            ReadTimeoutException ex = new ReadTimeoutException(
-                consistencyLevel,
-                String.format("Sent data request to %s, received reply map: %s", endpoints.get(0).getHostName(), receivedReplyMap.toString()),
-                received,
-                blockfor,
-                resolver.isDataPresent(),
-                endpoints.get(0).getHostName(),
-                receivedReplyAtTimeout());
+            ReadTimeoutException ex = new ReadTimeoutException(consistencyLevel, received, blockfor, resolver.isDataPresent());
             Tracing.trace("Read timeout: {}", ex.toString());
             if (logger.isDebugEnabled())
-                logger.debug("Read timeout: {}", ex.toString());
+                logger.debug("Read timeout: {}, Sent data request to {} out of all target replicas {}. Received reply " +
+                             "map: {}", ex.toString(), endpoints.get(0).getHostName(), endpoints, receivedReplyAtTimeout().toString());
             throw ex;
         }
 
         if (blockfor + failures > endpoints.size())
         {
-            Map<String, String> receivedReplyMap = receivedReplyAtTimeout();
-            ReadFailureException ex = new ReadFailureException(
-                consistencyLevel,
-                String.format("Sent data request to %s out of all target replicas %s received reply map: %s", endpoints.get(0).getHostName(), endpoints, receivedReplyMap.toString()),
-                received,
-                failures,
-                blockfor,
-                resolver.isDataPresent(),
-                endpoints.get(0).getHostName(),
-                receivedReplyMap);
+            ReadFailureException ex = new ReadFailureException(consistencyLevel, received, failures, blockfor, resolver.isDataPresent());
             if (logger.isDebugEnabled())
-                logger.debug("Read failure: {}", ex.toString());
+                logger.debug("Read failure: {}, Sent data request to {} out of all target replicas {}. Received reply " +
+                             "map: {}", ex.toString(), endpoints.get(0).getHostName(), endpoints, receivedReplyAtTimeout().toString());
             throw ex;
         }
 

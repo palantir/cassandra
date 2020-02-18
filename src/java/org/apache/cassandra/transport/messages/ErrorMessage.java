@@ -17,10 +17,7 @@
  */
 package org.apache.cassandra.transport.messages;
 
-import java.net.InetAddress;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.CodecException;
@@ -94,9 +91,7 @@ public class ErrorMessage extends Message.Response
                         else
                         {
                             byte dataPresent = body.readByte();
-                            String dataRequestEndpoint = CBUtil.readString(body);
-                            Map<String, String> receivedReplyMap = CBUtil.readStringMap(body);
-                            te = new ReadFailureException(cl, received, failure, blockFor, dataPresent != 0, dataRequestEndpoint, receivedReplyMap);
+                            te = new ReadFailureException(cl, received, failure, blockFor, dataPresent != 0);   
                         }
                     }
                     break;
@@ -113,9 +108,7 @@ public class ErrorMessage extends Message.Response
                     else
                     {
                         byte dataPresent = body.readByte();
-                        String dataRequestEndpoint = CBUtil.readString(body);
-                        Map<String, String> receivedReplyMap = CBUtil.readStringMap(body);
-                        te = new ReadTimeoutException(cl, received, blockFor, dataPresent != 0, dataRequestEndpoint, receivedReplyMap);
+                        te = new ReadTimeoutException(cl, received, blockFor, dataPresent != 0);
                     }
                     break;
                 case FUNCTION_FAILURE:
@@ -182,11 +175,8 @@ public class ErrorMessage extends Message.Response
 
                         if (isWrite)
                             CBUtil.writeString(((WriteFailureException)rfe).writeType.toString(), dest);
-                        else {
+                        else
                             dest.writeByte((byte)(((ReadFailureException)rfe).dataPresent ? 1 : 0));
-                            CBUtil.writeString(((ReadFailureException) rfe).dataRequestEndpoint, dest);
-                            CBUtil.writeStringMap(((ReadFailureException) rfe).wasReplyReceivedMap, dest);
-                        }
                     }
                     break;
                 case WRITE_TIMEOUT:
@@ -199,11 +189,8 @@ public class ErrorMessage extends Message.Response
                     dest.writeInt(rte.blockFor);
                     if (isWrite)
                         CBUtil.writeString(((WriteTimeoutException)rte).writeType.toString(), dest);
-                    else {
+                    else
                         dest.writeByte((byte)(((ReadTimeoutException)rte).dataPresent ? 1 : 0));
-                        CBUtil.writeString(((ReadTimeoutException)rte).dataRequestEndpoint, dest);
-                        CBUtil.writeStringMap(((ReadTimeoutException) rte).wasReplyReceivedMap, dest);
-                    }
                     break;
                 case FUNCTION_FAILURE:
                     FunctionExecutionException fee = (FunctionExecutionException)msg.error;
@@ -278,7 +265,7 @@ public class ErrorMessage extends Message.Response
             {
                 case READ_FAILURE:
                     ReadFailureException rfe = (ReadFailureException) msg.error;
-                    return new ReadTimeoutException(rfe.consistency, rfe.received, rfe.blockFor, rfe.dataPresent, rfe.dataRequestEndpoint, rfe.wasReplyReceivedMap);
+                    return new ReadTimeoutException(rfe.consistency, rfe.received, rfe.blockFor, rfe.dataPresent);
                 case WRITE_FAILURE:
                     WriteFailureException wfe = (WriteFailureException) msg.error;
                     return new WriteTimeoutException(wfe.writeType, wfe.consistency, wfe.received, wfe.blockFor);
@@ -380,4 +367,5 @@ public class ErrorMessage extends Message.Response
             return this.streamId;
         }
     }
+
 }
