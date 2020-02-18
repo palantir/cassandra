@@ -1582,19 +1582,9 @@ public class DatabaseDescriptor
         return conf.dynamic_snitch_subsnitch_logging_sampling_ratio;
     }
 
-    public static void setDynamicSubsnitchLoggingSamplingRatio(Double dynamicSubsnitchLoggingSamplingRatio)
-    {
-        conf.dynamic_snitch_subsnitch_logging_sampling_ratio = dynamicSubsnitchLoggingSamplingRatio;
-    }
-
     public static Double getDynamicOverrideLoggingSamplingRatio()
     {
         return conf.dynamic_snitch_override_logging_sampling_ratio;
-    }
-
-    public static void setDynamicOverrideLoggingSamplingRatio(Double dynamicOverrideLoggingSamplingRatio)
-    {
-        conf.dynamic_snitch_override_logging_sampling_ratio = dynamicOverrideLoggingSamplingRatio;
     }
 
     public static int getDynamicResetInterval()
