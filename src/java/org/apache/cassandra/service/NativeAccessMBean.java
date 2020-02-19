@@ -17,13 +17,11 @@
  */
 package org.apache.cassandra.service;
 
-public interface NativeAccessMBean 
+public interface NativeAccessMBean
 {
     boolean isAvailable();
 
     boolean isMemoryLockable();
 
     void reinitializeFromCommitlogCorruption();
-
-    void killDaemon();
 }

@@ -67,6 +67,7 @@ import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
 import org.apache.cassandra.metrics.StorageMetrics;
+import org.apache.cassandra.service.StorageServiceMBean.NonTransientError;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.*;
@@ -704,7 +705,25 @@ public class CassandraDaemon
 
         public void reinitializeFromCommitlogCorruption()
         {
-            // TODO(tpetracca): add rails; check that currently in NTE mode with a commitlog corruption present
+            if(!StorageService.instance.inNonTransientErrorMode()) {
+                logger.error("Attempted to reinitializeFromCommitlogCorruption when not in NonTransientError mode; "
+                        + "current mode: " + StorageService.instance.getOperationMode());
+                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when in NonTransientError mode");
+            }
+
+            boolean hasCommitlogNte = false;
+            for (Map<String, String> nte : StorageService.instance.getNonTransientErrors()) {
+                if (NonTransientError.COMMIT_LOG_CORRUPTION.name()
+                        .equals(nte.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY))) {
+                    hasCommitlogNte = true;
+                    break;
+                }
+            }
+            if (!hasCommitlogNte) {
+                logger.error("Attempted to reinitializeFromCommitlogCorruption when there is no known commitlog corruption");
+                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when there is a commitlog NonTransientError");
+            }
+
             StorageService.instance.clearNonTransientErrors();
             CassandraDaemon.instance.recoverCommitlogAndCompleteSetup();
             if (CassandraDaemon.instance.setupCompleted())
@@ -712,11 +731,6 @@ public class CassandraDaemon
                 CassandraDaemon.instance.start();
             }
 
-        }
-
-        public void killDaemon()
-        {
-            System.exit(0);
         }
     }
 
