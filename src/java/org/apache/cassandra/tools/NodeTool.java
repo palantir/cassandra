@@ -74,6 +74,7 @@ public class NodeTool
                 DisableBinary.class,
                 EnableBinary.class,
                 EnableGossip.class,
+                SetReadDelay.class,
                 DisableGossip.class,
                 EnableHandoff.class,
                 EnableThrift.class,
@@ -141,7 +142,8 @@ public class NodeTool
                 FailureDetectorInfo.class,
                 RefreshSizeEstimates.class,
                 ForceTerminateRepairSessions.class,
-                DynamicEndpointSnitchStats.class
+                DynamicEndpointSnitchStats.class,
+                SetReadDelay.class
         );
 
         Cli.CliBuilder<Runnable> builder = Cli.builder("nodetool");
