@@ -2665,13 +2665,28 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public double getDroppableTombstoneRatio()
     {
+        return getDroppableTombstoneRatio(true);
+    }
+
+    public double getTombstoneRatio()
+    {
+        return getDroppableTombstoneRatio(false);
+    }
+
+    public double getLiveTombstoneRatio()
+    {
+        return getTombstoneRatio() - getDroppableTombstoneRatio();
+    }
+
+    private double getDroppableTombstoneRatio(boolean useGcGrace)
+    {
         double allDroppable = 0;
         long allColumns = 0;
-        int localTime = (int)(System.currentTimeMillis()/1000);
+        int nowInSec = (int) (System.currentTimeMillis() / 1000);
 
         for (SSTableReader sstable : getSSTables(SSTableSet.CANONICAL))
         {
-            allDroppable += sstable.getDroppableTombstonesBefore(localTime - sstable.metadata.params.gcGraceSeconds);
+            allDroppable += sstable.getDroppableTombstonesBefore(useGcGrace ? gcBefore(nowInSec) : nowInSec);
             allColumns += sstable.getEstimatedColumnCount().mean() * sstable.getEstimatedColumnCount().count();
         }
         return allColumns > 0 ? allDroppable / allColumns : 0;
