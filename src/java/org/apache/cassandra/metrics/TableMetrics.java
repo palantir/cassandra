@@ -151,6 +151,12 @@ public class TableMetrics
     public final LatencyMetrics casCommit;
     /** percent of the data that is repaired */
     public final Gauge<Double> percentRepaired;
+    /** Estimated ratio of droppable tombstones and number of cells in this table */
+    public final Gauge<Double> droppableTombstoneRatio;
+    /** Estimated ratio of live tombstones and number of cells in this table */
+    public final Gauge<Double> liveTombstoneRatio;
+    /** Estimated ratio of tombstones and number of cells in this table */
+    public final Gauge<Double> tombstoneRatio;
 
     public final LatencyMetrics coordinatorReadLatency;
     public final LatencyMetrics coordinatorScanLatency;
@@ -717,6 +723,28 @@ public class TableMetrics
         casPrepare = new LatencyMetrics(factory, "CasPrepare", cfs.keyspace.metric.casPrepare);
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
+
+        droppableTombstoneRatio = createTableGauge("DroppableTombstoneRatio", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getDroppableTombstoneRatio();
+            }
+        });
+        liveTombstoneRatio = createTableGauge("LiveTombstoneRatio", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getLiveTombstoneRatio();
+            }
+        });
+        tombstoneRatio = createTableGauge("TombstoneRatio", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getTombstoneRatio();
+            }
+        });
 
         readRepairRequests = Metrics.meter(factory.createMetricName("ReadRepairRequests"));
         shortReadProtectionRequests = Metrics.meter(factory.createMetricName("ShortReadProtectionRequests"));
