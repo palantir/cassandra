@@ -247,6 +247,20 @@ public interface StorageServiceMBean extends NotificationEmitter
     public void takeMultipleColumnFamilySnapshot(String tag, String... columnFamilyList) throws IOException;
 
     /**
+     * This API is directly backported from Cassandra 3.
+     * Takes the snapshot of multiple keyspaces. A snapshot name must be specified.
+     *
+     * @param tag
+     *            the tag given to the snapshot; may not be null or empty
+     * @param options
+     *            Map of options (ephemeral is supported)
+     * @param entities
+     *            list of keyspaces in the form of empty | ks1 ks2 ...
+     *            table entities in the form of ks1.cf1,ks2.cf2,... are not supported
+     */
+    public void takeSnapshot(String tag, Map<String, String> options, String... entities) throws IOException;
+
+    /**
      * Remove the snapshot with the given name from the given keyspaces.
      * If no tag is specified we will remove all snapshots.
      */
