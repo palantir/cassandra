@@ -703,12 +703,12 @@ public class CassandraDaemon
             return CLibrary.jnaMemoryLockable();
         }
 
-        public void reinitializeFromCommitlogCorruption()
+        public void reinitializeFromCommitlogCorruption() throws IllegalNonTransientErrorStateException
         {
             if(!StorageService.instance.inNonTransientErrorMode()) {
                 logger.error("Attempted to reinitializeFromCommitlogCorruption when not in NonTransientError mode; "
                         + "current mode: " + StorageService.instance.getOperationMode());
-                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when in NonTransientError mode");
+                throw new IllegalNonTransientErrorStateException("Can only reinitializeFromCommitlogCorruption when in NonTransientError mode");
             }
 
             boolean hasCommitlogNte = false;
