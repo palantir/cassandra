@@ -572,8 +572,25 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
                 if (tombstones > failureThreshold && respectTombstoneThresholds)
                 {
                     String query = ReadCommand.this.toCQLString();
-                    Tracing.trace("Scanned over {} tombstones for query {}; query aborted (see tombstone_failure_threshold)", failureThreshold, query);
+                    Tracing.trace("Scanned over {} tombstones ({} droppable cells) for query {}; query aborted (see tombstone_failure_threshold)",
+                                  failureThreshold, droppableCells(), query);
                     throw new TombstoneOverwhelmingException(tombstones, query, ReadCommand.this.metadata(), currentKey, clustering);
+                }
+            }
+
+            private int droppableCells()
+            {
+                return safeAddition(droppableTombstones, droppableTtls);
+            }
+
+            private int safeAddition(int x, int y)
+            {
+                try
+                {
+                    return Math.addExact(x, y);
+                }
+                catch (ArithmeticException e) {
+                    return Integer.MAX_VALUE;
                 }
             }
 
@@ -592,14 +609,14 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
                 if (warnTombstones)
                 {
                     String msg = String.format(
-                            "Read %d live rows and %d tombstone cells for query %1.512s (see tombstone_warn_threshold)",
-                            liveRows, tombstones, ReadCommand.this.toCQLString());
+                            "Read %d live rows and %d tombstone cells (%d droppable cells) for query %1.512s (see tombstone_warn_threshold)",
+                            liveRows, tombstones, droppableCells(), ReadCommand.this.toCQLString());
                     ClientWarn.instance.warn(msg);
                     logger.warn(msg);
                 }
 
-                Tracing.trace("Read {} live rows and {} tombstone cells{}",
-                        liveRows, tombstones,
+                Tracing.trace("Read {} live rows and {} tombstone cells ({} droppable cells){}",
+                        liveRows, tombstones, droppableCells(),
                         (warnTombstones ? " (see tombstone_warn_threshold)" : ""));
             }
         };
