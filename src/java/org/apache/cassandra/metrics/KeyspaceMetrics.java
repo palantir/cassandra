@@ -79,6 +79,12 @@ public class KeyspaceMetrics
     public final Histogram tombstoneScannedHistogram;
     /** Live cells scanned in queries on this Keyspace */
     public final Histogram liveScannedHistogram;
+    /** Droppable tombstones scanned in queries on this Keyspace */
+    public final Histogram droppableTombstonesReadHistogram;
+    /** Droppable ttls scanned in queries on this Keyspace */
+    public final Histogram droppableTtlsReadHistogram;
+    /** Live cells scanned in queries on this Keyspace */
+    public final Histogram liveReadHistogram;
     /** Column update time delta on this Keyspace */
     public final Histogram colUpdateTimeDeltaHistogram;
     /** time taken acquiring the partition lock for materialized view updates on this keyspace */
@@ -227,11 +233,15 @@ public class KeyspaceMetrics
         sstablesPerReadHistogram = Metrics.histogram(factory.createMetricName("SSTablesPerReadHistogram"), true);
         tombstoneScannedHistogram = Metrics.histogram(factory.createMetricName("TombstoneScannedHistogram"), false);
         liveScannedHistogram = Metrics.histogram(factory.createMetricName("LiveScannedHistogram"), false);
+        droppableTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("DroppableTombstonesReadHistogram"), false);
+        droppableTtlsReadHistogram = Metrics.histogram(factory.createMetricName("DroppableTtlsReadHistogram"), false);
+        liveReadHistogram = Metrics.histogram(factory.createMetricName("LiveReadHistogram"), false);
         colUpdateTimeDeltaHistogram = Metrics.histogram(factory.createMetricName("ColUpdateTimeDeltaHistogram"), false);
         viewLockAcquireTime =  Metrics.timer(factory.createMetricName("ViewLockAcquireTime"));
         viewReadTime = Metrics.timer(factory.createMetricName("ViewReadTime"));
         // add manually since histograms do not use createKeyspaceGauge method
-        allMetrics.addAll(Lists.newArrayList("SSTablesPerReadHistogram", "TombstoneScannedHistogram", "LiveScannedHistogram"));
+        allMetrics.addAll(Lists.newArrayList("SSTablesPerReadHistogram", "TombstoneScannedHistogram", "LiveScannedHistogram",
+                                             "DroppableTombstonesReadHistogram", "DroppableTtlsReadHistogram", "LiveReadHistogram"));
 
         casPrepare = new LatencyMetrics(factory, "CasPrepare");
         casPropose = new LatencyMetrics(factory, "CasPropose");
