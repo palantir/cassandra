@@ -129,6 +129,12 @@ public class TableMetrics
     public final TableHistogram tombstoneScannedHistogram;
     /** Live rows scanned in queries on this CF */
     public final TableHistogram liveScannedHistogram;
+    /** Droppable tombstones scanned in queries on this CF */
+    public final TableHistogram droppableTombstonesReadHistogram;
+    /** Droppable ttls scanned in queries on this CF */
+    public final TableHistogram droppableTtlsReadHistogram;
+    /** Live cells scanned in queries on this CF */
+    public final TableHistogram liveReadHistogram;
     /** Column update time delta on this CF */
     public final TableHistogram colUpdateTimeDeltaHistogram;
     /** time taken acquiring the partition lock for materialized view updates for this table */
@@ -702,6 +708,9 @@ public class TableMetrics
         });
         tombstoneScannedHistogram = createTableHistogram("TombstoneScannedHistogram", cfs.keyspace.metric.tombstoneScannedHistogram, false);
         liveScannedHistogram = createTableHistogram("LiveScannedHistogram", cfs.keyspace.metric.liveScannedHistogram, false);
+        droppableTombstonesReadHistogram = createTableHistogram("DroppableTombstonesReadHistogram", cfs.keyspace.metric.droppableTombstonesReadHistogram, false);
+        droppableTtlsReadHistogram = createTableHistogram("DroppableTtlsReadHistogram", cfs.keyspace.metric.droppableTtlsReadHistogram, false);
+        liveReadHistogram = createTableHistogram("LiveReadHistogram", cfs.keyspace.metric.liveReadHistogram, false);
         colUpdateTimeDeltaHistogram = createTableHistogram("ColUpdateTimeDeltaHistogram", cfs.keyspace.metric.colUpdateTimeDeltaHistogram, false);
         waitingOnFreeMemtableSpace = Metrics.histogram(factory.createMetricName("WaitingOnFreeMemtableSpace"), false);
 
