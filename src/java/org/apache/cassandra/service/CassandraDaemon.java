@@ -712,16 +712,18 @@ public class CassandraDaemon
             }
 
             boolean hasCommitlogNte = false;
+            boolean onlyCommitlogNte = true;
             for (Map<String, String> nte : StorageService.instance.getNonTransientErrors()) {
-                if (NonTransientError.COMMIT_LOG_CORRUPTION.name()
-                        .equals(nte.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY))) {
-                    hasCommitlogNte = true;
-                    break;
-                }
+                boolean isCommitlogNte = NonTransientError.COMMIT_LOG_CORRUPTION.name()
+                        .equals(nte.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
+                hasCommitlogNte |= isCommitlogNte;
+                onlyCommitlogNte &= isCommitlogNte;
             }
-            if (!hasCommitlogNte) {
-                logger.error("Attempted to reinitializeFromCommitlogCorruption when there is no known commitlog corruption");
-                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when there is a commitlog NonTransientError");
+            if (!hasCommitlogNte || !onlyCommitlogNte) {
+                logger.error("Attempted to reinitializeFromCommitlogCorruption when there is no known commitlog corruption "
+                        + "or there are other non commitlog corruption NonTransientErrors");
+                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when there are commitlog "
+                        + "corruption NonTransientErrors and only commitlog corruption NonTransientErrors");
             }
 
             StorageService.instance.clearNonTransientErrors();
@@ -730,7 +732,6 @@ public class CassandraDaemon
             {
                 CassandraDaemon.instance.start();
             }
-
         }
     }
 
