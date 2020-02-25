@@ -77,6 +77,7 @@ import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
 import org.apache.cassandra.metrics.StorageMetrics;
+import org.apache.cassandra.service.StorageServiceMBean.NonTransientError;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.*;
@@ -309,6 +310,10 @@ public class CassandraDaemon
             logger.warn("Unable to start GCInspector (currently only supported on the Sun JVM)");
         }
 
+        recoverCommitlogAndCompleteSetup();
+    }
+
+    private void recoverCommitlogAndCompleteSetup() {
         // replay the log if necessary
         try
         {
@@ -775,6 +780,37 @@ public class CassandraDaemon
         public boolean isMemoryLockable()
         {
             return CLibrary.jnaMemoryLockable();
+        }
+
+        public void reinitializeFromCommitlogCorruption() throws IllegalNonTransientErrorStateException
+        {
+            if(!StorageService.instance.inNonTransientErrorMode()) {
+                logger.error("Attempted to reinitializeFromCommitlogCorruption when not in NonTransientError mode; "
+                        + "current mode: " + StorageService.instance.getOperationMode());
+                throw new IllegalNonTransientErrorStateException("Can only reinitializeFromCommitlogCorruption when in NonTransientError mode");
+            }
+
+            boolean hasCommitlogNte = false;
+            boolean onlyCommitlogNte = true;
+            for (Map<String, String> nte : StorageService.instance.getNonTransientErrors()) {
+                boolean isCommitlogNte = NonTransientError.COMMIT_LOG_CORRUPTION.name()
+                        .equals(nte.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
+                hasCommitlogNte |= isCommitlogNte;
+                onlyCommitlogNte &= isCommitlogNte;
+            }
+            if (!hasCommitlogNte || !onlyCommitlogNte) {
+                logger.error("Attempted to reinitializeFromCommitlogCorruption when there is no known commitlog corruption "
+                        + "or there are other non commitlog corruption NonTransientErrors");
+                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when there are commitlog "
+                        + "corruption NonTransientErrors and only commitlog corruption NonTransientErrors");
+            }
+
+            StorageService.instance.clearNonTransientErrors();
+            CassandraDaemon.instance.recoverCommitlogAndCompleteSetup();
+            if (CassandraDaemon.instance.setupCompleted())
+            {
+                CassandraDaemon.instance.start();
+            }
         }
     }
 
