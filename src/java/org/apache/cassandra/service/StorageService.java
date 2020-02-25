@@ -3371,6 +3371,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    @Override
+    public void takeEphemeralSnapshot(String tag, String... entities) throws IOException
+    {
+        takeSnapshot(tag, ImmutableMap.of("ephemeral", "true"), entities);
+    }
+
     /**
      * Takes the snapshot of a specific table. A snapshot name must be
      * specified.
