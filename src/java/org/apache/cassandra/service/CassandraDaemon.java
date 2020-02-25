@@ -850,7 +850,7 @@ public class CassandraDaemon
 
         public void reinitializeFromCommitlogCorruption() throws IllegalNonTransientErrorStateException
         {
-            checkInNonTransientErrorMode();
+            checkInNonTransientErrorMode(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION);
             checkHasExpectedNte(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION);
 
             StorageService.instance.clearNonTransientErrors();
@@ -863,7 +863,7 @@ public class CassandraDaemon
 
         public void reinitializeFromSstableCorruption() throws IllegalNonTransientErrorStateException
         {
-            checkInNonTransientErrorMode();
+            checkInNonTransientErrorMode(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION);
             checkHasExpectedNte(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION);
 
             StorageService.instance.clearNonTransientErrors();
@@ -879,12 +879,12 @@ public class CassandraDaemon
             }
         }
 
-        private void checkInNonTransientErrorMode() throws IllegalNonTransientErrorStateException
+        private void checkInNonTransientErrorMode(StorageServiceMBean.NonTransientError error) throws IllegalNonTransientErrorStateException
         {
             if (!StorageService.instance.inNonTransientErrorMode()) {
-                logger.error("Attempted to reinitializeFromSstableCorruption when not in NonTransientError mode; "
-                             + "current mode: " + StorageService.instance.getOperationMode());
-                throw new NativeAccessMBean.IllegalNonTransientErrorStateException("Can only reinitializeFromSstableCorruption when in NonTransientError mode");
+                logger.error(String.format("Attempted to reinitialize from corruption of type {} when not in NonTransientError mode; "
+                             + "current mode: {}"), error.name(), StorageService.instance.getOperationMode());
+                throw new NativeAccessMBean.IllegalNonTransientErrorStateException("Can only reinitialize from corruption when in NonTransientError mode");
             }
         }
 
