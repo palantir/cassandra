@@ -1639,6 +1639,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void clearNonTransientErrors() {
+        nonTransientErrors.clear();
+    }
+
     @Override
     public Set<Map<String, String>> getNonTransientErrors() {
         return ImmutableSet.copyOf(nonTransientErrors);
@@ -4543,6 +4547,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public boolean isDraining()
     {
         return operationMode == Mode.DRAINING;
+    }
+
+    public boolean inNonTransientErrorMode()
+    {
+        return operationMode == Mode.NON_TRANSIENT_ERROR;
     }
 
     public String getDrainProgress()

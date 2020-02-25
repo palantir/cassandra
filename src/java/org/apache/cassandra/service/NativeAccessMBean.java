@@ -17,9 +17,31 @@
  */
 package org.apache.cassandra.service;
 
-public interface NativeAccessMBean 
+import java.io.Serializable;
+
+public interface NativeAccessMBean
 {
     boolean isAvailable();
 
     boolean isMemoryLockable();
+
+    /**
+     * After having properly remediated a commitlog corruption including removing the corrupted commitlog file from the
+     * node's commitlog_directory, an operator may execute this method to safely re-initialize the CassandraDaemon and
+     * StorageService.
+     *
+     * @throws IllegalNonTransientErrorStateException if StorageService in not in NonTransientError mode or has no
+     *          known NonTransientError of the type COMMIT_LOG_CORRUPTION
+     */
+    void reinitializeFromCommitlogCorruption() throws IllegalNonTransientErrorStateException;
+
+    class IllegalNonTransientErrorStateException extends Exception implements Serializable
+    {
+        private static final long serialVersionUID = 1068347274649406245L;
+
+        public IllegalNonTransientErrorStateException(String message)
+        {
+            super(message);
+        }
+    }
 }
