@@ -3131,6 +3131,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    /**
+     * Forces major compaction of a single keyspace.  Deprecated API from Cassandra 2.2.
+     */
+    public void forceKeyspaceCompaction(boolean _bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
+    {
+        logger.warn("Ignoring 'bypassDiskspaceCheck' option passed into forceKeyspaceCompaction function");
+        forceKeyspaceCompaction(splitOutput, keyspaceName, columnFamilies);
+    }
+
+
     public int relocateSSTables(String keyspaceName, String ... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         return relocateSSTables(0, keyspaceName, columnFamilies);
