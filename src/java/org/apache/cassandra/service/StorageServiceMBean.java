@@ -221,6 +221,12 @@ public interface StorageServiceMBean extends NotificationEmitter
      * @deprecated use {@link #takeSnapshot(String tag, Map options, String... entities)} instead.
      */
     @Deprecated
+    public void takeEphemeralSnapshot(String tag, String... keyspaceNames) throws IOException;
+
+    /**
+     * @deprecated use {@link #takeSnapshot(String tag, Map options, String... entities)} instead.
+     */
+    @Deprecated
     public void takeTableSnapshot(String keyspaceName, String tableName, String tag) throws IOException;
 
     /**
