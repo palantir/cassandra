@@ -25,7 +25,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -44,6 +43,8 @@ import org.apache.cassandra.utils.Pair;
 public class LeveledManifest
 {
     private static final Logger logger = LoggerFactory.getLogger(LeveledManifest.class);
+    private static final boolean COMPACT_IN_L0_UNTIL_LARGE_ENOUGH =
+            Boolean.getBoolean("palantir_cassandra.compact_in_l0_until_large_enough");
 
     /**
      * limit the number of L0 sstables we do at once, because compaction bloom filter creation
@@ -353,7 +354,34 @@ public class LeveledManifest
             // small in L0.
             return getSTCSInL0CompactionCandidate();
         }
+
+        // TODO figure out criteria for this being safe for SSTables with tombstones in
+        // regardless of doing this, this still helps some common tables - _punch, _transactions, _transactions2
+        if (COMPACT_IN_L0_UNTIL_LARGE_ENOUGH && l0IsSmallerThan100MB(candidates) && hasNoTombstones(candidates)) {
+            if (candidates.size() == 1) {
+                return null;
+            }
+            return new CompactionCandidate(candidates, 0, cfs.getCompactionStrategy().getMaxSSTableBytes());
+        }
+
         return new CompactionCandidate(candidates, getNextLevel(candidates), cfs.getCompactionStrategy().getMaxSSTableBytes());
+    }
+
+    private static boolean l0IsSmallerThan100MB(Collection<SSTableReader> sstables) {
+        long levelZeroSize = 0;
+        for (SSTableReader sstable : sstables) {
+            levelZeroSize += sstable.bytesOnDisk();
+        }
+        return levelZeroSize <= 100_000_000;
+    }
+
+    private static boolean hasNoTombstones(Collection<SSTableReader> sstables) {
+        for (SSTableReader sstable : sstables) {
+            if (sstable.getDroppableTombstonesBefore(Integer.MAX_VALUE) > 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private CompactionCandidate getSTCSInL0CompactionCandidate()
