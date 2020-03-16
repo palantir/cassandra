@@ -357,11 +357,12 @@ public class LeveledManifest
 
         // TODO figure out criteria for this being safe for SSTables with tombstones in
         // regardless of doing this, this still helps some common tables - _punch, _transactions, _transactions2
-        if (COMPACT_IN_L0_UNTIL_LARGE_ENOUGH && l0IsSmallerThan100MB(candidates) && hasNoTombstones(candidates)) {
-            if (candidates.size() == 1) {
+        Collection<SSTableReader> levelZero = getLevel(0);
+        if (COMPACT_IN_L0_UNTIL_LARGE_ENOUGH && l0IsSmallerThan100MB(levelZero) && hasNoTombstones(levelZero)) {
+            if (levelZero.size() == 1) {
                 return null;
             }
-            return new CompactionCandidate(candidates, 0, cfs.getCompactionStrategy().getMaxSSTableBytes());
+            return new CompactionCandidate(levelZero, 0, cfs.getCompactionStrategy().getMaxSSTableBytes());
         }
 
         return new CompactionCandidate(candidates, getNextLevel(candidates), cfs.getCompactionStrategy().getMaxSSTableBytes());
