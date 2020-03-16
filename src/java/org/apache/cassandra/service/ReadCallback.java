@@ -137,7 +137,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
         if (blockfor + failures > endpoints.size())
         {
             ReadFailureException ex = new ReadFailureException(consistencyLevel, received, failures, blockfor, resolver.isDataPresent());
-            if (logger.isDebugEnabled())
+            if (logger.isDebugEnabled() && !SYSTEM_KEYSPACE_NAMES.contains(keyspace.getName()))
                 logger.debug("Read failure: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
                              ex.toString(),
                              endpoints.get(0).getHostName(),
