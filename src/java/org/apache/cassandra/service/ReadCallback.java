@@ -178,10 +178,12 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
      */
     private Map<String, String> receivedReplyAtTimeout() {
         Map<String, String> receivedReplyMap = new HashMap<>();
+        Set<InetAddress> receivedReply = new HashSet<>();
         for (MessageIn<TMessage> message : resolver.getMessages()) {
             receivedReplyMap.put(message.from.getHostName(), Boolean.toString(true));
+            receivedReply.add(message.from);
         }
-        Set<InetAddress> missingReplies = Sets.difference(new HashSet<>(endpoints), receivedReplyMap.keySet());
+        Set<InetAddress> missingReplies = Sets.difference(new HashSet<>(endpoints), receivedReply);
         for (InetAddress missingAdddress : missingReplies) {
             receivedReplyMap.put(missingAdddress.getHostName(), Boolean.toString(false));
         }
