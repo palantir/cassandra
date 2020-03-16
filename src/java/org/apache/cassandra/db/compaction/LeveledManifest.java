@@ -369,11 +369,7 @@ public class LeveledManifest
     }
 
     private static boolean l0IsSmallerThan100MB(Collection<SSTableReader> sstables) {
-        long levelZeroSize = 0;
-        for (SSTableReader sstable : sstables) {
-            levelZeroSize += sstable.bytesOnDisk();
-        }
-        return levelZeroSize <= 100_000_000;
+        return SSTableReader.getTotalBytes(sstables) <= 100_000_000;
     }
 
     private static boolean hasNoTombstones(Collection<SSTableReader> sstables) {
