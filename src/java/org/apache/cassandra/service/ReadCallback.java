@@ -27,16 +27,19 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.exceptions.ReadFailureException;
 import org.apache.cassandra.exceptions.ReadTimeoutException;
 import org.apache.cassandra.exceptions.UnavailableException;
@@ -46,6 +49,8 @@ import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.db.ConsistencyLevel;
+import org.apache.cassandra.repair.SystemDistributedKeyspace;
+import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.FBUtilities;
@@ -54,6 +59,12 @@ import org.apache.cassandra.utils.concurrent.SimpleCondition;
 public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFailure<TMessage>
 {
     protected static final Logger logger = LoggerFactory.getLogger( ReadCallback.class );
+
+    private static final Set<String> SYSTEM_KEYSPACE_NAMES = ImmutableSet.of(
+            SystemKeyspace.NAME,
+            AuthKeyspace.NAME,
+            TraceKeyspace.NAME,
+            SystemDistributedKeyspace.NAME);
 
     public final IResponseResolver<TMessage, TResolved> resolver;
     private final SimpleCondition condition = new SimpleCondition();
@@ -114,9 +125,12 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
             // Same as for writes, see AbstractWriteResponseHandler
             ReadTimeoutException ex = new ReadTimeoutException(consistencyLevel, received, blockfor, resolver.isDataPresent());
             Tracing.trace("Read timeout: {}", ex.toString());
-            if (logger.isDebugEnabled())
-                logger.debug("Read timeout: {}, Sent data request to {} out of all target replicas {}. Received reply " +
-                             "map: {}", ex.toString(), endpoints.get(0).getHostName(), endpoints, receivedReplyAtTimeout().toString());
+            if (logger.isDebugEnabled() && !SYSTEM_KEYSPACE_NAMES.contains(keyspace.getName()))
+                logger.debug("Read timeout: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
+                        ex.toString(),
+                        endpoints.get(0).getHostName(),
+                        keyspace.getName(),
+                        receivedReplyAtTimeout().toString());
             throw ex;
         }
 
@@ -124,8 +138,11 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
         {
             ReadFailureException ex = new ReadFailureException(consistencyLevel, received, failures, blockfor, resolver.isDataPresent());
             if (logger.isDebugEnabled())
-                logger.debug("Read failure: {}, Sent data request to {} out of all target replicas {}. Received reply " +
-                             "map: {}", ex.toString(), endpoints.get(0).getHostName(), endpoints, receivedReplyAtTimeout().toString());
+                logger.debug("Read failure: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
+                             ex.toString(),
+                             endpoints.get(0).getHostName(),
+                             keyspace.getName(),
+                             receivedReplyAtTimeout().toString());
             throw ex;
         }
 
