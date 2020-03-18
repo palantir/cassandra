@@ -25,6 +25,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -43,8 +44,7 @@ import org.apache.cassandra.utils.Pair;
 public class LeveledManifest
 {
     private static final Logger logger = LoggerFactory.getLogger(LeveledManifest.class);
-    private static final boolean COMPACT_IN_L0_UNTIL_LARGE_ENOUGH =
-            Boolean.getBoolean("palantir_cassandra.compact_in_l0_until_large_enough");
+    private static final boolean USE_STCS_ALWAYS_IN_L0 = Boolean.getBoolean("palantir_cassandra.use_stcs_always_in_l0");
 
     /**
      * limit the number of L0 sstables we do at once, because compaction bloom filter creation
@@ -58,6 +58,12 @@ public class LeveledManifest
      * that level into lower level compactions
      */
     private static final int NO_COMPACTION_LIMIT = 25;
+
+    /**
+     * STCS will typically merge together tables to try to get to a minimum table size of 50MB. This is not
+     * desirable when we're trying to minimize backup churn, so we pick a smaller 1MB threshold.
+     */
+    private static final long QUITE_SMALL_TO_MINIMIZE_CHURN = 1_000_000;
 
     private final ColumnFamilyStore cfs;
     @VisibleForTesting
@@ -354,34 +360,7 @@ public class LeveledManifest
             // small in L0.
             return getSTCSInL0CompactionCandidate();
         }
-
-        // TODO figure out criteria for this being safe for SSTables with tombstones in
-        // regardless of doing this, this still helps some common tables - _punch, _transactions, _transactions2
-        if (COMPACT_IN_L0_UNTIL_LARGE_ENOUGH && l0IsSmallerThan100MB(candidates) && hasNoTombstones(candidates)) {
-            if (candidates.size() == 1) {
-                return null;
-            }
-            return new CompactionCandidate(candidates, 0, cfs.getCompactionStrategy().getMaxSSTableBytes());
-        }
-
         return new CompactionCandidate(candidates, getNextLevel(candidates), cfs.getCompactionStrategy().getMaxSSTableBytes());
-    }
-
-    private static boolean l0IsSmallerThan100MB(Collection<SSTableReader> sstables) {
-        long levelZeroSize = 0;
-        for (SSTableReader sstable : sstables) {
-            levelZeroSize += sstable.bytesOnDisk();
-        }
-        return levelZeroSize <= 100_000_000;
-    }
-
-    private static boolean hasNoTombstones(Collection<SSTableReader> sstables) {
-        for (SSTableReader sstable : sstables) {
-            if (sstable.getDroppableTombstonesBefore(Integer.MAX_VALUE) > 0) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private CompactionCandidate getSTCSInL0CompactionCandidate()
@@ -399,15 +378,20 @@ public class LeveledManifest
         return null;
     }
 
-    private List<SSTableReader> getSSTablesForSTCS(Collection<SSTableReader> sstables)
+    private List<SSTableReader> getSSTablesForSTCS(Collection<SSTableReader> sstables, long minSsTableSize)
     {
         Iterable<SSTableReader> candidates = cfs.getTracker().getUncompacting(sstables);
         List<Pair<SSTableReader,Long>> pairs = SizeTieredCompactionStrategy.createSSTableAndLengthPairs(AbstractCompactionStrategy.filterSuspectSSTables(candidates));
         List<List<SSTableReader>> buckets = SizeTieredCompactionStrategy.getBuckets(pairs,
                                                                                     options.bucketHigh,
                                                                                     options.bucketLow,
-                                                                                    options.minSSTableSize);
+                                                                                    minSsTableSize);
         return SizeTieredCompactionStrategy.mostInterestingBucket(buckets, 4, 32);
+    }
+
+    private List<SSTableReader> getSSTablesForSTCS(Collection<SSTableReader> sstables)
+    {
+        return getSSTablesForSTCS(sstables, options.minSSTableSize);
     }
 
     /**
@@ -650,7 +634,8 @@ public class LeveledManifest
                 if (!overlapping(candidates, compactingL0).isEmpty())
                     return Collections.emptyList();
                 candidates = Sets.union(candidates, l1overlapping);
-            }
+            } else if (USE_STCS_ALWAYS_IN_L0)
+                candidates = new HashSet<>(getSSTablesForSTCS(candidates, QUITE_SMALL_TO_MINIMIZE_CHURN));
             if (candidates.size() < 2)
                 return Collections.emptyList();
             else
