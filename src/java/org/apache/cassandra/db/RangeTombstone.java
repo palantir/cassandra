@@ -293,7 +293,7 @@ public class RangeTombstone extends Interval<Composite, DeletionTime> implements
                     iterator.add(toAdd);
                     unwrittenTombstones.add(toAdd);
                 }
-                return false;
+                return unwrittenTombstones.size() > 100;
             }
             // Caller should write cell.
             return true;
