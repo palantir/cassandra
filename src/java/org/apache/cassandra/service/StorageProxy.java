@@ -1969,7 +1969,7 @@ public class StorageProxy implements StorageProxyMBean
 
             long latency = System.nanoTime() - startTime;
             rangeMetrics.addNano(latency);
-            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestRounds.mark(numRequestRounds);
+            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestRounds.update(numRequestRounds);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.addNano(latency);
         }
         return command.postReconciliationProcessing(rows);
