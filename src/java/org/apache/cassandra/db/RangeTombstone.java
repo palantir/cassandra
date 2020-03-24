@@ -293,7 +293,12 @@ public class RangeTombstone extends Interval<Composite, DeletionTime> implements
                     iterator.add(toAdd);
                     unwrittenTombstones.add(toAdd);
                 }
-                return false;
+                // Palantir: This codepath is an optimization that delays writing range tombstones in case it can drop
+                // some of them due to later overlaps. In practice, this can become highly aggressive, because
+                // it delays writing out column index entries as well, which governs how much data is in the working set
+                // when the row is read. So, we change this from always delaying write to delaying if the buffer is
+                // small enough.
+                return unwrittenTombstones.size() > 100;
             }
             // Caller should write cell.
             return true;
