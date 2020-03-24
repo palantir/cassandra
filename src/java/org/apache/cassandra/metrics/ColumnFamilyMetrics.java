@@ -169,6 +169,8 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics coordinatorReadLatency;
     public final LatencyMetrics coordinatorScanLatency;
 
+    public final Meter coordinatorScanRequestRounds;
+
     /** Time spent waiting for free memtable space, either on- or off-heap */
     public final Histogram waitingOnFreeMemtableSpace;
 
@@ -384,6 +386,7 @@ public class ColumnFamilyMetrics
         rangeLatency = new LatencyMetrics(factory, "Range", cfs.keyspace.metric.rangeLatency, globalRangeLatency);
         coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
+        coordinatorScanRequestRounds = Metrics.meter(factory.createMetricName("CoordinatorScanRequestRounds"));
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
         compactionBytesWritten = createColumnFamilyCounter("CompactionBytesWritten");
