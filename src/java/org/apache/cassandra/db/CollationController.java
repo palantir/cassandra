@@ -28,6 +28,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 
+import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
@@ -56,12 +57,12 @@ public class CollationController
         this.gcBefore = gcBefore;
     }
 
-    public ColumnFamily getTopLevelColumns(boolean copyOnHeap)
+    public ColumnFamily getTopLevelColumns(boolean copyOnHeap, FilterExperiment experiment)
     {
         return filter.filter instanceof NamesQueryFilter
                && cfs.metadata.getDefaultValidator() != CounterColumnType.instance
-               ? collectTimeOrderedData(copyOnHeap)
-               : collectAllData(copyOnHeap);
+               ? collectTimeOrderedData(copyOnHeap, experiment)
+               : collectAllData(copyOnHeap, experiment);
     }
 
     /**
@@ -69,7 +70,7 @@ public class CollationController
      * Once we have data for all requests columns that is newer than the newest remaining maxtimestamp,
      * we stop.
      */
-    private ColumnFamily collectTimeOrderedData(boolean copyOnHeap)
+    private ColumnFamily collectTimeOrderedData(boolean copyOnHeap, FilterExperiment experiment)
     {
         final ColumnFamily container = ArrayBackedSortedColumns.factory.create(cfs.metadata, filter.filter.isReversed());
         List<OnDiskAtomIterator> iterators = new ArrayList<>();
@@ -199,7 +200,7 @@ public class CollationController
      * Collects data the brute-force way: gets an iterator for the filter in question
      * from every memtable and sstable, then merges them together.
      */
-    private ColumnFamily collectAllData(boolean copyOnHeap)
+    private ColumnFamily collectAllData(boolean copyOnHeap, FilterExperiment experiment)
     {
         Tracing.trace("Acquiring sstable references");
         ColumnFamilyStore.ViewFragment view = cfs.select(cfs.viewFilter(filter.key));
@@ -312,7 +313,7 @@ public class CollationController
                 return null;
 
             Tracing.trace("Merging data from memtables and {} sstables", sstablesIterated);
-            filter.collateOnDiskAtom(returnCF, iterators, gcBefore);
+            filter.collateOnDiskAtom(returnCF, iterators, gcBefore, experiment);
 
             // Caller is responsible for final removeDeletedCF.  This is important for cacheRow to work correctly:
             return returnCF;

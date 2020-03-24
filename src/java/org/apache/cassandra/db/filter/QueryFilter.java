@@ -28,6 +28,7 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 
+import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.DecoratedKey;
@@ -71,9 +72,9 @@ public class QueryFilter
 
     public void collateOnDiskAtom(ColumnFamily returnCF,
                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
-                                  int gcBefore)
+                                  int gcBefore, FilterExperiment experiment)
     {
-        collateOnDiskAtom(returnCF, toCollate, filter, this.key, gcBefore, timestamp);
+        collateOnDiskAtom(returnCF, toCollate, filter, this.key, gcBefore, timestamp, experiment);
     }
 
     /**
@@ -125,9 +126,10 @@ public class QueryFilter
                                          IDiskAtomFilter filter,
                                          DecoratedKey key,
                                          int gcBefore,
-                                         long timestamp)
+                                         long timestamp,
+                                         FilterExperiment experiment)
     {
-        if (filter.isReversed() || isRowCacheEnabled(returnCF)) {
+        if (experiment == FilterExperiment.USE_LEGACY || filter.isReversed() || isRowCacheEnabled(returnCF)) {
             legacyCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
         } else {
             optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
