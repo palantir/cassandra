@@ -145,7 +145,7 @@ public class QueryFilterTest {
     @Test
     public void testFilterTombstones_does_not_skip_overlapping_cell_if_cell_newer_than_tombstone() {
         Cell value = value('a', TOMBSTONES_TS);
-        assertThat(filter(rangeDelete('a', 'b'), value)).containsExactly(value);
+        assertThat(filter(rangeDelete('a', 'b'), value)).contains(value);
     }
 
     @Test
