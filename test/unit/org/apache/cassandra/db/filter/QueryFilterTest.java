@@ -132,6 +132,12 @@ public class QueryFilterTest {
     }
 
     @Test
+    public void testFilterTombstones_never_returns_tombstones_out_of_order() {
+        OnDiskAtom[] cells = new OnDiskAtom[] { rangeDelete('a', 'c', 123), value('a', 124) };
+        assertThat(filter(cells)).containsExactly(cells);
+    }
+
+    @Test
     public void testFilterTombstones_skips_cell_if_overlapped_by_current_tombstone() {
         assertThat(filter(rangeDelete('a', 'b'), value('a'))).isEmpty();
     }
@@ -139,7 +145,7 @@ public class QueryFilterTest {
     @Test
     public void testFilterTombstones_does_not_skip_overlapping_cell_if_cell_newer_than_tombstone() {
         Cell value = value('a', TOMBSTONES_TS);
-        assertThat(filter(rangeDelete('a', 'b'), value)).containsExactly(value);
+        assertThat(filter(rangeDelete('a', 'b'), value)).contains(value);
     }
 
     @Test
