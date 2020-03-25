@@ -1717,6 +1717,7 @@ public class StorageProxy implements StorageProxyMBean
         Keyspace keyspace = Keyspace.open(command.keyspace);
         List<Row> rows;
         // now scan until we have enough results
+        int numRequestRounds = 0;
         try
         {
             int liveRowCount = 0;
@@ -1945,6 +1946,7 @@ public class StorageProxy implements StorageProxyMBean
                     logger.trace("Didn't get enough response rows; actual rows per range: {}; remaining rows: {}, new concurrent requests: {}",
                                  actualRowsPerRange, (int) remainingRows, concurrencyFactor);
                 }
+                numRequestRounds++;
             }
         }
         catch (ReadTimeoutException e)
@@ -1964,8 +1966,10 @@ public class StorageProxy implements StorageProxyMBean
         }
         finally
         {
+
             long latency = System.nanoTime() - startTime;
             rangeMetrics.addNano(latency);
+            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestRounds.update(numRequestRounds);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.addNano(latency);
         }
         return command.postReconciliationProcessing(rows);
