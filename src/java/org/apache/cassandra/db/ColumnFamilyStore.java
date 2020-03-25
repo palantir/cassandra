@@ -39,7 +39,6 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
-import org.apache.commons.lang.mutable.MutableBoolean;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
