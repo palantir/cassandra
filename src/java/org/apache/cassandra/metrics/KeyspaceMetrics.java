@@ -94,6 +94,10 @@ public class KeyspaceMetrics
     public final Histogram colUpdateTimeDeltaHistogram;
     /** Request rounds in range scan queries on this keyspace */
     public final Histogram coordinatorScanRequestRounds;
+    /** Number of separate requests in a range scan query on this keyspace **/
+    public final Histogram coordinatorScanRequestQueries;
+    /** Number of separate requests in a range scan query on this keyspace **/
+    public final Histogram coordinatorScanRequestTokenRanges;
     /** CAS Prepare metric */
     public final LatencyMetrics casPrepare;
     /** CAS Propose metrics */
@@ -242,6 +246,8 @@ public class KeyspaceMetrics
         tombstonesReadHistogram = Metrics.histogram(factory.createMetricName("TombstonesReadHistogram"), false);
         colUpdateTimeDeltaHistogram = Metrics.histogram(factory.createMetricName("ColUpdateTimeDeltaHistogram"), false);
         coordinatorScanRequestRounds = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestRounds"), false);
+        coordinatorScanRequestQueries = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestQueries"), false);
+        coordinatorScanRequestTokenRanges = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestTokenRanges"), false);
         // add manually since histograms do not use createKeyspaceGauge method
         allMetrics.addAll(Lists.newArrayList("SSTablesPerReadHistogram", "TombstoneScannedHistogram", "LiveScannedHistogram",
                 "DroppableTombstonesReadHistogram", "DroppableTtlsReadHistogram", "LiveReadHistogram", "TombstonesReadHistogram"));
