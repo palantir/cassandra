@@ -21,6 +21,7 @@ package org.apache.cassandra.db;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.KSMetaData;
@@ -87,7 +88,7 @@ public class CollationControllerTest
         // It should only iterate the last flushed sstable, since it probably contains the most recent value for Column1
         QueryFilter filter = Util.namesQueryFilter(cfs, dk, "Column1");
         CollationController controller = new CollationController(cfs, filter, Integer.MIN_VALUE);
-        controller.getTopLevelColumns(true);
+        controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED);
         assertEquals(1, controller.getSstablesIterated());
 
         // SliceQueryFilter goes down another path (through collectAllData())
@@ -95,7 +96,7 @@ public class CollationControllerTest
         // recent than the maxTimestamp of the very first sstable we flushed, we should only read the 2 first sstables.
         filter = QueryFilter.getIdentityFilter(dk, cfs.name, System.currentTimeMillis());
         controller = new CollationController(cfs, filter, Integer.MIN_VALUE);
-        controller.getTopLevelColumns(true);
+        controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED);
         assertEquals(2, controller.getSstablesIterated());
     }
 
@@ -129,10 +130,10 @@ public class CollationControllerTest
 
         filter = QueryFilter.getNamesFilter(dk, cfs.name, FBUtilities.singleton(cellName, cfs.getComparator()), queryAt);
         CollationController controller = new CollationController(cfs, filter, gcBefore);
-        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true), gcBefore) == null;
+        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED), gcBefore) == null;
 
         filter = QueryFilter.getIdentityFilter(dk, cfs.name, queryAt);
         controller = new CollationController(cfs, filter, gcBefore);
-        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true), gcBefore) == null;
+        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED), gcBefore) == null;
     }
 }

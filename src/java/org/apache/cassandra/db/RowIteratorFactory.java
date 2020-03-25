@@ -21,6 +21,7 @@ import java.util.*;
 
 import com.google.common.collect.Iterables;
 
+import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.columniterator.IColumnIteratorFactory;
 import org.apache.cassandra.db.columniterator.LazyColumnIterator;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
@@ -97,7 +98,8 @@ public class RowIteratorFactory
                 if (cached == null || !cfs.isFilterFullyCoveredBy(filter, cached, now))
                 {
                     // not cached: collate
-                    QueryFilter.collateOnDiskAtom(returnCF, colIters, filter, key, gcBefore, now);
+                    QueryFilter.collateOnDiskAtom(
+                            returnCF, colIters, filter, key, gcBefore, now, FilterExperiment.USE_LEGACY);
                 }
                 else
                 {
