@@ -17,6 +17,11 @@
  */
 package org.apache.cassandra.db;
 
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.util.concurrent.Uninterruptibles;
+
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.partitions.UnfilteredPartitionIterator;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.io.IVersionedSerializer;
@@ -40,6 +45,12 @@ public class ReadCommandVerbHandler implements IVerbHandler<ReadCommand>
         {
             /* Cannot service reads while bootstrapping! */
             throw new IsBootstrappingException();
+        }
+
+        int readDelay = DatabaseDescriptor.getReadDelay();
+        if (readDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before responding to read message", readDelay);
+            Uninterruptibles.sleepUninterruptibly(readDelay, TimeUnit.SECONDS);
         }
 
         ReadCommand command = message.payload;

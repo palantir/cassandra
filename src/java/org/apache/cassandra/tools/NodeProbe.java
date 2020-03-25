@@ -951,6 +951,10 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getViewBuildStatuses(keyspace, view);
     }
 
+    public void setReadDelay(Integer readDelay) {
+        ssProxy.setReadDelay(readDelay);
+    }
+
     public void pauseHintsDelivery()
     {
         hhProxy.pauseHintsDelivery(true);
