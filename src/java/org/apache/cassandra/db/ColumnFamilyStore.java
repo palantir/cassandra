@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -2016,17 +2017,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // This boolean is not necessay for correctness, but is necessary for the metrics to be updated in the
                 // same cases, since slice queries skip updating metrics when no data was returned (for some reason).
                 // While this should be fixed, let's not do this in a PR that changes behaviour.
-                MutableBoolean wasNotNull = new MutableBoolean(false);
+                AtomicBoolean wasNotNull = new AtomicBoolean(false);
                 result = FilterExperiment.execute(experiment -> {
                     ColumnFamily retrieved = getTopLevelColumns(filter, gcBefore, experiment);
                     if (retrieved != null) {
-                        wasNotNull.setValue(true);
+                        wasNotNull.set(true);
                         retrieved = removeDeletedCF(retrieved, gcBefore);
                     }
                     return retrieved;
                 });
 
-                if (result == null && !wasNotNull.booleanValue())
+                if (result == null && !wasNotNull.get())
                     return null;
             }
 
