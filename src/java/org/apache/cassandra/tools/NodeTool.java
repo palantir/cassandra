@@ -74,7 +74,6 @@ public class NodeTool
                 DisableBinary.class,
                 EnableBinary.class,
                 EnableGossip.class,
-                SetReadDelay.class,
                 DisableGossip.class,
                 EnableHandoff.class,
                 EnableThrift.class,
