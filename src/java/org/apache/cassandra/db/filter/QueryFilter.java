@@ -23,6 +23,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
+
+import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.DecoratedKey;
@@ -32,8 +38,10 @@ import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
 import org.apache.cassandra.db.composites.CellName;
+import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.service.CacheService;
 import org.apache.cassandra.utils.MergeIterator;
 
 public class QueryFilter
@@ -64,17 +72,89 @@ public class QueryFilter
 
     public void collateOnDiskAtom(ColumnFamily returnCF,
                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
-                                  int gcBefore)
+                                  int gcBefore, FilterExperiment experiment)
     {
-        collateOnDiskAtom(returnCF, toCollate, filter, this.key, gcBefore, timestamp);
+        collateOnDiskAtom(returnCF, toCollate, filter, this.key, gcBefore, timestamp, experiment);
     }
 
+    /**
+     * Palantir: In principle, this cache should not really have to care about the row cache. This is more a
+     * safety concern than anything else - the row cache makes many more assumptions about what's returned, and
+     * we are explicitly breaking some assumptions. So given that we don't actually use the row cache, let's just
+     * deoptimize if it's on.
+     */
+    private static boolean isRowCacheEnabled(ColumnFamily cf) {
+        return cf.metadata().getCaching().rowCache.isEnabled() && CacheService.instance.rowCache.getCapacity() > 0;
+    }
+
+    /**
+     * Palantir: What we found in practice was that the vanilla version of this function can cause OOMs.
+     * Default Cassandra keeps range tombstones separate from the values that they tombstone and due to the
+     * order in which they are added to the internal data structures, must keep them for the entire duration
+     * of reading a row. What this means for us is that if we have a row with many range tombstones,
+     * we must hold the entire set of range tombstones in memory for the duration of the read. This cannot be
+     * controlled via things like limits, and so you can end up with rows that simply cannot be read, or
+     * that slow down Cassandra to the point of massive garbage collection overheads.
+     *
+     * Here we attempt to handle range tombstones in a constant space mechanism, by merging iterators beforehand
+     * and dropping unnecessary cells and range tombstones at that point. So while the data must still all be
+     * read, it need not be read into memory, which increases overall server stability.
+     *
+     * We skip this optimization if either the row cache is in use (because the row cache requires that this codepath
+     * not drop droppable tombstones (see comments in CollationController describing how removeDeletedCF must be handled
+     * above that level)) or we're scanning in reverse, in which case this does not work. No worries, internally we use
+     * neither. It's probably actually safe to do the row cache version of this (I expect it's a concurrency concern).
+     *
+     * Stuff we thought about here:
+     * - It's not safe to do this in the way we do if a range tombstone starting from  X is sorted after a later cell
+     *   written at X. But this is guaranteed by the onDiskAtomComparator (which is used by compactions in LazilyCompactedRow).
+     * - We can only safely get rid of range tombstones that are droppable. If they are not droppable, they break some
+     *   Cassandra consistency guarantees - consider how a node running this optimization would behave when interoperating
+     *   with a node not running the optimization - read repair would go wild. It does not affect us, because we only
+     *   write range tombstones at consistency ALL, but it's still a C* correctness concern and we don't know where
+     *   they write range tombstones internally. In practice then, this method just does most of the prework of
+     *   ColumnFamilyStore.removeDeleted.
+     * - Tombstones that we've dropped will no longer cover cells that are stored in the memtable, were that the case.
+     *   This is not a problem for us - we only drop droppable tombstones and so it'd be correct for a compaction to
+     *   simply delete the tombstones.
+     * - Cassandra does not always store its data in order on-disk. Notably it might repeat range tombstones, to ensure that
+     *   tombstones that are wider than index entries still get read (in practice this won't happen for us). This
+     *   transformation is safe for that case.
+     */
     public static void collateOnDiskAtom(ColumnFamily returnCF,
                                          List<? extends Iterator<? extends OnDiskAtom>> toCollate,
                                          IDiskAtomFilter filter,
                                          DecoratedKey key,
                                          int gcBefore,
-                                         long timestamp)
+                                         long timestamp,
+                                         FilterExperiment experiment)
+    {
+        if (experiment == FilterExperiment.USE_LEGACY || filter.isReversed() || isRowCacheEnabled(returnCF)) {
+            legacyCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
+        } else {
+            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
+        }
+    }
+
+    private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
+                                                  List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                  IDiskAtomFilter filter,
+                                                  DecoratedKey key,
+                                                  int gcBefore,
+                                                  long timestamp) {
+        Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
+        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), merged, gcBefore);
+        Iterator<Cell> gathered = gatherTombstones(returnCF, filtered);
+        Iterator<Cell> reconciled = reconcileDuplicates(filter.getColumnComparator(returnCF.getComparator()), gathered);
+        filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp);
+    }
+
+    private static void legacyCollateOnDiskAtom(ColumnFamily returnCF,
+                                                List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                IDiskAtomFilter filter,
+                                                DecoratedKey key,
+                                                int gcBefore,
+                                                long timestamp)
     {
         List<Iterator<Cell>> filteredIterators = new ArrayList<>(toCollate.size());
         for (Iterator<? extends OnDiskAtom> iter : toCollate)
@@ -82,10 +162,38 @@ public class QueryFilter
         collateColumns(returnCF, filteredIterators, filter, key, gcBefore, timestamp);
     }
 
+    /**
+     * Serves the same purpose as the MergeIterator.Reducer kept in this class, except it works properly for a
+     * single iterator.
+     */
+    @VisibleForTesting
+    static Iterator<Cell> reconcileDuplicates(Comparator<Cell> comparator, Iterator<Cell> cells) {
+        final PeekingIterator<Cell> peeking = Iterators.peekingIterator(cells);
+        return new AbstractIterator<Cell>() {
+            protected Cell computeNext()
+            {
+                if (!peeking.hasNext()) {
+                    return endOfData();
+                }
+                Cell root = peeking.next();
+                while (peeking.hasNext() && comparator.compare(root, peeking.peek()) == 0) {
+                    root = root.reconcile(peeking.next());
+                }
+                return root;
+            }
+        };
+    }
+
+    // Palantir: This is only used for the names query filter, which we don't use so don't optimize.
     // When there is only a single source of atoms, we can skip the collate step
     public void collateOnDiskAtom(ColumnFamily returnCF, Iterator<? extends OnDiskAtom> toCollate, int gcBefore)
     {
-        filter.collectReducedColumns(returnCF, gatherTombstones(returnCF, toCollate), this.key, gcBefore, timestamp);
+        filter.collectReducedColumns(
+            returnCF,
+            gatherTombstones(returnCF, toCollate),
+            this.key,
+            gcBefore,
+            timestamp);
     }
 
     public void collateColumns(ColumnFamily returnCF, List<? extends Iterator<Cell>> toCollate, int gcBefore)
@@ -107,6 +215,84 @@ public class QueryFilter
                                : MergeIterator.get(toCollate, comparator, getReducer(comparator));
 
         filter.collectReducedColumns(returnCF, reduced, key, gcBefore, timestamp);
+    }
+
+    private static Iterator<OnDiskAtom> merge(CellNameType comparator, List<? extends Iterator<? extends OnDiskAtom>> iterators) {
+        return Iterators.mergeSorted(iterators, comparator.onDiskAtomComparator());
+    }
+
+    /**
+     * A complex function which holds a RangeTombstone before emitting it. Uses the held range tombstone
+     * to elide emitting cells that are covered by it, or redundant other range tombstones. Emits the range
+     * tombstone iff an incompatible range tombstone is seen, otherwise skips.
+     */
+    @VisibleForTesting
+    static Iterator<OnDiskAtom> filterTombstones(
+            final CellNameType comparator, Iterator<? extends OnDiskAtom> backingIterator, int gcBefore) {
+        final PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(backingIterator);
+        return new AbstractIterator<OnDiskAtom>()
+        {
+            RangeTombstone maybePendingRangeTombstone;
+
+            private RangeTombstone getPendingRangeTombstoneAndSet(RangeTombstone newValue) {
+                RangeTombstone present = maybePendingRangeTombstone;
+                maybePendingRangeTombstone = newValue;
+                return present;
+            }
+
+            protected OnDiskAtom computeNext()
+            {
+                while (peeking.hasNext()) {
+                    OnDiskAtom nextAtom = peeking.peek();
+                    // if the next atom is outside of the range, we can dump any cached range tombstone that haven't
+                    // deleted anything.
+                    if (maybePendingRangeTombstone == null
+                            || !maybePendingRangeTombstone.includes(comparator, nextAtom.name())) {
+                        // If the range tombstone is not droppable, we must return it.
+                        if (pendingTombstoneNotDroppable()) {
+                            return getPendingRangeTombstoneAndSet(null);
+                        }
+
+                        if (nextAtom instanceof RangeTombstone) {
+                            maybePendingRangeTombstone = (RangeTombstone) peeking.next();
+                            continue;
+                        } else {
+                            maybePendingRangeTombstone = null;
+                            return peeking.next();
+                        }
+                    }
+                    // we have a range tombstone, we're in the range
+                    if (nextAtom instanceof Cell) {
+                        OnDiskAtom next = peeking.next();
+                        // if the next cell is overwritten by the range tombstone, skip it
+                        if (nextAtom.timestamp() < maybePendingRangeTombstone.timestamp()) {
+                            continue;
+                        } else {
+                            return next;
+                        }
+                    } else {
+                        // we have an overlap. We expect that the present tombstone
+                        // will supercede the old, based on how we write...
+                        RangeTombstone tombstone = (RangeTombstone) nextAtom;
+                        if (maybePendingRangeTombstone.supersedes(tombstone, comparator)) {
+                            peeking.next();
+                            continue;
+                        } else {
+                            // cannot optimize, return, move on
+                            return getPendingRangeTombstoneAndSet((RangeTombstone) peeking.next());
+                        }
+                    }
+                }
+                if (pendingTombstoneNotDroppable()) {
+                    return getPendingRangeTombstoneAndSet(null);
+                }
+                return endOfData();
+            }
+
+            private boolean pendingTombstoneNotDroppable() {
+                return maybePendingRangeTombstone != null && maybePendingRangeTombstone.getLocalDeletionTime() >= gcBefore;
+            }
+        };
     }
 
     private static MergeIterator.Reducer<Cell, Cell> getReducer(final Comparator<Cell> comparator)
