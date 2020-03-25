@@ -59,7 +59,7 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else {
+            } else if (!areEqual(legacyResult, function.apply(USE_LEGACY))) {
                 failures.inc();
                 log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}",
                          legacyResult, optimizedResult);
