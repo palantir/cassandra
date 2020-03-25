@@ -263,12 +263,13 @@ public class QueryFilter
                     }
                     // we have a range tombstone, we're in the range
                     if (nextAtom instanceof Cell) {
-                        OnDiskAtom next = peeking.next();
                         // if the next cell is overwritten by the range tombstone, skip it
                         if (nextAtom.timestamp() < maybePendingRangeTombstone.timestamp()) {
+                            peeking.next();
                             continue;
                         } else {
-                            return next;
+                            // must return to make sure we never switch orders of cells in output - we filter only.
+                            return getPendingRangeTombstoneAndSet(null);
                         }
                     } else {
                         // we have an overlap. We expect that the present tombstone
