@@ -1856,6 +1856,7 @@ public class StorageProxy implements StorageProxyMBean
                 Tracing.trace("Submitted {} concurrent range requests covering {} ranges", concurrentRequests, i - concurrentFetchStartingIndex);
 
                 List<AsyncOneResponse> repairResponses = new ArrayList<>();
+                long readStartTime = System.nanoTime();
                 for (Pair<AbstractRangeCommand, ReadCallback<RangeSliceReply, Iterable<Row>>> cmdPairHandler : scanHandlers)
                 {
                     ReadCallback<RangeSliceReply, Iterable<Row>> handler = cmdPairHandler.right;
@@ -1906,6 +1907,7 @@ public class StorageProxy implements StorageProxyMBean
                         break;
                     }
                 }
+                Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorReadScanLatency.addNano(System.nanoTime() - readStartTime);
 
                 try
                 {

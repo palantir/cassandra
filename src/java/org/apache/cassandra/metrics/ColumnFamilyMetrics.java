@@ -167,6 +167,7 @@ public class ColumnFamilyMetrics
     public final Meter readBytesRead;
 
     public final LatencyMetrics coordinatorReadLatency;
+    public final LatencyMetrics coordinatorReadScanLatency;
     public final LatencyMetrics coordinatorScanLatency;
 
     /** Request rounds in range scan queries on this CF **/
@@ -386,6 +387,7 @@ public class ColumnFamilyMetrics
         writeLatency = new LatencyMetrics(factory, "Write", cfs.keyspace.metric.writeLatency, globalWriteLatency);
         rangeLatency = new LatencyMetrics(factory, "Range", cfs.keyspace.metric.rangeLatency, globalRangeLatency);
         coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
+        coordinatorReadScanLatency = new LatencyMetrics(factory, "CoordinatorReadScan",  new LatencyMetrics(globalNameFactory, "CoordinatorReadScan"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
