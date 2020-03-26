@@ -5361,4 +5361,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             Runtime.getRuntime().removeShutdownHook(drainOnShutdown);
         }
     }
+
+    public void setReadDelay(int readDelay)
+    {
+        DatabaseDescriptor.setReadDelay(readDelay);
+        logger.info(String.format("Updated read_delay_in_s to %d", readDelay));
+    }
 }

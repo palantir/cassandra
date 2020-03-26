@@ -157,7 +157,8 @@ public class NodeTool
                 FailureDetectorInfo.class,
                 RefreshSizeEstimates.class,
                 RelocateSSTables.class,
-                ViewBuildStatus.class
+                ViewBuildStatus.class,
+                SetReadDelay.class
         );
 
         Cli.CliBuilder<Consumer<INodeProbeFactory>> builder = Cli.builder("nodetool");

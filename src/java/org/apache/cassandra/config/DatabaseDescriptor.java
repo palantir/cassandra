@@ -2517,6 +2517,14 @@ public class DatabaseDescriptor
         return conf.gc_warn_threshold_in_ms;
     }
 
+    public static void setReadDelay(int readDelayInSeconds) {
+        conf.read_delay_in_s = readDelayInSeconds;
+    }
+
+    public static int getReadDelay() {
+        return conf.read_delay_in_s;
+    }
+
     public static boolean isCDCEnabled()
     {
         return conf.cdc_enabled;
