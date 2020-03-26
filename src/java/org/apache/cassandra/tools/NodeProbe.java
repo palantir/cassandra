@@ -850,6 +850,10 @@ public class NodeProbe implements AutoCloseable
         spProxy.setHintedHandoffEnabledByDCList(dcNames);
     }
 
+    public void setReadDelay(Integer readDelay) {
+        ssProxy.setReadDelay(readDelay);
+    }
+
     public void pauseHintsDelivery()
     {
         hhProxy.pauseHintsDelivery(true);
