@@ -173,6 +173,12 @@ public class ColumnFamilyMetrics
     /** Request rounds in range scan queries on this CF **/
     public final ColumnFamilyHistogram coordinatorScanRequestRounds;
 
+    /** Number of separate requests in a range scan query on this CF **/
+    public final ColumnFamilyHistogram coordinatorScanRequestQueries;
+
+    /** Number of token ranges in a range scan query on this CF **/
+    public final ColumnFamilyHistogram coordinatorScanRequestTokenRanges;
+
     /** Time spent waiting for free memtable space, either on- or off-heap */
     public final Histogram waitingOnFreeMemtableSpace;
 
@@ -663,6 +669,8 @@ public class ColumnFamilyMetrics
         tombstonesReadHistogram = createColumnFamilyHistogram("TombstonesReadHistogram", cfs.keyspace.metric.tombstonesReadHistogram, false);
         colUpdateTimeDeltaHistogram = createColumnFamilyHistogram("ColUpdateTimeDeltaHistogram", cfs.keyspace.metric.colUpdateTimeDeltaHistogram, false);
         coordinatorScanRequestRounds = createColumnFamilyHistogram("CoordinatorScanRequestRounds", cfs.keyspace.metric.coordinatorScanRequestRounds, false);
+        coordinatorScanRequestQueries = createColumnFamilyHistogram("CoordinatorScanRequestQueries", cfs.keyspace.metric.coordinatorScanRequestQueries, false);
+        coordinatorScanRequestTokenRanges = createColumnFamilyHistogram("CoordinatorScanRequestTokenRanges", cfs.keyspace.metric.coordinatorScanRequestTokenRanges, false);
         waitingOnFreeMemtableSpace = Metrics.histogram(factory.createMetricName("WaitingOnFreeMemtableSpace"), false);
 
         trueSnapshotsSize = createColumnFamilyGauge("SnapshotsSize", new Gauge<Long>()
