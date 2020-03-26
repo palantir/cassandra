@@ -29,6 +29,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
 import javax.management.*;
@@ -2017,14 +2018,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // same cases, since slice queries skip updating metrics when no data was returned (for some reason).
                 // While this should be fixed, let's not do this in a PR that changes behaviour.
                 AtomicBoolean wasNotNull = new AtomicBoolean(false);
-                result = FilterExperiment.execute(experiment -> {
-                    ColumnFamily retrieved = getTopLevelColumns(filter, gcBefore, experiment);
+                BiFunction<FilterExperiment, Integer, ColumnFamily> compute = (experiment, chosenGcBefore) -> {
+                    ColumnFamily retrieved = getTopLevelColumns(filter, chosenGcBefore, experiment);
                     if (retrieved != null) {
                         wasNotNull.set(true);
-                        retrieved = removeDeletedCF(retrieved, gcBefore);
+                        retrieved = removeDeletedCF(retrieved, chosenGcBefore);
                     }
                     return retrieved;
-                });
+                };
+                result = FilterExperiment.execute(
+                    experiment -> compute.apply(experiment, gcBefore),
+                    experiment -> compute.apply(experiment, gcBefore - 60));
 
                 if (result == null && !wasNotNull.get())
                     return null;
