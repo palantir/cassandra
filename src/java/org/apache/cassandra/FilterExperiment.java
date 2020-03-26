@@ -63,13 +63,13 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else if (!areEqual(legacyResult, function.apply(USE_LEGACY))
-                       && !areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED))) {
+            } else if (areEqual(legacyResult, function.apply(USE_LEGACY))
+                       || areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED))) {
+                indeterminate.inc();
+            } else {
                 failures.inc();
                 log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}",
                          legacyResult, optimizedResult);
-            } else {
-                indeterminate.inc();
             }
         } catch (RuntimeException e) {
             failures.inc();
