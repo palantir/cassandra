@@ -64,7 +64,8 @@ public enum FilterExperiment
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
             } else if (areEqual(legacyResult, function.apply(USE_LEGACY))
-                       || areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED))) {
+                       || (legacyResult.metadata().getGcGraceSeconds() == 0
+                           && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
                 indeterminate.inc();
             } else {
                 failures.inc();
