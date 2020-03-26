@@ -4712,4 +4712,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         return nonTransientError.name().equals(errorAtrributes.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
     }
+
+    public void setReadDelay(int readDelay)
+    {
+        DatabaseDescriptor.setReadDelay(readDelay);
+        logger.info(String.format("Updated read_delay_in_s to %d", readDelay));
+    }
 }
