@@ -1716,8 +1716,9 @@ public class StorageProxy implements StorageProxyMBean
 
         Keyspace keyspace = Keyspace.open(command.keyspace);
         List<Row> rows;
-        // now scan until we have enough results
         int numRequestRounds = 0;
+        int numRequestQueries = 0;
+        // now scan until we have enough results
         try
         {
             int liveRowCount = 0;
@@ -1852,6 +1853,7 @@ public class StorageProxy implements StorageProxyMBean
                         }
                     }
                     scanHandlers.add(Pair.create(nodeCmd, handler));
+                    numRequestQueries++;
                 }
                 Tracing.trace("Submitted {} concurrent range requests covering {} ranges", concurrentRequests, i - concurrentFetchStartingIndex);
 
@@ -1950,6 +1952,7 @@ public class StorageProxy implements StorageProxyMBean
                 }
                 numRequestRounds++;
             }
+            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestTokenRanges.update(ranges.size());
         }
         catch (ReadTimeoutException e)
         {
@@ -1968,9 +1971,9 @@ public class StorageProxy implements StorageProxyMBean
         }
         finally
         {
-
             long latency = System.nanoTime() - startTime;
             rangeMetrics.addNano(latency);
+            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestQueries.update(numRequestQueries);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestRounds.update(numRequestRounds);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.addNano(latency);
         }
