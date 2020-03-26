@@ -271,6 +271,8 @@ public class Config
 
     public int cache_load_timeout_seconds = 30;
 
+    public volatile int read_delay_in_s = 0;
+
     private static boolean isClientMode = false;
     private static Supplier<Config> overrideLoadConfig = null;
 

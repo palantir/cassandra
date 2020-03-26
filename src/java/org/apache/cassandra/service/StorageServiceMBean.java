@@ -807,4 +807,8 @@ public interface StorageServiceMBean extends NotificationEmitter
      * @return a map of all recorded non transient errors.
      */
     public Set<Map<String, String>> getNonTransientErrors();
+
+    /** Every read request sent to this node from another node will result in a delay of the specified value, in seconds
+     */
+    public void setReadDelay(int readDelay);
 }

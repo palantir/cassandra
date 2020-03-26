@@ -5624,4 +5624,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         Map<UUID, Set<InetAddress>> outstanding = MigrationCoordinator.instance.outstandingVersions();
         return outstanding.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toString(), Entry::getValue));
     }
+
+    public void setReadDelay(int readDelay)
+    {
+        DatabaseDescriptor.setReadDelay(readDelay);
+        logger.info(String.format("Updated read_delay_in_s to %d", readDelay));
+    }
 }
