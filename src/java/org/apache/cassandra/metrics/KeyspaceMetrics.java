@@ -250,7 +250,8 @@ public class KeyspaceMetrics
         coordinatorScanRequestTokenRanges = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestTokenRanges"), false);
         // add manually since histograms do not use createKeyspaceGauge method
         allMetrics.addAll(Lists.newArrayList("SSTablesPerReadHistogram", "TombstoneScannedHistogram", "LiveScannedHistogram",
-                "DroppableTombstonesReadHistogram", "DroppableTtlsReadHistogram", "LiveReadHistogram", "TombstonesReadHistogram"));
+                "DroppableTombstonesReadHistogram", "DroppableTtlsReadHistogram", "LiveReadHistogram", "TombstonesReadHistogram",
+                "CoordinatorScanRequestRounds", "CoordinatorScanRequestQueries", "CoordinatorScanRequestTokenRanges"));
 
         casPrepare = new LatencyMetrics(factory, "CasPrepare");
         casPropose = new LatencyMetrics(factory, "CasPropose");
