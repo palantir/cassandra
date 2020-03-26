@@ -238,6 +238,8 @@ public class Config
     public volatile int counter_cache_save_period = 7200;
     public volatile int counter_cache_keys_to_save = Integer.MAX_VALUE;
 
+    public volatile int read_delay_in_s = 0;
+
     @Deprecated
     public String memory_allocator;
 
