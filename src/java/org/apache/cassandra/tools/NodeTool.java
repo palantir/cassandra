@@ -144,7 +144,8 @@ public class NodeTool
                 FailureDetectorInfo.class,
                 RefreshSizeEstimates.class,
                 RelocateSSTables.class,
-                ViewBuildStatus.class
+                ViewBuildStatus.class,
+                SetReadDelay.class
         );
 
         Cli.CliBuilder<Runnable> builder = Cli.builder("nodetool");
