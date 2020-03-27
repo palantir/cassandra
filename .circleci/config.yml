@@ -41,6 +41,7 @@ jobs:
     steps:
       - attach_workspace: { at: /home/circleci }
       - run: set -eou pipefail && ant -Dtest.runners=2 test | tee build/test_output
+      - store_test_results: { path: build/test/output }
       - store_artifacts: { path: build/test_output }
 
   artifacts:
