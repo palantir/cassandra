@@ -53,26 +53,6 @@ public class QueryFilterTest {
     private static final int WRITE_TIME = 123;
 
     @Test
-    public void testCollateOnDiskAtom_handlesSuperLameDeoptimization_atStart() {
-        List<Cell> left = ImmutableList.of(value('a'), value('b'), value('c'));
-        List<OnDiskAtom> right = ImmutableList.of(nonDroppableRangeDelete('d', 'e'));
-        ColumnFamily cf = newCF();
-        collate(cf, 1, left.iterator(), right.iterator());
-        assertThat(cf.deletionInfo().rangeIterator()).containsExactly(nonDroppableRangeDelete('d', 'e'));
-        assertThat(cf.iterator()).containsExactly(value('a'));
-    }
-
-    @Test
-    public void testCollateOnDiskAtom_handlesSuperLameDeoptimization_atEnd() {
-        List<Cell> left = ImmutableList.of(value('a'));
-        List<OnDiskAtom> right = ImmutableList.of(value('b'), nonDroppableRangeDelete('d', 'e'));
-        ColumnFamily cf = newCF();
-        collate(cf, 2, left.iterator(), right.iterator());
-        assertThat(cf.deletionInfo().rangeIterator()).containsExactly(nonDroppableRangeDelete('d', 'e'));
-        assertThat(cf.iterator()).containsExactly(value('a'), value('b'));
-    }
-
-    @Test
     public void testCollateOnDiskAtom_safeInPresenceOfRepeatedTombstones() {
         List<Cell> left = ImmutableList.of(value('a'), value('d'), value('e'), value('f'));
         List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'e'), value('a'), value('b'), rangeDelete('a', 'e'), value('g'));

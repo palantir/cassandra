@@ -18,22 +18,24 @@
 
 package org.apache.cassandra;
 
+import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
+import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
+import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
 import org.apache.cassandra.metrics.MetricNameFactory;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 public enum FilterExperiment
 {
@@ -63,7 +65,7 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else if (!areEqual(legacyResult, function.apply(USE_LEGACY))
+            } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))
                        || (legacyResult.metadata().getGcGraceSeconds() == 0
                            && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
                 indeterminate.inc();
@@ -89,7 +91,55 @@ public enum FilterExperiment
         }
     }
 
-    private static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
+    /**
+     * Palantir: this comparison is _super lame_, but the original code is doing something really
+     * silly. What's happening is that because
+     * the original code is roughly nested merge(gatherTombstones(iterators)), whereas ours is
+     * nested gatherTombstones(merge(iterators)), if the next element past the last one we read
+     * is a tombstone (or sequence of tombstones), they'll
+     * all be gathered at that point into the return cf, regardless of whether they are ever
+     * consumed from the merge iterator.
+     * This is silly, because it means that if we're merging (a, b, c, d) and (rangeDelete(f, h))
+     * with limit 1, then our result cf will contain (a, rangeDelete(f, h)) despite the tombstone
+     * being discontinuous. And it means that if we have a lot of tombstones and we read the latest
+     * entry only, we will read all of the tombstones nonetheless.
+     * We can save some of the stress by not adding droppable tombstones
+     * to the return c.f. (they'll be early removed anyhow). We can't just throw them away,
+     * because they could be tombstoning other cells.
+     *
+     * This deoptimization should only exist in the a/b comparison phase of rolling this out
+     * - we can kill it once that passes, which is why we don't fix (fixing is also
+     * a nightmare). The consequence of killing it is that while we roll
+     * nodes onto the version without this deoptimization, their query results may not match
+     * exactly. Empirically, this means that 0.5% of queries will do a full (and unnecessary)
+     * repair for the duration of the roll. The good news is that the repairing will write
+     * such tombstones into the memtable, and so this can only happen once per row because
+     * memtable DeletionInfo is added directly to returnCF rather than being present in its
+     * iterator.
+     */
+    @VisibleForTesting
+    static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
+        if (areTrulyEqual(legacy, modern)) {
+            return true;
+        }
+        ColumnFamily modernShouldHaveNoMoreThanLegacy = legacy.diff(modern);
+        if (modernShouldHaveNoMoreThanLegacy != null && !modernShouldHaveNoMoreThanLegacy.isEmpty()) {
+            return false;
+        }
+        ColumnFamily difference = modern.diff(legacy);
+        if (difference.hasColumns()) {
+            return false;
+        }
+        Collection<Cell> columns = modern.getReverseSortedColumns();
+        if (columns.isEmpty()) {
+            return false;
+        }
+        Cell column = Iterables.getFirst(columns, null);
+        RangeTombstone tombstone = difference.deletionInfo().rangeIterator().next();
+        return legacy.getComparator().compare(column.name(), tombstone.name()) < 0;
+    }
+
+    static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
     }
 }
