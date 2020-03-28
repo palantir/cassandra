@@ -63,7 +63,7 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else if (areEqual(legacyResult, function.apply(USE_LEGACY))
+            } else if (!areEqual(legacyResult, function.apply(USE_LEGACY))
                        || (legacyResult.metadata().getGcGraceSeconds() == 0
                            && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
                 indeterminate.inc();
