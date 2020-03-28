@@ -4681,7 +4681,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return DatabaseDescriptor.getRangeScanTokenRangesWarnThreshold();
     }
 
-    public void getRangeScanTokenRangesWarnThreshold(int threshold)
+    public void setRangeScanTokenRangesWarnThreshold(int threshold)
     {
         DatabaseDescriptor.getRangeScanTokenRangesWarnThreshold(threshold);
     }

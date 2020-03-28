@@ -35,6 +35,6 @@ public class SetWarnOnLargeRangeScan extends NodeTool.NodeToolCmd
 
     @Override
     protected void execute(NodeProbe probe) {
-        probe.setWarnOnRangeScanTokenRangesCount(doWarn);
+        probe.setWarnOnLargeRangeScan(doWarn);
     }
 }

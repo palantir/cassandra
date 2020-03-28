@@ -34,6 +34,6 @@ public class SetRangeScanTokenRangesWarnThreshold extends NodeToolCmd {
 
     @Override
     protected void execute(NodeProbe probe) {
-        probe.setRangeScanTokenRangesCountWarnThreshold(threshold);
+        probe.setRangeScanTokenRangesWarnThreshold(threshold);
     }
 }

@@ -31,8 +31,6 @@ import java.util.concurrent.TimeoutException;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
 
-import org.apache.cassandra.config.DatabaseDescriptor;
-
 public interface StorageServiceMBean extends NotificationEmitter
 {
     /**
@@ -677,14 +675,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void setRowCountFailureThreshold(int rowCountDebugThreshold);
 
     /**Returns whether or not to warn when the number of token ranges in a range scan breaches the threshold**/
-    public boolean getWarnOnRangeScanTokenRangesCount();
+    public boolean getWarnOnLargeRangeScan();
     /**Sets whether or not to warn when the number of token ranges in a range scan breaches the threshold**/
-    public void setWarnOnRangeScanTokenRangesCount(boolean warnOnRangeScansCount);
+    public void setWarnOnLargeRangeScan(boolean warnOnRangeScansCount);
 
     /**Returns the warn threshold for the number of token ranges in a range scan**/
-    public int getRangeScanTokenRangesCountWarnThreshold();
+    public int getRangeScanTokenRangesWarnThreshold();
     /**Sets the warn threshold for the number of token ranges in a range scan**/
-    public void setRangeScanTokenRangesCountWarnThreshold(int threshold);
+    public void setRangeScanTokenRangesWarnThreshold(int threshold);
 
     /** Returns the threshold for rejecting queries due to a large batch size */
     public int getBatchSizeFailureThreshold();
