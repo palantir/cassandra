@@ -25,6 +25,7 @@ import java.util.SortedSet;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 
@@ -42,6 +43,7 @@ import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.service.CacheService;
+import org.apache.cassandra.thrift.Column;
 import org.apache.cassandra.utils.MergeIterator;
 
 public class QueryFilter
@@ -136,13 +138,58 @@ public class QueryFilter
         }
     }
 
+    /**
+     * Palantir: this deoptimization is _super lame_ but necessary in order for the optimized code
+     * to match the semantics of the unoptimized code exactly. What's happening is that because
+     * the original code is roughly nested merge(gatherTombstones(iterators)), whereas ours is
+     * nested gatherTombstones(merge(iterators)), if some iterator starts with tombstones, they'll
+     * all be gathered at that point into the return cf, regardless of whether they are ever
+     * consumed from the merge iterator.
+     * This is silly, because it means that if we're merging (a, b, c, d) and (rangeDelete(f, h))
+     * with limit 1, then our result cf will contain (a, rangeDelete(f, h)) despite the tombstone
+     * being discontinuous. We can save some of the stress by not adding droppable tombstones
+     * to the return c.f. (they'll be early removed anyhow). We can't just throw them away,
+     * because they could be tombstoning other cells.
+     *
+     * This deoptimization should only exist in the a/b comparison phase of rolling this out
+     * - we can kill it once that passes. The consequence of killing it is that while we roll
+     * nodes onto the version without this deoptimization, their query results may not match
+     * exactly. Empirically, this means that 0.5% of queries will do a full (and unnecessary)
+     * repair for the duration of the roll.
+     */
+    private static List<Iterator<OnDiskAtom>> handleFirstEntryRangeTombstone(
+            ColumnFamily returnCF,
+            List<? extends Iterator<? extends OnDiskAtom>> iterators,
+            int gcBefore) {
+        List<Iterator<OnDiskAtom>> ret = new ArrayList<>(iterators.size());
+        for (Iterator<? extends OnDiskAtom> iterator : iterators) {
+            PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(iterator);
+            List<RangeTombstone> buffered = new ArrayList<>(0);
+            while (peeking.hasNext() && peeking.peek() instanceof RangeTombstone) {
+                RangeTombstone tombstone = (RangeTombstone) peeking.next();
+                if (isDroppable(tombstone, gcBefore)) {
+                    buffered.add(tombstone);
+                } else {
+                    returnCF.addAtom(tombstone);
+                }
+            }
+            ret.add(buffered.isEmpty() ? peeking : Iterators.concat(buffered.iterator(), peeking));
+        }
+        return ret;
+    }
+
+    private static boolean isDroppable(RangeTombstone tombstone, int gcBefore) {
+        return tombstone.getLocalDeletionTime() < gcBefore;
+    }
+
     private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
                                                   IDiskAtomFilter filter,
                                                   DecoratedKey key,
                                                   int gcBefore,
                                                   long timestamp) {
-        Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
+        List<Iterator<OnDiskAtom>> iterators = handleFirstEntryRangeTombstone(returnCF, toCollate, gcBefore);
+        Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), iterators);
         Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), merged, gcBefore);
         Iterator<Cell> gathered = gatherTombstones(returnCF, filtered);
         Iterator<Cell> reconciled = reconcileDuplicates(filter.getColumnComparator(returnCF.getComparator()), gathered);

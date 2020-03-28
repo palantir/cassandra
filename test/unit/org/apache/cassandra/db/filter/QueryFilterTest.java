@@ -53,6 +53,16 @@ public class QueryFilterTest {
     private static final int WRITE_TIME = 123;
 
     @Test
+    public void testCollateOnDiskAtom_handlesSuperLameDeoptimization() {
+        List<Cell> left = ImmutableList.of(value('a'), value('b'), value('c'));
+        List<OnDiskAtom> right = ImmutableList.of(nonDroppableRangeDelete('d', 'e'));
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(metadata);
+        collate(cf, 1, left.iterator(), right.iterator());
+        assertThat(cf.deletionInfo().rangeIterator()).containsExactly(nonDroppableRangeDelete('d', 'e'));
+        assertThat(cf.iterator()).containsExactly(value('a'));
+    }
+
+    @Test
     public void testCollateOnDiskAtom_safeInPresenceOfRepeatedTombstones() {
         List<Cell> left = ImmutableList.of(value('a'), value('d'), value('e'), value('f'));
         List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'e'), value('a'), value('b'), rangeDelete('a', 'e'), value('g'));
@@ -60,7 +70,6 @@ public class QueryFilterTest {
         collate(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().isLive()).isTrue();
         assertThat(cf.iterator()).containsExactly(value('f'), value('g'));
-
     }
 
     @Test
@@ -95,10 +104,14 @@ public class QueryFilterTest {
         return collate(ArrayBackedSortedColumns.factory.create(metadata), cells);
     }
 
-    private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
-        IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, Integer.MAX_VALUE);
+    private static List<Cell> collate(ColumnFamily returnCf, int limit, Iterator<? extends OnDiskAtom>... cells) {
+        IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, limit);
         QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
         return read(returnCf);
+    }
+
+    private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
+        return collate(returnCf, Integer.MAX_VALUE, cells);
     }
 
     private static List<Cell> read(ColumnFamily cf) {
