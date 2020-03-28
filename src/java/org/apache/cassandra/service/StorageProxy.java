@@ -1734,7 +1734,7 @@ public class StorageProxy implements StorageProxyMBean
                 ranges = getRestrictedRanges(command.keyRange);
 
             if (logger.isWarnEnabled() && DatabaseDescriptor.getWarnOnLargeRangeScan()
-                    && ranges.size() > DatabaseDescriptor.getRangeScanTokenRangesWarnThreshold()) {
+                    && ranges.size() >= DatabaseDescriptor.getRangeScanTokenRangesWarnThreshold()) {
                 logger.warn("Requested over {} token ranges in {}.{} range scan; " +
                             "{} tokens were requested (see token_ranges_warn_threshold)",
                             DatabaseDescriptor.getRangeScanTokenRangesWarnThreshold(),
