@@ -98,14 +98,10 @@ public class QueryFilterTest {
         return collate(newCF(), cells);
     }
 
-    private static List<Cell> collate(ColumnFamily returnCf, int limit, Iterator<? extends OnDiskAtom>... cells) {
-        IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, limit);
+    private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
+        IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, Integer.MAX_VALUE);
         QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
         return read(returnCf);
-    }
-
-    private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
-        return collate(returnCf, Integer.MAX_VALUE, cells);
     }
 
     private static List<Cell> read(ColumnFamily cf) {
