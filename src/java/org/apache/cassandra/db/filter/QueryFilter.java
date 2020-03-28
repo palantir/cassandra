@@ -17,15 +17,16 @@
  */
 package org.apache.cassandra.db.filter;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 
@@ -141,12 +142,15 @@ public class QueryFilter
      * Palantir: this deoptimization is _super lame_ but necessary in order for the optimized code
      * to match the semantics of the unoptimized code exactly. What's happening is that because
      * the original code is roughly nested merge(gatherTombstones(iterators)), whereas ours is
-     * nested gatherTombstones(merge(iterators)), if some iterator starts with tombstones, they'll
+     * nested gatherTombstones(merge(iterators)), if the next element past the last one we read
+     * is a tombstone (or sequence of tombstones), they'll
      * all be gathered at that point into the return cf, regardless of whether they are ever
      * consumed from the merge iterator.
      * This is silly, because it means that if we're merging (a, b, c, d) and (rangeDelete(f, h))
      * with limit 1, then our result cf will contain (a, rangeDelete(f, h)) despite the tombstone
-     * being discontinuous. We can save some of the stress by not adding droppable tombstones
+     * being discontinuous. And it means that if we have a lot of tombstones and we read the latest
+     * entry only, we will read all of the tombstones nonetheless.
+     * We can save some of the stress by not adding droppable tombstones
      * to the return c.f. (they'll be early removed anyhow). We can't just throw them away,
      * because they could be tombstoning other cells.
      *
@@ -166,16 +170,32 @@ public class QueryFilter
         List<Iterator<OnDiskAtom>> ret = new ArrayList<>(iterators.size());
         for (Iterator<? extends OnDiskAtom> iterator : iterators) {
             PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(iterator);
-            List<RangeTombstone> buffered = new ArrayList<>(0);
-            while (peeking.hasNext() && peeking.peek() instanceof RangeTombstone) {
-                RangeTombstone tombstone = (RangeTombstone) peeking.next();
-                if (isDroppable(tombstone, gcBefore)) {
-                    buffered.add(tombstone);
-                } else {
-                    returnCF.addAtom(tombstone);
+            ret.add(new AbstractIterator<OnDiskAtom>()
+            {
+                private final Deque<RangeTombstone> buffer = new ArrayDeque<>(0);
+
+                protected OnDiskAtom computeNext()
+                {
+                    if (!buffer.isEmpty()) {
+                        return buffer.remove();
+                    }
+                    while (peeking.hasNext() && peeking.peek() instanceof RangeTombstone) {
+                        RangeTombstone tombstone = (RangeTombstone) peeking.next();
+                        if (isDroppable(tombstone, gcBefore)) {
+                            buffer.add(tombstone);
+                        } else {
+                            returnCF.addAtom(tombstone);
+                        }
+                    }
+                    if (!buffer.isEmpty()) {
+                        return buffer.remove();
+                    } else if (peeking.hasNext()) {
+                        return peeking.next();
+                    } else {
+                        return endOfData();
+                    }
                 }
-            }
-            ret.add(buffered.isEmpty() ? peeking : Iterators.concat(buffered.iterator(), peeking));
+            });
         }
         return ret;
     }
