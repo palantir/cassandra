@@ -1006,6 +1006,22 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getTombstoneWarnThreshold();
     }
 
+    public boolean getWarnOnRangeScanTokenRangesCount() {
+        return ssProxy.getWarnOnRangeScanTokenRangesCount();
+    }
+
+    public void setWarnOnRangeScanTokenRangesCount(boolean warnOnRangeScansCount) {
+        ssProxy.setWarnOnRangeScanTokenRangesCount(warnOnRangeScansCount);
+    }
+
+    public int getRangeScanTokenRangesCountWarnThreshold() {
+        return ssProxy.getRangeScanTokenRangesCountWarnThreshold();
+    }
+
+    public void setRangeScanTokenRangesCountWarnThreshold(int threshold) {
+        ssProxy.setRangeScanTokenRangesCountWarnThreshold(threshold);
+    }
+
     public double getTraceProbability()
     {
         return ssProxy.getTraceProbability();

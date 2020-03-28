@@ -1733,6 +1733,16 @@ public class StorageProxy implements StorageProxyMBean
             else
                 ranges = getRestrictedRanges(command.keyRange);
 
+            if (logger.isWarnEnabled() && DatabaseDescriptor.getWarnOnRangeScanTokenRangesCount()
+                    && ranges.size() > DatabaseDescriptor.getRangeScanTokenRangesCountWarnThreshold()) {
+                logger.warn("Requested over {} token ranges in {}.{} range scan; " +
+                            "{} tokens were requested (see token_ranges_warn_threshold)",
+                            DatabaseDescriptor.getRangeScanTokenRangesCountWarnThreshold(),
+                            command.keyspace,
+                            command.columnFamily,
+                            ranges.size());
+            }
+
             // determine the number of rows to be fetched and the concurrency factor
             int rowsToBeFetched = command.limit();
             int concurrencyFactor;
