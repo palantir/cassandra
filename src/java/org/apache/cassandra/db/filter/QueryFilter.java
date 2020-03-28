@@ -155,7 +155,10 @@ public class QueryFilter
      * - we can kill it once that passes. The consequence of killing it is that while we roll
      * nodes onto the version without this deoptimization, their query results may not match
      * exactly. Empirically, this means that 0.5% of queries will do a full (and unnecessary)
-     * repair for the duration of the roll.
+     * repair for the duration of the roll. The good news is that the repairing will write
+     * such tombstones into the memtable, and so this can only happen once per row because
+     * memtable DeletionInfo is added directly to returnCF rather than being present in its
+     * iterator.
      */
     private static List<Iterator<OnDiskAtom>> handleFirstEntryRangeTombstone(
             ColumnFamily returnCF,
