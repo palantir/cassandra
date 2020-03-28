@@ -43,7 +43,6 @@ import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.service.CacheService;
-import org.apache.cassandra.thrift.Column;
 import org.apache.cassandra.utils.MergeIterator;
 
 public class QueryFilter
@@ -194,8 +193,8 @@ public class QueryFilter
         List<Iterator<OnDiskAtom>> iterators = handleFirstEntryRangeTombstone(returnCF, toCollate, gcBefore);
         Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), iterators);
         Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), merged, gcBefore);
-        Iterator<Cell> gathered = gatherTombstones(returnCF, filtered);
-        Iterator<Cell> reconciled = reconcileDuplicates(filter.getColumnComparator(returnCF.getComparator()), gathered);
+        Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
+            returnCF, filter.getColumnComparator(returnCF.getComparator()), filtered);
         filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp);
     }
 
@@ -215,19 +214,35 @@ public class QueryFilter
     /**
      * Serves the same purpose as the MergeIterator.Reducer kept in this class, except it works properly for a
      * single iterator.
+     *
+     * Also gathers tombstones in the same way as gatherTombstones. We conceptually want to nest reconcile(gather(merge(
+     * whereas stock Cassandra nests reconcile(merge(gather(, so if we are merging ('a', rangeDelete('b', ?)) and
+     * ('c', rangeDelete('d')) then if we compose in that fashion, we would merge to ('a', rangeDelete('b', ?), 'c')
+     * and then try to reconcile 'a', which requires gathering all tombstones up to the next live cell, 'c').
+     * Meanwhile, stock cassandra would be conceptually merging with 'c' and not need to read the tombstone in 'a'.
+     * So, we merge the two steps, and stop reconciling as soon as we see something that is not a cell. This is
+     * additionally beneficial since it means we do strictly less work.
      */
     @VisibleForTesting
-    static Iterator<Cell> reconcileDuplicates(Comparator<Cell> comparator, Iterator<Cell> cells) {
-        final PeekingIterator<Cell> peeking = Iterators.peekingIterator(cells);
+    static Iterator<Cell> reconcileDuplicatesAndGatherTombstones(
+            ColumnFamily returnCF, Comparator<Cell> comparator, Iterator<? extends OnDiskAtom> atoms) {
+        final PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(atoms);
         return new AbstractIterator<Cell>() {
             protected Cell computeNext()
             {
-                if (!peeking.hasNext()) {
+                OnDiskAtom atom = null;
+                while (peeking.hasNext() && (atom = peeking.next()) instanceof RangeTombstone) {
+                    returnCF.addAtom(atom);
+                    atom = null;
+                }
+                if (atom == null) {
                     return endOfData();
                 }
-                Cell root = peeking.next();
-                while (peeking.hasNext() && comparator.compare(root, peeking.peek()) == 0) {
-                    root = root.reconcile(peeking.next());
+                Cell root = (Cell) atom;
+                while (peeking.hasNext()
+                       && peeking.peek() instanceof Cell
+                       && comparator.compare(root, (Cell) peeking.peek()) == 0) {
+                    root = root.reconcile((Cell) peeking.next());
                 }
                 return root;
             }
