@@ -51,23 +51,41 @@ public class FilterExperimentTest
     }
 
     @Test
-    public void testAreEqual_trueIfEqual_cellwise() {
-        ColumnFamily left = cf(value('a'), value('d'));
-        ColumnFamily right = cf(value('a'), value('b'), rangeDelete('b', 'c'), value('d'));
-        assertThat(FilterExperiment.areEqual(left, right)).isTrue();
+    public void testAreEqual_falseIfMoreAnythingOnRight() {
+        ColumnFamily left = cf(value('a'), rangeDelete('b', 'c'));
+        ColumnFamily right1 = cf(value('a'), value('b'), rangeDelete('b', 'c'));
+        ColumnFamily right2 = cf(value('a'), rangeDelete('b', 'c'), rangeDelete('d', 'e'));
+        assertThat(FilterExperiment.areEqual(left, right1)).isFalse();
+        assertThat(FilterExperiment.areEqual(left, right2)).isFalse();
     }
 
     @Test
-    public void testAreEqual_falseIfMoreCells() {
-        ColumnFamily left = cf(value('a'), value('b'));
-        ColumnFamily right = cf(value('a'));
+    public void testAreEqual_falseIfMoreCellsOnLeft() {
+        ColumnFamily left = cf(value('a'), value('b'), rangeDelete('b', 'c'));
+        ColumnFamily right = cf(value('a'), rangeDelete('b', 'c'));
         assertThat(FilterExperiment.areEqual(left, right)).isFalse();
     }
 
     @Test
-    public void testAreEqual_falseIfMoreCells_fromRangeTombstones() {
-        ColumnFamily left = cf(value('a'), value('b'), rangeDelete('b', 'c'));
-        ColumnFamily right = cf(value('a'), value('b'));
+    public void testAreEqual_falseIfNoCellsOnRight() {
+        ColumnFamily left = cf(value('a'), rangeDelete('b', 'c'));
+        ColumnFamily right = cf();
+        assertThat(FilterExperiment.areEqual(left, right)).isFalse();
+    }
+
+    @Test
+    public void testAreEqual_falseIfExtraRangeTombstonesOnLeft_beforeLastOnRight() {
+        ColumnFamily left = cf(value('a'), rangeDelete('b', 'c'), rangeDelete('d', 'e'));
+        ColumnFamily right1 = cf(value('f'));
+        ColumnFamily right2 = cf(rangeDelete('d', 'f'));
+        assertThat(FilterExperiment.areEqual(left, right1)).isFalse();
+        assertThat(FilterExperiment.areEqual(left, right2)).isFalse();
+    }
+
+    @Test
+    public void testAreEqual_trueIfExtraRangeTombstonesOnLeft_afterLastOnRight() {
+        ColumnFamily left = cf(value('a'), rangeDelete('b', 'c'));
+        ColumnFamily right = cf();
         assertThat(FilterExperiment.areEqual(left, right)).isFalse();
     }
 
