@@ -29,8 +29,6 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
-import org.apache.cassandra.metrics.DefaultNameFactory;
-import org.apache.cassandra.metrics.MetricNameFactory;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -40,15 +38,14 @@ public enum FilterExperiment
     USE_LEGACY, USE_OPTIMIZED;
 
     private static final Logger log = LoggerFactory.getLogger(FilterExperiment.class);
-    private static final MetricNameFactory names = new DefaultNameFactory("FilterExperiment");
     private static final Timer legacyTimer =
-            CassandraMetricsRegistry.Metrics.timer(names.createMetricName("Legacy"));
+            CassandraMetricsRegistry.Metrics.timer("cassandra.filter_experiment.legacy");
     private static final Timer optimizedTimer =
-            CassandraMetricsRegistry.Metrics.timer(names.createMetricName("Optimized"));
+            CassandraMetricsRegistry.Metrics.timer("cassandra.filter_experiment.optimized");
     private static final Counter successes =
-            CassandraMetricsRegistry.Metrics.counter(names.createMetricName("Successes"));
+            CassandraMetricsRegistry.Metrics.counter("cassandra.filter_experiment.successes");
     private static final Counter failures =
-            CassandraMetricsRegistry.Metrics.counter(names.createMetricName("Failures"));
+            CassandraMetricsRegistry.Metrics.counter("cassandra.filter_experiment.failures");
 
     public static ColumnFamily execute(Function<FilterExperiment, ColumnFamily> function) {
         if (!shouldRunExperiment()) {
