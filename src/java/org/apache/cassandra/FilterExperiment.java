@@ -52,9 +52,7 @@ public enum FilterExperiment
     private static final Counter indeterminate =
             CassandraMetricsRegistry.Metrics.counter(names.createMetricName("Indeterminate"));
 
-    public static ColumnFamily execute(
-            Function<FilterExperiment, ColumnFamily> function,
-            Function<FilterExperiment, ColumnFamily> fallback) {
+    public static ColumnFamily execute(Function<FilterExperiment, ColumnFamily> function) {
         if (!shouldRunExperiment()) {
             return function.apply(USE_LEGACY);
         }
@@ -63,14 +61,12 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else if (areEqual(legacyResult, function.apply(USE_LEGACY))
-                       || (legacyResult.metadata().getGcGraceSeconds() == 0
-                           && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
-                indeterminate.inc();
-            } else {
+            } else if (!areEqual(legacyResult, function.apply(USE_LEGACY))) {
                 failures.inc();
                 log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}",
                          legacyResult, optimizedResult);
+            } else {
+                indeterminate.inc();
             }
         } catch (RuntimeException e) {
             failures.inc();
