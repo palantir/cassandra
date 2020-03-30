@@ -26,7 +26,6 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -39,6 +38,7 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+import org.apache.commons.lang.mutable.MutableBoolean;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
@@ -2016,17 +2016,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // This boolean is not necessay for correctness, but is necessary for the metrics to be updated in the
                 // same cases, since slice queries skip updating metrics when no data was returned (for some reason).
                 // While this should be fixed, let's not do this in a PR that changes behaviour.
-                AtomicBoolean wasNotNull = new AtomicBoolean(false);
+                MutableBoolean wasNotNull = new MutableBoolean(false);
                 result = FilterExperiment.execute(experiment -> {
                     ColumnFamily retrieved = getTopLevelColumns(filter, gcBefore, experiment);
                     if (retrieved != null) {
-                        wasNotNull.set(true);
+                        wasNotNull.setValue(true);
                         retrieved = removeDeletedCF(retrieved, gcBefore);
                     }
                     return retrieved;
                 });
 
-                if (result == null && !wasNotNull.get())
+                if (result == null && !wasNotNull.booleanValue())
                     return null;
             }
 
