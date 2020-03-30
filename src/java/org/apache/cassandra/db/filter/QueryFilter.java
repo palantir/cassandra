@@ -23,17 +23,12 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.SortedSet;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
-import com.google.common.collect.Range;
-import com.google.common.collect.UnmodifiableIterator;
 
 import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.Cell;
@@ -143,13 +138,80 @@ public class QueryFilter
         }
     }
 
+    /**
+     * Palantir: this deoptimization is _super lame_ but necessary in order for the optimized code
+     * to match the semantics of the unoptimized code exactly. What's happening is that because
+     * the original code is roughly nested merge(gatherTombstones(iterators)), whereas ours is
+     * nested gatherTombstones(merge(iterators)), if the next element past the last one we read
+     * is a tombstone (or sequence of tombstones), they'll
+     * all be gathered at that point into the return cf, regardless of whether they are ever
+     * consumed from the merge iterator.
+     * This is silly, because it means that if we're merging (a, b, c, d) and (rangeDelete(f, h))
+     * with limit 1, then our result cf will contain (a, rangeDelete(f, h)) despite the tombstone
+     * being discontinuous. And it means that if we have a lot of tombstones and we read the latest
+     * entry only, we will read all of the tombstones nonetheless.
+     * We can save some of the stress by not adding droppable tombstones
+     * to the return c.f. (they'll be early removed anyhow). We can't just throw them away,
+     * because they could be tombstoning other cells.
+     *
+     * This deoptimization should only exist in the a/b comparison phase of rolling this out
+     * - we can kill it once that passes. The consequence of killing it is that while we roll
+     * nodes onto the version without this deoptimization, their query results may not match
+     * exactly. Empirically, this means that 0.5% of queries will do a full (and unnecessary)
+     * repair for the duration of the roll. The good news is that the repairing will write
+     * such tombstones into the memtable, and so this can only happen once per row because
+     * memtable DeletionInfo is added directly to returnCF rather than being present in its
+     * iterator.
+     */
+    private static List<Iterator<OnDiskAtom>> handleFirstEntryRangeTombstone(
+            ColumnFamily returnCF,
+            List<? extends Iterator<? extends OnDiskAtom>> iterators,
+            int gcBefore) {
+        List<Iterator<OnDiskAtom>> ret = new ArrayList<>(iterators.size());
+        for (Iterator<? extends OnDiskAtom> iterator : iterators) {
+            PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(iterator);
+            ret.add(new AbstractIterator<OnDiskAtom>()
+            {
+                private final Deque<RangeTombstone> buffer = new ArrayDeque<>(0);
+
+                protected OnDiskAtom computeNext()
+                {
+                    if (!buffer.isEmpty()) {
+                        return buffer.remove();
+                    }
+                    while (peeking.hasNext() && peeking.peek() instanceof RangeTombstone) {
+                        RangeTombstone tombstone = (RangeTombstone) peeking.next();
+                        if (isDroppable(tombstone, gcBefore)) {
+                            buffer.add(tombstone);
+                        } else {
+                            returnCF.addAtom(tombstone);
+                        }
+                    }
+                    if (!buffer.isEmpty()) {
+                        return buffer.remove();
+                    } else if (peeking.hasNext()) {
+                        return peeking.next();
+                    } else {
+                        return endOfData();
+                    }
+                }
+            });
+        }
+        return ret;
+    }
+
+    private static boolean isDroppable(RangeTombstone tombstone, int gcBefore) {
+        return tombstone.getLocalDeletionTime() < gcBefore;
+    }
+
     private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
                                                   IDiskAtomFilter filter,
                                                   DecoratedKey key,
                                                   int gcBefore,
                                                   long timestamp) {
-        Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
+        List<Iterator<OnDiskAtom>> iterators = handleFirstEntryRangeTombstone(returnCF, toCollate, gcBefore);
+        Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), iterators);
         Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), merged, gcBefore);
         Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
             returnCF, filter.getColumnComparator(returnCF.getComparator()), filtered);
