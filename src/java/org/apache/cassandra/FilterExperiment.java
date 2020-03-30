@@ -19,12 +19,15 @@
 package org.apache.cassandra;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +35,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
+import org.apache.cassandra.db.DeletionInfo;
 import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
@@ -92,7 +96,7 @@ public enum FilterExperiment
     }
 
     /**
-     * Palantir: this comparison is _super lame_, but the original code is doing something really
+     * Palantir: this is _super lame_, but the original code is doing something really
      * silly. What's happening is that because
      * the original code is roughly nested merge(gatherTombstones(iterators)), whereas ours is
      * nested gatherTombstones(merge(iterators)), if the next element past the last one we read
@@ -103,40 +107,27 @@ public enum FilterExperiment
      * with limit 1, then our result cf will contain (a, rangeDelete(f, h)) despite the tombstone
      * being discontinuous. And it means that if we have a lot of tombstones and we read the latest
      * entry only, we will read all of the tombstones nonetheless.
-     * We can save some of the stress by not adding droppable tombstones
-     * to the return c.f. (they'll be early removed anyhow). We can't just throw them away,
-     * because they could be tombstoning other cells.
+     * There are other cases of this. If I am merging (a, rangeDelete(b, g)) and (rangeDelete(c, d), rangeDelete(d, f))
+     * then in the legacy code I will end up with (a, rangeDelete(b, d), rangeDelete(d, g)), whereas in the modern
+     * code I will end up with (a, rangeDelete(b, g)) due to the non-commutativity of the
+     * range tombstone list object.
      *
-     * This deoptimization should only exist in the a/b comparison phase of rolling this out
-     * - we can kill it once that passes, which is why we don't fix (fixing is also
-     * a nightmare). The consequence of killing it is that while we roll
-     * nodes onto the version without this deoptimization, their query results may not match
-     * exactly. Empirically, this means that 0.5% of queries will do a full (and unnecessary)
-     * repair for the duration of the roll. The good news is that the repairing will write
-     * such tombstones into the memtable, and so this can only happen once per row because
-     * memtable DeletionInfo is added directly to returnCF rather than being present in its
-     * iterator.
+     * Empirically, this means that 0.5% of queries will do a full (and unnecessary) repair
+     * for the duration of the roll. The good news is that the repairing will write such tombstones
+     * into the memtable, and so this can only happen once per row because memtable DeletionInfo is
+     * added directly to returnCF rather than being present in the iterator. So this only happens once.
      */
     @VisibleForTesting
     static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
         if (areTrulyEqual(legacy, modern)) {
             return true;
         }
-        ColumnFamily modernShouldHaveNoMoreThanLegacy = legacy.diff(modern);
-        if (modernShouldHaveNoMoreThanLegacy != null && !modernShouldHaveNoMoreThanLegacy.isEmpty()) {
-            return false;
-        }
-        ColumnFamily difference = modern.diff(legacy);
-        if (difference.hasColumns()) {
-            return false;
-        }
-        Collection<Cell> columns = modern.getReverseSortedColumns();
-        if (columns.isEmpty()) {
-            return false;
-        }
-        Cell column = Iterables.getFirst(columns, null);
-        RangeTombstone tombstone = difference.deletionInfo().rangeIterator().next();
-        return legacy.getComparator().compare(column.name(), tombstone.name()) < 0;
+        DeletionInfo.InOrderTester legacyTester = legacy.inOrderDeletionTester();
+        Iterator<Cell> unfiltedLegacy = legacy.iterator();
+        DeletionInfo.InOrderTester modernTester = modern.inOrderDeletionTester();
+        Iterator<Cell> unfilteredModern = modern.iterator();
+        return Iterators.elementsEqual(Iterators.filter(unfiltedLegacy, Predicates.not(legacyTester::isDeleted)),
+                                       Iterators.filter(unfilteredModern, Predicates.not(modernTester::isDeleted)));
     }
 
     static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {

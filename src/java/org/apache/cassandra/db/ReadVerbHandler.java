@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import javafx.util.Duration;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.net.IVerbHandler;
