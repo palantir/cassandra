@@ -38,11 +38,8 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
-import org.apache.commons.lang.mutable.MutableBoolean;
-
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
-import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.lifecycle.SSTableIntervalTree;
 import org.apache.cassandra.db.lifecycle.View;
 import org.apache.cassandra.db.lifecycle.Tracker;
@@ -1847,7 +1844,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // Some other read is trying to cache the value, just do a normal non-caching read
                 Tracing.trace("Row cache miss (race)");
                 metric.rowCacheMiss.inc();
-                return getTopLevelColumns(filter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                return getTopLevelColumns(filter, Integer.MIN_VALUE);
             }
 
             ColumnFamily cachedCf = (ColumnFamily)cached;
@@ -1862,7 +1859,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
             metric.rowCacheHitOutOfRange.inc();
             Tracing.trace("Ignoring row cache as cached value could not satisfy query");
-            return getTopLevelColumns(filter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+            return getTopLevelColumns(filter, Integer.MIN_VALUE);
         }
 
         metric.rowCacheMiss.inc();
@@ -1876,7 +1873,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             // If we are explicitely asked to fill the cache with full partitions, we go ahead and query the whole thing
             if (metadata.getCaching().rowCache.cacheFullPartitions())
             {
-                data = getTopLevelColumns(QueryFilter.getIdentityFilter(filter.key, name, filter.timestamp), Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                data = getTopLevelColumns(QueryFilter.getIdentityFilter(filter.key, name, filter.timestamp), Integer.MIN_VALUE);
                 toCache = data;
                 Tracing.trace("Populating row cache with the whole partition");
                 if (sentinelSuccess && toCache != null)
@@ -1907,7 +1904,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // needs to be cached afterwards.
                 if (sliceFilter.count < rowsToCache)
                 {
-                    toCache = getTopLevelColumns(cacheFilter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                    toCache = getTopLevelColumns(cacheFilter, Integer.MIN_VALUE);
                     if (toCache != null)
                     {
                         Tracing.trace("Populating row cache ({} rows cached)", cacheSlice.lastCounted());
@@ -1916,7 +1913,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 }
                 else
                 {
-                    data = getTopLevelColumns(filter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                    data = getTopLevelColumns(filter, Integer.MIN_VALUE);
                     if (data != null)
                     {
                         // The filter limit was greater than the number of rows to cache. But, if the filter had a non-empty
@@ -1941,7 +1938,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             else
             {
                 Tracing.trace("Fetching data but not populating cache as query does not query from the start of the partition");
-                return getTopLevelColumns(filter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                return getTopLevelColumns(filter, Integer.MIN_VALUE);
             }
         }
         finally
@@ -2013,21 +2010,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
             else
             {
-                // This boolean is not necessay for correctness, but is necessary for the metrics to be updated in the
-                // same cases, since slice queries skip updating metrics when no data was returned (for some reason).
-                // While this should be fixed, let's not do this in a PR that changes behaviour.
-                MutableBoolean wasNotNull = new MutableBoolean(false);
-                result = FilterExperiment.execute(experiment -> {
-                    ColumnFamily retrieved = getTopLevelColumns(filter, gcBefore, experiment);
-                    if (retrieved != null) {
-                        wasNotNull.setValue(true);
-                        retrieved = removeDeletedCF(retrieved, gcBefore);
-                    }
-                    return retrieved;
-                });
+                ColumnFamily cf = getTopLevelColumns(filter, gcBefore);
 
-                if (result == null && !wasNotNull.booleanValue())
+                if (cf == null)
                     return null;
+
+                result = removeDeletedCF(cf, gcBefore);
             }
 
             removeDroppedColumns(result);
@@ -2221,14 +2209,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
-    public ColumnFamily getTopLevelColumns(QueryFilter filter, int gcBefore, FilterExperiment experiment)
+    public ColumnFamily getTopLevelColumns(QueryFilter filter, int gcBefore)
     {
         Tracing.trace("Executing single-partition query on {}", name);
         CollationController controller = new CollationController(this, filter, gcBefore);
         ColumnFamily columns;
         try (OpOrder.Group op = readOrdering.start())
         {
-            columns = controller.getTopLevelColumns(Memtable.MEMORY_POOL.needToCopyOnHeap(), experiment);
+            columns = controller.getTopLevelColumns(Memtable.MEMORY_POOL.needToCopyOnHeap());
         }
         if (columns != null)
             metric.samplers.get(Sampler.READS).addSample(filter.key.getKey(), filter.key.hashCode(), 1);

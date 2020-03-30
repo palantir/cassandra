@@ -30,7 +30,6 @@ import java.util.concurrent.Future;
 
 import com.google.common.util.concurrent.Futures;
 
-import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -369,7 +368,7 @@ public class CacheService implements CacheServiceMBean
                                                                     cfs.metadata.cfName,
                                                                     FBUtilities.singleton(cellName, cfs.metadata.comparator),
                                                                     Long.MIN_VALUE);
-                    ColumnFamily cf = cfs.getTopLevelColumns(filter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                    ColumnFamily cf = cfs.getTopLevelColumns(filter, Integer.MIN_VALUE);
                     if (cf == null)
                         return null;
                     Cell cell = cf.getColumn(cellName);
@@ -406,7 +405,7 @@ public class CacheService implements CacheServiceMBean
                 {
                     DecoratedKey key = cfs.partitioner.decorateKey(buffer);
                     QueryFilter cacheFilter = new QueryFilter(key, cfs.getColumnFamilyName(), cfs.readFilterForCache(), Integer.MIN_VALUE);
-                    ColumnFamily data = cfs.getTopLevelColumns(cacheFilter, Integer.MIN_VALUE, FilterExperiment.USE_LEGACY);
+                    ColumnFamily data = cfs.getTopLevelColumns(cacheFilter, Integer.MIN_VALUE);
                     return Pair.create(new RowCacheKey(cfs.metadata.ksAndCFName, key), (IRowCacheEntry) data);
                 }
             });
