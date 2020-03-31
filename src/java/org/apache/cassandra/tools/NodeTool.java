@@ -155,7 +155,8 @@ public class NodeTool
                 RefreshSizeEstimates.class,
                 ForceTerminateRepairSessions.class,
                 DynamicEndpointSnitchStats.class,
-                SetReadDelay.class
+                SetReadDelay.class,
+                SetRangeScanTokenRangesWarnThreshold.class
         );
 
         Cli.CliBuilder<Consumer<INodeProbeFactory>> builder = Cli.builder("nodetool");
