@@ -1261,6 +1261,16 @@ public class DatabaseDescriptor
         conf.rowcount_warn_threshold = threshold;
     }
 
+    public static int getRangeScanTokenRangesWarnThreshold()
+    {
+        return conf.range_scan_token_ranges_warn_threshold;
+    }
+
+    public static void getRangeScanTokenRangesWarnThreshold(int threshold)
+    {
+        conf.range_scan_token_ranges_warn_threshold = threshold;
+    }
+
     /**
      * size of commitlog segments to allocate
      */
