@@ -674,14 +674,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     /** Sets the threshold for abandoning queries with many rows */
     public void setRowCountFailureThreshold(int rowCountDebugThreshold);
 
-    /**Returns whether or not to warn when the number of token ranges in a range scan breaches the threshold**/
-    public boolean getWarnOnLargeRangeScan();
-    /**Sets whether or not to warn when the number of token ranges in a range scan breaches the threshold**/
-    public void setWarnOnLargeRangeScan(boolean warnOnRangeScansCount);
-
-    /**Returns the warn threshold for the number of token ranges in a range scan**/
+    /** Returns the warn threshold for the number of token ranges in a range scan, or -1 if disabled */
     public int getRangeScanTokenRangesWarnThreshold();
-    /**Sets the warn threshold for the number of token ranges in a range scan**/
+    /**Sets the warn threshold for the number of token ranges in a range scan. Set to -1 to disable entirely */
     public void setRangeScanTokenRangesWarnThreshold(int threshold);
 
     /** Returns the threshold for rejecting queries due to a large batch size */

@@ -4667,15 +4667,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         DatabaseDescriptor.setRowCountFailureThreshold(threshold);
     }
 
-    public boolean getWarnOnLargeRangeScan() {
-        return DatabaseDescriptor.getWarnOnLargeRangeScan();
-
-    }
-
-    public void setWarnOnLargeRangeScan(boolean warnOnRangeScansCount) {
-        DatabaseDescriptor.setWarnOnLargeRangeScan(warnOnRangeScansCount);
-    }
-
     public int getRangeScanTokenRangesWarnThreshold()
     {
         return DatabaseDescriptor.getRangeScanTokenRangesWarnThreshold();

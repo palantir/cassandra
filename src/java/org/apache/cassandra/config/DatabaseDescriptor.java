@@ -1263,14 +1263,6 @@ public class DatabaseDescriptor
         conf.rowcount_warn_threshold = threshold;
     }
 
-    public static boolean getWarnOnLargeRangeScan() {
-        return conf.warn_on_large_range_scans;
-    }
-
-    public static void setWarnOnLargeRangeScan(boolean warnOnRangeScansCount) {
-        conf.warn_on_large_range_scans = warnOnRangeScansCount;
-    }
-
     public static int getRangeScanTokenRangesWarnThreshold()
     {
         return conf.range_scan_token_ranges_warn_threshold;
