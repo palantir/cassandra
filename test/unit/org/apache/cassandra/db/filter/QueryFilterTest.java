@@ -56,18 +56,17 @@ public class QueryFilterTest {
     public void testCollateOnDiskAtom_safeInPresenceOfRepeatedTombstones() {
         List<Cell> left = ImmutableList.of(value('a'), value('d'), value('e'), value('f'));
         List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'e'), value('a'), value('b'), rangeDelete('a', 'e'), value('g'));
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(metadata);
+        ColumnFamily cf = newCF();
         collate(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().isLive()).isTrue();
         assertThat(cf.iterator()).containsExactly(value('f'), value('g'));
-
     }
 
     @Test
     public void testCollateOnDiskAtom_dropsUnnecessaryCellsAndTombstones() {
         List<Cell> left = ImmutableList.of(value('a'), value('d'));
         List<RangeTombstone> right = ImmutableList.of(rangeDelete('a', 'c'));
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(metadata);
+        ColumnFamily cf = newCF();
         collate(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().isLive()).isTrue();
         assertThat(cf.iterator()).containsExactly(value('d'));
@@ -77,7 +76,7 @@ public class QueryFilterTest {
     public void testCollateOnDiskAtom_gathersNecessaryTombstones() {
         List<Cell> left = ImmutableList.of(value('a'), value('d'));
         List<RangeTombstone> right = ImmutableList.of(rangeDelete('a', 'c'), rangeDelete('b', 'c', TOMBSTONES_TS + 1));
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(metadata);
+        ColumnFamily cf = newCF();
         collate(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().rangeIterator()).containsExactly(rangeDelete('a', 'c'));
         assertThat(cf.iterator()).containsExactly(value('d'));
@@ -91,8 +90,12 @@ public class QueryFilterTest {
                 .containsExactly(value('a'), value('b'), value('c'), value('d'), value('e'));
     }
 
+    private static ColumnFamily newCF() {
+        return ArrayBackedSortedColumns.factory.create(metadata);
+    }
+
     private static List<Cell> collate(Iterator<? extends OnDiskAtom>... cells) {
-        return collate(ArrayBackedSortedColumns.factory.create(metadata), cells);
+        return collate(newCF(), cells);
     }
 
     private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
@@ -114,8 +117,21 @@ public class QueryFilterTest {
 
     @Test
     public void testReconcileDuplicates() {
-        assertThat(reconcileDuplicates(value('a'), value('b', 'y', 123), value('b', 'n', 122), value('c')))
+        assertThat(reconcileDuplicates(newCF(), value('a'), value('b', 'y', 123), value('b', 'n', 122), value('c')))
                 .containsExactly(value('a'), value('b', 'y', 123), value('c'));
+    }
+
+    @Test
+    public void testReconcileDuplicates_singleCell() {
+        assertThat(reconcileDuplicates(newCF(), value('a'))).containsExactly(value('a'));
+    }
+
+    @Test
+    public void testReconcileDuplicates_gathersTombstones() {
+        ColumnFamily cf = newCF();
+        assertThat(reconcileDuplicates(cf, value('a'), rangeDelete('b', 'c'), value('d')))
+                .containsExactly(value('a'), value('d'));
+        assertThat(cf.deletionInfo().rangeIterator()).containsExactly(rangeDelete('b', 'c'));
     }
 
     @Test
@@ -172,8 +188,9 @@ public class QueryFilterTest {
         assertThat(filter(tombstone)).containsExactly(tombstone);
     }
 
-    private static List<Cell> reconcileDuplicates(Cell... cells) {
-        return ImmutableList.copyOf(QueryFilter.reconcileDuplicates(
+    private static List<Cell> reconcileDuplicates(ColumnFamily returnCF, OnDiskAtom... cells) {
+        return ImmutableList.copyOf(QueryFilter.reconcileDuplicatesAndGatherTombstones(
+                returnCF,
                 metadata.comparator.columnComparator(false),
                 Arrays.asList(cells).iterator()));
     }

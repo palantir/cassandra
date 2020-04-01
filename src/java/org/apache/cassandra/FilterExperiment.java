@@ -18,22 +18,28 @@
 
 package org.apache.cassandra;
 
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
+import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
+import org.apache.cassandra.db.DeletionInfo;
+import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
 import org.apache.cassandra.metrics.MetricNameFactory;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 public enum FilterExperiment
 {
@@ -63,7 +69,7 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else if (areEqual(legacyResult, function.apply(USE_LEGACY))
+            } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))
                        || (legacyResult.metadata().getGcGraceSeconds() == 0
                            && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
                 indeterminate.inc();
@@ -89,7 +95,47 @@ public enum FilterExperiment
         }
     }
 
-    private static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
+    /**
+     * Palantir: this is _super lame_, but the original code is doing something really
+     * silly. What's happening is that because
+     * the original code is roughly nested merge(gatherTombstones(iterators)), whereas ours is
+     * nested gatherTombstones(merge(iterators)), if the next element past the last one we read
+     * is a tombstone (or sequence of tombstones), they'll
+     * all be gathered at that point into the return cf, regardless of whether they are ever
+     * consumed from the merge iterator.
+     * This is silly, because it means that if we're merging (a, b, c, d) and (rangeDelete(f, h))
+     * with limit 1, then our result cf will contain (a, rangeDelete(f, h)) despite the tombstone
+     * being discontinuous. And it means that if we have a lot of tombstones and we read the latest
+     * entry only, we will read all of the tombstones nonetheless.
+     * There are other cases of this. If I am merging (a, rangeDelete(b, g)) and (rangeDelete(c, d), rangeDelete(d, f))
+     * then in the legacy code I will end up with (a, rangeDelete(b, d), rangeDelete(d, g)), whereas in the modern
+     * code I will end up with (a, rangeDelete(b, g)) due to the non-commutativity of the
+     * range tombstone list object.
+     *
+     * Empirically, this means that 0.5% of queries will do a full (and unnecessary) repair
+     * for the duration of the roll. The good news is that the repairing will write such tombstones
+     * into the memtable, and so this can only happen once per row because memtable DeletionInfo is
+     * added directly to returnCF rather than being present in the iterator. So this only happens once.
+     */
+    @VisibleForTesting
+    static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
+        if (areTrulyEqual(legacy, modern)) {
+            return true;
+        }
+        if (legacy == null) {
+            return !iterator(modern).hasNext();
+        } else if (modern == null) {
+            return !iterator(legacy).hasNext();
+        }
+        return Iterators.elementsEqual(iterator(legacy), iterator(modern));
+    }
+
+    private static Iterator<Cell> iterator(ColumnFamily columnFamily) {
+        return Iterators.filter(columnFamily.iterator(),
+                                Predicates.not(columnFamily.inOrderDeletionTester()::isDeleted));
+    }
+
+    static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
     }
 }
