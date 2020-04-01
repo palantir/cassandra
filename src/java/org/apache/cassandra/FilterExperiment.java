@@ -122,12 +122,17 @@ public enum FilterExperiment
         if (areTrulyEqual(legacy, modern)) {
             return true;
         }
-        DeletionInfo.InOrderTester legacyTester = legacy.inOrderDeletionTester();
-        Iterator<Cell> unfiltedLegacy = legacy.iterator();
-        DeletionInfo.InOrderTester modernTester = modern.inOrderDeletionTester();
-        Iterator<Cell> unfilteredModern = modern.iterator();
-        return Iterators.elementsEqual(Iterators.filter(unfiltedLegacy, Predicates.not(legacyTester::isDeleted)),
-                                       Iterators.filter(unfilteredModern, Predicates.not(modernTester::isDeleted)));
+        if (legacy == null) {
+            return !iterator(modern).hasNext();
+        } else if (modern == null) {
+            return !iterator(legacy).hasNext();
+        }
+        return Iterators.elementsEqual(iterator(legacy), iterator(modern));
+    }
+
+    private static Iterator<Cell> iterator(ColumnFamily columnFamily) {
+        return Iterators.filter(columnFamily.iterator(),
+                                Predicates.not(columnFamily.inOrderDeletionTester()::isDeleted));
     }
 
     static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {

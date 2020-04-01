@@ -58,6 +58,14 @@ public class FilterExperimentTest
     }
 
     @Test
+    public void testAreEqual_handlesNull() {
+        ColumnFamily left = cf();
+        ColumnFamily right = null;
+        assertThat(FilterExperiment.areEqual(left, right)).isTrue();
+        assertThat(FilterExperiment.areEqual(right, left)).isTrue();
+    }
+
+    @Test
     public void testAreEqual_falseIfMoreCells() {
         ColumnFamily left = cf(value('a'), value('b'));
         ColumnFamily right = cf(value('a'));
