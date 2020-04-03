@@ -264,6 +264,8 @@ public class Config
     public volatile int rowcount_warn_threshold = 10000;
     public volatile int rowcount_failure_threshold = 100000;
 
+    public volatile int range_scan_token_ranges_warn_threshold = -1;
+
     public volatile Long index_summary_capacity_in_mb;
     public volatile int index_summary_resize_interval_in_minutes = 60;
 

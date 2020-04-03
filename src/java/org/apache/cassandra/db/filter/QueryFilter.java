@@ -23,12 +23,17 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.SortedSet;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
+import com.google.common.collect.Range;
+import com.google.common.collect.UnmodifiableIterator;
 
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;

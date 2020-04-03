@@ -142,7 +142,8 @@ public class NodeTool
                 RefreshSizeEstimates.class,
                 ForceTerminateRepairSessions.class,
                 DynamicEndpointSnitchStats.class,
-                SetReadDelay.class
+                SetReadDelay.class,
+                SetRangeScanTokenRangesWarnThreshold.class
         );
 
         Cli.CliBuilder<Runnable> builder = Cli.builder("nodetool");
