@@ -17,23 +17,16 @@
  */
 package org.apache.cassandra.db.filter;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.SortedSet;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
-import com.google.common.collect.Range;
-import com.google.common.collect.UnmodifiableIterator;
 
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
@@ -52,6 +45,8 @@ import org.apache.cassandra.utils.MergeIterator;
 
 public class QueryFilter
 {
+    private static final boolean USE_CONSTANT_MEMORY_ROW_QUERYING =
+            Boolean.getBoolean("palantir_cassandra.use_constant_memory_row_querying");
     public final DecoratedKey key;
     public final String cfName;
     public final IDiskAtomFilter filter;
@@ -134,7 +129,7 @@ public class QueryFilter
                                          int gcBefore,
                                          long timestamp)
     {
-        if (filter.isReversed() || isRowCacheEnabled(returnCF)) {
+        if (!USE_CONSTANT_MEMORY_ROW_QUERYING || filter.isReversed() || isRowCacheEnabled(returnCF)) {
             legacyCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
         } else {
             optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
