@@ -220,6 +220,8 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     private final Ref<SSTableReader> selfRef = new Ref<>(this, tidy);
 
     private RestorableMeter readMeter;
+    // PT: The read meter is written to the activity table so that it is persisted across reboots. We ignore this for now.
+    private RestorableMeter tombstoneReadMeter = new RestorableMeter();
 
     /**
      * Calculate approximate key count.
@@ -1216,6 +1218,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         return readMeter;
     }
 
+    public RestorableMeter getTombstoneReadMeter() {
+        return tombstoneReadMeter;
+    }
+
     public int getIndexSummarySamplingLevel()
     {
         return indexSummary.getSamplingLevel();
@@ -1985,6 +1991,12 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     {
         if (readMeter != null)
             readMeter.mark();
+    }
+
+    public void incrementTombstonesRead(int tombstonesRead)
+    {
+        if (tombstoneReadMeter != null)
+            tombstoneReadMeter.mark(tombstonesRead);
     }
 
     public static class SizeComparator implements Comparator<SSTableReader>

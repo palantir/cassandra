@@ -25,9 +25,10 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+
+import com.palantir.cassandra.TombstoneHotness;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class LeveledManifest
 {
     private static final Logger logger = LoggerFactory.getLogger(LeveledManifest.class);
     private static final boolean USE_STCS_ALWAYS_IN_L0 = Boolean.getBoolean("palantir_cassandra.use_stcs_always_in_l0");
+    private static final boolean PREFER_COMPACTING_TOMBSTONES = Boolean.getBoolean("palantir_cassandra.prefer_compacting_tombstones");
 
     /**
      * limit the number of L0 sstables we do at once, because compaction bloom filter creation
@@ -269,6 +271,41 @@ public class LeveledManifest
         return (long) bytes;
     }
 
+    private CompactionCandidate getHotSsTableCompactionCandidate() {
+        Set<SSTableReader> hottestTables = TombstoneHotness.maybeGetHotSstables(getAllSSTables());
+        Set<SSTableReader> compacting = cfs.getTracker().getCompacting();
+        for (SSTableReader sstable : hottestTables) {
+            TombstoneHotness.log.info("Found SSTable in keyspace {}, cf {} with particularly high rate of " +
+                                      "tombstone reads, two hour rate: {}",
+                                      sstable.getKeyspaceName(),
+                                      cfs.getColumnFamilyName(),
+                                      sstable.getTombstoneReadMeter().twoHourRate());
+            int level = sstable.getSSTableLevel();
+            final Set<SSTableReader> candidates;
+            if (level == 0) {
+                candidates = new HashSet<>(getCandidatesFor(0));
+                candidates.add(sstable);
+            } else {
+                candidates = Collections.singleton(sstable);
+            }
+            if (Iterables.any(candidates, suspectP))
+                continue;
+            if (!Sets.intersection(candidates, compacting).isEmpty())
+                continue;
+
+            // don't push sstables from a non-full top level into the next level
+            int nextLevel = getNextLevel(candidates);
+            if (nextLevel == getLevelCount()) {
+                nextLevel--; // don't compact beyond the top level
+            }
+            return new CompactionCandidate(
+                    getOverlappingStarvedSSTables(nextLevel, candidates),
+                    nextLevel,
+                    cfs.getCompactionStrategy().getMaxSSTableBytes());
+        }
+        return null;
+    }
+
     /**
      * @return highest-priority sstables to compact, and level to compact them to
      * If no compactions are necessary, will return null
@@ -287,6 +324,17 @@ public class LeveledManifest
             }
             return null;
         }
+
+        CompactionCandidate hotSsTablesCandidate = PREFER_COMPACTING_TOMBSTONES ? getHotSsTableCompactionCandidate() : null;
+        if (hotSsTablesCandidate != null) {
+            CompactionCandidate l0Compaction = getSTCSInL0CompactionCandidate();
+            if (l0Compaction != null) {
+                TombstoneHotness.log.info("Skipping hot tombstones task because we need to do an L0 STCS compaction (this should be very rare)");
+                return l0Compaction;
+            }
+            return hotSsTablesCandidate;
+        }
+
         // LevelDB gives each level a score of how much data it contains vs its ideal amount, and
         // compacts the level with the highest score. But this falls apart spectacularly once you
         // get behind.  Consider this set of levels:
