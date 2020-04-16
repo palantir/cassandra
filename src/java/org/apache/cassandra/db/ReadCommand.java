@@ -563,6 +563,22 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
             public RangeTombstoneMarker applyToMarker(RangeTombstoneMarker marker)
             {
                 countTombstone(marker.clustering());
+                if (marker.isBoundary())
+                {
+                    if (marker.openDeletionTime(false).localDeletionTime() < gcBeforeInSeconds
+                        && marker.closeDeletionTime(false).localDeletionTime() < gcBeforeInSeconds)
+                    {
+                        ++droppableTombstones;
+                    }
+                }
+                else
+                {
+                    if (((RangeTombstoneBoundMarker) marker).deletionTime().localDeletionTime() < gcBeforeInSeconds)
+                    {
+                        ++droppableTombstones;
+                    }
+                }
+
                 return marker;
             }
 
