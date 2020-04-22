@@ -5,6 +5,7 @@ ARG BUILD_VERSION
 ENV CASSANDRA_VERSION $BUILD_VERSION
 ENV CASSANDRA_DIR palantir-cassandra-$BUILD_VERSION
 ENV PATH $CASSANDRA_DIR/bin:$PATH
+ENV PATH $CASSANDRA_DIR/tools/bin:$PATH
 
 # Untar our distribution
 ADD palantir-cassandra-*tgz /
