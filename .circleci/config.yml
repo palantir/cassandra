@@ -38,6 +38,8 @@ jobs:
   test:
     docker: [{ image: 'circleci/openjdk:8u171-node' }]
     resource_class: xlarge
+    environment:
+      _JAVA_OPTIONS: -Dpalantir_cassandra.is_new_cluster=true
     steps:
       - attach_workspace: { at: /home/circleci }
       - run: set -eou pipefail && ant -Dtest.runners=2 test | tee build/test_output
