@@ -1360,7 +1360,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
                 slept += 1000;
                 if (slept > StorageService.RING_DELAY)
+                {
+                    logger.error("Unable to gossip with any seeds.  If this is the first time that you are starting the cluster," +
+                                 "ensure that `conf.cassandra-env_sh.is_new_cluster` is set to true");
                     throw new RuntimeException("Unable to gossip with any seeds");
+                }
             }
         }
         catch (InterruptedException wtf)
