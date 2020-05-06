@@ -1542,7 +1542,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                 {
                     // if we got here no peers could be gossiped to. If we're a seed that's OK, but otherwise we stop. See CASSANDRA-13851
                     if (!isSeed)
+                    {
+                        logger.error("Unable to gossip with any peers.  If this is the first time that you are starting the cluster, " +
+                                     "ensure that `conf.cassandra-env_sh.is_new_cluster` is set to true");
                         throw new RuntimeException("Unable to gossip with any peers");
+                    }
 
                     inShadowRound = false;
                     break;
