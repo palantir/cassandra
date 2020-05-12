@@ -81,3 +81,7 @@ fi
 
 # Added sigar-bin to the java.library.path CASSANDRA-7838
 JAVA_OPTS="$JAVA_OPTS:-Djava.library.path=$CASSANDRA_HOME/lib/sigar-bin"
+# Set tmpdir to allow standalone tools to execute
+CASSANDRA_TEMP_DIR=$SERVICE_HOME/var/data/tmp
+JVM_OPTS="${JVM_OPTS} -Djava.io.tmpdir=$CASSANDRA_TEMP_DIR"
+JVM_OPTS="${JVM_OPTS} -Djna.tmpdir=$CASSANDRA_TEMP_DIR"
