@@ -89,6 +89,7 @@ public class Directories
 {
     private static final Logger logger = LoggerFactory.getLogger(Directories.class);
 
+    private static final double MAX_COMPACTION_DISK_USAGE = Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
@@ -397,11 +398,20 @@ public class Directories
                   continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if (candidate.availableSpace < writeSize)
+            if ((candidate.availableSpace * MAX_COMPACTION_DISK_USAGE) < writeSize) {
                 continue;
+            }
             totalAvailable += candidate.availableSpace;
         }
-        return totalAvailable > expectedTotalWriteSize;
+        if ((totalAvailable * MAX_COMPACTION_DISK_USAGE) <= expectedTotalWriteSize) {
+            logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
+                        "with expected size {}MB and max disk usage by compaction at {}%",
+                        totalAvailable / 1024 / 1024,
+                        expectedTotalWriteSize / 1024 / 1024,
+                        MAX_COMPACTION_DISK_USAGE * 100);
+            return false;
+        }
+        return true;
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
@@ -854,7 +864,7 @@ public class Directories
         for (int i = 0; i < locations.length; ++i)
             dataDirectories[i] = new DataDirectory(new File(locations[i]));
     }
-    
+
     private class TrueFilesSizeVisitor extends SimpleFileVisitor<Path>
     {
         private final AtomicLong size = new AtomicLong(0);
@@ -893,11 +903,11 @@ public class Directories
         }
 
         @Override
-        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException 
+        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException
         {
             return FileVisitResult.CONTINUE;
         }
-        
+
         public long getAllocatedSize()
         {
             return size.get();
