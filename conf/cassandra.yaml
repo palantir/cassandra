@@ -144,6 +144,9 @@ partitioner: org.apache.cassandra.dht.Murmur3Partitioner
 #      single-sstable errors, so the node can be replaced.
 # stop_paranoid: shut down gossip and client transports even for single-sstable errors,
 #                kill the JVM for errors during startup.
+# stop_paranoid_on_startup: shut down gossip and Thrift even for single-sstable errors,
+#       leaving the node effectively dead, but can still be inspected via JMX even if
+#       cassandra setup wasn't completed.
 # stop: shut down gossip and client transports, leaving the node effectively dead, but
 #       can still be inspected via JMX, kill the JVM for errors during startup.
 # best_effort: stop using the failed disk and respond to requests based on

@@ -52,11 +52,12 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                     StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
                 break;
+            case stop_paranoid_on_startup:
             case stop_paranoid:
+                StorageService.instance.stopTransports();
                 StorageService.instance.recordNonTransientError(
                     StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
-                StorageService.instance.stopTransports();
                 break;
         }
     }
@@ -71,6 +72,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop_paranoid:
+            case stop_paranoid_on_startup:
             case stop:
                 StorageService.instance.stopTransports();
                 StorageService.instance.recordNonTransientError(
