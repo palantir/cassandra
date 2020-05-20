@@ -51,6 +51,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                 StorageService.instance.recordNonTransientError(
                     StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
+                logger.error("Encountered corrupt sstable exception, not stopping transports due to disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
                 break;
             case stop_paranoid_on_startup:
             case stop_paranoid:
@@ -58,6 +61,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                 StorageService.instance.recordNonTransientError(
                     StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
+                logger.error("Stopping transports due to corrupt sstable exception, disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
                 break;
         }
     }
@@ -78,6 +84,9 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                 StorageService.instance.recordNonTransientError(
                         StorageServiceMBean.NonTransientError.FS_ERROR,
                         ImmutableMap.of("path", e.path.toString()));
+                logger.error("Stopping transports due to file system exception, disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
                 break;
             case best_effort:
                 // for both read and write errors mark the path as unwritable.
