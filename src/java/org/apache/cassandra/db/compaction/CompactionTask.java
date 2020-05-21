@@ -115,6 +115,7 @@ public class CompactionTask extends AbstractCompactionTask
 
         // note that we need to do a rough estimate early if we can fit the compaction on disk - this is pessimistic, but
         // since we might remove sstables from the compaction in checkAvailableDiskSpace it needs to be done here
+
         checkAvailableDiskSpace();
 
         // sanity check: all sstables must belong to the same cfs
