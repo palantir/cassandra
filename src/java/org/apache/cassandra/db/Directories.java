@@ -398,9 +398,8 @@ public class Directories
                   continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if ((candidate.availableSpace * MAX_COMPACTION_DISK_USAGE) < writeSize) {
+            if ((candidate.availableSpace * MAX_COMPACTION_DISK_USAGE) < writeSize)
                 continue;
-            }
             totalAvailable += candidate.availableSpace;
         }
         if ((totalAvailable * MAX_COMPACTION_DISK_USAGE) <= expectedTotalWriteSize) {
