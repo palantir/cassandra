@@ -89,7 +89,9 @@ public class Directories
 {
     private static final Logger logger = LoggerFactory.getLogger(Directories.class);
 
-    private static final double MAX_COMPACTION_DISK_USAGE = Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
+    private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
+                                                            ? 0.95
+                                                            : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
@@ -863,7 +865,7 @@ public class Directories
         for (int i = 0; i < locations.length; ++i)
             dataDirectories[i] = new DataDirectory(new File(locations[i]));
     }
-    
+
     private class TrueFilesSizeVisitor extends SimpleFileVisitor<Path>
     {
         private final AtomicLong size = new AtomicLong(0);
@@ -902,11 +904,11 @@ public class Directories
         }
 
         @Override
-        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException 
+        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException
         {
             return FileVisitResult.CONTINUE;
         }
-        
+
         public long getAllocatedSize()
         {
             return size.get();
