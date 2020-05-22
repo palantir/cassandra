@@ -393,26 +393,46 @@ public class Directories
     {
         long writeSize = expectedTotalWriteSize / estimatedSSTables;
         long totalAvailable = 0L;
+        long totalSpace = 0L;
 
         for (DataDirectory dataDir : dataDirectories)
         {
             if (BlacklistedDirectories.isUnwritable(getLocationForDisk(dataDir)))
                   continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
+            logger.warn("Checking space for candidate - total available space found: {}MB for compaction " +
+                        "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
+                        candidate.availableSpace / 1024 / 1024,
+                        writeSize / 1024 / 1024,
+                        candidate.totalSpace / 1024 / 1024,
+                        MAX_COMPACTION_DISK_USAGE * 100);
             // exclude directory if its total writeSize does not fit to data directory
-            if ((candidate.availableSpace * MAX_COMPACTION_DISK_USAGE) < writeSize)
+            if (!hasAvailableDiskSpace(candidate.availableSpace, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
+            totalSpace += candidate.totalSpace;
         }
-        if ((totalAvailable * MAX_COMPACTION_DISK_USAGE) <= expectedTotalWriteSize) {
+        logger.warn("Checking space for compaction - total available space found: {}MB for compaction " +
+                    "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
+                    totalAvailable / 1024 / 1024,
+                    expectedTotalWriteSize / 1024 / 1024,
+                    totalSpace / 1024 / 1024,
+                    MAX_COMPACTION_DISK_USAGE * 100);
+        if (!hasAvailableDiskSpace(totalAvailable, totalSpace, expectedTotalWriteSize)) {
             logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
-                        "with expected size {}MB and max disk usage by compaction at {}%",
+                        "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
                         totalAvailable / 1024 / 1024,
                         expectedTotalWriteSize / 1024 / 1024,
+                        totalSpace / 1024 / 1024,
                         MAX_COMPACTION_DISK_USAGE * 100);
             return false;
         }
         return true;
+    }
+
+    private boolean hasAvailableDiskSpace(long totalAvailable, long totalSpace, long writeSize) {
+        long usedSpace = totalSpace - totalAvailable;
+        return (usedSpace + writeSize) < (totalSpace * MAX_COMPACTION_DISK_USAGE);
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
@@ -495,18 +515,25 @@ public class Directories
         {
             return FileUtils.getUsableSpace(location);
         }
+
+        public long getTotalSpace()
+        {
+            return FileUtils.getTotalSpace(location);
+        }
     }
 
     static final class DataDirectoryCandidate implements Comparable<DataDirectoryCandidate>
     {
         final DataDirectory dataDirectory;
         final long availableSpace;
+        final long totalSpace;
         double perc;
 
         public DataDirectoryCandidate(DataDirectory dataDirectory)
         {
             this.dataDirectory = dataDirectory;
             this.availableSpace = dataDirectory.getAvailableSpace();
+            this.totalSpace = dataDirectory.getTotalSpace();
         }
 
         void calcFreePerc(long totalAvailableSpace)
