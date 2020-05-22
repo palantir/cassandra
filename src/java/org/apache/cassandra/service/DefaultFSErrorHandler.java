@@ -54,7 +54,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                              DatabaseDescriptor.getDiskFailurePolicy(),
                              e);
                 break;
-            case stop_paranoid_on_startup:
+            case stop_paranoid_always:
             case stop_paranoid:
                 recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION, e.path);
                 logger.error("Stopping transports and compaction due to corrupt sstable exception, disk failure policy \"{}\"",
@@ -74,7 +74,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop_paranoid:
-            case stop_paranoid_on_startup:
+            case stop_paranoid_always:
             case stop:
                 recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.FS_ERROR, e.path);
                 logger.error("Stopping transports and compaction due to file system exception, disk failure policy \"{}\"",

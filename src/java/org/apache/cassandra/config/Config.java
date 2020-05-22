@@ -394,7 +394,7 @@ public class Config
     {
         best_effort,
         stop,
-        stop_paranoid_on_startup,
+        stop_paranoid_always,
         ignore,
         stop_paranoid,
         die
