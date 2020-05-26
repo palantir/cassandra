@@ -25,7 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.DisallowedDirectories;
+import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSErrorHandler;
@@ -47,16 +49,17 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop:
-                // recording sstable non transient error
-                StorageService.instance.recordNonTransientError(
-                    StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
-                    ImmutableMap.of("path", e.path.toString()));
+                recordError(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION, e.path);
+                logger.error("Encountered corrupt sstable exception, not stopping transports due to disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
                 break;
+            case stop_paranoid_always:
             case stop_paranoid:
-                StorageService.instance.recordNonTransientError(
-                    StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
-                    ImmutableMap.of("path", e.path.toString()));
-                StorageService.instance.stopTransports();
+                recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION, e.path);
+                logger.error("Stopping transports and compaction due to corrupt sstable exception, disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
                 break;
         }
     }
@@ -71,11 +74,12 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop_paranoid:
+            case stop_paranoid_always:
             case stop:
-                StorageService.instance.stopTransports();
-                StorageService.instance.recordNonTransientError(
-                        StorageServiceMBean.NonTransientError.FS_ERROR,
-                        ImmutableMap.of("path", e.path.toString()));
+                recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.FS_ERROR, e.path);
+                logger.error("Stopping transports and compaction due to file system exception, disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
                 break;
             case best_effort:
                 // for both read and write errors mark the path as unwritable.
@@ -108,7 +112,31 @@ public class DefaultFSErrorHandler implements FSErrorHandler
                 JVMStabilityInspector.killCurrentJVM(t, true);
                 break;
             default:
+                // includes stop_paranoid_on_startup
                 break;
+        }
+    }
+
+    private static void recordErrorAndDisableNode(StorageServiceMBean.NonTransientError error, File path) {
+        recordError(error, path);
+        StorageService.instance.stopTransports();
+        disableAutoCompaction();
+    }
+
+    private static void recordError(StorageServiceMBean.NonTransientError error, File path) {
+        StorageService.instance.recordNonTransientError(error, ImmutableMap.of("path", path.toString()));
+    }
+
+    private static void disableAutoCompaction() {
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    store.disableAutoCompaction();
+                }
+            }
         }
     }
 }
