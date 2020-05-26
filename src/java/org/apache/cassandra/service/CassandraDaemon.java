@@ -221,6 +221,11 @@ public class CassandraDaemon
             }
         });
 
+        completeSetupMayThrowSstableException();
+    }
+
+    /* This part of setup may throw a CorruptSSTableException. */
+    private void completeSetupMayThrowSstableException() {
         // load schema from disk
         Schema.instance.loadFromDisk();
 
@@ -262,7 +267,6 @@ public class CassandraDaemon
                 }
             }
         }
-
 
         try
         {
@@ -727,8 +731,8 @@ public class CassandraDaemon
             StorageService.instance.clearNonTransientErrors();
             if (!CassandraDaemon.instance.setupCompleted())
             {
-                // if setup wasn't completed, then an FS error occurred early; we should re-attempt from the beginning
-                CassandraDaemon.instance.setup();
+                // if setup wasn't completed, then an FS error occurred early; we should re-attempt
+                CassandraDaemon.instance.completeSetupMayThrowSstableException();
             }
             else
             {
