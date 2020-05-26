@@ -48,7 +48,7 @@ allprojects {
         'ant-' + antTaskName
     }
 
-    version ant.'base.version' + '-' + '1.37.9'
+    version ant.'base.version' + '-' + gitVersion()
     group 'com.palantir.cassandra'
 
     // so the artifacts have our name and version, not apache's

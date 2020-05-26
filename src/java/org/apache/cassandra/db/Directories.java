@@ -400,24 +400,12 @@ public class Directories
             if (BlacklistedDirectories.isUnwritable(getLocationForDisk(dataDir)))
                   continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
-            logger.warn("Checking space for candidate - total available space found: {}MB for compaction " +
-                        "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
-                        candidate.availableSpace / 1024 / 1024,
-                        writeSize / 1024 / 1024,
-                        candidate.totalSpace / 1024 / 1024,
-                        MAX_COMPACTION_DISK_USAGE * 100);
             // exclude directory if its total writeSize does not fit to data directory
             if (!hasAvailableDiskSpace(candidate.availableSpace, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
             totalSpace += candidate.totalSpace;
         }
-        logger.warn("Checking space for compaction - total available space found: {}MB for compaction " +
-                    "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
-                    totalAvailable / 1024 / 1024,
-                    expectedTotalWriteSize / 1024 / 1024,
-                    totalSpace / 1024 / 1024,
-                    MAX_COMPACTION_DISK_USAGE * 100);
         if (!hasAvailableDiskSpace(totalAvailable, totalSpace, expectedTotalWriteSize)) {
             logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
                         "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
