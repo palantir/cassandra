@@ -35,6 +35,15 @@ public interface NativeAccessMBean
      */
     void reinitializeFromCommitlogCorruption() throws IllegalNonTransientErrorStateException;
 
+    /**
+     * After having properly remediated an sstable corruption (such as running scrub with no errors), an operator may
+     * execute this method to safely re-enable Cassandra transports and compactions.
+     *
+     * @throws IllegalNonTransientErrorStateException if StorageService in not in NonTransientError mode or has no
+     *          known NonTransientError of the type SSTABLE_CORRUPTION
+     */
+    void reinitializeFromSstableCorruption() throws IllegalNonTransientErrorStateException;
+
     class IllegalNonTransientErrorStateException extends Exception implements Serializable {
         private static final long serialVersionUID = 1068347274649406245L;
 
