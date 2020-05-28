@@ -89,6 +89,9 @@ public class Directories
 {
     private static final Logger logger = LoggerFactory.getLogger(Directories.class);
 
+    private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
+                                                            ? 0.95
+                                                            : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
@@ -390,6 +393,7 @@ public class Directories
     {
         long writeSize = expectedTotalWriteSize / estimatedSSTables;
         long totalAvailable = 0L;
+        long totalSpace = 0L;
 
         for (DataDirectory dataDir : dataDirectories)
         {
@@ -397,11 +401,26 @@ public class Directories
                   continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if (candidate.availableSpace < writeSize)
+            if (!hasAvailableDiskSpace(candidate.availableSpace, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
+            totalSpace += candidate.totalSpace;
         }
-        return totalAvailable > expectedTotalWriteSize;
+        if (!hasAvailableDiskSpace(totalAvailable, totalSpace, expectedTotalWriteSize)) {
+            logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
+                        "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
+                        totalAvailable / 1024 / 1024,
+                        expectedTotalWriteSize / 1024 / 1024,
+                        totalSpace / 1024 / 1024,
+                        MAX_COMPACTION_DISK_USAGE * 100);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean hasAvailableDiskSpace(long totalAvailable, long totalSpace, long writeSize) {
+        long usedSpace = totalSpace - totalAvailable;
+        return (usedSpace + writeSize) < (totalSpace * MAX_COMPACTION_DISK_USAGE);
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
@@ -484,18 +503,25 @@ public class Directories
         {
             return FileUtils.getUsableSpace(location);
         }
+
+        public long getTotalSpace()
+        {
+            return FileUtils.getTotalSpace(location);
+        }
     }
 
     static final class DataDirectoryCandidate implements Comparable<DataDirectoryCandidate>
     {
         final DataDirectory dataDirectory;
         final long availableSpace;
+        final long totalSpace;
         double perc;
 
         public DataDirectoryCandidate(DataDirectory dataDirectory)
         {
             this.dataDirectory = dataDirectory;
             this.availableSpace = dataDirectory.getAvailableSpace();
+            this.totalSpace = dataDirectory.getTotalSpace();
         }
 
         void calcFreePerc(long totalAvailableSpace)
