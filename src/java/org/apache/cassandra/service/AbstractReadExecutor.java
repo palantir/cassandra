@@ -174,6 +174,8 @@ public abstract class AbstractReadExecutor
         {
             Tracing.trace("Read-repair {}", repairDecision);
             ReadRepairMetrics.attempted.mark();
+            Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.attemptedReadRepairs.mark();
+
         }
 
         ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(command.cfName);
