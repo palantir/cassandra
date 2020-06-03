@@ -254,10 +254,11 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
                     traceState.trace("Digest mismatch: {}", e.toString());
                 if (logger.isTraceEnabled())
                     logger.trace("Digest mismatch:", e);
-                
-                ReadRepairMetrics.repairedBackground.mark();
-                
+
                 ReadCommand readCommand = (ReadCommand) command;
+                ReadRepairMetrics.repairedBackground.mark();
+                Keyspace.open(readCommand.ksName).getColumnFamilyStore(readCommand.cfName).metric.backgroundReadRepairs.mark();
+
                 final RowDataResolver repairResolver = new RowDataResolver(readCommand.ksName, readCommand.key, readCommand.filter(), readCommand.timestamp, endpoints.size());
                 AsyncRepairCallback repairHandler = new AsyncRepairCallback(repairResolver, endpoints.size());
 

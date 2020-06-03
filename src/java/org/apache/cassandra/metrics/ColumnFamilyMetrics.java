@@ -170,6 +170,11 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics coordinatorReadScanLatency;
     public final LatencyMetrics coordinatorScanLatency;
 
+    public final LatencyMetrics blockingReadRepairLatency;
+    public final Meter blockingReadRepairs;
+    public final Meter attemptedReadRepairs;
+    public final Meter backgroundReadRepairs;
+
     /** Request rounds in range scan queries on this CF **/
     public final ColumnFamilyHistogram coordinatorScanRequestRounds;
 
@@ -395,6 +400,10 @@ public class ColumnFamilyMetrics
         coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
         coordinatorReadScanLatency = new LatencyMetrics(factory, "CoordinatorReadScan",  new LatencyMetrics(globalNameFactory, "CoordinatorReadScan"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
+        blockingReadRepairLatency = new LatencyMetrics(factory, "BlockingReadRepair", new LatencyMetrics(globalNameFactory, "BlockingReadRepair"));
+        blockingReadRepairs = Metrics.meter(factory.createMetricName("BlockingReadRepairs"));
+        backgroundReadRepairs = Metrics.meter(factory.createMetricName("BackgroundReadRepairs"));
+        attemptedReadRepairs = Metrics.meter(factory.createMetricName("AttemptedReadRepairs"));
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
         compactionBytesWritten = createColumnFamilyCounter("CompactionBytesWritten");

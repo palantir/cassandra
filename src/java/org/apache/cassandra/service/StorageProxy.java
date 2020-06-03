@@ -1403,6 +1403,7 @@ public class StorageProxy implements StorageProxyMBean
 
         do
         {
+            Map<ReadCommand, Long> blockingReadRepairStartTimes = new HashMap<>();
             List<ReadCommand> commands = commandsToRetry.isEmpty() ? initialCommands : commandsToRetry;
             AbstractReadExecutor[] readExecutors = new AbstractReadExecutor[commands.size()];
 
@@ -1462,9 +1463,11 @@ public class StorageProxy implements StorageProxyMBean
                 }
                 catch (DigestMismatchException ex)
                 {
+                    blockingReadRepairStartTimes.put(exec.command, System.nanoTime());
                     Tracing.trace("Digest mismatch: {}", ex);
 
                     ReadRepairMetrics.repairedBlocking.mark();
+                    Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.blockingReadRepairs.mark();
 
                     // Do a full data read to resolve the correct response (and repair node that need be)
                     RowDataResolver resolver = new RowDataResolver(exec.command.ksName, exec.command.key, exec.command.filter(), exec.command.timestamp, exec.handler.endpoints.size());
@@ -1556,6 +1559,9 @@ public class StorageProxy implements StorageProxyMBean
                         row = command.maybeTrim(row);
                         rows.add(row);
                     }
+
+                    long latency = System.nanoTime() - blockingReadRepairStartTimes.get(command);
+                    Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairLatency.addNano(latency);
                 }
             }
         } while (!commandsToRetry.isEmpty());
