@@ -95,6 +95,7 @@ public class Directories
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
+    private static final Object LOCK = new Object();
 
     public static final DataDirectory[] dataDirectories;
     static
@@ -394,17 +395,19 @@ public class Directories
         long writeSize = expectedTotalWriteSize / estimatedSSTables;
         long totalAvailable = 0L;
         long totalSpace = 0L;
+        List<DataDirectoryCandidate> candidatesUsed = new ArrayList<>();
 
         for (DataDirectory dataDir : dataDirectories)
         {
             if (BlacklistedDirectories.isUnwritable(getLocationForDisk(dataDir)))
                   continue;
-            DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
+            DataDirectoryCandidate candidate = dataDir.candidate;
             // exclude directory if its total writeSize does not fit to data directory
             if (!hasAvailableDiskSpace(candidate.availableSpace, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
             totalSpace += candidate.totalSpace;
+            candidatesUsed.add(candidate);
         }
         if (!hasAvailableDiskSpace(totalAvailable, totalSpace, expectedTotalWriteSize)) {
             logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
@@ -415,12 +418,29 @@ public class Directories
                         MAX_COMPACTION_DISK_USAGE * 100);
             return false;
         }
+        synchronized (LOCK) {
+            for (DataDirectoryCandidate candidate : candidatesUsed)
+            {
+                // make a worst-case check here that the totality of expectedTotalWriteSize is written to each candidate
+                candidate.availableSpace -= expectedTotalWriteSize;
+            }
+        }
         return true;
     }
 
     private boolean hasAvailableDiskSpace(long totalAvailable, long totalSpace, long writeSize) {
         long usedSpace = totalSpace - totalAvailable;
         return (usedSpace + writeSize) < (totalSpace * MAX_COMPACTION_DISK_USAGE);
+    }
+
+    public static void giveBackAvailableDiskSpace(long expectedTotalWriteSize) {
+        synchronized(LOCK)
+        {
+            for (DataDirectory dataDirectory : dataDirectories)
+            {
+                dataDirectory.candidate.updateAvailableSpace(expectedTotalWriteSize);
+            }
+        }
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
@@ -493,10 +513,12 @@ public class Directories
     public static class DataDirectory
     {
         public final File location;
+        public DataDirectoryCandidate candidate;
 
         public DataDirectory(File location)
         {
             this.location = location;
+            candidate = new DataDirectoryCandidate(this);
         }
 
         public long getAvailableSpace()
@@ -513,7 +535,7 @@ public class Directories
     static final class DataDirectoryCandidate implements Comparable<DataDirectoryCandidate>
     {
         final DataDirectory dataDirectory;
-        final long availableSpace;
+        volatile long availableSpace;
         final long totalSpace;
         double perc;
 
@@ -541,6 +563,11 @@ public class Directories
                 return -r;
             // last resort
             return System.identityHashCode(this) - System.identityHashCode(o);
+        }
+
+        synchronized void updateAvailableSpace(long expectedTotalWriteSize)
+        {
+            availableSpace += expectedTotalWriteSize;
         }
     }
 
@@ -880,7 +907,7 @@ public class Directories
         for (int i = 0; i < locations.length; ++i)
             dataDirectories[i] = new DataDirectory(new File(locations[i]));
     }
-    
+
     private class TrueFilesSizeVisitor extends SimpleFileVisitor<Path>
     {
         private final AtomicLong size = new AtomicLong(0);
@@ -919,11 +946,11 @@ public class Directories
         }
 
         @Override
-        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException 
+        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException
         {
             return FileVisitResult.CONTINUE;
         }
-        
+
         public long getAllocatedSize()
         {
             return size.get();

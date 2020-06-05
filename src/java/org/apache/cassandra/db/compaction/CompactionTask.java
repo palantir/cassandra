@@ -30,6 +30,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.DefaultCompactionWriter;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
@@ -117,6 +118,7 @@ public class CompactionTask extends AbstractCompactionTask
         // since we might remove sstables from the compaction in checkAvailableDiskSpace it needs to be done here
 
         checkAvailableDiskSpace();
+        final long expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
 
         // sanity check: all sstables must belong to the same cfs
         assert !Iterables.any(transaction.originals(), new Predicate<SSTableReader>()
@@ -124,7 +126,12 @@ public class CompactionTask extends AbstractCompactionTask
             @Override
             public boolean apply(SSTableReader sstable)
             {
-                return !sstable.descriptor.cfname.equals(cfs.name);
+                if(sstable.descriptor.cfname.equals(cfs.name))
+                {
+                    return true;
+                }
+                Directories.giveBackAvailableDiskSpace(expectedWriteSize);
+                return false;
             }
         });
 
@@ -197,6 +204,7 @@ public class CompactionTask extends AbstractCompactionTask
                         // don't replace old sstables yet, as we need to mark the compaction finished in the system table
                         newSStables = writer.finish();
                     } catch (Exception e) {
+                        Directories.giveBackAvailableDiskSpace(expectedWriteSize);
                         throw new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
                     }
                     finally
@@ -281,7 +289,7 @@ public class CompactionTask extends AbstractCompactionTask
 
     /*
     Checks if we have enough disk space to execute the compaction.  Drops the largest sstable out of the Task until
-    there's enough space (in theory) to handle the compaction.  Does not take into account space that will be taken by
+    there's enough space (in theory) to handle the compaction.  Takes into account space that will be taken by
     other compactions.
      */
     protected void checkAvailableDiskSpace()
@@ -292,10 +300,11 @@ public class CompactionTask extends AbstractCompactionTask
         }
 
         AbstractCompactionStrategy strategy = cfs.getCompactionStrategy();
+        long expectedWriteSize;
 
         while(true)
         {
-            long expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
+            expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
 
             if(cfs.directories.hasAvailableDiskSpace(estimatedSSTables, expectedWriteSize))
