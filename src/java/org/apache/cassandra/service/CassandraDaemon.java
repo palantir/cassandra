@@ -260,6 +260,11 @@ public class CassandraDaemon
             }
         });
 
+        completeSetupMayThrowSstableException();
+    }
+
+    /* This part of setup may throw a CorruptSSTableException. */
+    private void completeSetupMayThrowSstableException() {
         /*
          * Migrate pre-3.0 keyspaces, tables, types, functions, and aggregates, to their new 3.0 storage.
          * We don't (and can't) wait for commit log replay here, but we don't need to - all schema changes force
@@ -434,20 +439,7 @@ public class CassandraDaemon
             Gossiper.waitToSettle();
 
         // re-enable auto-compaction after gossip is settled, so correct disk boundaries are used
-        for (Keyspace keyspace : Keyspace.all())
-        {
-            for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
-            {
-                for (final ColumnFamilyStore store : cfs.concatWithIndexes())
-                {
-                    store.reload(); //reload CFs in case there was a change of disk boundaries
-                    if (store.getCompactionStrategyManager().shouldBeEnabled())
-                    {
-                        store.enableAutoCompaction();
-                    }
-                }
-            }
-        }
+        enableAutoCompaction();
 
         // schedule periodic background compaction task submission. this is simply a backstop against compactions stalling
         // due to scheduling errors or race conditions
@@ -486,6 +478,24 @@ public class CassandraDaemon
         ListenableFuture<List<Integer>> retval = Futures.successfulAsList(keyCacheLoad, rowCacheLoad);
 
         return retval;
+    }
+
+    public static void enableAutoCompaction()
+    {
+        for (Keyspace keyspace : Keyspace.all())
+        {
+            for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
+            {
+                for (final ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    store.reload(); //reload CFs in case there was a change of disk boundaries
+                    if (store.getCompactionStrategyManager().shouldBeEnabled())
+                    {
+                        store.enableAutoCompaction();
+                    }
+                }
+            }
+        }
     }
 
     @VisibleForTesting
@@ -840,36 +850,58 @@ public class CassandraDaemon
 
         public void reinitializeFromCommitlogCorruption() throws IllegalNonTransientErrorStateException
         {
-            if (!StorageService.instance.inNonTransientErrorMode())
-            {
-                logger.error("Attempted to reinitializeFromCommitlogCorruption when not in NonTransientError mode; "
-                             + "current mode: " + StorageService.instance.getOperationMode());
-                throw new IllegalNonTransientErrorStateException("Can only reinitializeFromCommitlogCorruption when in NonTransientError mode");
-            }
-
-            boolean hasCommitlogNte = false;
-            boolean onlyCommitlogNte = true;
-            for (Map<String, String> nte : StorageService.instance.getNonTransientErrors())
-            {
-                boolean isCommitlogNte = StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION
-                                         .name()
-                                         .equals(nte.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
-                hasCommitlogNte |= isCommitlogNte;
-                onlyCommitlogNte &= isCommitlogNte;
-            }
-            if (!hasCommitlogNte || !onlyCommitlogNte)
-            {
-                logger.error("Attempted to reinitializeFromCommitlogCorruption when there is no known commitlog corruption "
-                             + "or there are other non commitlog corruption NonTransientErrors");
-                throw new IllegalArgumentException("Can only reinitializeFromCommitlogCorruption when there are commitlog "
-                                                   + "corruption NonTransientErrors and only commitlog corruption NonTransientErrors");
-            }
+            checkInNonTransientErrorMode();
+            checkHasExpectedNte(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION);
 
             StorageService.instance.clearNonTransientErrors();
             CassandraDaemon.instance.recoverCommitlogAndCompleteSetup();
             if (CassandraDaemon.instance.setupCompleted())
             {
                 CassandraDaemon.instance.start();
+            }
+        }
+
+        public void reinitializeFromSstableCorruption() throws IllegalNonTransientErrorStateException
+        {
+            checkInNonTransientErrorMode();
+            checkHasExpectedNte(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION);
+
+            StorageService.instance.clearNonTransientErrors();
+            if (!CassandraDaemon.instance.setupCompleted())
+            {
+                // if setup wasn't completed, then an FS error occurred early; we should re-attempt
+                CassandraDaemon.instance.completeSetupMayThrowSstableException();
+            }
+            else
+            {
+                CassandraDaemon.instance.start();
+                enableAutoCompaction();
+            }
+        }
+
+        private void checkInNonTransientErrorMode() throws IllegalNonTransientErrorStateException
+        {
+            if (!StorageService.instance.inNonTransientErrorMode()) {
+                logger.error("Attempted to reinitializeFromSstableCorruption when not in NonTransientError mode; "
+                             + "current mode: " + StorageService.instance.getOperationMode());
+                throw new NativeAccessMBean.IllegalNonTransientErrorStateException("Can only reinitializeFromSstableCorruption when in NonTransientError mode");
+            }
+        }
+
+        private void checkHasExpectedNte(StorageServiceMBean.NonTransientError error)
+        {
+            boolean hasExpectedNte = false;
+            boolean onlyExpectedNte = true;
+            for (Map<String, String> nte : StorageService.instance.getNonTransientErrors()) {
+                boolean isExpectedNte = error.name().equals(nte.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
+                hasExpectedNte |= isExpectedNte;
+                onlyExpectedNte &= isExpectedNte;
+            }
+            if (!hasExpectedNte || !onlyExpectedNte) {
+                logger.error(String.format("Attempted to reinitialize from corruption when there is no known corruption of expected type, "
+                                           + "or there are other corruption NonTransientErrors not of expected type; expected {}", error.name()));
+                throw new IllegalArgumentException("Can only reinitialize from corruption when there are NonTransientErrors "
+                                                   + "only of expected type.");
             }
         }
     }
