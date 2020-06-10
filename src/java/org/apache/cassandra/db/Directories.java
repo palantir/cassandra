@@ -98,7 +98,7 @@ public class Directories
 
     public static final DataDirectory[] dataDirectories;
 
-    private static volatile long expectedSpaceUsedByCompactions = 0;
+    private static AtomicLong expectedSpaceUsedByCompactions = new AtomicLong();
     static
     {
         String[] locations = DatabaseDescriptor.getAllDataFileLocations();
@@ -403,12 +403,12 @@ public class Directories
                   continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if (!hasAvailableDiskSpace(candidate.availableSpace, candidate.totalSpace, writeSize))
+            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
             totalSpace += candidate.totalSpace;
         }
-        if (!hasAvailableDiskSpace(totalAvailable, totalSpace, expectedTotalWriteSize))
+        if (insufficientDiskSpaceForWriteSize(totalAvailable, totalSpace, expectedTotalWriteSize))
         {
             logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
                         "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
@@ -418,22 +418,26 @@ public class Directories
                         MAX_COMPACTION_DISK_USAGE * 100);
             return false;
         }
-        expectedSpaceUsedByCompactions += expectedTotalWriteSize;
         return true;
     }
 
-    private boolean hasAvailableDiskSpace(long totalAvailable, long totalSpace, long writeSize)
+    private boolean insufficientDiskSpaceForWriteSize(long totalAvailable, long totalSpace, long writeSize)
     {
         // the space that will be taken up by currently running compactions is removed
-        totalAvailable -= expectedSpaceUsedByCompactions;
+        totalAvailable -= expectedSpaceUsedByCompactions.get();
 
         long usedSpace = totalSpace - totalAvailable;
-        return (usedSpace + writeSize) < (totalSpace * MAX_COMPACTION_DISK_USAGE);
+        return (usedSpace + writeSize) > (totalSpace * MAX_COMPACTION_DISK_USAGE);
+    }
+
+    public static void addExpectedSpaceUsedByCompaction(long expectedTotalWriteSize)
+    {
+        expectedSpaceUsedByCompactions.addAndGet(expectedTotalWriteSize);
     }
 
     public static void removeExpectedSpaceUsedByCompaction(long expectedTotalWriteSize)
     {
-        expectedSpaceUsedByCompactions += expectedTotalWriteSize;
+        expectedSpaceUsedByCompactions.addAndGet(-expectedTotalWriteSize);
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
