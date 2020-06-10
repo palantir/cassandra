@@ -127,10 +127,10 @@ public class CompactionTask extends AbstractCompactionTask
             {
                 if(sstable.descriptor.cfname.equals(cfs.name))
                 {
-                    return true;
+                    return false;
                 }
                 Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize);
-                return false;
+                return true;
             }
         });
 
