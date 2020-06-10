@@ -530,7 +530,7 @@ public class Directories
     static final class DataDirectoryCandidate implements Comparable<DataDirectoryCandidate>
     {
         final DataDirectory dataDirectory;
-        long availableSpace;
+        final long availableSpace;
         final long totalSpace;
         double perc;
 
