@@ -17,7 +17,6 @@
  */
 package org.apache.cassandra.db.compaction;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -130,7 +129,7 @@ public class CompactionTask extends AbstractCompactionTask
                 {
                     return true;
                 }
-                Directories.giveBackAvailableDiskSpace(expectedWriteSize);
+                Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize);
                 return false;
             }
         });
@@ -204,11 +203,11 @@ public class CompactionTask extends AbstractCompactionTask
                         // don't replace old sstables yet, as we need to mark the compaction finished in the system table
                         newSStables = writer.finish();
                     } catch (Exception e) {
-                        Directories.giveBackAvailableDiskSpace(expectedWriteSize);
                         throw new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
                     }
                     finally
                     {
+                        Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize);
                         // point of no return -- the new sstables are live on disk; next we'll start deleting the old ones
                         // (in replaceCompactedSSTables)
                         if (taskId != null)
@@ -300,11 +299,10 @@ public class CompactionTask extends AbstractCompactionTask
         }
 
         AbstractCompactionStrategy strategy = cfs.getCompactionStrategy();
-        long expectedWriteSize;
 
         while(true)
         {
-            expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
+            long expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
 
             if(cfs.directories.hasAvailableDiskSpace(estimatedSSTables, expectedWriteSize))
