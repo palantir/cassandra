@@ -1344,6 +1344,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         nonTransientErrors.clear();
     }
 
+    public void setOperationModeNormal() {
+        setMode(Mode.NORMAL, false);
+    }
+
     @Override
     public Set<Map<String, String>> getNonTransientErrors() {
         return ImmutableSet.copyOf(nonTransientErrors);
