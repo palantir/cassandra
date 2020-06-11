@@ -801,6 +801,8 @@ public class CassandraDaemon
             }
             else
             {
+                StorageService.instance.startGossiping();
+                StorageService.instance.setOperationModeNormal();
                 CassandraDaemon.instance.start();
                 enableAutoCompaction();
             }
