@@ -92,13 +92,15 @@ public class Directories
     private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
+    private static final Object LOCK = new Object();
+
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
 
     public static final DataDirectory[] dataDirectories;
 
-    private static AtomicLong expectedSpaceUsedByCompactions = new AtomicLong();
+    private static long expectedSpaceUsedByCompactions = 0;
     static
     {
         String[] locations = DatabaseDescriptor.getAllDataFileLocations();
@@ -423,21 +425,30 @@ public class Directories
 
     private boolean insufficientDiskSpaceForWriteSize(long totalAvailable, long totalSpace, long writeSize)
     {
-        // the space that will be taken up by currently running compactions is removed
-        totalAvailable -= expectedSpaceUsedByCompactions.get();
+        synchronized (LOCK)
+        {
+            // the space that will be taken up by currently running compactions is removed
+            totalAvailable -= expectedSpaceUsedByCompactions;
 
-        long usedSpace = totalSpace - totalAvailable;
-        return (usedSpace + writeSize) > (totalSpace * MAX_COMPACTION_DISK_USAGE);
+            long usedSpace = totalSpace - totalAvailable;
+            return (usedSpace + writeSize) > (totalSpace * MAX_COMPACTION_DISK_USAGE);
+        }
     }
 
     public static void addExpectedSpaceUsedByCompaction(long expectedTotalWriteSize)
     {
-        expectedSpaceUsedByCompactions.addAndGet(expectedTotalWriteSize);
+        synchronized (LOCK)
+        {
+            expectedSpaceUsedByCompactions += expectedTotalWriteSize;
+        }
     }
 
     public static void removeExpectedSpaceUsedByCompaction(long expectedTotalWriteSize)
     {
-        expectedSpaceUsedByCompactions.addAndGet(-expectedTotalWriteSize);
+        synchronized (LOCK)
+        {
+            expectedSpaceUsedByCompactions -= expectedTotalWriteSize;
+        }
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
