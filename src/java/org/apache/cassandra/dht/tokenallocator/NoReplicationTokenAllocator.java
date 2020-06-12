@@ -20,14 +20,12 @@ package org.apache.cassandra.dht.tokenallocator;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Set;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -229,6 +227,12 @@ public class NoReplicationTokenAllocator<Unit> extends TokenAllocatorBase<Unit>
         sortedUnits.add(new Weighted<>(newUnitInfo.ownership, newUnitInfo));
 
         return newTokens;
+    }
+
+    @Override
+    Collection<Token> generateSplits(Unit newUnit, int numTokens)
+    {
+        return super.generateSplits(newUnit, numTokens);
     }
 
     /**
