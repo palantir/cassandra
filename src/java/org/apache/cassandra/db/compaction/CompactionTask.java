@@ -117,7 +117,6 @@ public class CompactionTask extends AbstractCompactionTask
         // since we might remove sstables from the compaction in checkAvailableDiskSpace it needs to be done here
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize();
-        Directories.addExpectedSpaceUsedByCompaction(expectedWriteSize);
 
         // sanity check: all sstables must belong to the same cfs
         assert !Iterables.any(transaction.originals(), new Predicate<SSTableReader>()
@@ -306,7 +305,7 @@ public class CompactionTask extends AbstractCompactionTask
         {
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
 
-            if(cfs.directories.hasAvailableDiskSpace(estimatedSSTables, expectedWriteSize))
+            if(cfs.directories.checkAvailableDiskSpaceAndUpdateUsedSpace(estimatedSSTables, expectedWriteSize))
                 break;
 
             if (!reduceScopeForLimitedSpace(expectedWriteSize))
