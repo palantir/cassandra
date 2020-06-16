@@ -92,7 +92,6 @@ public class Directories
     private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
-    private static final Object LOCK = new Object();
 
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
@@ -100,6 +99,9 @@ public class Directories
 
     public static final DataDirectory[] dataDirectories;
 
+    //needed for dealing with race condition when compactions run in parallel, to reflect the actual available space
+    //see https://github.com/palantir/cassandra/issues/198
+    private static final Object COMPACTION_LOCK = new Object();
     private static long expectedSpaceUsedByCompactions = 0;
     static
     {
@@ -395,7 +397,7 @@ public class Directories
 
     public boolean checkAvailableDiskSpaceAndUpdateUsedSpace(long estimatedSSTables, long expectedTotalWriteSize)
     {
-        synchronized (LOCK)
+        synchronized (COMPACTION_LOCK)
         {
             long writeSize = expectedTotalWriteSize / estimatedSSTables;
             long totalAvailable = 0L;
@@ -439,7 +441,7 @@ public class Directories
 
     public static void removeExpectedSpaceUsedByCompaction(long expectedTotalWriteSize)
     {
-        synchronized (LOCK)
+        synchronized (COMPACTION_LOCK)
         {
             expectedSpaceUsedByCompactions -= expectedTotalWriteSize;
         }
