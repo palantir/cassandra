@@ -395,52 +395,61 @@ public class Directories
         Collections.sort(candidates);
     }
 
-    public boolean checkAvailableDiskSpaceAndUpdateUsedSpace(long estimatedSSTables, long expectedTotalWriteSize)
+    public Boolean checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
+    {
+        return checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, 0);
+    }
+
+    public Boolean checkAvailableDiskSpaceConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
     {
         synchronized (COMPACTION_LOCK)
         {
-            long writeSize = expectedTotalWriteSize / estimatedSSTables;
-            long totalAvailable = 0L;
-            long totalSpace = 0L;
-
-            for (DataDirectory dataDir : dataDirectories)
-            {
-                if (BlacklistedDirectories.isUnwritable(getLocationForDisk(dataDir)))
-                    continue;
-                DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
-                // exclude directory if its total writeSize does not fit to data directory
-                if (insufficientDiskSpaceForWriteSize(candidate.availableSpace, candidate.totalSpace, writeSize))
-                    continue;
-                totalAvailable += candidate.availableSpace;
-                totalSpace += candidate.totalSpace;
-            }
-            if (insufficientDiskSpaceForWriteSize(totalAvailable, totalSpace, expectedTotalWriteSize))
-            {
-                logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction with"
-                            + " expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
-                            totalAvailable / 1024 / 1024,
-                            expectedTotalWriteSize / 1024 / 1024,
-                            totalSpace / 1024 / 1024,
-                            MAX_COMPACTION_DISK_USAGE * 100);
+            if (!checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, expectedSpaceUsedByCompactions))
                 return false;
-            }
-
             expectedSpaceUsedByCompactions += expectedTotalWriteSize;
             return true;
         }
     }
 
+    private boolean checkAvailableDiskSpace(long estimatedSSTables, long expectedTotalWriteSize, long expectedSpaceUsedByCompactions) {
+        long writeSize = expectedTotalWriteSize / estimatedSSTables;
+        long totalAvailable = 0L;
+        long totalSpace = 0L;
+
+        for (DataDirectory dataDir : dataDirectories)
+        {
+            if (BlacklistedDirectories.isUnwritable(getLocationForDisk(dataDir)))
+                continue;
+            DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
+            // exclude directory if its total writeSize does not fit to data directory
+            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace - expectedSpaceUsedByCompactions, candidate.totalSpace, writeSize))
+                continue;
+            totalAvailable += candidate.availableSpace;
+            totalSpace += candidate.totalSpace;
+        }
+        if (insufficientDiskSpaceForWriteSize(totalAvailable - expectedSpaceUsedByCompactions, totalSpace, expectedTotalWriteSize))
+        {
+            logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction with"
+                        + " expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
+                        totalAvailable / 1024 / 1024,
+                        expectedTotalWriteSize / 1024 / 1024,
+                        totalSpace / 1024 / 1024,
+                        MAX_COMPACTION_DISK_USAGE * 100);
+            return false;
+        }
+        return true;
+    }
+
     private boolean insufficientDiskSpaceForWriteSize(long totalAvailable, long totalSpace, long writeSize)
     {
-        // the space that will be taken up by currently running compactions is removed
-        totalAvailable -= expectedSpaceUsedByCompactions;
-
         long usedSpace = totalSpace - totalAvailable;
         return (usedSpace + writeSize) > (totalSpace * MAX_COMPACTION_DISK_USAGE);
     }
 
-    public static void removeExpectedSpaceUsedByCompaction(long expectedTotalWriteSize)
+    public static void removeExpectedSpaceUsedByCompaction(long expectedTotalWriteSize, boolean shouldConsiderConcurrentCompactions)
     {
+        if (!shouldConsiderConcurrentCompactions)
+            return;
         synchronized (COMPACTION_LOCK)
         {
             expectedSpaceUsedByCompactions -= expectedTotalWriteSize;
