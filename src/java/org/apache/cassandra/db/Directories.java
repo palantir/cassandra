@@ -92,11 +92,17 @@ public class Directories
     private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
+
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
 
     public static final DataDirectory[] dataDirectories;
+
+    //needed for dealing with race condition when compactions run in parallel, to reflect the actual available space
+    //see https://github.com/palantir/cassandra/issues/198
+    private static final Object COMPACTION_LOCK = new Object();
+    private static long expectedSpaceUsedByCompactions = 0;
     static
     {
         String[] locations = DatabaseDescriptor.getAllDataFileLocations();
@@ -389,8 +395,23 @@ public class Directories
         Collections.sort(candidates);
     }
 
-    public boolean hasAvailableDiskSpace(long estimatedSSTables, long expectedTotalWriteSize)
+    public Boolean checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
     {
+        return checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, 0);
+    }
+
+    public Boolean checkAvailableDiskSpaceConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
+    {
+        synchronized (COMPACTION_LOCK)
+        {
+            if (!checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, expectedSpaceUsedByCompactions))
+                return false;
+            expectedSpaceUsedByCompactions += expectedTotalWriteSize;
+            return true;
+        }
+    }
+
+    private boolean checkAvailableDiskSpace(long estimatedSSTables, long expectedTotalWriteSize, long expectedSpaceUsedByCompactions) {
         long writeSize = expectedTotalWriteSize / estimatedSSTables;
         long totalAvailable = 0L;
         long totalSpace = 0L;
@@ -398,17 +419,18 @@ public class Directories
         for (DataDirectory dataDir : dataDirectories)
         {
             if (BlacklistedDirectories.isUnwritable(getLocationForDisk(dataDir)))
-                  continue;
+                continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if (!hasAvailableDiskSpace(candidate.availableSpace, candidate.totalSpace, writeSize))
+            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace - expectedSpaceUsedByCompactions, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
             totalSpace += candidate.totalSpace;
         }
-        if (!hasAvailableDiskSpace(totalAvailable, totalSpace, expectedTotalWriteSize)) {
-            logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction " +
-                        "with expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
+        if (insufficientDiskSpaceForWriteSize(totalAvailable - expectedSpaceUsedByCompactions, totalSpace, expectedTotalWriteSize))
+        {
+            logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction with"
+                        + " expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
                         totalAvailable / 1024 / 1024,
                         expectedTotalWriteSize / 1024 / 1024,
                         totalSpace / 1024 / 1024,
@@ -418,9 +440,20 @@ public class Directories
         return true;
     }
 
-    private boolean hasAvailableDiskSpace(long totalAvailable, long totalSpace, long writeSize) {
+    private boolean insufficientDiskSpaceForWriteSize(long totalAvailable, long totalSpace, long writeSize)
+    {
         long usedSpace = totalSpace - totalAvailable;
-        return (usedSpace + writeSize) < (totalSpace * MAX_COMPACTION_DISK_USAGE);
+        return (usedSpace + writeSize) > (totalSpace * MAX_COMPACTION_DISK_USAGE);
+    }
+
+    public static void removeExpectedSpaceUsedByCompaction(long expectedTotalWriteSize, boolean shouldConsiderConcurrentCompactions)
+    {
+        if (!shouldConsiderConcurrentCompactions)
+            return;
+        synchronized (COMPACTION_LOCK)
+        {
+            expectedSpaceUsedByCompactions -= expectedTotalWriteSize;
+        }
     }
 
     public static File getSnapshotDirectory(Descriptor desc, String snapshotName)
@@ -880,7 +913,7 @@ public class Directories
         for (int i = 0; i < locations.length; ++i)
             dataDirectories[i] = new DataDirectory(new File(locations[i]));
     }
-    
+
     private class TrueFilesSizeVisitor extends SimpleFileVisitor<Path>
     {
         private final AtomicLong size = new AtomicLong(0);
@@ -919,11 +952,11 @@ public class Directories
         }
 
         @Override
-        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException 
+        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException
         {
             return FileVisitResult.CONTINUE;
         }
-        
+
         public long getAllocatedSize()
         {
             return size.get();
