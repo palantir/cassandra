@@ -25,6 +25,7 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.RowIndexEntry;
 import org.apache.cassandra.db.RowPosition;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
+import org.apache.cassandra.db.columniterator.TombstoneCountingColumnIterator;
 import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.filter.ColumnSlice;
 import org.apache.cassandra.dht.IPartitioner;
@@ -72,12 +73,12 @@ public class BigTableReader extends SSTableReader
 
     public OnDiskAtomIterator iterator(DecoratedKey key, ColumnSlice[] slices, boolean reverse)
     {
-        return new SSTableSliceIterator(this, key, slices, reverse);
+        return new TombstoneCountingColumnIterator(this, new SSTableSliceIterator(this, key, slices, reverse));
     }
 
     public OnDiskAtomIterator iterator(FileDataInput input, DecoratedKey key, ColumnSlice[] slices, boolean reverse, RowIndexEntry indexEntry)
     {
-        return new SSTableSliceIterator(this, input, key, slices, reverse, indexEntry);
+        return new TombstoneCountingColumnIterator(this, new SSTableSliceIterator(this, input, key, slices, reverse, indexEntry));
     }
     /**
      *
