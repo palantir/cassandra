@@ -88,28 +88,42 @@ public class SliceFromReadCommand extends ReadCommand
     @Override
     public ReadCommand maybeGenerateRetryCommand(RowDataResolver resolver, Row row)
     {
-        int maxLiveColumns = resolver.getMaxLiveCount();
+        return filter.limitCases(count -> {
+            int maxLiveColumns = resolver.getMaxLiveCount();
+            // We generate a retry if at least one node reply with count live columns but after merge we have less
+            // than the total number of column we are interested in (which may be < count on a retry).
+            // So in particular, if no host returned count live columns, we know it's not a short read.
+            if (maxLiveColumns < count)
+                return null;
 
-        int count = filter.count;
-        // We generate a retry if at least one node reply with count live columns but after merge we have less
-        // than the total number of column we are interested in (which may be < count on a retry).
-        // So in particular, if no host returned count live columns, we know it's not a short read.
-        if (maxLiveColumns < count)
+            int liveCountInRow = row == null || row.cf == null ? 0 : filter.getLiveCount(row.cf, timestamp);
+            if (liveCountInRow < getOriginalRequestedCount())
+            {
+                // We asked t (= count) live columns and got l (=liveCountInRow) ones.
+                // From that, we can estimate that on this row, for x requested
+                // columns, only l/t end up live after reconciliation. So for next
+                // round we want to ask x column so that x * (l/t) == t, i.e. x = t^2/l.
+                int retryCount = liveCountInRow == 0 ? count + 1 : ((count * count) / liveCountInRow) + 1;
+                SliceQueryFilter newFilter = filter.withUpdatedCount(retryCount);
+                return new RetriedSliceFromReadCommand(ksName, key, cfName, timestamp, newFilter, getOriginalRequestedCount());
+            }
             return null;
-
-        int liveCountInRow = row == null || row.cf == null ? 0 : filter.getLiveCount(row.cf, timestamp);
-        if (liveCountInRow < getOriginalRequestedCount())
-        {
-            // We asked t (= count) live columns and got l (=liveCountInRow) ones.
-            // From that, we can estimate that on this row, for x requested
-            // columns, only l/t end up live after reconciliation. So for next
-            // round we want to ask x column so that x * (l/t) == t, i.e. x = t^2/l.
-            int retryCount = liveCountInRow == 0 ? count + 1 : ((count * count) / liveCountInRow) + 1;
-            SliceQueryFilter newFilter = filter.withUpdatedCount(retryCount);
-            return new RetriedSliceFromReadCommand(ksName, key, cfName, timestamp, newFilter, getOriginalRequestedCount());
-        }
-
-        return null;
+        }, sizeLimit -> {
+            int maxLiveBytes = resolver.getMaxLiveBytes();
+            if (maxLiveBytes < sizeLimit) {
+                return null;
+            }
+            int liveBytesInRow = row == null || row.cf == null ? 0 : filter.getLiveBytes(row.cf, timestamp);
+            if (liveBytesInRow < getOriginalRequestedBytes()) // todo fix
+            {
+                // probably a little (but not too far) off
+                int retryBytes = liveBytesInRow == 0 ? maxLiveBytes + 1 : ((maxLiveBytes * maxLiveBytes) / liveBytesInRow) + 1;
+                SliceQueryFilter newFilter = filter.withUpdatedSizeLimit(retryBytes);
+                return new RetriedSliceFromReadCommandMaxBytes(
+                        ksName, key, cfName, timestamp, newFilter, getOriginalRequestedBytes());
+            }
+            return null;
+        });
     }
 
     @Override
@@ -118,12 +132,14 @@ public class SliceFromReadCommand extends ReadCommand
         if ((row == null) || (row.cf == null))
             return row;
 
-        return new Row(row.key, filter.trim(row.cf, getOriginalRequestedCount(), timestamp));
+        return filter.limitCases(
+            count -> new Row(row.key, filter.trim(row.cf, getOriginalRequestedCount(), timestamp)),
+            maxSize -> new Row(row.key, filter.trim(row.cf, getOriginalRequestedBytes(), timestamp)));
     }
 
     @Override
     public boolean isCheap() {
-        return filter.count <= 1;
+        return filter.limitCases(count -> count <= 1, maxBytes -> false);
     }
 
     public IDiskAtomFilter filter()
@@ -143,7 +159,11 @@ public class SliceFromReadCommand extends ReadCommand
      */
     protected int getOriginalRequestedCount()
     {
-        return filter.count;
+        return filter.count();
+    }
+
+    protected int getOriginalRequestedBytes() {
+        return filter.sizeLimit();
     }
 
     @Override

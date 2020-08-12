@@ -31,6 +31,7 @@ import org.apache.cassandra.db.DeletionInfo;
 public class ColumnCounter
 {
     protected int live;
+    private int bytes;
     protected int tombstones;
     protected final long timestamp;
 
@@ -50,9 +51,10 @@ public class ColumnCounter
         if (tester.isDeleted(cell))
             return false;
 
-        if (cell.isLive(timestamp))
+        if (cell.isLive(timestamp)) {
             live++;
-        else
+            bytes = Math.addExact(bytes, cell.cellDataSize());
+        } else
             tombstones++;
 
         return true;
@@ -61,6 +63,10 @@ public class ColumnCounter
     public int live()
     {
         return live;
+    }
+
+    public int liveBytes() {
+        return bytes;
     }
 
     public int tombstones()
@@ -73,6 +79,10 @@ public class ColumnCounter
      */
     public boolean hasSeenAtLeast(int numLiveCellsDesired) {
         return live() >= numLiveCellsDesired;
+    }
+
+    public boolean hasSeenBytesAtLeast(int numBytesDesired) {
+        return bytes >= numBytesDesired;
     }
 
     public ColumnCounter countAll(ColumnFamily container)

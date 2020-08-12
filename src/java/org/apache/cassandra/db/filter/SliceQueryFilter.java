@@ -17,34 +17,61 @@
  */
 package org.apache.cassandra.db.filter;
 
-import java.nio.ByteBuffer;
 import java.io.DataInput;
 import java.io.IOException;
-import java.util.*;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.IntFunction;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
-import com.palantir.cassandra.utils.CountingCellIterator;
-
-import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.db.composites.*;
-import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.utils.CountingCellIterator;
+import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.Cell;
+import org.apache.cassandra.db.ColumnFamily;
+import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.db.DeletionInfo;
+import org.apache.cassandra.db.OnDiskAtom;
+import org.apache.cassandra.db.RangeTombstone;
+import org.apache.cassandra.db.RowIndexEntry;
+import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
+import org.apache.cassandra.db.composites.CType;
+import org.apache.cassandra.db.composites.CellName;
+import org.apache.cassandra.db.composites.CellNameType;
+import org.apache.cassandra.db.composites.Composite;
+import org.apache.cassandra.db.composites.Composites;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileDataInput;
 import org.apache.cassandra.service.ClientWarn;
 import org.apache.cassandra.tracing.Tracing;
+import org.apache.cassandra.utils.Pair;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 public class SliceQueryFilter implements IDiskAtomFilter
 {
     private static final Logger logger = LoggerFactory.getLogger(SliceQueryFilter.class);
+
+    /**
+     * We added a hack which uses a negative 'count' to mean a byte size limit (with no count applied).
+     * Obviously, this is quite dangerous; if we forgot a case and this got serialized as a count, it would
+     * become Integer.MAX_VALUE and the system would crash. So, we use Integer.MAX_VALUE - 54321 as an impractically
+     * large number which is implausibly chosen in any real use case.
+     */
+    private static final int SENTINEL = Integer.MAX_VALUE - 54321;
 
     /**
      * A special value for compositesToGroup that indicates that partitioned tombstones should not be included in results
@@ -54,7 +81,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public final ColumnSlice[] slices;
     public final boolean reversed;
-    public volatile int count;
+    private volatile int count;
+    private final int sizeLimit;
     public final int compositesToGroup;
 
     private boolean hitTombstoneFailureThreshold = false;
@@ -98,18 +126,55 @@ public class SliceQueryFilter implements IDiskAtomFilter
     {
         this.slices = slices;
         this.reversed = reversed;
-        this.count = count;
+        checkArgument(count != SENTINEL && count != -SENTINEL,
+                      "Count is equal to sentinel, bug detected");
+        if (count >= 0) {
+            this.count = count;
+            this.sizeLimit = SENTINEL;
+        } else {
+            this.count = SENTINEL;
+            this.sizeLimit = -count;
+            checkArgument(sizeLimit <= 1024 * 1024, "Cannot request more than 1MB in one call, requested %s", sizeLimit);
+        }
         this.compositesToGroup = compositesToGroup;
+    }
+
+    public <T> T limitCases(IntFunction<T> countCase, IntFunction<T> maxSizeCase) {
+        if (count != SENTINEL) {
+            return countCase.apply(count);
+        } else {
+            return maxSizeCase.apply(count);
+        }
+    }
+
+    public int sizeLimit() {
+        checkState(sizeLimit != SENTINEL, "sizeLimit != SENTINEL");
+        return sizeLimit;
+    }
+
+    public int count() {
+        checkState(count != SENTINEL, "count != SENTINEL");
+        return count;
+    }
+
+    private int serializedCount() {
+        return count != SENTINEL ? count : -sizeLimit;
     }
 
     public SliceQueryFilter cloneShallow()
     {
-        return new SliceQueryFilter(slices, reversed, count, compositesToGroup);
+        return new SliceQueryFilter(slices, reversed, serializedCount(), compositesToGroup);
     }
 
     public SliceQueryFilter withUpdatedCount(int newCount)
     {
+        checkArgument(count != SENTINEL, "count != SENTINEL");
         return new SliceQueryFilter(slices, reversed, newCount, compositesToGroup);
+    }
+
+    public SliceQueryFilter withUpdatedSizeLimit(int newSizeLimit) {
+        checkArgument(sizeLimit != SENTINEL, "sizeLimit != SENTINEL");
+        return new SliceQueryFilter(slices, reversed, -newSizeLimit, compositesToGroup);
     }
 
     public SliceQueryFilter withUpdatedSlices(ColumnSlice[] newSlices)
@@ -268,7 +333,9 @@ public class SliceQueryFilter implements IDiskAtomFilter
         columnCounter = columnCounter(container.getComparator(), now);
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
-        while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
+        while (!columnCounter.hasSeenAtLeast(count)
+               && !columnCounter.hasSeenBytesAtLeast(sizeLimit)
+               && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
 
@@ -351,6 +418,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public int getLiveCount(ColumnFamily cf, long now)
     {
         return columnCounter(cf.getComparator(), now).countAll(cf).live();
+    }
+
+    public int getLiveBytes(ColumnFamily cf, long now)
+    {
+        return columnCounter(cf.getComparator(), now).countAll(cf).liveBytes();
     }
 
     public ColumnCounter columnCounter(CellNameType comparator, long now)
@@ -557,7 +629,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (ColumnSlice slice : f.slices)
                 type.sliceSerializer().serialize(slice, out, version);
             out.writeBoolean(f.reversed);
-            int count = f.count;
+
+            int count = f.serializedCount();
             out.writeInt(count);
 
             out.writeInt(f.compositesToGroup);

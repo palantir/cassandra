@@ -62,7 +62,7 @@ public class DataRange
         return filter.slices.length == 1
             && filter.start().isEmpty()
             && filter.finish().isEmpty()
-            && filter.count == Integer.MAX_VALUE;
+            && filter.count() == Integer.MAX_VALUE;
     }
 
     public static DataRange allData(IPartitioner partitioner)

@@ -70,6 +70,8 @@ public class MultiGetMultiSliceTest
     = keyPredicateForRange(PARTITION_1, COLUMN_A, COLUMN_Z, 3);
     private static final KeyPredicate PARTITION_1_RANGE_THREE_FROM_B_TO_Z
     = keyPredicateForRange(PARTITION_1, COLUMN_B, COLUMN_Z, 3);
+    private static final KeyPredicate PARTITION_1_MAX_TEN_BYTES
+    = keyPredicateForRange(PARTITION_1, COLUMN_A, COLUMN_Z, -10);
 
     private static CassandraServer server;
 
@@ -85,6 +87,16 @@ public class MultiGetMultiSliceTest
                                     SchemaLoader.standardCFMD(KEYSPACE, CF_STANDARD));
         server = new CassandraServer();
         server.set_keyspace(KEYSPACE);
+    }
+
+    @Test
+    public void canFilterByMaxSize() throws TimedOutException, UnavailableException, InvalidRequestException
+    {
+        ColumnParent cp = new ColumnParent(CF_STANDARD);
+        addTheAlphabetToRow(PARTITION_1, cp);
+        List<KeyPredicate> request = ImmutableList.of(PARTITION_1_MAX_TEN_BYTES);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_A, COLUMN_B), Iterables.getOnlyElement(result.get(PARTITION_1)));
     }
 
     @Test

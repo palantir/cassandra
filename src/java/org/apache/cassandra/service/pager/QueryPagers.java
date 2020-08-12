@@ -48,7 +48,7 @@ public class QueryPagers
         else
         {
             SliceQueryFilter filter = ((SliceFromReadCommand)command).filter;
-            return filter.count;
+            return filter.count();
         }
     }
 
@@ -78,7 +78,7 @@ public class QueryPagers
             // get a RangeSliceCommand from CQL3 without the countCQL3Rows flag set is for DISTINCT. In that case
             // however, the underlying sliceQueryFilter count is 1, so that the RSC limit is still a limit on the
             // number of CQL3 rows returned.
-            assert rsc.countCQL3Rows || (rsc.predicate instanceof SliceQueryFilter && ((SliceQueryFilter)rsc.predicate).count == 1);
+            assert rsc.countCQL3Rows || (rsc.predicate instanceof SliceQueryFilter && ((SliceQueryFilter)rsc.predicate).count() == 1);
             return rsc.maxResults > pageSize;
         }
     }
