@@ -25,7 +25,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.KSMetaData;
@@ -230,7 +229,7 @@ public class CompactionAwareWriterTest
     {
         for (int i = 0; i < rowCount; i++)
         {
-            ColumnFamily cf = cfs.getTopLevelColumns(QueryFilter.getIdentityFilter(Util.dk(Integer.toString(i)), CF, System.currentTimeMillis()), Integer.MAX_VALUE, FilterExperiment.USE_OPTIMIZED);
+            ColumnFamily cf = cfs.getTopLevelColumns(QueryFilter.getIdentityFilter(Util.dk(Integer.toString(i)), CF, System.currentTimeMillis()), Integer.MAX_VALUE);
             Iterator<Cell> iter = cf.iterator();
             int cellCount = 0;
             while (iter.hasNext())

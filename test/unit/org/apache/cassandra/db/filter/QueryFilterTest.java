@@ -26,7 +26,6 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
-import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.ArrayBackedSortedColumns;
 import org.apache.cassandra.db.BufferCell;
@@ -100,7 +99,7 @@ public class QueryFilterTest {
 
     private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
         IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, Integer.MAX_VALUE);
-        QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
+        QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000);
         return read(returnCf);
     }
 
