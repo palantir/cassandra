@@ -621,6 +621,9 @@ public class DatabaseDescriptor
         if (conf.concurrent_compactors <= 0)
             throw new ConfigurationException("concurrent_compactors should be strictly greater than 0", false);
 
+        if (conf.concurrent_cheap_compactors < 0)
+            throw new ConfigurationException("concurrent_cheap_compactors should be greater than or equal to 0", false);
+
         if (conf.initial_token != null)
             for (String token : tokensFromString(conf.initial_token))
                 partitioner.getTokenFactory().validate(token);
@@ -1160,6 +1163,12 @@ public class DatabaseDescriptor
     {
         return conf.concurrent_compactors;
     }
+
+    public static int getConcurrentCheapCompactors()
+    {
+        return conf.concurrent_cheap_compactors;
+    }
+
 
     public static int getCompactionThroughputMbPerSec()
     {
