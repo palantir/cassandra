@@ -363,7 +363,7 @@ public class LeveledManifest
         return new CompactionCandidate(candidates, getNextLevel(candidates), cfs.getCompactionStrategy().getMaxSSTableBytes());
     }
 
-    private CompactionCandidate getSTCSInL0CompactionCandidate()
+    protected CompactionCandidate getSTCSInL0CompactionCandidate()
     {
         if (!DatabaseDescriptor.getDisableSTCSInL0() && getLevel(0).size() > MAX_COMPACTING_L0)
         {

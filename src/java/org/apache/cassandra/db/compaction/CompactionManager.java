@@ -99,6 +99,7 @@ public class CompactionManager implements CompactionManagerMBean
     }
 
     private final CompactionExecutor executor = new CompactionExecutor();
+    private final CompactionExecutor criticalExecutor = new CompactionExecutor("CriticalCompactionExecutor");
     private final CompactionExecutor validationExecutor = new ValidationExecutor();
     private final static CompactionExecutor cacheCleanupExecutor = new CacheCleanupExecutor();
 
@@ -147,6 +148,7 @@ public class CompactionManager implements CompactionManagerMBean
             logger.trace("Autocompaction is disabled");
             return Collections.emptyList();
         }
+        criticalExecutor.submitIfRunning(new BackgroundCriticalCompactionCandidate(cfs), "background task");
 
         /**
          * If a CF is currently being compacted, and there are no idle threads, submitBackground should be a no-op;
@@ -260,6 +262,37 @@ public class CompactionManager implements CompactionManagerMBean
             {
                 compactingCF.remove(cfs);
             }
+            submitBackground(cfs);
+        }
+    }
+
+    // On highly multitenant instances, LCS compactions may compete between tables to the extent that the STCS L0 compactions cannot happen. We trigger these here.
+    class BackgroundCriticalCompactionCandidate implements Runnable
+    {
+        private final ColumnFamilyStore cfs;
+
+        BackgroundCriticalCompactionCandidate(ColumnFamilyStore cfs)
+        {
+            this.cfs = cfs;
+        }
+
+        public void run()
+        {
+            logger.trace("Checking {}.{}", cfs.keyspace.getName(), cfs.name);
+            if (!cfs.isValid())
+            {
+                logger.trace("Aborting compaction for dropped CF");
+                return;
+            }
+
+            AbstractCompactionStrategy strategy = cfs.getCompactionStrategy();
+            AbstractCompactionTask task = strategy.getNextCriticalBackgroundTask(getDefaultGcBefore(cfs));
+            if (task == null)
+            {
+                logger.trace("No tasks available");
+                return;
+            }
+            task.execute(metrics);
             submitBackground(cfs);
         }
     }
@@ -1484,9 +1517,13 @@ public class CompactionManager implements CompactionManagerMBean
             this(threadCount, threadCount, name, new LinkedBlockingQueue<Runnable>());
         }
 
+        public CompactionExecutor(String name) {
+            this(Math.max(1, DatabaseDescriptor.getConcurrentCompactors()), name);
+        }
+
         public CompactionExecutor()
         {
-            this(Math.max(1, DatabaseDescriptor.getConcurrentCompactors()), "CompactionExecutor");
+            this("CompactionExecutor");
         }
 
         protected void beforeExecute(Thread t, Runnable r)

@@ -99,6 +99,19 @@ public final class WrappingCompactionStrategy extends AbstractCompactionStrategy
     }
 
     @Override
+    public AbstractCompactionTask getNextCriticalBackgroundTask(int gcBefore)
+    {
+        if (!isEnabled())
+            return null;
+
+        AbstractCompactionTask task = repaired.getNextCriticalBackgroundTask(gcBefore);
+        if (task != null) {
+            return task;
+        }
+        return unrepaired.getNextCriticalBackgroundTask(gcBefore);
+    }
+
+    @Override
     public Collection<AbstractCompactionTask> getMaximalTask(final int gcBefore, final boolean splitOutput)
     {
         // runWithCompactionsDisabled cancels active compactions and disables them, then we are able
