@@ -17,8 +17,12 @@
  */
 package org.apache.cassandra.gms;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -27,6 +31,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.apache.cassandra.utils.MBeanWrapper;
@@ -47,6 +52,9 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.joda.time.Instant;
+
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * This module is responsible for Gossiping information for the local endpoint. This abstraction
@@ -131,12 +139,30 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     private volatile long lastProcessedMessageAt = System.currentTimeMillis();
 
+    private static void checkFilesystem() {
+        try {
+            Path file = Files.createTempFile("cassandra_healthcheck", null);
+            String healthCheckData = "healthcheck " + Instant.now();
+            Files.write(file, ImmutableList.of(healthCheckData), StandardCharsets.UTF_8);
+            String read = Iterables.getOnlyElement(Files.readAllLines(file, StandardCharsets.UTF_8));
+            checkState(read.equals(healthCheckData), "health check data did not match, written: %s read: %s",
+                       healthCheckData, read);
+            checkState(file.toFile().delete(), "Could not delete file, path: %s", file);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
     private class GossipTask implements Runnable
     {
         public void run()
         {
             try
             {
+                checkFilesystem();
+
                 //wait on messaging service to start listening
                 MessagingService.instance().waitUntilListening();
 
