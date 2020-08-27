@@ -486,6 +486,7 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
             private int tombstones = 0;
             private int droppableTtls = 0;
             private int droppableTombstones = 0;
+            private int rangeScanBytesRead = 0;
 
             private DecoratedKey currentKey;
 
@@ -556,6 +557,8 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
                     countTombstone(row.clustering());
                 }
 
+                rangeScanBytesRead += row.dataSize();
+
                 return row;
             }
 
@@ -604,6 +607,7 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
                 metric.droppableTombstonesReadHistogram.update(droppableTombstones);
                 metric.droppableTtlsReadHistogram.update(droppableTtls);
                 metric.liveReadHistogram.update(liveCells);
+                metric.rangeScanBytesRead.mark(rangeScanBytesRead);
 
                 boolean warnTombstones = tombstones > warningThreshold && respectTombstoneThresholds;
                 if (warnTombstones)

@@ -164,6 +164,9 @@ public class TableMetrics
     /** Estimated ratio of tombstones and number of cells in this table */
     public final Gauge<Double> tombstoneRatio;
 
+    /** Bytes read on range scans **/
+    public final Meter rangeScanBytesRead;
+
     public final LatencyMetrics coordinatorReadLatency;
     public final LatencyMetrics coordinatorScanLatency;
 
@@ -754,6 +757,8 @@ public class TableMetrics
                 return cfs.getTombstoneRatio();
             }
         });
+
+        rangeScanBytesRead = Metrics.meter(factory.createMetricName("RangeScanBytesRead"));
 
         readRepairRequests = Metrics.meter(factory.createMetricName("ReadRepairRequests"));
         shortReadProtectionRequests = Metrics.meter(factory.createMetricName("ShortReadProtectionRequests"));
