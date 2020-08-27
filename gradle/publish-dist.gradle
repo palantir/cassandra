@@ -1,6 +1,10 @@
+// This file is managed by the excavator 'consistent-publish-scripts' check, changes will be overwritten.
+apply plugin: 'application'
 apply plugin: 'com.jfrog.bintray'
-apply plugin: 'nebula.maven-publish'
-apply plugin: 'nebula.maven-resolved-dependencies'
+apply plugin: 'maven-publish'
+
+distTar.compression = Compression.GZIP
+distZip.enabled = false
 
 bintray {
     user = System.env.BINTRAY_USERNAME
@@ -8,7 +12,7 @@ bintray {
     publish = true
     pkg {
         repo = 'releases'
-        name = rootProject.name
+        name = 'cassandra'
         userOrg = 'palantir'
         licenses = ['Apache-2.0']
         publications = ['dist']
@@ -18,4 +22,20 @@ bintray {
 publish.dependsOn bintrayUpload
 bintrayUpload.onlyIf {
     versionDetails().isCleanTag
+}
+
+publishing {
+    publications {
+        dist(MavenPublication) {
+            artifact distTar
+        }
+    }
+}
+
+tasks.withType(CreateStartScripts).configureEach { task ->
+    task.doLast {
+        String text = task.windowsScript.text
+        text = text.replaceFirst(/(set CLASSPATH=%APP_HOME%\\lib\\).*/, { "${it[1]}*" })
+        task.windowsScript.write text
+    }
 }
