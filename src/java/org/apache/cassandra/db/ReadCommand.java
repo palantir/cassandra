@@ -493,6 +493,7 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
             private int tombstones = 0;
             private int droppableTtls = 0;
             private int droppableTombstones = 0;
+            private int bytesRead = 0;
 
             private DecoratedKey currentKey;
 
@@ -563,6 +564,8 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
                     countTombstone(row.clustering());
                 }
 
+                bytesRead += row.dataSize();
+
                 return row;
             }
 
@@ -611,6 +614,12 @@ public abstract class ReadCommand extends MonitorableImpl implements ReadQuery
                 metric.droppableTombstonesReadHistogram.update(droppableTombstones);
                 metric.droppableTtlsReadHistogram.update(droppableTtls);
                 metric.liveReadHistogram.update(liveCells);
+
+                if (kind == Kind.PARTITION_RANGE) {
+                    metric.rangeScanBytesRead.mark(bytesRead);
+                } else {
+                    metric.readBytesRead.mark(bytesRead);
+                }
 
                 boolean warnTombstones = tombstones > warningThreshold && respectTombstoneThresholds;
                 if (warnTombstones)
