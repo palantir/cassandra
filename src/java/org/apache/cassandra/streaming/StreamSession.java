@@ -32,6 +32,7 @@ import com.google.common.collect.*;
 import org.apache.cassandra.db.lifecycle.SSTableIntervalTree;
 import org.apache.cassandra.db.lifecycle.View;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,64 +59,64 @@ import org.apache.cassandra.utils.concurrent.Refs;
 /**
  * Handles the streaming a one or more section of one of more sstables to and from a specific
  * remote node.
- *
+ * <p>
  * Both this node and the remote one will create a similar symmetrical StreamSession. A streaming
  * session has the following life-cycle:
- *
+ * <p>
  * 1. Connections Initialization
- *
- *   (a) A node (the initiator in the following) create a new StreamSession, initialize it (init())
- *       and then start it (start()). Start will create a {@link ConnectionHandler} that will create
- *       two connections to the remote node (the follower in the following) with whom to stream and send
- *       a StreamInit message. The first connection will be the incoming connection for the
- *       initiator, and the second connection will be the outgoing.
- *   (b) Upon reception of that StreamInit message, the follower creates its own StreamSession,
- *       initialize it if it still does not exist, and attach connecting socket to its ConnectionHandler
- *       according to StreamInit message's isForOutgoing flag.
- *   (d) When the both incoming and outgoing connections are established, StreamSession calls
- *       StreamSession#onInitializationComplete method to start the streaming prepare phase
- *       (StreamResultFuture.startStreaming()).
- *
+ * <p>
+ * (a) A node (the initiator in the following) create a new StreamSession, initialize it (init())
+ * and then start it (start()). Start will create a {@link ConnectionHandler} that will create
+ * two connections to the remote node (the follower in the following) with whom to stream and send
+ * a StreamInit message. The first connection will be the incoming connection for the
+ * initiator, and the second connection will be the outgoing.
+ * (b) Upon reception of that StreamInit message, the follower creates its own StreamSession,
+ * initialize it if it still does not exist, and attach connecting socket to its ConnectionHandler
+ * according to StreamInit message's isForOutgoing flag.
+ * (d) When the both incoming and outgoing connections are established, StreamSession calls
+ * StreamSession#onInitializationComplete method to start the streaming prepare phase
+ * (StreamResultFuture.startStreaming()).
+ * <p>
  * 2. Streaming preparation phase
- *
- *   (a) This phase is started when the initiator onInitializationComplete() method is called. This method sends a
- *       PrepareMessage that includes what files/sections this node will stream to the follower
- *       (stored in a StreamTransferTask, each column family has it's own transfer task) and what
- *       the follower needs to stream back (StreamReceiveTask, same as above). If the initiator has
- *       nothing to receive from the follower, it goes directly to its Streaming phase. Otherwise,
- *       it waits for the follower PrepareMessage.
- *   (b) Upon reception of the PrepareMessage, the follower records which files/sections it will receive
- *       and send back its own PrepareMessage with a summary of the files/sections that will be sent to
- *       the initiator (prepare()). After having sent that message, the follower goes to its Streamning
- *       phase.
- *   (c) When the initiator receives the follower PrepareMessage, it records which files/sections it will
- *       receive and then goes to his own Streaming phase.
- *
+ * <p>
+ * (a) This phase is started when the initiator onInitializationComplete() method is called. This method sends a
+ * PrepareMessage that includes what files/sections this node will stream to the follower
+ * (stored in a StreamTransferTask, each column family has it's own transfer task) and what
+ * the follower needs to stream back (StreamReceiveTask, same as above). If the initiator has
+ * nothing to receive from the follower, it goes directly to its Streaming phase. Otherwise,
+ * it waits for the follower PrepareMessage.
+ * (b) Upon reception of the PrepareMessage, the follower records which files/sections it will receive
+ * and send back its own PrepareMessage with a summary of the files/sections that will be sent to
+ * the initiator (prepare()). After having sent that message, the follower goes to its Streamning
+ * phase.
+ * (c) When the initiator receives the follower PrepareMessage, it records which files/sections it will
+ * receive and then goes to his own Streaming phase.
+ * <p>
  * 3. Streaming phase
- *
- *   (a) The streaming phase is started by each node (the sender in the follower, but note that each side
- *       of the StreamSession may be sender for some of the files) involved by calling startStreamingFiles().
- *       This will sequentially send a FileMessage for each file of each SteamTransferTask. Each FileMessage
- *       consists of a FileMessageHeader that indicates which file is coming and then start streaming the
- *       content for that file (StreamWriter in FileMessage.serialize()). When a file is fully sent, the
- *       fileSent() method is called for that file. If all the files for a StreamTransferTask are sent
- *       (StreamTransferTask.complete()), the task is marked complete (taskCompleted()).
- *   (b) On the receiving side, a SSTable will be written for the incoming file (StreamReader in
- *       FileMessage.deserialize()) and once the FileMessage is fully received, the file will be marked as
- *       complete (received()). When all files for the StreamReceiveTask have been received, the sstables
- *       are added to the CFS (and 2ndary index are built, StreamReceiveTask.complete()) and the task
- *       is marked complete (taskCompleted())
- *   (b) If during the streaming of a particular file an error occurs on the receiving end of a stream
- *       (FileMessage.deserialize), the node will send a SessionFailedMessage to the sender and close the stream session.
- *   (c) When all transfer and receive tasks for a session are complete, the move to the Completion phase
- *       (maybeCompleted()).
- *
+ * <p>
+ * (a) The streaming phase is started by each node (the sender in the follower, but note that each side
+ * of the StreamSession may be sender for some of the files) involved by calling startStreamingFiles().
+ * This will sequentially send a FileMessage for each file of each SteamTransferTask. Each FileMessage
+ * consists of a FileMessageHeader that indicates which file is coming and then start streaming the
+ * content for that file (StreamWriter in FileMessage.serialize()). When a file is fully sent, the
+ * fileSent() method is called for that file. If all the files for a StreamTransferTask are sent
+ * (StreamTransferTask.complete()), the task is marked complete (taskCompleted()).
+ * (b) On the receiving side, a SSTable will be written for the incoming file (StreamReader in
+ * FileMessage.deserialize()) and once the FileMessage is fully received, the file will be marked as
+ * complete (received()). When all files for the StreamReceiveTask have been received, the sstables
+ * are added to the CFS (and 2ndary index are built, StreamReceiveTask.complete()) and the task
+ * is marked complete (taskCompleted())
+ * (b) If during the streaming of a particular file an error occurs on the receiving end of a stream
+ * (FileMessage.deserialize), the node will send a SessionFailedMessage to the sender and close the stream session.
+ * (c) When all transfer and receive tasks for a session are complete, the move to the Completion phase
+ * (maybeCompleted()).
+ * <p>
  * 4. Completion phase
- *
- *   (a) When a node has finished all transfer and receive task, it enter the completion phase (maybeCompleted()).
- *       If it had already received a CompleteMessage from the other side (it is in the WAIT_COMPLETE state), that
- *       session is done is is closed (closeSession()). Otherwise, the node switch to the WAIT_COMPLETE state and
- *       send a CompleteMessage to the other side.
+ * <p>
+ * (a) When a node has finished all transfer and receive task, it enter the completion phase (maybeCompleted()).
+ * If it had already received a CompleteMessage from the other side (it is in the WAIT_COMPLETE state), that
+ * session is done is is closed (closeSession()). Otherwise, the node switch to the WAIT_COMPLETE state and
+ * send a CompleteMessage to the other side.
  */
 public class StreamSession implements IEndpointStateChangeSubscriber
 {
@@ -123,12 +124,14 @@ public class StreamSession implements IEndpointStateChangeSubscriber
 
     /**
      * Streaming endpoint.
-     *
+     * <p>
      * Each {@code StreamSession} is identified by this InetAddress which is broadcast address of the node streaming.
      */
     public final InetAddress peer;
     private final int index;
-    /** Actual connecting address. Can be the same as {@linkplain #peer}. */
+    /**
+     * Actual connecting address. Can be the same as {@linkplain #peer}.
+     */
     public final InetAddress connecting;
 
     // should not be null when session is started
@@ -167,9 +170,9 @@ public class StreamSession implements IEndpointStateChangeSubscriber
     /**
      * Create new streaming session with the peer.
      *
-     * @param peer Address of streaming peer
+     * @param peer       Address of streaming peer
      * @param connecting Actual connecting address
-     * @param factory is used for establishing connection
+     * @param factory    is used for establishing connection
      */
     public StreamSession(InetAddress peer, InetAddress connecting, StreamConnectionFactory factory, int index, boolean keepSSTableLevel, boolean isIncremental)
     {
@@ -232,8 +235,8 @@ public class StreamSession implements IEndpointStateChangeSubscriber
         try
         {
             logger.info("[Stream #{}] Starting streaming to {}{}", planId(),
-                                                                   peer,
-                                                                   peer.equals(connecting) ? "" : " through " + connecting);
+                        peer,
+                        peer.equals(connecting) ? "" : " through " + connecting);
             handler.initiate();
             onInitializationComplete();
         }
@@ -253,8 +256,8 @@ public class StreamSession implements IEndpointStateChangeSubscriber
     /**
      * Request data fetch task to this session.
      *
-     * @param keyspace Requesting keyspace
-     * @param ranges Ranges to retrieve data
+     * @param keyspace       Requesting keyspace
+     * @param ranges         Ranges to retrieve data
      * @param columnFamilies ColumnFamily names. Can be empty if requesting all CF under the keyspace.
      */
     public void addStreamRequest(String keyspace, Collection<Range<Token>> ranges, Collection<String> columnFamilies, long repairedAt)
@@ -264,14 +267,14 @@ public class StreamSession implements IEndpointStateChangeSubscriber
 
     /**
      * Set up transfer for specific keyspace/ranges/CFs
-     *
+     * <p>
      * Used in repair - a streamed sstable in repair will be marked with the given repairedAt time
      *
-     * @param keyspace Transfer keyspace
-     * @param ranges Transfer ranges
+     * @param keyspace       Transfer keyspace
+     * @param ranges         Transfer ranges
      * @param columnFamilies Transfer ColumnFamilies
-     * @param flushTables flush tables?
-     * @param repairedAt the time the repair started.
+     * @param flushTables    flush tables?
+     * @param repairedAt     the time the repair started.
      */
     public void addTransferRanges(String keyspace, Collection<Range<Token>> ranges, Collection<String> columnFamilies, boolean flushTables, long repairedAt)
     {
@@ -352,6 +355,10 @@ public class StreamSession implements IEndpointStateChangeSubscriber
                 long repairedAt = overriddenRepairedAt;
                 if (overriddenRepairedAt == ActiveRepairService.UNREPAIRED_SSTABLE)
                     repairedAt = sstable.getSSTableMetadata().repairedAt;
+                logger.debug("Starting to stream sstable {} for keyspace {} and cf {}",
+                             sstable.getFilename(),
+                             sstable.getKeyspaceName(),
+                             sstable.getColumnFamilyName());
                 sections.add(new SSTableStreamingSections(refs.get(sstable),
                                                           sstable.getPositionsForRanges(ranges),
                                                           sstable.estimatedKeysForRanges(ranges),
@@ -505,7 +512,8 @@ public class StreamSession implements IEndpointStateChangeSubscriber
             startStreamingFiles();
     }
 
-    /**l
+    /**
+     * l
      * Call back for handling exception during streaming.
      *
      * @param e thrown exception
@@ -656,11 +664,25 @@ public class StreamSession implements IEndpointStateChangeSubscriber
         maybeCompleted();
     }
 
-    public void onJoin(InetAddress endpoint, EndpointState epState) {}
-    public void beforeChange(InetAddress endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue) {}
-    public void onChange(InetAddress endpoint, ApplicationState state, VersionedValue value) {}
-    public void onAlive(InetAddress endpoint, EndpointState state) {}
-    public void onDead(InetAddress endpoint, EndpointState state) {}
+    public void onJoin(InetAddress endpoint, EndpointState epState)
+    {
+    }
+
+    public void beforeChange(InetAddress endpoint, EndpointState currentState, ApplicationState newStateKey, VersionedValue newValue)
+    {
+    }
+
+    public void onChange(InetAddress endpoint, ApplicationState state, VersionedValue value)
+    {
+    }
+
+    public void onAlive(InetAddress endpoint, EndpointState state)
+    {
+    }
+
+    public void onDead(InetAddress endpoint, EndpointState state)
+    {
+    }
 
     public void onRemove(InetAddress endpoint)
     {
