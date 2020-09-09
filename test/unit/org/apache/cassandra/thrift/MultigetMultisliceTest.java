@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -32,6 +33,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import junit.framework.Assert;
+import net.jpountz.util.ByteBufferUtils;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -257,6 +259,24 @@ public class MultigetMultisliceTest
                                                                         ImmutableList.of(COLUMN_A, COLUMN_B)),
                                      result.get(PARTITION_1));
         Assert.assertEquals(result.size(), 1);
+    }
+
+    @Test
+    public void slicePredicateTest() throws TException
+    {
+        ByteBuffer columnName = ByteBufferUtil.bytes("test");
+        ColumnParent parent = new ColumnParent(CF_STANDARD);
+        ByteBuffer key = ByteBufferUtil.bytes("Partition3");
+        for (int idx = 0; idx < 100; idx++)
+        {
+            Column column = new Column()
+                            .setName(columnName)
+                            .setValue(ByteBufferUtil.bytes(UUID.randomUUID().toString()))
+                            .setTimestamp(System.nanoTime());
+            getClient().insert(key, parent, column, ConsistencyLevel.ONE);
+        }
+        KeyPredicate keyPredicate = new KeyPredicate().setKey(key).setPredicate(slicePredicateForRange(key, key, 1));
+        getClient().multiget_multislice(ImmutableList.of(keyPredicate), parent, ConsistencyLevel.ONE);
     }
 
     private static KeyPredicate keyPredicateForColumns(ByteBuffer key, ByteBuffer... columnNames)

@@ -42,7 +42,7 @@ import java.io.IOException;
 public class EmbeddedCassandraService
 {
 
-    CassandraDaemon cassandraDaemon;
+    public CassandraDaemon cassandraDaemon;
 
     public void start() throws IOException
     {
