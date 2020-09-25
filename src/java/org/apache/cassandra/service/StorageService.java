@@ -95,6 +95,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
+    private final BootstrapManager bootstrapManager = new BootstrapManager();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -170,7 +171,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -791,6 +792,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private void joinTokenRing(int delay) throws ConfigurationException
     {
+        bootstrapManager.awaitBootstrappable(() -> setMode(Mode.WAITING_TO_BOOTSTRAP, true));
         joined = true;
 
         // We bootstrap if we haven't successfully bootstrapped before, as long as we are not a seed.
@@ -1347,6 +1349,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Resuming bootstrap is requested, but the node is already bootstrapped.");
             return false;
         }
+    }
+
+    public void startBootstrap() {
+        bootstrapManager.allowToBootstrap();
     }
 
     public void clearNonTransientErrors() {
