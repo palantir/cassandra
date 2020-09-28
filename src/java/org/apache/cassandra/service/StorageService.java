@@ -792,7 +792,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private void joinTokenRing(int delay) throws ConfigurationException
     {
-        bootstrapManager.awaitBootstrappable(() -> setMode(Mode.WAITING_TO_BOOTSTRAP, true));
+        setMode(Mode.WAITING_TO_BOOTSTRAP, true);
+        bootstrapManager.awaitBootstrappable();
         joined = true;
 
         // We bootstrap if we haven't successfully bootstrapped before, as long as we are not a seed.

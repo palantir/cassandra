@@ -749,13 +749,12 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
             }
         }
 
-        public void awaitBootstrappable(Runnable waiting)
+        public void awaitBootstrappable()
         {
-            waiting.run();
             boolean isBootstrappable;
             try
             {
-                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 10, TimeUnit.SECONDS);
+                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 5, TimeUnit.MINUTES);
                 if (isBootstrappable)
                     monitor.leave();
                 else
