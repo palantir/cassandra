@@ -755,7 +755,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
             boolean isBootstrappable;
             try
             {
-                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 5, TimeUnit.MINUTES);
+                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 10, TimeUnit.SECONDS);
                 if (isBootstrappable)
                     monitor.leave();
                 else

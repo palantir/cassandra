@@ -78,6 +78,7 @@ public class LegacySSTableTest
 
     public static void beforeClass()
     {
+        StorageService.instance.startBootstrap();
         Keyspace.setInitialized();
         String scp = System.getProperty(LEGACY_SSTABLE_PROP);
         assert scp != null;

@@ -48,6 +48,7 @@ public class CloudstackSnitchTest
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         Keyspace.setInitialized();
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
     }
 

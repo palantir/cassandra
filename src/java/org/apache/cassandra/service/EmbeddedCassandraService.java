@@ -49,6 +49,7 @@ public class EmbeddedCassandraService
 
     public void start() throws IOException
     {
+        StorageService.instance.startBootstrap();
         cassandraDaemon = new CassandraDaemon();
         DatabaseDescriptor.setDaemonInitialized();
         cassandraDaemon.init(null);

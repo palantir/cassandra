@@ -56,6 +56,7 @@ public class CQLSSTableWriterTest
         DatabaseDescriptor.setDaemonInitialized();
         SchemaLoader.cleanupAndLeaveDirs();
         Keyspace.setInitialized();
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer();
     }
 

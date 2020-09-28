@@ -56,6 +56,7 @@ public class EC2SnitchTest
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         Keyspace.setInitialized();
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
     }
 
@@ -93,7 +94,7 @@ public class EC2SnitchTest
         assertEquals("us-east", snitch.getDatacenter(local));
         assertEquals("1d", snitch.getRack(local));
     }
-    
+
     @Test
     public void testNewRegions() throws IOException, ConfigurationException
     {

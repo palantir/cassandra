@@ -24,6 +24,7 @@ import org.apache.cassandra.cql3.CQLTester;
 
 import org.apache.cassandra.serializers.SimpleDateSerializer;
 import org.apache.cassandra.serializers.TimeSerializer;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 import org.junit.Assert;
@@ -43,6 +44,7 @@ public class JsonTest extends CQLTester
     @BeforeClass
     public static void setUp()
     {
+        StorageService.instance.startBootstrap();
         DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
     }
 

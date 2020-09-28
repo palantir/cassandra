@@ -52,6 +52,7 @@ public class GoogleCloudSnitchTest
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         Keyspace.setInitialized();
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
     }
 
@@ -89,7 +90,7 @@ public class GoogleCloudSnitchTest
         assertEquals("us-central1", snitch.getDatacenter(local));
         assertEquals("a", snitch.getRack(local));
     }
-    
+
     @Test
     public void testNewRegions() throws IOException, ConfigurationException
     {

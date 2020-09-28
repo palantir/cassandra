@@ -56,6 +56,7 @@ public class PendingRangeCalculatorServiceTest
     public static void setUp() throws ConfigurationException
     {
         SchemaLoader.prepareServer();
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer();
     }
 

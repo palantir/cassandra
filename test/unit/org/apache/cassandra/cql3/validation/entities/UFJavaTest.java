@@ -44,6 +44,7 @@ import org.apache.cassandra.cql3.functions.Functions;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.exceptions.FunctionExecutionException;
 import org.apache.cassandra.exceptions.InvalidRequestException;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.transport.Server;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
@@ -52,6 +53,7 @@ public class UFJavaTest extends CQLTester
     @BeforeClass
     public static void setUp()
     {
+        StorageService.instance.startBootstrap();
         DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
     }
 

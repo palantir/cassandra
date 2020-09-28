@@ -40,6 +40,7 @@ public class ClientWarningsTest extends CQLTester
     @BeforeClass
     public static void setUp()
     {
+        StorageService.instance.startBootstrap();
         DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
 
         requireNetwork();

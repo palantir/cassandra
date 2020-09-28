@@ -74,6 +74,7 @@ public class StorageServiceServerTest
     {
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
         for (String path : DatabaseDescriptor.getAllDataFileLocations())
         {

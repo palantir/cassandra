@@ -60,6 +60,7 @@ public class SSTableLoaderTest
 
     public static void setup() throws Exception
     {
+        StorageService.instance.startBootstrap();
         StorageService.instance.initServer();
     }
 
@@ -71,7 +72,7 @@ public class SSTableLoaderTest
         assert dataDir.mkdirs();
         CFMetaData cfmeta = Schema.instance.getCFMetaData(KEYSPACE1, CF_STANDARD);
         DecoratedKey key = Util.dk("key1");
-        
+
         try (SSTableSimpleUnsortedWriter writer = new SSTableSimpleUnsortedWriter(dataDir,
                                                                              cfmeta,
                                                                              StorageService.getPartitioner(),

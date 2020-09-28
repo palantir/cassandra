@@ -48,6 +48,7 @@ public class CommitLogFailurePolicyTest
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
     {
+        StorageService.instance.startBootstrap();
         SchemaLoader.prepareServer();
     }
 
