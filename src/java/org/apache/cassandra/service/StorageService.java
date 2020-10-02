@@ -792,8 +792,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private void joinTokenRing(int delay) throws ConfigurationException
     {
-        setMode(Mode.WAITING_TO_BOOTSTRAP, true);
-        bootstrapManager.awaitBootstrappable();
         joined = true;
 
         // We bootstrap if we haven't successfully bootstrapped before, as long as we are not a seed.
@@ -822,6 +820,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         boolean dataAvailable = true; // make this to false when bootstrap streaming failed
         if (shouldBootstrap())
         {
+            setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
+            bootstrapManager.awaitBootstrappable();
             if (SystemKeyspace.bootstrapInProgress())
                 logger.warn("Detected previous bootstrap failure; retrying");
             else
