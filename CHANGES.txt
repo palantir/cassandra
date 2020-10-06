@@ -1,3 +1,6 @@
+2.2.19
+* Support a means of logging all queries as they were invoked (CASSANDRA-13983)
+
 2.2.18
  * Fix CQL parsing of collections when the column type is reversed (CASSANDRA-15814)
 Merged from 2.1:

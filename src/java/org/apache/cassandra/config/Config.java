@@ -310,6 +310,8 @@ public class Config
         outboundBindAny = value;
     }
 
+    public String full_query_log_dir = null;
+
     public static boolean isClientMode()
     {
         return isClientMode;

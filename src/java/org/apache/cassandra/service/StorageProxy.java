@@ -20,11 +20,16 @@ package org.apache.cassandra.service;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.*;
@@ -49,6 +54,7 @@ import org.apache.cassandra.dht.AbstractBounds;
 import org.apache.cassandra.dht.Bounds;
 import org.apache.cassandra.dht.RingPosition;
 import org.apache.cassandra.dht.Token;
+import org.apache.cassandra.db.fullquerylog.FullQueryLogger;
 import org.apache.cassandra.exceptions.*;
 import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.gms.Gossiper;
@@ -2416,5 +2422,25 @@ public class StorageProxy implements StorageProxyMBean
 
     public long getReadRepairRepairedBackground() {
         return ReadRepairMetrics.repairedBackground.getCount();
+    }
+
+    @Override
+    public void configureFullQueryLogger(String path, String rollCycle, boolean blocking, int maxQueueWeight, long maxLogSize)
+    {
+        path = path != null ? path : DatabaseDescriptor.getFullQueryLogPath();
+        Preconditions.checkNotNull(path, "cassandra.yaml did not set full_query_log_dir and not set as parameter");
+        FullQueryLogger.instance.configure(Paths.get(path), rollCycle, blocking, maxQueueWeight, maxLogSize);
+    }
+
+    @Override
+    public void resetFullQueryLogger()
+    {
+        FullQueryLogger.instance.reset(DatabaseDescriptor.getFullQueryLogPath());
+    }
+
+    @Override
+    public void stopFullQueryLogger()
+    {
+        FullQueryLogger.instance.stop();
     }
 }
