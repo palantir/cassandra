@@ -18,15 +18,18 @@
 
 package org.apache.cassandra.db.fullquerylog;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
@@ -37,6 +40,7 @@ import io.netty.buffer.ByteBuf;
 import net.openhft.chronicle.bytes.BytesStore;
 import net.openhft.chronicle.queue.RollCycles;
 import net.openhft.chronicle.wire.ValueOut;
+import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 import org.apache.cassandra.cql3.QueryOptions;
 import org.apache.cassandra.io.FSError;
@@ -47,6 +51,10 @@ import org.apache.cassandra.utils.ObjectSizes;
 import org.apache.cassandra.utils.Throwables;
 import org.apache.cassandra.utils.binlog.BinLog;
 import org.apache.cassandra.utils.concurrent.WeightedQueue;
+import org.apache.thrift.TBase;
+import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.transport.TIOStreamTransport;
 import org.github.jamm.MemoryLayoutSpecification;
 
 /**
@@ -58,6 +66,7 @@ public class FullQueryLogger
     private static final int EMPTY_LIST_SIZE = Ints.checkedCast(ObjectSizes.measureDeep(new ArrayList(0)));
     private static final int EMPTY_BYTEBUF_SIZE;
     private static final int OBJECT_HEADER_SIZE = MemoryLayoutSpecification.SPEC.getObjectHeaderSize();
+
     static
     {
         int tempSize = 0;
@@ -91,11 +100,12 @@ public class FullQueryLogger
 
     /**
      * Configure the global instance of the FullQueryLogger
-     * @param path Dedicated path where the FQL can store it's files.
-     * @param rollCycle How often to roll FQL log segments so they can potentially be reclaimed
-     * @param blocking Whether the FQL should block if the FQL falls behind or should drop log records
+     *
+     * @param path           Dedicated path where the FQL can store it's files.
+     * @param rollCycle      How often to roll FQL log segments so they can potentially be reclaimed
+     * @param blocking       Whether the FQL should block if the FQL falls behind or should drop log records
      * @param maxQueueWeight Maximum weight of in memory queue for records waiting to be written to the file before blocking or dropping
-     * @param maxLogSize Maximum size of the rolled files to retain on disk before deleting the oldest file
+     * @param maxLogSize     Maximum size of the rolled files to retain on disk before deleting the oldest file
      */
     public synchronized void configure(Path path, String rollCycle, boolean blocking, int maxQueueWeight, long maxLogSize)
     {
@@ -189,7 +199,7 @@ public class FullQueryLogger
         {
             if (e instanceof RuntimeException)
             {
-                throw (RuntimeException)e;
+                throw (RuntimeException) e;
             }
             throw new RuntimeException(e);
         }
@@ -218,6 +228,7 @@ public class FullQueryLogger
 
     /**
      * Check whether the full query log is enabled.
+     *
      * @return true if records are recorded and false otherwise.
      */
     public boolean enabled()
@@ -232,19 +243,20 @@ public class FullQueryLogger
     private void logDroppedSample()
     {
         droppedSamplesSinceLastLog.incrementAndGet();
-        droppedSamplesStatement.warn(new Object[] {droppedSamplesSinceLastLog.get()});
+        droppedSamplesStatement.warn(new Object[]{ droppedSamplesSinceLastLog.get() });
         droppedSamplesSinceLastLog.set(0);
     }
 
     /**
      * Log an invocation of a batch of queries
-     * @param type The type of the batch
-     * @param queries CQL text of the queries
-     * @param values Values to bind to as parameters for the queries
-     * @param queryOptions Options associated with the query invocation
+     *
+     * @param type            The type of the batch
+     * @param queries         CQL text of the queries
+     * @param values          Values to bind to as parameters for the queries
+     * @param queryOptions    Options associated with the query invocation
      * @param batchTimeMillis Approximate time in milliseconds since the epoch since the batch was invoked
      */
-    public void logBatch(String type, List<String> queries,  List<List<ByteBuffer>> values, QueryOptions queryOptions, long batchTimeMillis)
+    public void logBatch(String type, List<String> queries, List<List<ByteBuffer>> values, QueryOptions queryOptions, long batchTimeMillis)
     {
         Preconditions.checkNotNull(type, "type was null");
         Preconditions.checkNotNull(queries, "queries was null");
@@ -259,8 +271,13 @@ public class FullQueryLogger
             return;
         }
 
-        WeighableMarshallableBatch wrappedBatch = new WeighableMarshallableBatch(type, queries, values, queryOptions, batchTimeMillis);
+        CQLWeighableMarshallableBatch wrappedBatch = new CQLWeighableMarshallableBatch(type, queries, values, queryOptions, batchTimeMillis);
         logRecord(wrappedBatch, binLog);
+    }
+
+    void logThrift(Map<Object, Object> arguments)
+    {
+
     }
 
     void logRecord(AbstractWeighableMarshallable record, BinLog binLog)
@@ -304,8 +321,9 @@ public class FullQueryLogger
 
     /**
      * Log a single CQL query
-     * @param query CQL query text
-     * @param queryOptions Options associated with the query invocation
+     *
+     * @param query           CQL query text
+     * @param queryOptions    Options associated with the query invocation
      * @param queryTimeMillis Approximate time in milliseconds since the epoch since the batch was invoked
      */
     public void logQuery(String query, QueryOptions queryOptions, long queryTimeMillis)
@@ -321,17 +339,116 @@ public class FullQueryLogger
             return;
         }
 
-        WeighableMarshallableQuery wrappedQuery = new WeighableMarshallableQuery(query, queryOptions, queryTimeMillis);
+        CQLWeighableMarshallableQuery wrappedQuery = new CQLWeighableMarshallableQuery(query, queryOptions, queryTimeMillis);
         logRecord(wrappedQuery, binLog);
     }
 
+    public void logThrift(TBase request, String type, long timestamp)
+    {
+        BinLog binLog = this.binLog;
+
+        if (binLog == null)
+        {
+            return;
+        }
+
+        try
+        {
+            logRecord(ThriftWeighableMarshallable.create(request, type, timestamp), binLog);
+        }
+        catch (TException e)
+        {
+            logger.error("Could not serialize thrift command to memory", e);
+        }
+    }
+
     private static abstract class AbstractWeighableMarshallable extends BinLog.ReleaseableWriteMarshallable implements WeightedQueue.Weighable
+    {
+        public static final String METHOD_FIELD = "method";
+
+        enum Method {
+            THRIFT, CQL;
+        }
+    }
+
+    @VisibleForTesting
+    protected static class ThriftWeighableMarshallable extends AbstractWeighableMarshallable
+    {
+
+        private final byte[] buffer;
+        private final String type;
+        private final long timestamp;
+
+        private static final String TYPE_FIELD = "type";
+        private static final String QUERY_TIME_FIELD = "query-time";
+        private static final String PAYLOAD_FIELD = "payload";
+
+        private ThriftWeighableMarshallable(byte[] buffer, String type, long timestamp)
+        {
+            this.buffer = buffer;
+            this.type = type;
+            this.timestamp = timestamp;
+        }
+
+        public static ThriftWeighableMarshallable create(TBase request, String type, long timestamp) throws TException
+        {
+            // No need to close, it's a NO-OP
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            request.write(new TBinaryProtocol(new TIOStreamTransport(outputStream)));
+            return new ThriftWeighableMarshallable(outputStream.toByteArray(), type, timestamp);
+        }
+
+        public void release()
+        {
+        }
+
+        public void writeMarshallable(WireOut wire)
+        {
+            wire.write(METHOD_FIELD).text(Method.THRIFT.name());
+            wire.write(TYPE_FIELD).text(type);
+            wire.write(QUERY_TIME_FIELD).int64(timestamp);
+            wire.write(PAYLOAD_FIELD).bytes(buffer);
+        }
+
+        public static ThriftWeighableMarshallable readMarshallable(WireIn wire)
+        {
+            Preconditions.checkState(wire.read(METHOD_FIELD)
+                                         .text()
+                                         .equalsIgnoreCase(Method.THRIFT.name()),
+                                     "Cannot deserialize a non-thrift type message.");
+            return new ThriftWeighableMarshallable(wire.read(PAYLOAD_FIELD).bytes(),
+                                            wire.read(TYPE_FIELD).text(),
+                                            wire.read(QUERY_TIME_FIELD).int64());
+        }
+
+        public int weight()
+        {
+            return buffer.length;
+        }
+
+        public byte[] getBuffer()
+        {
+            return buffer;
+        }
+
+        public long getTimestamp()
+        {
+            return timestamp;
+        }
+
+        public String getType()
+        {
+            return type;
+        }
+    }
+
+    private static abstract class AbstractCQLWeighableMarshallable extends AbstractWeighableMarshallable
     {
         private final ByteBuf queryOptionsBuffer;
         private final long timeMillis;
         private final int protocolVersion;
 
-        private AbstractWeighableMarshallable(QueryOptions queryOptions, long timeMillis)
+        private AbstractCQLWeighableMarshallable(QueryOptions queryOptions, long timeMillis)
         {
             this.timeMillis = timeMillis;
             this.protocolVersion = queryOptions.getProtocolVersion();
@@ -367,6 +484,7 @@ public class FullQueryLogger
         @Override
         public void writeMarshallable(WireOut wire)
         {
+            wire.write(METHOD_FIELD).text("cql");
             wire.write("protocol-version").int32(protocolVersion);
             wire.write("query-options").bytes(BytesStore.wrap(queryOptionsBuffer.nioBuffer()));
             wire.write("query-time").int64(timeMillis);
@@ -386,52 +504,52 @@ public class FullQueryLogger
         }
     }
 
-    static class WeighableMarshallableBatch extends AbstractWeighableMarshallable
+    static class CQLWeighableMarshallableBatch extends AbstractCQLWeighableMarshallable
     {
         private final int weight;
         private final String batchType;
         private final List<String> queries;
         private final List<List<ByteBuffer>> values;
 
-        public WeighableMarshallableBatch(String batchType, List<String> queries, List<List<ByteBuffer>> values, QueryOptions queryOptions, long batchTimeMillis)
+        public CQLWeighableMarshallableBatch(String batchType, List<String> queries, List<List<ByteBuffer>> values, QueryOptions queryOptions, long batchTimeMillis)
         {
-           super(queryOptions, batchTimeMillis);
-           this.queries = queries;
-           this.values = values;
-           this.batchType = batchType;
-           boolean success = false;
-           try
-           {
+            super(queryOptions, batchTimeMillis);
+            this.queries = queries;
+            this.values = values;
+            this.batchType = batchType;
+            boolean success = false;
+            try
+            {
 
-               //weight, batch type, queries, values
-               int weightTemp = 8 + EMPTY_LIST_SIZE + EMPTY_LIST_SIZE;
-               for (int ii = 0; ii < queries.size(); ii++)
-               {
-                   weightTemp += ObjectSizes.sizeOf(queries.get(ii));
-               }
+                //weight, batch type, queries, values
+                int weightTemp = 8 + EMPTY_LIST_SIZE + EMPTY_LIST_SIZE;
+                for (int ii = 0; ii < queries.size(); ii++)
+                {
+                    weightTemp += ObjectSizes.sizeOf(queries.get(ii));
+                }
 
-               weightTemp += EMPTY_LIST_SIZE * values.size();
-               for (int ii = 0; ii < values.size(); ii++)
-               {
-                   List<ByteBuffer> sublist = values.get(ii);
-                   weightTemp += EMPTY_BYTEBUFFER_SIZE * sublist.size();
-                   for (int zz = 0; zz < sublist.size(); zz++)
-                   {
-                       weightTemp += sublist.get(zz).capacity();
-                   }
-               }
-               weightTemp += super.weight();
-               weightTemp += ObjectSizes.sizeOf(batchType);
-               weight = weightTemp;
-               success = true;
-           }
-           finally
-           {
-               if (!success)
-               {
-                   release();
-               }
-           }
+                weightTemp += EMPTY_LIST_SIZE * values.size();
+                for (int ii = 0; ii < values.size(); ii++)
+                {
+                    List<ByteBuffer> sublist = values.get(ii);
+                    weightTemp += EMPTY_BYTEBUFFER_SIZE * sublist.size();
+                    for (int zz = 0; zz < sublist.size(); zz++)
+                    {
+                        weightTemp += sublist.get(zz).capacity();
+                    }
+                }
+                weightTemp += super.weight();
+                weightTemp += ObjectSizes.sizeOf(batchType);
+                weight = weightTemp;
+                success = true;
+            }
+            finally
+            {
+                if (!success)
+                {
+                    release();
+                }
+            }
         }
 
         @Override
@@ -463,14 +581,13 @@ public class FullQueryLogger
         {
             return weight;
         }
-
     }
 
-    static class WeighableMarshallableQuery extends AbstractWeighableMarshallable
+    static class CQLWeighableMarshallableQuery extends AbstractCQLWeighableMarshallable
     {
         private final String query;
 
-        public WeighableMarshallableQuery(String query, QueryOptions queryOptions, long queryTimeMillis)
+        public CQLWeighableMarshallableQuery(String query, QueryOptions queryOptions, long queryTimeMillis)
         {
             super(queryOptions, queryTimeMillis);
             this.query = query;
@@ -507,7 +624,7 @@ public class FullQueryLogger
         }
         if (accumulate instanceof FSError)
         {
-            FileUtils.handleFSError((FSError)accumulate);
+            FileUtils.handleFSError((FSError) accumulate);
         }
         return accumulate;
     }
@@ -521,6 +638,6 @@ public class FullQueryLogger
                 accumulate = FileUtils.deleteWithConfirm(f, true, accumulate);
             }
         }
-        return FileUtils.deleteWithConfirm(fileOrDirectory, true , accumulate);
+        return FileUtils.deleteWithConfirm(fileOrDirectory, true, accumulate);
     }
 }

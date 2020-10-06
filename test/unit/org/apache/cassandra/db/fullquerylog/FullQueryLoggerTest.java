@@ -21,6 +21,7 @@ package org.apache.cassandra.db.fullquerylog;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,10 +30,12 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.palantir.cassandra.utils.ThriftUtils;
 import io.netty.buffer.Unpooled;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ChronicleQueueBuilder;
@@ -42,10 +45,16 @@ import net.openhft.chronicle.wire.ValueIn;
 import net.openhft.chronicle.wire.WireOut;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.cql3.QueryOptions;
-import org.apache.cassandra.db.fullquerylog.FullQueryLogger.WeighableMarshallableQuery;
-import org.apache.cassandra.db.fullquerylog.FullQueryLogger.WeighableMarshallableBatch;
+import org.apache.cassandra.db.fullquerylog.FullQueryLogger.CQLWeighableMarshallableBatch;
+import org.apache.cassandra.db.fullquerylog.FullQueryLogger.CQLWeighableMarshallableQuery;
+import org.apache.cassandra.thrift.Cassandra;
+import org.apache.cassandra.thrift.ColumnParent;
+import org.apache.cassandra.thrift.ConsistencyLevel;
+import org.apache.cassandra.thrift.SlicePredicate;
+import org.apache.cassandra.thrift.SliceRange;
 import org.apache.cassandra.utils.ObjectSizes;
 import org.apache.cassandra.utils.binlog.BinLogTest;
+import org.apache.thrift.TException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -238,7 +247,7 @@ public class FullQueryLoggerTest
         {
             //Find out when the bin log thread has been blocked, necessary to not run into batch task drain behavior
             Semaphore binLogBlocked = new Semaphore(0);
-            FullQueryLogger.instance.binLog.put(new WeighableMarshallableQuery("foo1", QueryOptions.DEFAULT, 1)
+            FullQueryLogger.instance.binLog.put(new CQLWeighableMarshallableQuery("foo1", QueryOptions.DEFAULT, 1)
             {
 
                 public void writeMarshallable(WireOut wire)
@@ -320,7 +329,7 @@ public class FullQueryLoggerTest
         {
             //Find out when the bin log thread has been blocked, necessary to not run into batch task drain behavior
             Semaphore binLogBlocked = new Semaphore(0);
-            FullQueryLogger.instance.binLog.put(new WeighableMarshallableQuery("foo1", QueryOptions.DEFAULT, 1)
+            FullQueryLogger.instance.binLog.put(new CQLWeighableMarshallableQuery("foo1", QueryOptions.DEFAULT, 1)
             {
 
                 public void writeMarshallable(WireOut wire)
@@ -354,7 +363,7 @@ public class FullQueryLoggerTest
             //This sample should get dropped AKA released without being written
             AtomicInteger releasedCount = new AtomicInteger(0);
             AtomicInteger writtenCount = new AtomicInteger(0);
-            FullQueryLogger.instance.logRecord(new WeighableMarshallableQuery("foo3", QueryOptions.DEFAULT, 1) {
+            FullQueryLogger.instance.logRecord(new CQLWeighableMarshallableQuery("foo3", QueryOptions.DEFAULT, 1) {
                 public void writeMarshallable(WireOut wire)
                 {
                     writtenCount.incrementAndGet();
@@ -442,7 +451,7 @@ public class FullQueryLoggerTest
     public void testQueryWeight()
     {
         //Empty query should have some weight
-        WeighableMarshallableQuery query = new WeighableMarshallableQuery("", QueryOptions.DEFAULT, 1);
+        CQLWeighableMarshallableQuery query = new CQLWeighableMarshallableQuery("", QueryOptions.DEFAULT, 1);
         assertTrue(query.weight() >= 95);
 
         StringBuilder sb = new StringBuilder();
@@ -450,14 +459,14 @@ public class FullQueryLoggerTest
         {
             sb.append('a');
         }
-        query = new WeighableMarshallableQuery(sb.toString(), QueryOptions.DEFAULT, 1);
+        query = new CQLWeighableMarshallableQuery(sb.toString(), QueryOptions.DEFAULT, 1);
 
         //A large query should be reflected in the size, * 2 since characters are still two bytes
         assertTrue(query.weight() > ObjectSizes.measureDeep(sb.toString()));
 
         //Large query options should be reflected
         QueryOptions largeOptions = QueryOptions.forInternalCalls(Arrays.asList(ByteBuffer.allocate(1024 * 1024)));
-        query = new WeighableMarshallableQuery("", largeOptions, 1);
+        query = new CQLWeighableMarshallableQuery("", largeOptions, 1);
         assertTrue(query.weight() > 1024 * 1024);
         System.out.printf("weight %d%n", query.weight());
     }
@@ -466,7 +475,7 @@ public class FullQueryLoggerTest
     public void testBatchWeight()
     {
         //An empty batch should have weight
-        WeighableMarshallableBatch batch = new WeighableMarshallableBatch("", new ArrayList<>(), new ArrayList<>(), QueryOptions.DEFAULT, 1);
+        CQLWeighableMarshallableBatch batch = new CQLWeighableMarshallableBatch("", new ArrayList<>(), new ArrayList<>(), QueryOptions.DEFAULT, 1);
         assertTrue(batch.weight() >= 183);
 
         StringBuilder sb = new StringBuilder();
@@ -476,7 +485,7 @@ public class FullQueryLoggerTest
         }
 
         //The weight of the type string should be reflected
-        batch = new WeighableMarshallableBatch(sb.toString(), new ArrayList<>(), new ArrayList<>(), QueryOptions.DEFAULT, 1);
+        batch = new CQLWeighableMarshallableBatch(sb.toString(), new ArrayList<>(), new ArrayList<>(), QueryOptions.DEFAULT, 1);
         assertTrue(batch.weight() > ObjectSizes.measureDeep(sb.toString()));
 
         //The weight of the list containing queries should be reflected
@@ -485,13 +494,13 @@ public class FullQueryLoggerTest
         {
             bigList.add("");
         }
-        batch = new WeighableMarshallableBatch("", bigList, new ArrayList<>(), QueryOptions.DEFAULT, 1);
+        batch = new CQLWeighableMarshallableBatch("", bigList, new ArrayList<>(), QueryOptions.DEFAULT, 1);
         assertTrue(batch.weight() > ObjectSizes.measureDeep(bigList));
 
         //The size of the query should be reflected
         bigList = new ArrayList(1);
         bigList.add(sb.toString());
-        batch = new WeighableMarshallableBatch("", bigList, new ArrayList<>(), QueryOptions.DEFAULT, 1);
+        batch = new CQLWeighableMarshallableBatch("", bigList, new ArrayList<>(), QueryOptions.DEFAULT, 1);
         assertTrue(batch.weight() > ObjectSizes.measureDeep(bigList));
 
         bigList = null;
@@ -502,13 +511,63 @@ public class FullQueryLoggerTest
             bigValues.add(new ArrayList<>(0));
         }
         bigValues.get(0).add(ByteBuffer.allocate(1024 * 1024 * 5));
-        batch = new WeighableMarshallableBatch("", new ArrayList<>(),  bigValues, QueryOptions.DEFAULT, 1);
+        batch = new CQLWeighableMarshallableBatch("", new ArrayList<>(), bigValues, QueryOptions.DEFAULT, 1);
         assertTrue(batch.weight() > ObjectSizes.measureDeep(bigValues));
 
         //As should the size of the values
         QueryOptions largeOptions = QueryOptions.forInternalCalls(Arrays.asList(ByteBuffer.allocate(1024 * 1024)));
-        batch = new WeighableMarshallableBatch("", new ArrayList<>(), new ArrayList<>(), largeOptions, 1);
+        batch = new CQLWeighableMarshallableBatch("", new ArrayList<>(), new ArrayList<>(), largeOptions, 1);
         assertTrue(batch.weight() > 1024 * 1024);
+    }
+
+    private ByteBuffer createFromString(String s) {
+        return ByteBuffer.wrap(s.getBytes(Charset.defaultCharset()));
+    }
+
+    @Test
+    public void testRoundTripThrift() throws Exception
+    {
+        configureFQL();
+        long timestamp = System.currentTimeMillis();
+        String type = "multiget_slice";
+        List<ByteBuffer> keys = ImmutableList.of(createFromString("foo"), createFromString("bar"), createFromString("test"));
+        List<ByteBuffer> columns = ImmutableList.of(createFromString("a"), createFromString("b"));
+        SliceRange sliceRange = new SliceRange(createFromString("a"), createFromString("z"), false, 10);
+        ColumnParent parent = new ColumnParent("test");
+        SlicePredicate slicePredicate = new SlicePredicate();
+        slicePredicate.setColumn_names(columns);
+        slicePredicate.setSlice_range(sliceRange);
+        ConsistencyLevel consistencyLevel = ConsistencyLevel.QUORUM;
+        Cassandra.multiget_slice_args args = new Cassandra.multiget_slice_args(keys, parent, slicePredicate, consistencyLevel);
+        FullQueryLogger.instance.logThrift(args, type, timestamp);
+
+        Util.spinAssertEquals(true, () ->
+        {
+            try (ChronicleQueue queue = ChronicleQueueBuilder.single(tempDir.toFile()).rollCycle(RollCycles.TEST_SECONDLY).build())
+            {
+                return queue.createTailer().readingDocument().isPresent();
+            }
+        }, 60);
+        try (ChronicleQueue queue = ChronicleQueueBuilder.single(tempDir.toFile()).rollCycle(RollCycles.TEST_SECONDLY).build())
+        {
+            ExcerptTailer tailer = queue.createTailer();
+            assertTrue(tailer.readDocument(wire -> {
+                FullQueryLogger.ThriftWeighableMarshallable thriftMessage = FullQueryLogger.ThriftWeighableMarshallable.readMarshallable(wire);
+                assertEquals(type, thriftMessage.getType());
+                assertEquals(timestamp, thriftMessage.getTimestamp());
+                Cassandra.multiget_slice_args deserializedArgs = new Cassandra.multiget_slice_args();
+                try
+                {
+                    ThriftUtils.read(deserializedArgs, thriftMessage.getBuffer());
+                }
+                catch (TException e)
+                {
+                    e.printStackTrace();
+                    assert false;
+                }
+                assertEquals(args, deserializedArgs);
+            }));
+        }
     }
 
     @Test(expected = NullPointerException.class)
