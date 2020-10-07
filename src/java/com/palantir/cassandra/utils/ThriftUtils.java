@@ -27,8 +27,10 @@ import org.apache.thrift.transport.TIOStreamTransport;
 
 public class ThriftUtils
 {
+    @SuppressWarnings({"resource"})
     public static final void read(TBase base, byte[] value) throws TException
     {
+        // No need to close, it's a NO-OP
         base.read(new TBinaryProtocol(new TIOStreamTransport(new ByteArrayInputStream(value))));
     }
 }

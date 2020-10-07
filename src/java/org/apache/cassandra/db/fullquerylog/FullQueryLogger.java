@@ -24,12 +24,10 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
@@ -275,11 +273,6 @@ public class FullQueryLogger
         logRecord(wrappedBatch, binLog);
     }
 
-    void logThrift(Map<Object, Object> arguments)
-    {
-
-    }
-
     void logRecord(AbstractWeighableMarshallable record, BinLog binLog)
     {
 
@@ -362,17 +355,16 @@ public class FullQueryLogger
         }
     }
 
-    private static abstract class AbstractWeighableMarshallable extends BinLog.ReleaseableWriteMarshallable implements WeightedQueue.Weighable
+    public static abstract class AbstractWeighableMarshallable extends BinLog.ReleaseableWriteMarshallable implements WeightedQueue.Weighable
     {
         public static final String METHOD_FIELD = "method";
 
-        enum Method {
+        public enum Method {
             THRIFT, CQL;
         }
     }
 
-    @VisibleForTesting
-    protected static class ThriftWeighableMarshallable extends AbstractWeighableMarshallable
+    public static class ThriftWeighableMarshallable extends AbstractWeighableMarshallable
     {
 
         private final byte[] buffer;
@@ -390,6 +382,7 @@ public class FullQueryLogger
             this.timestamp = timestamp;
         }
 
+        @SuppressWarnings({"resource"})
         public static ThriftWeighableMarshallable create(TBase request, String type, long timestamp) throws TException
         {
             // No need to close, it's a NO-OP
@@ -412,10 +405,6 @@ public class FullQueryLogger
 
         public static ThriftWeighableMarshallable readMarshallable(WireIn wire)
         {
-            Preconditions.checkState(wire.read(METHOD_FIELD)
-                                         .text()
-                                         .equalsIgnoreCase(Method.THRIFT.name()),
-                                     "Cannot deserialize a non-thrift type message.");
             return new ThriftWeighableMarshallable(wire.read(PAYLOAD_FIELD).bytes(),
                                             wire.read(TYPE_FIELD).text(),
                                             wire.read(QUERY_TIME_FIELD).int64());
@@ -423,7 +412,11 @@ public class FullQueryLogger
 
         public int weight()
         {
-            return buffer.length;
+            return OBJECT_HEADER_SIZE +
+                   Method.THRIFT.name().getBytes().length +
+                   TYPE_FIELD.getBytes().length +
+                   8 + // 8 bytes for timestamp
+                   buffer.length;
         }
 
         public byte[] getBuffer()
@@ -442,7 +435,7 @@ public class FullQueryLogger
         }
     }
 
-    private static abstract class AbstractCQLWeighableMarshallable extends AbstractWeighableMarshallable
+    public static abstract class AbstractCQLWeighableMarshallable extends AbstractWeighableMarshallable
     {
         private final ByteBuf queryOptionsBuffer;
         private final long timeMillis;
@@ -496,11 +489,12 @@ public class FullQueryLogger
             queryOptionsBuffer.release();
         }
 
+        //3-bytes for method type
         //8-bytes for protocol version (assume alignment cost), 8-byte timestamp, 8-byte object header + other contents
         @Override
         public int weight()
         {
-            return 8 + 8 + OBJECT_HEADER_SIZE + EMPTY_BYTEBUF_SIZE + queryOptionsBuffer.capacity();
+            return 3 + 8 + 8 + OBJECT_HEADER_SIZE + EMPTY_BYTEBUF_SIZE + queryOptionsBuffer.capacity();
         }
     }
 

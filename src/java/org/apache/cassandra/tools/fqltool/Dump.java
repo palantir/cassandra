@@ -23,9 +23,12 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.palantir.cassandra.utils.ThriftUtils;
 import io.airlift.command.Arguments;
 import io.airlift.command.Command;
 import io.airlift.command.Option;
@@ -39,6 +42,11 @@ import net.openhft.chronicle.threads.Pauser;
 import net.openhft.chronicle.wire.ReadMarshallable;
 import net.openhft.chronicle.wire.ValueIn;
 import org.apache.cassandra.cql3.QueryOptions;
+import org.apache.cassandra.db.fullquerylog.FullQueryLogger;
+import org.apache.cassandra.thrift.Cassandra;
+import org.apache.thrift.ProcessFunction;
+import org.apache.thrift.TBase;
+import org.apache.thrift.TException;
 
 /**
  * Dump the contents of a list of paths containing full query logs
@@ -63,49 +71,70 @@ public class Dump implements Runnable
         dump(arguments, rollCycle, follow);
     }
 
+    private static final Map<String, ProcessFunction<Cassandra.Iface, ? extends  TBase>> THRIFT_PROCESS_MAP = Cassandra.Processor.getProcessMap(new HashMap<>());
+
     public static void dump(List<String> arguments, String rollCycle, boolean follow)
     {
         StringBuilder sb = new StringBuilder();
         ReadMarshallable reader = wireIn -> {
             sb.setLength(0);
-            String type = wireIn.read("type").text();
-            sb.append("Type: ").append(type).append(System.lineSeparator());
-            int protocolVersion = wireIn.read("protocol-version").int32();
-            sb.append("Protocol version: ").append(protocolVersion).append(System.lineSeparator());
-            QueryOptions options = QueryOptions.codec.decode(Unpooled.wrappedBuffer(wireIn.read("query-options").bytesStore().toTemporaryDirectByteBuffer()), protocolVersion);
-            sb.append("Query time: ").append(wireIn.read("query-time").int64()).append(System.lineSeparator());
-            if (type.equals("single"))
-            {
-                sb.append("Query: ").append(wireIn.read("query").text()).append(System.lineSeparator());
-                List<ByteBuffer> values = options.getValues() != null ? options.getValues() : Collections.EMPTY_LIST;
-                sb.append("Values: ").append(System.lineSeparator());
-                valuesToStringBuilder(values, sb);
-            }
-            else
-            {
-                sb.append("Batch type: ").append(wireIn.read("batch-type").text()).append(System.lineSeparator());
-                ValueIn in = wireIn.read("queries");
-                int numQueries = in.int32();
-                List<String> queries = new ArrayList<>();
-                for (int ii = 0; ii < numQueries; ii++)
+            String method = wireIn.read(FullQueryLogger.AbstractWeighableMarshallable.METHOD_FIELD).text();
+            if(method.equalsIgnoreCase(FullQueryLogger.AbstractWeighableMarshallable.Method.THRIFT.name())) {
+                FullQueryLogger.ThriftWeighableMarshallable thriftMessage =
+                FullQueryLogger.ThriftWeighableMarshallable.readMarshallable(wireIn);
+                sb.append("Type: ").append(thriftMessage.getType()).append(System.lineSeparator());
+                sb.append("Query time: ").append(thriftMessage.getTimestamp()).append(System.lineSeparator());
+                TBase args = THRIFT_PROCESS_MAP.get(thriftMessage.getType()).getEmptyArgsInstance();
+                try
                 {
-                    queries.add(in.text());
+                    ThriftUtils.read(args, thriftMessage.getBuffer());
+                    sb.append("Args: " + thriftMessage.toString());
                 }
-                in = wireIn.read("values");
-                int numValues = in.int32();
-                List<List<ByteBuffer>> values = new ArrayList<>();
-                for (int ii = 0; ii < numValues; ii++)
+                catch (TException e)
                 {
-                    List<ByteBuffer> subValues = new ArrayList<>();
-                    values.add(subValues);
-                    int numSubValues = in.int32();
-                    for (int zz = 0; zz < numSubValues; zz++)
-                    {
-                        subValues.add(ByteBuffer.wrap(in.bytes()));
-                    }
-                    sb.append("Query: ").append(queries.get(ii)).append(System.lineSeparator());
+                    sb.append("Cannot read thrift message, aborting!").append(System.lineSeparator());
+                    throw new RuntimeException(e);
+                }
+            } else {
+                String type = wireIn.read("type").text();
+                sb.append("Type: ").append(type).append(System.lineSeparator());
+                int protocolVersion = wireIn.read("protocol-version").int32();
+                sb.append("Protocol version: ").append(protocolVersion).append(System.lineSeparator());
+                QueryOptions options = QueryOptions.codec.decode(Unpooled.wrappedBuffer(wireIn.read("query-options").bytesStore().toTemporaryDirectByteBuffer()), protocolVersion);
+                sb.append("Query time: ").append(wireIn.read("query-time").int64()).append(System.lineSeparator());
+                if (type.equals("single"))
+                {
+                    sb.append("Query: ").append(wireIn.read("query").text()).append(System.lineSeparator());
+                    List<ByteBuffer> values = options.getValues() != null ? options.getValues() : Collections.EMPTY_LIST;
                     sb.append("Values: ").append(System.lineSeparator());
-                    valuesToStringBuilder(subValues, sb);
+                    valuesToStringBuilder(values, sb);
+                }
+                else
+                {
+                    sb.append("Batch type: ").append(wireIn.read("batch-type").text()).append(System.lineSeparator());
+                    ValueIn in = wireIn.read("queries");
+                    int numQueries = in.int32();
+                    List<String> queries = new ArrayList<>();
+                    for (int ii = 0; ii < numQueries; ii++)
+                    {
+                        queries.add(in.text());
+                    }
+                    in = wireIn.read("values");
+                    int numValues = in.int32();
+                    List<List<ByteBuffer>> values = new ArrayList<>();
+                    for (int ii = 0; ii < numValues; ii++)
+                    {
+                        List<ByteBuffer> subValues = new ArrayList<>();
+                        values.add(subValues);
+                        int numSubValues = in.int32();
+                        for (int zz = 0; zz < numSubValues; zz++)
+                        {
+                            subValues.add(ByteBuffer.wrap(in.bytes()));
+                        }
+                        sb.append("Query: ").append(queries.get(ii)).append(System.lineSeparator());
+                        sb.append("Values: ").append(System.lineSeparator());
+                        valuesToStringBuilder(subValues, sb);
+                    }
                 }
             }
             sb.append(System.lineSeparator());
