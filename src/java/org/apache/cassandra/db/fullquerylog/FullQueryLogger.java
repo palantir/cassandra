@@ -405,9 +405,10 @@ public class FullQueryLogger
 
         public static ThriftWeighableMarshallable readMarshallable(WireIn wire)
         {
-            return new ThriftWeighableMarshallable(wire.read(PAYLOAD_FIELD).bytes(),
-                                            wire.read(TYPE_FIELD).text(),
-                                            wire.read(QUERY_TIME_FIELD).int64());
+            // you must read and write in the same order, otherwise weird things happen
+            String type = wire.read(TYPE_FIELD).text();
+            Long timestamp = wire.read(QUERY_TIME_FIELD).int64();
+            return new ThriftWeighableMarshallable(wire.read(PAYLOAD_FIELD).bytes(), type, timestamp);
         }
 
         public int weight()

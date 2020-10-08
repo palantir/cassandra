@@ -82,23 +82,29 @@ public class Dump implements Runnable
         StringBuilder sb = new StringBuilder();
         ReadMarshallable reader = wireIn -> {
             sb.setLength(0);
-            CharSequence text = wireIn.asText();
             String method = wireIn.read(FullQueryLogger.AbstractWeighableMarshallable.METHOD_FIELD).text();
             if(method.equalsIgnoreCase(FullQueryLogger.AbstractWeighableMarshallable.Method.THRIFT.name())) {
                 FullQueryLogger.ThriftWeighableMarshallable thriftMessage =
                 FullQueryLogger.ThriftWeighableMarshallable.readMarshallable(wireIn);
                 sb.append("Type: ").append(thriftMessage.getType()).append(System.lineSeparator());
                 sb.append("Query time: ").append(thriftMessage.getTimestamp()).append(System.lineSeparator());
-                TBase args = THRIFT_PROCESS_MAP.get(thriftMessage.getType()).getEmptyArgsInstance();
-                try
-                {
-                    ThriftUtils.read(args, thriftMessage.getBuffer());
-                    sb.append("Args: " + args.toString()).append(System.lineSeparator());
-                }
-                catch (TException e)
-                {
-                    sb.append("Cannot read thrift message, aborting!").append(System.lineSeparator());
-                    throw new RuntimeException(e);
+                ProcessFunction argsFactory = THRIFT_PROCESS_MAP.get(thriftMessage.getType());
+                if(argsFactory == null) {
+                    sb.append("Cannot find a thrift type of ").append(thriftMessage.getType()).append(System.lineSeparator());
+                } else {
+                    try
+                    {
+                        TBase args = argsFactory.getEmptyArgsInstance();
+                        ThriftUtils.read(args, thriftMessage.getBuffer());
+                        sb.append("Args: " + args.toString()).append(System.lineSeparator());
+                    }
+                    catch (Exception e)
+                    {
+                        sb.append("Cannot read thrift message, aborting! Wire text: ").append(wireIn.asText()).append(System.lineSeparator());
+                        System.out.print(sb.toString());
+                        System.out.flush();
+                        throw new RuntimeException(e);
+                    }
                 }
                 wireIn.clear();
             } else {
