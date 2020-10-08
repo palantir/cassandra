@@ -52,6 +52,7 @@ import org.apache.cassandra.thrift.ColumnParent;
 import org.apache.cassandra.thrift.ConsistencyLevel;
 import org.apache.cassandra.thrift.SlicePredicate;
 import org.apache.cassandra.thrift.SliceRange;
+import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.ObjectSizes;
 import org.apache.cassandra.utils.binlog.BinLogTest;
 import org.apache.thrift.TException;
@@ -520,19 +521,15 @@ public class FullQueryLoggerTest
         assertTrue(batch.weight() > 1024 * 1024);
     }
 
-    private ByteBuffer createFromString(String s) {
-        return ByteBuffer.wrap(s.getBytes(Charset.defaultCharset()));
-    }
-
     @Test
     public void testRoundTripThrift() throws Exception
     {
         configureFQL();
         long timestamp = System.currentTimeMillis();
         String type = "multiget_slice";
-        List<ByteBuffer> keys = ImmutableList.of(createFromString("foo"), createFromString("bar"), createFromString("test"));
-        List<ByteBuffer> columns = ImmutableList.of(createFromString("a"), createFromString("b"));
-        SliceRange sliceRange = new SliceRange(createFromString("a"), createFromString("z"), false, 10);
+        List<ByteBuffer> keys = ImmutableList.of(ByteBufferUtil.bytes("foo"), ByteBufferUtil.bytes("bar"), ByteBufferUtil.bytes("test"));
+        List<ByteBuffer> columns = ImmutableList.of(ByteBufferUtil.bytes("a"), ByteBufferUtil.bytes("b"));
+        SliceRange sliceRange = new SliceRange(ByteBufferUtil.bytes("a"), ByteBufferUtil.bytes("z"), false, 10);
         ColumnParent parent = new ColumnParent("test");
         SlicePredicate slicePredicate = new SlicePredicate();
         slicePredicate.setColumn_names(columns);
@@ -569,6 +566,8 @@ public class FullQueryLoggerTest
             }));
         }
     }
+
+
 
     @Test(expected = NullPointerException.class)
     public void testLogBatchNullType() throws Exception

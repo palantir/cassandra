@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.tools.fqltool;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.palantir.cassandra.thrift.DummyCassandra;
 import com.palantir.cassandra.utils.ThriftUtils;
 import io.airlift.command.Arguments;
 import io.airlift.command.Command;
@@ -47,6 +49,8 @@ import org.apache.cassandra.thrift.Cassandra;
 import org.apache.thrift.ProcessFunction;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.transport.TIOStreamTransport;
 
 /**
  * Dump the contents of a list of paths containing full query logs
@@ -71,13 +75,14 @@ public class Dump implements Runnable
         dump(arguments, rollCycle, follow);
     }
 
-    private static final Map<String, ProcessFunction<Cassandra.Iface, ? extends  TBase>> THRIFT_PROCESS_MAP = Cassandra.Processor.getProcessMap(new HashMap<>());
+    private static final Map<String, ProcessFunction<Cassandra.Client, ? extends  TBase>> THRIFT_PROCESS_MAP = new Cassandra.Processor(new DummyCassandra()).getProcessMapView();
 
     public static void dump(List<String> arguments, String rollCycle, boolean follow)
     {
         StringBuilder sb = new StringBuilder();
         ReadMarshallable reader = wireIn -> {
             sb.setLength(0);
+            CharSequence text = wireIn.asText();
             String method = wireIn.read(FullQueryLogger.AbstractWeighableMarshallable.METHOD_FIELD).text();
             if(method.equalsIgnoreCase(FullQueryLogger.AbstractWeighableMarshallable.Method.THRIFT.name())) {
                 FullQueryLogger.ThriftWeighableMarshallable thriftMessage =
@@ -88,13 +93,14 @@ public class Dump implements Runnable
                 try
                 {
                     ThriftUtils.read(args, thriftMessage.getBuffer());
-                    sb.append("Args: " + thriftMessage.toString());
+                    sb.append("Args: " + args.toString()).append(System.lineSeparator());
                 }
                 catch (TException e)
                 {
                     sb.append("Cannot read thrift message, aborting!").append(System.lineSeparator());
                     throw new RuntimeException(e);
                 }
+                wireIn.clear();
             } else {
                 String type = wireIn.read("type").text();
                 sb.append("Type: ").append(type).append(System.lineSeparator());
@@ -136,6 +142,7 @@ public class Dump implements Runnable
                         valuesToStringBuilder(subValues, sb);
                     }
                 }
+                wireIn.clear();
             }
             sb.append(System.lineSeparator());
             System.out.print(sb.toString());
