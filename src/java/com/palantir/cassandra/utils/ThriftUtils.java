@@ -19,18 +19,34 @@
 package com.palantir.cassandra.utils;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.Map;
 
+import com.palantir.cassandra.thrift.DummyCassandra;
+import org.apache.cassandra.thrift.Cassandra;
+import org.apache.thrift.ProcessFunction;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.transport.TIOStreamTransport;
+import org.apache.thrift.transport.TMemoryBuffer;
 
 public class ThriftUtils
 {
-    @SuppressWarnings({"resource"})
+    public static final Map<String, ProcessFunction<Cassandra.Client, ? extends  TBase>> THRIFT_PROCESS_MAP = new Cassandra.Processor(new DummyCassandra()).getProcessMapView();
+
+    @SuppressWarnings({ "resource"})
     public static final void read(TBase base, byte[] value) throws TException
     {
         // No need to close, it's a NO-OP
         base.read(new TBinaryProtocol(new TIOStreamTransport(new ByteArrayInputStream(value))));
+    }
+
+    @SuppressWarnings({"resource"})
+    public static final byte[] toBytes(TBase request) throws TException
+    {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        request.write(new TBinaryProtocol(new TIOStreamTransport(outputStream)));
+        return outputStream.toByteArray();
     }
 }

@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.db.fullquerylog;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
@@ -35,11 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
-import net.openhft.chronicle.bytes.BytesStore;
 import net.openhft.chronicle.queue.RollCycles;
-import net.openhft.chronicle.wire.ValueOut;
-import net.openhft.chronicle.wire.WireIn;
-import net.openhft.chronicle.wire.WireOut;
 import org.apache.cassandra.cql3.QueryOptions;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.util.FileUtils;
@@ -48,11 +43,8 @@ import org.apache.cassandra.utils.NoSpamLogger;
 import org.apache.cassandra.utils.ObjectSizes;
 import org.apache.cassandra.utils.Throwables;
 import org.apache.cassandra.utils.binlog.BinLog;
-import org.apache.cassandra.utils.concurrent.WeightedQueue;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.transport.TIOStreamTransport;
 import org.github.jamm.MemoryLayoutSpecification;
 
 /**
@@ -60,10 +52,10 @@ import org.github.jamm.MemoryLayoutSpecification;
  */
 public class FullQueryLogger
 {
-    private static final int EMPTY_BYTEBUFFER_SIZE = Ints.checkedCast(ObjectSizes.sizeOnHeapExcludingData(ByteBuffer.allocate(0)));
-    private static final int EMPTY_LIST_SIZE = Ints.checkedCast(ObjectSizes.measureDeep(new ArrayList(0)));
-    private static final int EMPTY_BYTEBUF_SIZE;
-    private static final int OBJECT_HEADER_SIZE = MemoryLayoutSpecification.SPEC.getObjectHeaderSize();
+    public static final int EMPTY_BYTEBUFFER_SIZE = Ints.checkedCast(ObjectSizes.sizeOnHeapExcludingData(ByteBuffer.allocate(0)));
+    public static final int EMPTY_LIST_SIZE = Ints.checkedCast(ObjectSizes.measureDeep(new ArrayList(0)));
+    public static final int EMPTY_BYTEBUF_SIZE;
+    public static final int OBJECT_HEADER_SIZE = MemoryLayoutSpecification.SPEC.getObjectHeaderSize();
 
     static
     {
@@ -352,254 +344,6 @@ public class FullQueryLogger
         catch (TException e)
         {
             logger.error("Could not serialize thrift command to memory", e);
-        }
-    }
-
-    public static abstract class AbstractWeighableMarshallable extends BinLog.ReleaseableWriteMarshallable implements WeightedQueue.Weighable
-    {
-        public static final String METHOD_FIELD = "method";
-
-        public enum Method {
-            THRIFT, CQL;
-        }
-    }
-
-    public static class ThriftWeighableMarshallable extends AbstractWeighableMarshallable
-    {
-
-        private final byte[] buffer;
-        private final String type;
-        private final long timestamp;
-
-        private static final String TYPE_FIELD = "type";
-        private static final String QUERY_TIME_FIELD = "query-time";
-        private static final String PAYLOAD_FIELD = "payload";
-
-        private ThriftWeighableMarshallable(byte[] buffer, String type, long timestamp)
-        {
-            this.buffer = buffer;
-            this.type = type;
-            this.timestamp = timestamp;
-        }
-
-        @SuppressWarnings({"resource"})
-        public static ThriftWeighableMarshallable create(TBase request, String type, long timestamp) throws TException
-        {
-            // No need to close, it's a NO-OP
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            request.write(new TBinaryProtocol(new TIOStreamTransport(outputStream)));
-            return new ThriftWeighableMarshallable(outputStream.toByteArray(), type, timestamp);
-        }
-
-        public void release()
-        {
-        }
-
-        public void writeMarshallable(WireOut wire)
-        {
-            wire.write(METHOD_FIELD).text(Method.THRIFT.name());
-            wire.write(TYPE_FIELD).text(type);
-            wire.write(QUERY_TIME_FIELD).int64(timestamp);
-            wire.write(PAYLOAD_FIELD).bytes(buffer);
-        }
-
-        public static ThriftWeighableMarshallable readMarshallable(WireIn wire)
-        {
-            // you must read and write in the same order, otherwise weird things happen
-            String type = wire.read(TYPE_FIELD).text();
-            Long timestamp = wire.read(QUERY_TIME_FIELD).int64();
-            return new ThriftWeighableMarshallable(wire.read(PAYLOAD_FIELD).bytes(), type, timestamp);
-        }
-
-        public int weight()
-        {
-            return OBJECT_HEADER_SIZE +
-                   Method.THRIFT.name().getBytes().length +
-                   TYPE_FIELD.getBytes().length +
-                   8 + // 8 bytes for timestamp
-                   buffer.length;
-        }
-
-        public byte[] getBuffer()
-        {
-            return buffer;
-        }
-
-        public long getTimestamp()
-        {
-            return timestamp;
-        }
-
-        public String getType()
-        {
-            return type;
-        }
-    }
-
-    public static abstract class AbstractCQLWeighableMarshallable extends AbstractWeighableMarshallable
-    {
-        private final ByteBuf queryOptionsBuffer;
-        private final long timeMillis;
-        private final int protocolVersion;
-
-        private AbstractCQLWeighableMarshallable(QueryOptions queryOptions, long timeMillis)
-        {
-            this.timeMillis = timeMillis;
-            this.protocolVersion = queryOptions.getProtocolVersion();
-            int optionsSize = QueryOptions.codec.encodedSize(queryOptions, protocolVersion);
-            queryOptionsBuffer = CBUtil.allocator.buffer(optionsSize, optionsSize);
-            /*
-             * Struggled with what tradeoff to make in terms of query options which is potentially large and complicated
-             * There is tension between low garbage production (or allocator overhead), small working set size, and CPU overhead reserializing the
-             * query options into binary format.
-             *
-             * I went with the lowest risk most predictable option which is allocator overhead and CPU overhead
-             * rather then keep the original query message around so I could just serialize that as a memcpy. It's more
-             * instructions when turned on, but it doesn't change memory footprint quite as much and it's more pay for what you use
-             * in terms of query volume. The CPU overhead is spread out across producers so we should at least get
-             * some scaling.
-             *
-             */
-            boolean success = false;
-            try
-            {
-                QueryOptions.codec.encode(queryOptions, queryOptionsBuffer, protocolVersion);
-                success = true;
-            }
-            finally
-            {
-                if (!success)
-                {
-                    queryOptionsBuffer.release();
-                }
-            }
-        }
-
-        @Override
-        public void writeMarshallable(WireOut wire)
-        {
-            wire.write(METHOD_FIELD).text("cql");
-            wire.write("protocol-version").int32(protocolVersion);
-            wire.write("query-options").bytes(BytesStore.wrap(queryOptionsBuffer.nioBuffer()));
-            wire.write("query-time").int64(timeMillis);
-        }
-
-        @Override
-        public void release()
-        {
-            queryOptionsBuffer.release();
-        }
-
-        //3-bytes for method type
-        //8-bytes for protocol version (assume alignment cost), 8-byte timestamp, 8-byte object header + other contents
-        @Override
-        public int weight()
-        {
-            return 3 + 8 + 8 + OBJECT_HEADER_SIZE + EMPTY_BYTEBUF_SIZE + queryOptionsBuffer.capacity();
-        }
-    }
-
-    static class CQLWeighableMarshallableBatch extends AbstractCQLWeighableMarshallable
-    {
-        private final int weight;
-        private final String batchType;
-        private final List<String> queries;
-        private final List<List<ByteBuffer>> values;
-
-        public CQLWeighableMarshallableBatch(String batchType, List<String> queries, List<List<ByteBuffer>> values, QueryOptions queryOptions, long batchTimeMillis)
-        {
-            super(queryOptions, batchTimeMillis);
-            this.queries = queries;
-            this.values = values;
-            this.batchType = batchType;
-            boolean success = false;
-            try
-            {
-
-                //weight, batch type, queries, values
-                int weightTemp = 8 + EMPTY_LIST_SIZE + EMPTY_LIST_SIZE;
-                for (int ii = 0; ii < queries.size(); ii++)
-                {
-                    weightTemp += ObjectSizes.sizeOf(queries.get(ii));
-                }
-
-                weightTemp += EMPTY_LIST_SIZE * values.size();
-                for (int ii = 0; ii < values.size(); ii++)
-                {
-                    List<ByteBuffer> sublist = values.get(ii);
-                    weightTemp += EMPTY_BYTEBUFFER_SIZE * sublist.size();
-                    for (int zz = 0; zz < sublist.size(); zz++)
-                    {
-                        weightTemp += sublist.get(zz).capacity();
-                    }
-                }
-                weightTemp += super.weight();
-                weightTemp += ObjectSizes.sizeOf(batchType);
-                weight = weightTemp;
-                success = true;
-            }
-            finally
-            {
-                if (!success)
-                {
-                    release();
-                }
-            }
-        }
-
-        @Override
-        public void writeMarshallable(WireOut wire)
-        {
-            wire.write("type").text("batch");
-            super.writeMarshallable(wire);
-            wire.write("batch-type").text(batchType);
-            ValueOut valueOut = wire.write("queries");
-            valueOut.int32(queries.size());
-            for (String query : queries)
-            {
-                valueOut.text(query);
-            }
-            valueOut = wire.write("values");
-            valueOut.int32(values.size());
-            for (List<ByteBuffer> subValues : values)
-            {
-                valueOut.int32(subValues.size());
-                for (ByteBuffer value : subValues)
-                {
-                    valueOut.bytes(BytesStore.wrap(value));
-                }
-            }
-        }
-
-        @Override
-        public int weight()
-        {
-            return weight;
-        }
-    }
-
-    static class CQLWeighableMarshallableQuery extends AbstractCQLWeighableMarshallable
-    {
-        private final String query;
-
-        public CQLWeighableMarshallableQuery(String query, QueryOptions queryOptions, long queryTimeMillis)
-        {
-            super(queryOptions, queryTimeMillis);
-            this.query = query;
-        }
-
-        @Override
-        public void writeMarshallable(WireOut wire)
-        {
-            wire.write("type").text("single");
-            super.writeMarshallable(wire);
-            wire.write("query").text(query);
-        }
-
-        @Override
-        public int weight()
-        {
-            return Ints.checkedCast(ObjectSizes.sizeOf(query)) + super.weight();
         }
     }
 

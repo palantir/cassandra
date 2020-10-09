@@ -21,7 +21,6 @@ package org.apache.cassandra.db.fullquerylog;
 
 import java.io.File;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,8 +44,6 @@ import net.openhft.chronicle.wire.ValueIn;
 import net.openhft.chronicle.wire.WireOut;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.cql3.QueryOptions;
-import org.apache.cassandra.db.fullquerylog.FullQueryLogger.CQLWeighableMarshallableBatch;
-import org.apache.cassandra.db.fullquerylog.FullQueryLogger.CQLWeighableMarshallableQuery;
 import org.apache.cassandra.thrift.Cassandra;
 import org.apache.cassandra.thrift.ColumnParent;
 import org.apache.cassandra.thrift.ConsistencyLevel;
@@ -549,7 +546,8 @@ public class FullQueryLoggerTest
         {
             ExcerptTailer tailer = queue.createTailer();
             assertTrue(tailer.readDocument(wire -> {
-                FullQueryLogger.ThriftWeighableMarshallable thriftMessage = FullQueryLogger.ThriftWeighableMarshallable.readMarshallable(wire);
+                ThriftWeighableMarshallable thriftMessage = new ThriftWeighableMarshallable();
+                thriftMessage.readMarshallable(wire);
                 assertEquals(type, thriftMessage.getType());
                 assertEquals(timestamp, thriftMessage.getTimestamp());
                 Cassandra.multiget_slice_args deserializedArgs = new Cassandra.multiget_slice_args();

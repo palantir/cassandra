@@ -18,18 +18,14 @@
 
 package org.apache.cassandra.tools.fqltool;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.palantir.cassandra.thrift.DummyCassandra;
 import com.palantir.cassandra.utils.ThriftUtils;
 import io.airlift.command.Arguments;
 import io.airlift.command.Command;
@@ -44,13 +40,13 @@ import net.openhft.chronicle.threads.Pauser;
 import net.openhft.chronicle.wire.ReadMarshallable;
 import net.openhft.chronicle.wire.ValueIn;
 import org.apache.cassandra.cql3.QueryOptions;
-import org.apache.cassandra.db.fullquerylog.FullQueryLogger;
-import org.apache.cassandra.thrift.Cassandra;
+import org.apache.cassandra.db.fullquerylog.AbstractCQLWeighableMarshallable;
+import org.apache.cassandra.db.fullquerylog.AbstractWeighableMarshallable;
+import org.apache.cassandra.db.fullquerylog.CQLWeighableMarshallableBatch;
+import org.apache.cassandra.db.fullquerylog.CQLWeighableMarshallableQuery;
+import org.apache.cassandra.db.fullquerylog.ThriftWeighableMarshallable;
 import org.apache.thrift.ProcessFunction;
 import org.apache.thrift.TBase;
-import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.transport.TIOStreamTransport;
 
 /**
  * Dump the contents of a list of paths containing full query logs
@@ -69,90 +65,32 @@ public class Dump implements Runnable
     @Option(title = "follow", name = {"--follow"}, description = "Upon reacahing the end of the log continue indefinitely waiting for more records")
     private boolean follow = false;
 
+    private CQLWeighableMarshallableQuery cqlQuery = new CQLWeighableMarshallableQuery();
+    private ThriftWeighableMarshallable thriftQuery = new ThriftWeighableMarshallable();
+    private CQLWeighableMarshallableBatch cqlBatch = new CQLWeighableMarshallableBatch();
+
     @Override
     public void run()
     {
         dump(arguments, rollCycle, follow);
     }
 
-    private static final Map<String, ProcessFunction<Cassandra.Client, ? extends  TBase>> THRIFT_PROCESS_MAP = new Cassandra.Processor(new DummyCassandra()).getProcessMapView();
-
-    public static void dump(List<String> arguments, String rollCycle, boolean follow)
+    public void dump(List<String> arguments, String rollCycle, boolean follow)
     {
         StringBuilder sb = new StringBuilder();
-        ReadMarshallable reader = wireIn -> {
-            sb.setLength(0);
-            String method = wireIn.read(FullQueryLogger.AbstractWeighableMarshallable.METHOD_FIELD).text();
-            if(method.equalsIgnoreCase(FullQueryLogger.AbstractWeighableMarshallable.Method.THRIFT.name())) {
-                FullQueryLogger.ThriftWeighableMarshallable thriftMessage =
-                FullQueryLogger.ThriftWeighableMarshallable.readMarshallable(wireIn);
-                sb.append("Type: ").append(thriftMessage.getType()).append(System.lineSeparator());
-                sb.append("Query time: ").append(thriftMessage.getTimestamp()).append(System.lineSeparator());
-                ProcessFunction argsFactory = THRIFT_PROCESS_MAP.get(thriftMessage.getType());
-                if(argsFactory == null) {
-                    sb.append("Cannot find a thrift type of ").append(thriftMessage.getType()).append(System.lineSeparator());
-                } else {
-                    try
-                    {
-                        TBase args = argsFactory.getEmptyArgsInstance();
-                        ThriftUtils.read(args, thriftMessage.getBuffer());
-                        sb.append("Args: " + args.toString()).append(System.lineSeparator());
-                    }
-                    catch (Exception e)
-                    {
-                        sb.append("Cannot read thrift message, aborting! Wire text: ").append(wireIn.asText()).append(System.lineSeparator());
-                        System.out.print(sb.toString());
-                        System.out.flush();
-                        throw new RuntimeException(e);
-                    }
-                }
-                wireIn.clear();
-            } else {
-                String type = wireIn.read("type").text();
-                sb.append("Type: ").append(type).append(System.lineSeparator());
-                int protocolVersion = wireIn.read("protocol-version").int32();
-                sb.append("Protocol version: ").append(protocolVersion).append(System.lineSeparator());
-                QueryOptions options = QueryOptions.codec.decode(Unpooled.wrappedBuffer(wireIn.read("query-options").bytesStore().toTemporaryDirectByteBuffer()), protocolVersion);
-                sb.append("Query time: ").append(wireIn.read("query-time").int64()).append(System.lineSeparator());
-                if (type.equals("single"))
-                {
-                    sb.append("Query: ").append(wireIn.read("query").text()).append(System.lineSeparator());
-                    List<ByteBuffer> values = options.getValues() != null ? options.getValues() : Collections.EMPTY_LIST;
-                    sb.append("Values: ").append(System.lineSeparator());
-                    valuesToStringBuilder(values, sb);
-                }
-                else
-                {
-                    sb.append("Batch type: ").append(wireIn.read("batch-type").text()).append(System.lineSeparator());
-                    ValueIn in = wireIn.read("queries");
-                    int numQueries = in.int32();
-                    List<String> queries = new ArrayList<>();
-                    for (int ii = 0; ii < numQueries; ii++)
-                    {
-                        queries.add(in.text());
-                    }
-                    in = wireIn.read("values");
-                    int numValues = in.int32();
-                    List<List<ByteBuffer>> values = new ArrayList<>();
-                    for (int ii = 0; ii < numValues; ii++)
-                    {
-                        List<ByteBuffer> subValues = new ArrayList<>();
-                        values.add(subValues);
-                        int numSubValues = in.int32();
-                        for (int zz = 0; zz < numSubValues; zz++)
-                        {
-                            subValues.add(ByteBuffer.wrap(in.bytes()));
-                        }
-                        sb.append("Query: ").append(queries.get(ii)).append(System.lineSeparator());
-                        sb.append("Values: ").append(System.lineSeparator());
-                        valuesToStringBuilder(subValues, sb);
-                    }
-                }
-                wireIn.clear();
-            }
-            sb.append(System.lineSeparator());
-            System.out.print(sb.toString());
-            System.out.flush();
+        ReadMarshallable reader = wire -> {
+          sb.setLength(0);
+          AbstractWeighableMarshallable.Method method = AbstractWeighableMarshallable.readMethod(wire);
+          if (AbstractWeighableMarshallable.Method.THRIFT.equals(method)) {
+              thriftQuery.readMarshallable(wire);
+              sb.append("Type: ").append(thriftQuery.getType()).append(System.lineSeparator());
+              sb.append("Query time: ").append(thriftQuery.getTimestamp()).append(System.lineSeparator());
+              sb.append("Args: " + thriftQuery.getThriftRequest().toString()).append(System.lineSeparator());
+          }
+          wire.clear();
+        sb.append(System.lineSeparator());
+        System.out.print(sb.toString());
+        System.out.flush();
         };
 
         //Backoff strategy for spinning on the queue, not aggressive at all as this doesn't need to be low latency

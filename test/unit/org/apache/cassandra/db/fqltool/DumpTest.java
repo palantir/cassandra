@@ -92,7 +92,7 @@ public class DumpTest
                 return queue.createTailer().readingDocument().isPresent();
             }
         }, 60);
-        Dump.dump(ImmutableList.of(tempDir.toString()), ROLL_CYCLE, false);
+        new Dump().dump(ImmutableList.of(tempDir.toString()), ROLL_CYCLE, false);
     }
     private Cassandra.multiget_slice_args create(List<ByteBuffer> keys, List<ByteBuffer> columns, ByteBuffer rangeStart, ByteBuffer rangeEnd, ColumnParent columnParent) {
         String type = "multiget_slice";
