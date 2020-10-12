@@ -17,11 +17,13 @@
  */
 package org.apache.cassandra.concurrent;
 
+import java.util.AbstractQueue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -142,5 +144,14 @@ public class SharedExecutorPool
 
         while (null != (e = spinning.pollFirstEntry()))
             LockSupport.unpark(e.getValue().thread);
+    }
+
+    public LocalAwareExecutorService newKeyspaceAwareExecutor(
+    int maxConcurrency, int maxQueuedTasks, String jmxPath, String name)
+    {
+        SEPExecutor executor = new SEPExecutor(
+        this, new KeyspaceAwareSepQueue(), maxConcurrency, maxQueuedTasks, jmxPath, name);
+        executors.add(executor);
+        return executor;
     }
 }

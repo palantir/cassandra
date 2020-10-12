@@ -236,6 +236,11 @@ public class PartitionRangeReadCommand extends ReadCommand
                                              indexMetadata());
     }
 
+    @Override
+    public boolean isCheap() {
+        return false;
+    }
+
     public long getTimeout()
     {
         return DatabaseDescriptor.getRangeRpcTimeout();
