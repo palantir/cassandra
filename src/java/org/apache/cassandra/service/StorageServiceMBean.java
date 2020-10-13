@@ -26,10 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
+
+import com.google.common.util.concurrent.Monitor;
 
 public interface StorageServiceMBean extends NotificationEmitter
 {
@@ -785,4 +788,49 @@ public interface StorageServiceMBean extends NotificationEmitter
     /** Every read request sent to this node from another node will result in a delay of the specified value, in seconds
      */
     public void setReadDelay(int readDelay);
+
+    class BootstrapManager
+    {
+        private boolean allowedToBootstrap = false;
+        private final Monitor monitor = new Monitor();
+        private final Monitor.Guard isAllowedToBootstrap = getNewGuard(monitor);
+
+        public void allowToBootstrap()
+        {
+            monitor.enter();
+            try {
+                allowedToBootstrap = true;
+            } finally {
+                monitor.leave();
+            }
+        }
+
+        public void awaitBootstrappable()
+        {
+            boolean isBootstrappable;
+            try
+            {
+                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 5, TimeUnit.MINUTES);
+                if (isBootstrappable)
+                    monitor.leave();
+                else
+                    throw new IllegalStateException("Did not receive signal to start bootstrap");
+            }
+            catch (InterruptedException | IllegalStateException e)
+            {
+                throw new RuntimeException("Failed to start bootstrap", e);
+            }
+        }
+
+        private Monitor.Guard getNewGuard(Monitor monitor)
+        {
+            return new Monitor.Guard(monitor)
+            {
+                public boolean isSatisfied()
+                {
+                    return allowedToBootstrap;
+                }
+            };
+        }
+    }
 }

@@ -118,6 +118,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
+    private final BootstrapManager bootstrapManager = new BootstrapManager();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -201,7 +202,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
     private volatile Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -940,6 +941,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         boolean bootstrap = shouldBootstrap();
         if (bootstrap)
         {
+            setMode(Mode.WAITING_TO_BOOTSTRAP, true);
+            bootstrapManager.awaitBootstrappable();
             if (SystemKeyspace.bootstrapInProgress())
                 logger.warn("Detected previous bootstrap failure; retrying");
             else
@@ -1070,6 +1073,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             else
                 logger.warn("Some data streaming failed. Use nodetool to check bootstrap state and resume. For more, see `nodetool help bootstrap`. {}", SystemKeyspace.getBootstrapState());
         }
+    }
+
+    public void startBootstrap() {
+        bootstrapManager.allowToBootstrap();
     }
 
     @VisibleForTesting
