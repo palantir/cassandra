@@ -807,14 +807,9 @@ public interface StorageServiceMBean extends NotificationEmitter
 
         public void awaitBootstrappable()
         {
-            boolean isBootstrappable;
             try
             {
-                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 5, TimeUnit.MINUTES);
-                if (isBootstrappable)
-                    monitor.leave();
-                else
-                    throw new IllegalStateException("Did not receive signal to start bootstrap");
+                monitor.enterWhen(isAllowedToBootstrap);
             }
             catch (InterruptedException | IllegalStateException e)
             {
