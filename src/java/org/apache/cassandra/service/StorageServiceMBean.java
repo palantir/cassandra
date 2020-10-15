@@ -699,7 +699,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public boolean resumeBootstrap();
 
     /**
-     * Signal that the node can begin bootstrapping.
+     * Send signal to start the bootstrap process.
      */
     public void startBootstrap();
 
@@ -751,14 +751,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
 
         public void awaitBootstrappable()
         {
-            boolean isBootstrappable;
             try
             {
-                isBootstrappable = monitor.enterWhen(isAllowedToBootstrap, 5, TimeUnit.MINUTES);
-                if (isBootstrappable)
-                    monitor.leave();
-                else
-                    throw new IllegalStateException("Did not receive signal to start bootstrap");
+                monitor.enterWhen(isAllowedToBootstrap);
             }
             catch (InterruptedException | IllegalStateException e)
             {
