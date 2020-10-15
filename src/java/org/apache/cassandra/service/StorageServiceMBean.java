@@ -757,6 +757,11 @@ public interface StorageServiceMBean extends NotificationEmitter
      */
     public boolean resumeBootstrap();
 
+    /**
+     * Send signal to start the bootstrap process
+     */
+    public void startBootstrap();
+
     /** Returns the max version that this node will negotiate for native protocol connections */
     public int getMaxNativeProtocolVersion();
 

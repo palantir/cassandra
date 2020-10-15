@@ -38,3 +38,11 @@ task copySourceFiles(type: Copy) {
 
 tasks.withType(JavaCompile).all { dependsOn copySourceFiles }
 
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'com.google.guava:guava:18.0'
+}
+
