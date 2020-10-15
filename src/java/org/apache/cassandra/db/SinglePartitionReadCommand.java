@@ -428,6 +428,11 @@ public class SinglePartitionReadCommand extends ReadCommand
         return clusteringIndexFilter;
     }
 
+    @Override
+    public boolean isCheap() {
+        return limits().count() <= 1;
+    }
+
     public long getTimeout()
     {
         return DatabaseDescriptor.getReadRpcTimeout();
