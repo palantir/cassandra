@@ -24,8 +24,10 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.db.monitoring.ApproximateTime;
 import org.apache.cassandra.exceptions.RequestFailureReason;
 import org.apache.cassandra.io.IVersionedSerializer;
@@ -162,6 +164,11 @@ public class MessageIn<T>
 
     public Stage getMessageType()
     {
+        if (payload instanceof ReadCommand) {
+            ReadCommand command = (ReadCommand) payload;
+            KeyspaceAwareSepQueue.setCurrentKeyspace(command.metadata().ksName);
+            return command.isCheap() ? Stage.READ_CHEAP : Stage.READ;
+        }
         return MessagingService.verbStages.get(verb);
     }
 
