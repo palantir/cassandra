@@ -53,6 +53,7 @@ import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.cassandra.utils.FBUtilities;
 
+import static junit.framework.Assert.assertNotSame;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -72,9 +73,9 @@ public class StorageServiceServerTest
     @Test
     public void testRegularMode() throws ConfigurationException
     {
+        StorageService.instance.startBootstrap();
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
-        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
         for (String path : DatabaseDescriptor.getAllDataFileLocations())
         {
@@ -89,6 +90,29 @@ public class StorageServiceServerTest
     }
 
     @Test
+    public void testBootstrapManager() throws ConfigurationException, InterruptedException
+    {
+        final StorageServiceMBean.BootstrapManager bootstrapManager = new StorageServiceMBean.BootstrapManager();
+        Thread awaitSignalThread = new Thread(bootstrapManager::awaitBootstrappable);
+        Thread allowBootstrapThread = new Thread(bootstrapManager::allowToBootstrap);
+
+        awaitSignalThread.start();
+        waitUntilNotState(awaitSignalThread, Thread.State.RUNNABLE);
+        assertEquals(Thread.State.WAITING, awaitSignalThread.getState());
+
+        allowBootstrapThread.start();
+        waitUntilNotState(awaitSignalThread, Thread.State.WAITING);
+        assertTrue(awaitSignalThread.getState() == Thread.State.RUNNABLE || awaitSignalThread.getState() == Thread.State.TERMINATED);
+    }
+
+    private void waitUntilNotState(Thread thread, Thread.State state) throws InterruptedException
+    {
+        while(thread.getState() == state) {
+            Thread.sleep(100);
+        }
+    }
+
+    @Test
     public void testGetAllRangesEmpty()
     {
         List<Token> toks = Collections.emptyList();
@@ -98,6 +122,7 @@ public class StorageServiceServerTest
     @Test
     public void testSnapshot() throws IOException
     {
+        StorageService.instance.startBootstrap();
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
         StorageService.instance.takeSnapshot("snapshot");
     }
@@ -174,6 +199,7 @@ public class StorageServiceServerTest
     @Test
     public void testColumnFamilySnapshot() throws IOException
     {
+        StorageService.instance.startBootstrap();
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
         StorageService.instance.takeColumnFamilySnapshot(SystemKeyspace.NAME, LegacySchemaTables.KEYSPACES, "cf_snapshot");
     }
