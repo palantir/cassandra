@@ -55,7 +55,6 @@ public class TriggersTest
     public static void beforeTest() throws ConfigurationException
     {
         SchemaLoader.loadSchema();
-        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
     }
 

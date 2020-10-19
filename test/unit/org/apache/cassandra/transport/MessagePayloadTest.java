@@ -43,7 +43,6 @@ import org.apache.cassandra.exceptions.RequestExecutionException;
 import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.QueryState;
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.transport.messages.BatchMessage;
 import org.apache.cassandra.transport.messages.ExecuteMessage;
 import org.apache.cassandra.transport.messages.PrepareMessage;
@@ -66,7 +65,6 @@ public class MessagePayloadTest extends CQLTester
     {
         try
         {
-            StorageService.instance.startBootstrap();
             DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
 
             cqlQueryHandlerField = ClientState.class.getDeclaredField("cqlQueryHandler");

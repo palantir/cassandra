@@ -26,13 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
-
-import com.google.common.util.concurrent.Monitor;
 
 public interface StorageServiceMBean extends NotificationEmitter
 {
@@ -731,45 +728,4 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     /** Every read request sent to this node from another node will result in a delay of the specified value, in seconds
      */
     public void setReadDelay(int readDelay);
-
-    class BootstrapManager
-    {
-
-        private boolean allowedToBootstrap = false;
-        private final Monitor monitor = new Monitor();
-        private final Monitor.Guard isAllowedToBootstrap = getNewGuard(monitor);
-
-        public void allowToBootstrap()
-        {
-            monitor.enter();
-            try {
-                allowedToBootstrap = true;
-            } finally {
-                monitor.leave();
-            }
-        }
-
-        public void awaitBootstrappable()
-        {
-            try
-            {
-                monitor.enterWhen(isAllowedToBootstrap);
-            }
-            catch (InterruptedException | IllegalStateException e)
-            {
-                throw new RuntimeException("Failed to start bootstrap", e);
-            }
-        }
-
-        private Monitor.Guard getNewGuard(Monitor monitor)
-        {
-            return new Monitor.Guard(monitor)
-            {
-                public boolean isSatisfied()
-                {
-                    return allowedToBootstrap;
-                }
-            };
-        }
-    }
 }

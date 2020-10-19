@@ -54,7 +54,6 @@ public class ThriftCQLTester extends CQLTester
     public static void setup() throws Exception
     {
         DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
-        StorageService.instance.startBootstrap();
         StorageService.instance.initServer(0);
 
         if (thriftServer == null || ! thriftServer.isRunning())

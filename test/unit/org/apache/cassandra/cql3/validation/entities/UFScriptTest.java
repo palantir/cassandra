@@ -42,7 +42,6 @@ import org.apache.cassandra.cql3.UntypedResultSet;
 import org.apache.cassandra.cql3.functions.FunctionName;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.exceptions.FunctionExecutionException;
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.transport.Server;
 import org.apache.cassandra.utils.UUIDGen;
 
@@ -51,7 +50,6 @@ public class UFScriptTest extends CQLTester
     @BeforeClass
     public static void setUp()
     {
-        StorageService.instance.startBootstrap();
         DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
     }
 

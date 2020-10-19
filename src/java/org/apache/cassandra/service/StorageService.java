@@ -4740,4 +4740,37 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         DatabaseDescriptor.setReadDelay(readDelay);
         logger.info(String.format("Updated read_delay_in_s to %d", readDelay));
     }
+
+    @VisibleForTesting
+    static class BootstrapManager {
+
+        private boolean allowedToBootstrap = false;
+        private final Monitor monitor = new Monitor();
+        private final Monitor.Guard isAllowedToBootstrap = getNewGuard(monitor);
+
+        public void allowToBootstrap() {
+            monitor.enter();
+            try {
+                allowedToBootstrap = true;
+            } finally {
+                monitor.leave();
+            }
+        }
+
+        public void awaitBootstrappable() {
+            try {
+                monitor.enterWhen(isAllowedToBootstrap);
+            } catch (InterruptedException | IllegalStateException e) {
+                throw new RuntimeException("Failed to start bootstrap", e);
+            }
+        }
+
+        private Monitor.Guard getNewGuard(Monitor monitor) {
+            return new Monitor.Guard(monitor) {
+                public boolean isSatisfied() {
+                    return allowedToBootstrap;
+                }
+            };
+        }
+    }
 }

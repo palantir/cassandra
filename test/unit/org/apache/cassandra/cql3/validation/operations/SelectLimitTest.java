@@ -27,14 +27,12 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.CQLTester;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
-import org.apache.cassandra.service.StorageService;
 
 public class SelectLimitTest extends CQLTester
 {
     @BeforeClass
     public static void setUp()
     {
-        StorageService.instance.startBootstrap();
         DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
     }
 

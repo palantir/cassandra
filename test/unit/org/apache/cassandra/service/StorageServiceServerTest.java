@@ -73,7 +73,6 @@ public class StorageServiceServerTest
     @Test
     public void testRegularMode() throws ConfigurationException
     {
-        StorageService.instance.startBootstrap();
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         StorageService.instance.initServer(0);
@@ -92,7 +91,7 @@ public class StorageServiceServerTest
     @Test
     public void testBootstrapManager() throws ConfigurationException, InterruptedException
     {
-        final StorageServiceMBean.BootstrapManager bootstrapManager = new StorageServiceMBean.BootstrapManager();
+        final StorageService.BootstrapManager bootstrapManager = new StorageService.BootstrapManager();
         Thread awaitSignalThread = new Thread(bootstrapManager::awaitBootstrappable);
         Thread allowBootstrapThread = new Thread(bootstrapManager::allowToBootstrap);
 
@@ -122,7 +121,6 @@ public class StorageServiceServerTest
     @Test
     public void testSnapshot() throws IOException
     {
-        StorageService.instance.startBootstrap();
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
         StorageService.instance.takeSnapshot("snapshot");
     }
@@ -199,7 +197,6 @@ public class StorageServiceServerTest
     @Test
     public void testColumnFamilySnapshot() throws IOException
     {
-        StorageService.instance.startBootstrap();
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
         StorageService.instance.takeColumnFamilySnapshot(SystemKeyspace.NAME, LegacySchemaTables.KEYSPACES, "cf_snapshot");
     }
