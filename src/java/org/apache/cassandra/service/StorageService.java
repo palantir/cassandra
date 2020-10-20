@@ -95,6 +95,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
+    private final BootstrapManager bootstrapManager = new BootstrapManager();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -170,7 +171,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR }
+    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -819,6 +820,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         boolean dataAvailable = true; // make this to false when bootstrap streaming failed
         if (shouldBootstrap())
         {
+            setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
+            bootstrapManager.awaitBootstrappable();
             if (SystemKeyspace.bootstrapInProgress())
                 logger.warn("Detected previous bootstrap failure; retrying");
             else
@@ -1347,6 +1350,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Resuming bootstrap is requested, but the node is already bootstrapped.");
             return false;
         }
+    }
+
+    @Override
+    public void startBootstrap() {
+        bootstrapManager.allowToBootstrap();
     }
 
     public void clearNonTransientErrors() {
@@ -4731,5 +4739,38 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         DatabaseDescriptor.setReadDelay(readDelay);
         logger.info(String.format("Updated read_delay_in_s to %d", readDelay));
+    }
+
+    @VisibleForTesting
+    static class BootstrapManager {
+
+        private boolean allowedToBootstrap = false;
+        private final Monitor monitor = new Monitor();
+        private final Monitor.Guard isAllowedToBootstrap = getNewGuard(monitor);
+
+        public void allowToBootstrap() {
+            monitor.enter();
+            try {
+                allowedToBootstrap = true;
+            } finally {
+                monitor.leave();
+            }
+        }
+
+        public void awaitBootstrappable() {
+            try {
+                monitor.enterWhen(isAllowedToBootstrap);
+            } catch (InterruptedException | IllegalStateException e) {
+                throw new RuntimeException("Failed to start bootstrap", e);
+            }
+        }
+
+        private Monitor.Guard getNewGuard(Monitor monitor) {
+            return new Monitor.Guard(monitor) {
+                public boolean isSatisfied() {
+                    return allowedToBootstrap;
+                }
+            };
+        }
     }
 }
