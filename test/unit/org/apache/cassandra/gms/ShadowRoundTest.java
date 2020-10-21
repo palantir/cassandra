@@ -109,6 +109,7 @@ public class ShadowRoundTest
 
         try
         {
+            StorageService.instance.startBootstrap();
             StorageService.instance.initServer();
         }
         catch (Exception e)
