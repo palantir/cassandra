@@ -42,7 +42,10 @@ fi
 if [ -x "$JAVA_HOME/bin/java" ]; then
     JAVA="$JAVA_HOME/bin/java"
 else
-    JAVA="`which java`"
+    JAVA="`which java 2> /dev/null`"
+    if [ "x$JAVA" = "x" ]; then
+        JAVA="$(ps aux | awk '( $NF == "org.apache.cassandra.service.CassandraDaemon" ){ print $11 }')"
+    fi
 fi
 
 if [ "x$JAVA" = "x" ]; then
