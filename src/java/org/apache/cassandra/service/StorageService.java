@@ -2818,7 +2818,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     private void takeSnapshot(String tag, boolean ephemeral, String... keyspaceNames) throws IOException {
         if (operationMode == Mode.JOINING)
-            logger.info("Taking snapshot of joining node");
+            logger.warn("Taking snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
         if (tag == null || tag.equals(""))
             throw new IOException("You must supply a snapshot name.");
 
@@ -2880,7 +2880,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (keyspaceName == null)
             throw new IOException("You must supply a keyspace name");
         if (operationMode == Mode.JOINING)
-            logger.info("Taking column family snapshot of bootstrapping node");
+            logger.warn("Taking column family snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
 
         if (columnFamilyName == null)
             throw new IOException("You must supply a table name");
@@ -2923,7 +2923,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 if (keyspaceName == null)
                     throw new IOException("You must supply a keyspace name");
                 if (operationMode.equals(Mode.JOINING))
-                    logger.info("Taking multiple column family snapshot of joining node");
+                    logger.warn("Taking multiple column family snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
 
                 if (columnFamilyName == null)
                     throw new IOException("You must supply a column family name");
