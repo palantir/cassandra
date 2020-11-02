@@ -171,7 +171,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
-    private static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
+    @VisibleForTesting
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -1362,12 +1363,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     public void setOperationModeNormal() {
-        setMode(Mode.NORMAL, false);
+        setOperationMode(Mode.NORMAL);
     }
 
     @VisibleForTesting
-    void setOperationModeJoining() {
-        setMode(Mode.JOINING, false);
+    void setOperationMode(Mode mode) {
+        setMode(mode, false);
     }
 
     @Override

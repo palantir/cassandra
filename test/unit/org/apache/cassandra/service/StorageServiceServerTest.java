@@ -29,6 +29,7 @@ import java.util.*;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -76,6 +77,11 @@ public class StorageServiceServerTest
         IEndpointSnitch snitch = new PropertyFileSnitch();
         DatabaseDescriptor.setEndpointSnitch(snitch);
         Keyspace.setInitialized();
+    }
+
+    @Before
+    public void setStartMode() {
+        StorageService.instance.setOperationMode(StorageService.Mode.STARTING);
     }
 
     @Test
@@ -130,6 +136,7 @@ public class StorageServiceServerTest
     public void testSnapshot() throws IOException
     {
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
+        StorageService.instance.clearSnapshot("snapshot");
         StorageService.instance.takeSnapshot("snapshot");
     }
 
@@ -159,7 +166,8 @@ public class StorageServiceServerTest
         assertFalse(tmd.isMember(bootstrappingNode));
         assertFalse(tmd.isLeaving(bootstrappingNode));
 
-        ss.setOperationModeJoining();
+        ss.setOperationMode(StorageService.Mode.JOINING);
+        ss.clearSnapshot("joiningSnapshot");
         ss.takeSnapshot("joiningSnapshot");
     }
 
