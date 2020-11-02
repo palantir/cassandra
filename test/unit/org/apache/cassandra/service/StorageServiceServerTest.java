@@ -35,18 +35,24 @@ import org.junit.runner.RunWith;
 
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
+import org.apache.cassandra.Util;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.WindowsFailedSnapshotTracker;
 import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.dht.OrderPreservingPartitioner.StringToken;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner.LongToken;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.gms.ApplicationState;
+import org.apache.cassandra.gms.Gossiper;
+import org.apache.cassandra.gms.VersionedValue;
 import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.locator.PropertyFileSnitch;
 import org.apache.cassandra.locator.TokenMetadata;
@@ -55,6 +61,8 @@ import org.apache.cassandra.utils.FBUtilities;
 
 import static junit.framework.Assert.assertNotSame;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -123,6 +131,36 @@ public class StorageServiceServerTest
     {
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
         StorageService.instance.takeSnapshot("snapshot");
+    }
+
+    @Test
+    public void testSnapshotJoiningNode() throws InterruptedException, IOException
+    {
+        StorageService ss = StorageService.instance;
+        TokenMetadata tmd = ss.getTokenMetadata();
+        tmd.clearUnsafe();
+        IPartitioner partitioner = RandomPartitioner.instance;
+        VersionedValue.VersionedValueFactory valueFactory = new VersionedValue.VersionedValueFactory(partitioner);
+
+        ArrayList<Token> endpointTokens = new ArrayList<Token>();
+        ArrayList<Token> keyTokens = new ArrayList<Token>();
+        List<InetAddress> hosts = new ArrayList<InetAddress>();
+        List<UUID> hostIds = new ArrayList<UUID>();
+
+        Util.createInitialRing(ss, partitioner, endpointTokens, keyTokens, hosts, hostIds, 7);
+
+        InetAddress bootstrappingNode = hosts.get(1);
+        Collection<Token> bootstrapTokens = Collections.singleton(keyTokens.get(3));
+        Gossiper.instance.injectApplicationState(bootstrappingNode, ApplicationState.TOKENS, valueFactory.tokens(bootstrapTokens));
+        ss.onChange(bootstrappingNode,
+                    ApplicationState.STATUS,
+                    valueFactory.bootstrapping(bootstrapTokens));
+
+        assertFalse(tmd.isMember(bootstrappingNode));
+        assertFalse(tmd.isLeaving(bootstrappingNode));
+
+        ss.setOperationModeJoining();
+        ss.takeSnapshot("joiningSnapshot");
     }
 
     private void checkTempFilePresence(File f, boolean exist)

@@ -1365,6 +1365,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(Mode.NORMAL, false);
     }
 
+    @VisibleForTesting
+    void setOperationModeJoining() {
+        setMode(Mode.JOINING, false);
+    }
+
     @Override
     public Set<Map<String, String>> getNonTransientErrors() {
         return ImmutableSet.copyOf(nonTransientErrors);
