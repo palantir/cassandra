@@ -29,6 +29,7 @@ import java.util.*;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,7 +54,6 @@ import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.cassandra.utils.FBUtilities;
 
-import static junit.framework.Assert.assertNotSame;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -68,6 +68,11 @@ public class StorageServiceServerTest
         IEndpointSnitch snitch = new PropertyFileSnitch();
         DatabaseDescriptor.setEndpointSnitch(snitch);
         Keyspace.setInitialized();
+    }
+
+    @Before
+    public void setStartMode() {
+        StorageService.instance.setOperationMode(StorageService.Mode.STARTING);
     }
 
     @Test
@@ -122,7 +127,17 @@ public class StorageServiceServerTest
     public void testSnapshot() throws IOException
     {
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
+        StorageService.instance.clearSnapshot("snapshot");
         StorageService.instance.takeSnapshot("snapshot");
+    }
+
+    @Test
+    public void testSnapshotJoiningNode() throws InterruptedException, IOException
+    {
+        StorageService ss = StorageService.instance;
+        ss.setOperationMode(StorageService.Mode.JOINING);
+        ss.clearSnapshot("joiningSnapshot");
+        ss.takeSnapshot("joiningSnapshot");
     }
 
     private void checkTempFilePresence(File f, boolean exist)
