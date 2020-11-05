@@ -93,6 +93,7 @@ import junit.framework.Assert;
 
 import org.junit.*;
 
+@Ignore // Ignoring due to flakiness, see https://issues.apache.org/jira/browse/CASSANDRA-15974
 public class SASIIndexTest
 {
     private static final IPartitioner PARTITIONER;
