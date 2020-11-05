@@ -28,6 +28,7 @@ import com.palantir.cassandra.utils.CountingCellIterator;
 
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
+import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,9 @@ import org.apache.cassandra.tracing.Tracing;
 public class SliceQueryFilter implements IDiskAtomFilter
 {
     private static final Logger logger = LoggerFactory.getLogger(SliceQueryFilter.class);
+
+    private static final boolean LOG_HIGH_MEMORY_COLLECTION = Boolean.getBoolean("palantir_cassandra.log_high_memory_collection");
+    private Long highMemoryCollectionThreshold = null;
 
     /**
      * A special value for compositesToGroup that indicates that partitioned tombstones should not be included in results
@@ -100,6 +104,9 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this.reversed = reversed;
         this.count = count;
         this.compositesToGroup = compositesToGroup;
+        this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
+                                             ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
+                                             : null;
     }
 
     public SliceQueryFilter cloneShallow()
@@ -268,6 +275,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
         columnCounter = columnCounter(container.getComparator(), now);
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
+        boolean hasBreachedCollectionThreshold = false;
+        long dataSizeCollected = 0;
+        long metadataSizeCollected = 0;
+
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
@@ -301,6 +312,22 @@ public class SliceQueryFilter implements IDiskAtomFilter
             }
 
             container.appendColumn(cell);
+
+            if (LOG_HIGH_MEMORY_COLLECTION)
+            {
+                // only log once per iteration
+                if (!hasBreachedCollectionThreshold)
+                {
+                    dataSizeCollected += cell.cellDataSize();
+                    metadataSizeCollected += cell.unsharedHeapSizeExcludingData();
+                    if (dataSizeCollected + metadataSizeCollected > highMemoryCollectionThreshold)
+                    {
+                        logger.warn("Breached memory threshold while collecting cells for keyspace/cf {} and key {}; data size: {}; metadata size: {}",
+                                    container.metadata().ksAndCFName, key, dataSizeCollected, metadataSizeCollected);
+                        hasBreachedCollectionThreshold = true;
+                    }
+                }
+            }
         }
 
         boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneWarnThreshold();
