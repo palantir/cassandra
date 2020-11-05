@@ -17,8 +17,6 @@
  */
 package org.apache.cassandra.db.filter;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.nio.ByteBuffer;
 import java.io.DataInput;
 import java.io.IOException;
@@ -106,10 +104,9 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this.reversed = reversed;
         this.count = count;
         this.compositesToGroup = compositesToGroup;
-        if (LOG_HIGH_MEMORY_COLLECTION)
-        {
-            highMemoryCollectionThreshold = Long.parseLong("palantir_cassandra.high_memory_collection_threshold_in_mb") * FileUtils.ONE_MB;
-        }
+        this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
+                                             ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
+                                             : null;
     }
 
     public SliceQueryFilter cloneShallow()
