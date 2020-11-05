@@ -280,6 +280,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
         boolean hasBreachedCollectionThreshold = false;
         long dataSizeCollected = 0;
+        long metadataSizeCollected = 0;
 
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
@@ -320,11 +321,12 @@ public class SliceQueryFilter implements IDiskAtomFilter
                 // only log once per iteration
                 if (!hasBreachedCollectionThreshold)
                 {
-                    dataSizeCollected += cell.cellDataSize() + cell.unsharedHeapSizeExcludingData();
-                    if (dataSizeCollected > highMemoryCollectionThreshold)
+                    dataSizeCollected += cell.cellDataSize();
+                    metadataSizeCollected += cell.unsharedHeapSizeExcludingData();
+                    if (dataSizeCollected + metadataSizeCollected > highMemoryCollectionThreshold)
                     {
-                        logger.warn("Breached memory threshold while collecting cells for keyspace/cf {} and key {}}",
-                                    container.metadata().ksAndCFName, key);
+                        logger.warn("Breached memory threshold while collecting cells for keyspace/cf {} and key {}; data size: {}; metadata size: {}",
+                                    container.metadata().ksAndCFName, key, dataSizeCollected, metadataSizeCollected);
                         hasBreachedCollectionThreshold = true;
                     }
                 }
