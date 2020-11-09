@@ -154,10 +154,6 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     {
         assert address.equals(FBUtilities.getBroadcastAddress()); // we only know about ourself
 
-        if (USE_FORCE_STOP && nodeHasDegraded) {
-            throw new InvalidRequestException("Node is degraded, please try a different host");
-        }
-
         if (BADNESS_THRESHOLD == 0)
         {
             sortByProximityWithScore(address, addresses);
@@ -212,6 +208,10 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         {
             if (subsnitchScore > (sortedScoreIterator.next() * (1.0 + BADNESS_THRESHOLD)))
             {
+                if (USE_FORCE_STOP && nodeHasDegraded) {
+                    throw new InvalidRequestException("Node is degraded, please try a different host");
+                }
+
                 sortByProximityWithScore(address, addresses);
                 return;
             }
