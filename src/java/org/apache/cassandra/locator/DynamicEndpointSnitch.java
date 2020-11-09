@@ -298,7 +298,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
             newScores.put(entry.getKey(), score);
 
             if(USE_FORCE_STOP && entry.getKey() == FBUtilities.getBroadcastAddress()) {
-                nodeHasDegraded = entry.getValue().getSnapshot().getMedian() >= maxLatency && score >= 1.0;
+                nodeHasDegraded = entry.getValue().getSnapshot().getMedian() >= maxLatency;
             }
         }
 
