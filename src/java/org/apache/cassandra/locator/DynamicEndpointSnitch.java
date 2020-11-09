@@ -33,10 +33,14 @@ import com.codahale.metrics.ExponentiallyDecayingReservoir;
 
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.exceptions.InvalidRequestException;
+import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.thrift.TimedOutException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.MBeanWrapper;
+import org.apache.thrift.transport.TTransportException;
 
 
 /**
@@ -48,6 +52,8 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     private static final Logger logger = LoggerFactory.getLogger(DynamicEndpointSnitch.class);
 
     private static final boolean USE_SEVERITY = !Boolean.getBoolean("cassandra.ignore_dynamic_snitch_severity");
+    private static final boolean USE_FORCE_STOP = Boolean.getBoolean("cassandra.dynamic_snitch_force_stop");
+    private Double maxLatency;
 
     private static final double ALPHA = 0.75; // set to 0.75 to make EDS more biased to towards the newer values
     private static final int WINDOW_SIZE = 100;
@@ -71,6 +77,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
 
     private volatile HashMap<InetAddress, Double> scores = new HashMap<>();
     private final ConcurrentHashMap<InetAddress, ExponentiallyDecayingReservoir> samples = new ConcurrentHashMap<>();
+    private volatile boolean nodeHasDegraded = false;
 
     public final IEndpointSnitch subsnitch;
 
@@ -87,6 +94,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         if (instance != null)
             mbeanName += ",instance=" + instance;
         subsnitch = snitch;
+        maxLatency = (USE_FORCE_STOP) ? Double.parseDouble(System.getProperty("cassandra.dynamic_snitch_max_latency")) : Double.MAX_VALUE;
         Runnable update = new Runnable()
         {
             public void run()
@@ -145,6 +153,11 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     public void sortByProximity(final InetAddress address, List<InetAddress> addresses)
     {
         assert address.equals(FBUtilities.getBroadcastAddress()); // we only know about ourself
+
+        if (USE_FORCE_STOP && nodeHasDegraded) {
+            throw new InvalidRequestException("Node is degraded, please try a different host");
+        }
+
         if (BADNESS_THRESHOLD == 0)
         {
             sortByProximityWithScore(address, addresses);
@@ -283,7 +296,12 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
                 score += StorageService.instance.getSeverity(entry.getKey());
             // lowest score (least amount of badness) wins.
             newScores.put(entry.getKey(), score);
+
+            if(USE_FORCE_STOP && entry.getKey() == FBUtilities.getBroadcastAddress()) {
+                nodeHasDegraded = entry.getValue().getSnapshot().getMedian() >= maxLatency;
+            }
         }
+
         scores = newScores;
         if (logger.isDebugEnabled()) {
             logAddressOrdering();
