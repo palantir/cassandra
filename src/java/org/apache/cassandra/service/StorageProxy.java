@@ -1399,7 +1399,7 @@ public class StorageProxy implements StorageProxyMBean
     throws UnavailableException, ReadFailureException, ReadTimeoutException
     {
 
-        if (readMetrics.latency.getSnapshot().getMedian() > TimeUnit.SECONDS.toMicros(2)) {
+        if (readMetrics.latency.getSnapshot().getMedian() > TimeUnit.SECONDS.toMicros(3)) {
             throw new InvalidRequestException("Node has degraded, please try a different host");
         }
 
