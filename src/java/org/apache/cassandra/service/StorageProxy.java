@@ -20,6 +20,7 @@ package org.apache.cassandra.service;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1397,6 +1398,11 @@ public class StorageProxy implements StorageProxyMBean
     private static List<Row> fetchRows(List<ReadCommand> initialCommands, ConsistencyLevel consistencyLevel)
     throws UnavailableException, ReadFailureException, ReadTimeoutException
     {
+
+        if (readMetrics.latency.getSnapshot().getMedian() > TimeUnit.SECONDS.toMicros(2)) {
+            throw new InvalidRequestException("Node has degraded, please try a different host");
+        }
+
         List<Row> rows = new ArrayList<>(initialCommands.size());
         // (avoid allocating a new list in the common case of nothing-to-retry)
         List<ReadCommand> commandsToRetry = Collections.emptyList();
