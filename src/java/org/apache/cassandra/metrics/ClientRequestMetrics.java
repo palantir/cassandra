@@ -31,14 +31,29 @@ public class ClientRequestMetrics extends LatencyMetrics
     public final Meter timeouts;
     public final Meter unavailables;
     public final Meter failures;
+    private final String scope;
 
     public ClientRequestMetrics(String scope)
     {
         super("ClientRequest", scope);
-
+        this.scope = scope;
         timeouts = Metrics.meter(factory.createMetricName("Timeouts"));
         unavailables = Metrics.meter(factory.createMetricName("Unavailables"));
         failures = Metrics.meter(factory.createMetricName("Failures"));
+    }
+
+    public ClientRequestMetrics(MetricNameFactory factory, ClientRequestMetrics parent)
+    {
+        super(factory, "ClientRequest", parent);
+
+        this.scope = "";
+        timeouts = Metrics.meter(factory.createMetricName("Timeouts"));
+        unavailables = Metrics.meter(factory.createMetricName("Unavailables"));
+        failures = Metrics.meter(factory.createMetricName("Failures"));
+    }
+
+    public String getScope() {
+        return scope;
     }
 
     public void release()

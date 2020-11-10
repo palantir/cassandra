@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
@@ -88,7 +88,10 @@ public class StorageProxy implements StorageProxyMBean
     };
     private static final ClientRequestMetrics readMetrics = new ClientRequestMetrics("Read");
     private static final ClientRequestMetrics rangeMetrics = new ClientRequestMetrics("RangeSlice");
-    private static final ClientRequestMetrics writeMetrics = new ClientRequestMetrics("Write");
+    private static final ClientRequestMetrics topWriteMetrics = new ClientRequestMetrics("Write");
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelWriteMetrics = Arrays.stream(
+            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topWriteMetrics)));
+
     private static final CASClientRequestMetrics casWriteMetrics = new CASClientRequestMetrics("CASWrite");
     private static final CASClientRequestMetrics casReadMetrics = new CASClientRequestMetrics("CASRead");
 
@@ -561,6 +564,8 @@ public class StorageProxy implements StorageProxyMBean
         long startTime = System.nanoTime();
         List<AbstractWriteResponseHandler<IMutation>> responseHandlers = new ArrayList<>(mutations.size());
 
+        ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
+
         try
         {
             for (IMutation mutation : mutations)
@@ -685,6 +690,8 @@ public class StorageProxy implements StorageProxyMBean
 
         List<WriteResponseHandlerWrapper> wrappers = new ArrayList<WriteResponseHandlerWrapper>(mutations.size());
         String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
+
+        ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
 
         try
         {
