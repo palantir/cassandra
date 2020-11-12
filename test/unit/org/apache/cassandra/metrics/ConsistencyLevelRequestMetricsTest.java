@@ -18,21 +18,21 @@
 
 package org.apache.cassandra.metrics;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.Test;
 
 import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricRegistry;
 import org.apache.cassandra.db.ConsistencyLevel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ConsistencyLevelRequestMetricsTest
 {
+
     @Test
-    public void consistencyLevelMetricsRequestWritesToParent() throws InterruptedException
-    {
+    public void consistencyLevelMetricsRequestWritesToParent() throws InterruptedException {
         ClientRequestMetrics topWrite = new ClientRequestMetrics("Write");
         final ConsistencyLevelRequestMetrics consistencyLevelRequestMetrics1 = new ConsistencyLevelRequestMetrics(ConsistencyLevel.ALL, topWrite);
         final ConsistencyLevelRequestMetrics consistencyLevelRequestMetrics2 = new ConsistencyLevelRequestMetrics(ConsistencyLevel.QUORUM, topWrite);
@@ -47,20 +47,59 @@ public class ConsistencyLevelRequestMetricsTest
         first.join();
         second.join();
 
+        topWrite.release();
+        consistencyLevelRequestMetrics1.release();
+        consistencyLevelRequestMetrics2.release();
+
         assertThat(topWrite.totalLatency.getCount()).isEqualTo(2*numSamples);
     }
 
     @Test
-    public void consistencyLevelRequestRegistersMetrics() {
+    public void consistencyLevelRequestMetricsAreUnique() throws InterruptedException {
         ClientRequestMetrics topWrite = new ClientRequestMetrics("Write");
-        new ConsistencyLevelRequestMetrics(ConsistencyLevel.ALL, topWrite);
-        Map<String, Metric> existing = CassandraMetricsRegistry.Metrics.getMetrics();
-        String group = "org.apache.cassandra.metrics.ConsistencyLevelRequest.%s.write";
-        existing.get(String.format(group, "ClientRequestLatency"));
-        existing.get(String.format(group, "ClientRequestTotalLatency"));
-        existing.get(String.format(group, "Unavailables"));
-        existing.get(String.format(group, "Timeouts"));
-        existing.get(String.format(group, "Failures"));
+        final ConsistencyLevelRequestMetrics consistencyLevelRequestMetrics1 = new ConsistencyLevelRequestMetrics(ConsistencyLevel.ALL, topWrite);
+        final ConsistencyLevelRequestMetrics consistencyLevelRequestMetrics2 = new ConsistencyLevelRequestMetrics(ConsistencyLevel.QUORUM, topWrite);
+        final int numSamples1 = 10000;
+        final int numSamples2 = 20000;
+
+        Runnable r1 = () -> logLatency(consistencyLevelRequestMetrics1, numSamples1);
+        Runnable r2 = () -> logLatency(consistencyLevelRequestMetrics2, numSamples2);
+
+        Thread first = new Thread(r1);
+        Thread second = new Thread(r2);
+        first.start();
+        second.start();
+        first.join();
+        second.join();
+
+        topWrite.release();
+        consistencyLevelRequestMetrics1.release();
+        consistencyLevelRequestMetrics2.release();
+
+        assertThat(consistencyLevelRequestMetrics1.totalLatency.getCount()).isEqualTo(numSamples1);
+        assertThat(consistencyLevelRequestMetrics2.totalLatency.getCount()).isEqualTo(numSamples2);
+    }
+
+    @Test
+    public void consistencyLevelRequestRegistersMetrics() {
+        String operation = "Write";
+        ClientRequestMetrics topWrite = new ClientRequestMetrics(operation);
+        ConsistencyLevelRequestMetrics consistencyLevelRequestMetrics = new ConsistencyLevelRequestMetrics(ConsistencyLevel.ALL, topWrite);
+        Map<String, Metric> metrics = new HashMap<>(CassandraMetricsRegistry.Metrics.getMetrics());
+        topWrite.release();
+        consistencyLevelRequestMetrics.release();
+        String base = "org.apache.cassandra.metrics.ConsistencyLevelRequest.%s.ALL.Write";
+        assertThat(metrics.containsKey(String.format(base, "ConsistencyLevelRequestLatency"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "ConsistencyLevelRequestTotalLatency"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "Unavailables"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "Timeouts"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "Failures"))).isEqualTo(true);
+        base = "org.apache.cassandra.metrics.ClientRequest.%s.Write";
+        assertThat(metrics.containsKey(String.format(base, "Latency"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "TotalLatency"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "Unavailables"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "Timeouts"))).isEqualTo(true);
+        assertThat(metrics.containsKey(String.format(base, "Failures"))).isEqualTo(true);
     }
 
     private void logLatency(ConsistencyLevelRequestMetrics consistencyLevelRequestMetrics, int numSamples) {

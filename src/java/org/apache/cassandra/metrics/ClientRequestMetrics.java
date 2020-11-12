@@ -31,7 +31,7 @@ public class ClientRequestMetrics extends LatencyMetrics
     public final Meter timeouts;
     public final Meter unavailables;
     public final Meter failures;
-    private final String scope;
+    protected final String scope;
 
     public ClientRequestMetrics(String scope)
     {
@@ -42,11 +42,11 @@ public class ClientRequestMetrics extends LatencyMetrics
         failures = Metrics.meter(factory.createMetricName("Failures"));
     }
 
-    public ClientRequestMetrics(MetricNameFactory factory, ClientRequestMetrics parent)
+    public ClientRequestMetrics(MetricNameFactory factory, String scope, String namePrefix, ClientRequestMetrics parent)
     {
-        super(factory, "ClientRequest", parent);
+        super(factory, namePrefix, parent);
 
-        this.scope = "";
+        this.scope = scope;
         timeouts = Metrics.meter(factory.createMetricName("Timeouts"));
         unavailables = Metrics.meter(factory.createMetricName("Unavailables"));
         failures = Metrics.meter(factory.createMetricName("Failures"));

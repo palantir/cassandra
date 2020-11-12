@@ -22,19 +22,23 @@ import org.apache.cassandra.db.ConsistencyLevel;
 
 public class ConsistencyLevelRequestMetrics extends ClientRequestMetrics
 {
+    public static final String type = "ConsistencyLevelRequest";
+
     public ConsistencyLevelRequestMetrics(ConsistencyLevel consistencyLevel, ClientRequestMetrics parent) {
-        super(new ConsistencyLevelRequestMetricNameFactory(consistencyLevel, parent.getScope()), parent);
+        super(new ConsistencyLevelRequestMetricNameFactory(consistencyLevel, parent.getScope()),
+              consistencyLevel.name(),
+              type,
+              parent);
     }
 
     static class ConsistencyLevelRequestMetricNameFactory implements MetricNameFactory {
-        private final String type = "ConsistencyLevelRequest";
         private final String consistencyLevelName;
-        private final String scope;
+        private final String operation;
 
-        ConsistencyLevelRequestMetricNameFactory(ConsistencyLevel consistencyLevelName, String scope)
+        ConsistencyLevelRequestMetricNameFactory(ConsistencyLevel consistencyLevelName, String operation)
         {
             this.consistencyLevelName = consistencyLevelName.name();
-            this.scope = scope;
+            this.operation = operation;
         }
 
         public CassandraMetricsRegistry.MetricName createMetricName(String metricName) {
@@ -44,10 +48,10 @@ public class ConsistencyLevelRequestMetrics extends ClientRequestMetrics
             mbeanName.append(groupName).append(":");
             mbeanName.append("type=").append(type);
             mbeanName.append(",consistency=").append(consistencyLevelName);
-            mbeanName.append(",scope=").append(scope);
+            mbeanName.append(",scope=").append(operation);
             mbeanName.append(",name=").append(metricName);
 
-            return new CassandraMetricsRegistry.MetricName(groupName, type, metricName, scope, mbeanName.toString());
+            return new CassandraMetricsRegistry.MetricName(groupName, type, metricName, consistencyLevelName + "." + operation, mbeanName.toString());
         }
     }
 }
