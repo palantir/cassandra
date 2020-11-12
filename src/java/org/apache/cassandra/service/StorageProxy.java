@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
+import org.apache.cassandra.concurrent.ThreadTimeoutWatcher;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
@@ -1569,7 +1570,7 @@ public class StorageProxy implements StorageProxyMBean
         return rows;
     }
 
-    static class LocalReadRunnable extends DroppableRunnable
+    static class LocalReadRunnable extends TimedRunnable
     {
         private final ReadCommand command;
         private final ReadCallback<ReadResponse, Row> handler;
@@ -1577,7 +1578,7 @@ public class StorageProxy implements StorageProxyMBean
 
         LocalReadRunnable(ReadCommand command, ReadCallback<ReadResponse, Row> handler)
         {
-            super(MessagingService.Verb.READ);
+            super(MessagingService.Verb.READ, 10000);
             this.command = command;
             this.handler = handler;
         }
@@ -2242,6 +2243,28 @@ public class StorageProxy implements StorageProxyMBean
                           AbstractWriteResponseHandler<IMutation> responseHandler,
                           String localDataCenter,
                           ConsistencyLevel consistencyLevel) throws OverloadedException;
+    }
+
+    private static abstract class TimedRunnable extends DroppableRunnable
+    {
+
+        private final long timeout;
+
+        public TimedRunnable(Verb verb, long timeout)
+        {
+            super(verb);
+            this.timeout = timeout;
+        }
+
+        protected void runMayThrow() throws Exception
+        {
+            ThreadTimeoutWatcher.INSTANCE.watchThread(timeout);
+            try {
+                super.run();
+            } finally {
+                ThreadTimeoutWatcher.INSTANCE.unwatchThread();
+            }
+        }
     }
 
     /**
