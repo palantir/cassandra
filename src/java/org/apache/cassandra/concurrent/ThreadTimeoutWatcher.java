@@ -56,6 +56,7 @@ public class ThreadTimeoutWatcher implements Runnable
     public void run()
     {
         while(true) {
+            logger.info("Checking to see if threads need to be interrupted.", threadsToWatch);
             ArrayList<Thread> threadsToWake = new ArrayList(threadsToWatch.size());
             for (Map.Entry<Thread, Long> entry : threadsToWatch.entrySet()) {
                 if (System.currentTimeMillis() >= entry.getValue()) {
