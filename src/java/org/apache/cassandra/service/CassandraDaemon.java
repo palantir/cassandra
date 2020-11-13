@@ -185,6 +185,7 @@ public class CassandraDaemon
      */
     protected void setup()
     {
+        logger.info("FIND ME I AM PROOF YOU'RE NOT INSANE");
         FileUtils.setFSErrorHandler(new DefaultFSErrorHandler());
 
         // Delete any failed snapshot deletions on Windows - see CASSANDRA-9658
