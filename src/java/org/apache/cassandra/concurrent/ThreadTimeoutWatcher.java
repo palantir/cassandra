@@ -28,24 +28,29 @@ import org.slf4j.LoggerFactory;
 public class ThreadTimeoutWatcher implements Runnable
 {
     private static final Logger logger = LoggerFactory.getLogger(ThreadTimeoutWatcher.class);
-    public static final ThreadTimeoutWatcher INSTANCE = new ThreadTimeoutWatcher();
+    public static final ThreadTimeoutWatcher INSTANCE;
     private final ConcurrentHashMap<Thread, Long> threadsToWatch = new ConcurrentHashMap<>();
 
     static {
+        INSTANCE = new ThreadTimeoutWatcher();
         new Thread(INSTANCE).start();
     }
 
-    private ThreadTimeoutWatcher() {}
+    private ThreadTimeoutWatcher() {
+        logger.info("STARTING THREAD WATCHER");
+    }
 
     public void watchThread(long timeout) {
         watchThread(Thread.currentThread(), System.currentTimeMillis() + timeout);
     }
 
     public void watchThread(Thread thread, long timeout) {
+        logger.info("ADDED THREAD TO WATCH");
         threadsToWatch.put(thread, System.currentTimeMillis() + timeout);
     }
 
     public void unwatchThread(Thread thread) {
+        logger.info("REMOVED THREAD TO WATCH");
         threadsToWatch.remove(thread);
     }
 
