@@ -22,8 +22,12 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ThreadTimeoutWatcher implements Runnable
 {
+    private static final Logger logger = LoggerFactory.getLogger(ThreadTimeoutWatcher.class);
     public static final ThreadTimeoutWatcher INSTANCE = new ThreadTimeoutWatcher();
     private final ConcurrentHashMap<Thread, Long> threadsToWatch = new ConcurrentHashMap<>();
 
@@ -61,6 +65,7 @@ public class ThreadTimeoutWatcher implements Runnable
             for(Thread thread : threadsToWake) {
                 if (threadsToWatch.remove(thread) != null) {
                     thread.interrupt();
+                    logger.warn("Evicted thread {} due to hitting timeout", thread.getId());
                 }
             }
 
