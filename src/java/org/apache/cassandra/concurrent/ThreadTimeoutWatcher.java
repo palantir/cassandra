@@ -32,7 +32,7 @@ public class ThreadTimeoutWatcher implements Runnable
     private final ConcurrentHashMap<Thread, Long> threadsToWatch = new ConcurrentHashMap<>();
 
     static {
-        new Thread(INSTANCE).run();
+        new Thread(INSTANCE).start();
     }
 
     private ThreadTimeoutWatcher() {}
