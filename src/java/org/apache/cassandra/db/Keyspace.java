@@ -23,9 +23,11 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -375,6 +377,20 @@ public class Keyspace
         ColumnFamily columnFamily = cfStore.getColumnFamily(filter);
         Row row = new Row(filter.key, columnFamily);
         cfStore.metric.readBytesRead.mark(Row.serializer.serializedSize(row, MessagingService.current_version));
+
+        int readDelay = DatabaseDescriptor.getReadDelay();
+        if (readDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before responding to read message", readDelay);
+            try
+            {
+                Thread.sleep(TimeUnit.SECONDS.toMillis(readDelay));
+            }
+            catch (InterruptedException e)
+            {
+                Thread.currentThread().interrupt();
+            }
+        }
+
         return row;
     }
 
