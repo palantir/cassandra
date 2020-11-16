@@ -40,12 +40,12 @@ public class ThreadTimeoutWatcher implements Runnable
     }
 
     public void watchThread(Thread thread, long timeout) {
-        logger.info("ADDED THREAD TO WATCH");
+        logger.info("ADDED THREAD TO WATCH", thread.getId(), timeout);
         threadsToWatch.put(thread, System.currentTimeMillis() + timeout);
     }
 
     public void unwatchThread(Thread thread) {
-        logger.info("REMOVED THREAD TO WATCH");
+        logger.info("REMOVED THREAD TO WATCH", thread.getId());
         threadsToWatch.remove(thread);
     }
 
