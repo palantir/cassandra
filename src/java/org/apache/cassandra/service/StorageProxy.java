@@ -1570,7 +1570,7 @@ public class StorageProxy implements StorageProxyMBean
         return rows;
     }
 
-    static class LocalReadRunnable extends TimedRunnable
+    static class LocalReadRunnable extends DroppableRunnable
     {
         private final ReadCommand command;
         private final ReadCallback<ReadResponse, Row> handler;
@@ -1578,7 +1578,7 @@ public class StorageProxy implements StorageProxyMBean
 
         LocalReadRunnable(ReadCommand command, ReadCallback<ReadResponse, Row> handler)
         {
-            super(MessagingService.Verb.READ, 10000);
+            super(MessagingService.Verb.READ);
             this.command = command;
             this.handler = handler;
         }
@@ -1858,7 +1858,7 @@ public class StorageProxy implements StorageProxyMBean
                     if (filteredEndpoints.size() == 1
                         && filteredEndpoints.get(0).equals(FBUtilities.getBroadcastAddress()))
                     {
-                        StageManager.getStage(Stage.READ).execute(new LocalRangeSliceRunnable(nodeCmd, handler));
+                        StageManager.getStage(Stage.READ).execute(new TimedRunnable(new LocalRangeSliceRunnable(nodeCmd, handler), 10000));
                     }
                     else
                     {
@@ -2245,22 +2245,24 @@ public class StorageProxy implements StorageProxyMBean
                           ConsistencyLevel consistencyLevel) throws OverloadedException;
     }
 
-    private static abstract class TimedRunnable extends DroppableRunnable
+    public static class TimedRunnable implements Runnable
     {
 
+        private final Runnable delegate;
         private final long timeout;
 
-        public TimedRunnable(Verb verb, long timeout)
+        public TimedRunnable(Runnable delegate, long timeout)
         {
-            super(verb);
+            this.delegate = delegate;
             this.timeout = timeout;
         }
 
-        protected void runMayThrow() throws Exception
-        {
+
+        @Override
+        public void run() {
             ThreadTimeoutWatcher.INSTANCE.watchThread(timeout);
             try {
-                super.run();
+                delegate.run();
             } finally {
                 ThreadTimeoutWatcher.INSTANCE.unwatchThread();
             }

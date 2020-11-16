@@ -118,7 +118,7 @@ public abstract class AbstractReadExecutor
         {
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
             KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
-            StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
+            StageManager.getStage(stage(command)).maybeExecuteImmediately(new StorageProxy.TimedRunnable(new LocalReadRunnable(command, handler), 10000));
         }
     }
 

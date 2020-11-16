@@ -28,13 +28,8 @@ import org.slf4j.LoggerFactory;
 public class ThreadTimeoutWatcher implements Runnable
 {
     private static final Logger logger = LoggerFactory.getLogger(ThreadTimeoutWatcher.class);
-    public static final ThreadTimeoutWatcher INSTANCE;
+    public static final ThreadTimeoutWatcher INSTANCE = new ThreadTimeoutWatcher();
     private final ConcurrentHashMap<Thread, Long> threadsToWatch = new ConcurrentHashMap<>();
-
-    static {
-        INSTANCE = new ThreadTimeoutWatcher();
-        new Thread(INSTANCE).start();
-    }
 
     private ThreadTimeoutWatcher() {
         logger.info("STARTING THREAD WATCHER");
