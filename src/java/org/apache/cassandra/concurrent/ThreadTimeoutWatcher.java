@@ -36,7 +36,7 @@ public class ThreadTimeoutWatcher implements Runnable
     }
 
     public void watchThread(long timeout) {
-        watchThread(Thread.currentThread(), System.currentTimeMillis() + timeout);
+        watchThread(Thread.currentThread(), timeout);
     }
 
     public void watchThread(Thread thread, long timeout) {
