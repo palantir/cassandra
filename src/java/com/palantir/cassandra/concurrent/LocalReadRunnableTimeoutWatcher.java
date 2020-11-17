@@ -21,9 +21,7 @@ package com.palantir.cassandra.concurrent;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.cassandra.concurrent.DebuggableScheduledThreadPoolExecutor;
 import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
@@ -31,19 +29,17 @@ import org.apache.cassandra.utils.FBUtilities;
 public class LocalReadRunnableTimeoutWatcher implements Runnable
 {
     public static final LocalReadRunnableTimeoutWatcher INSTANCE = new LocalReadRunnableTimeoutWatcher();
-    private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor("ReadTimeoutWatcher");
+    private final ConcurrentHashMap<ReadCommand, Long> readCommandStartTimes = new ConcurrentHashMap<>();
+    private static final long TIMEOUT = 10000L;
 
-    private final ConcurrentHashMap<ReadCommand, Long> timeoutMap = new ConcurrentHashMap<>();
+    private LocalReadRunnableTimeoutWatcher() { }
 
-    private LocalReadRunnableTimeoutWatcher() {
-    }
-
-    public void watch(ReadCommand readCommand, long timeout) {
-        timeoutMap.put(readCommand, System.currentTimeMillis() + timeout);
+    public void watch(ReadCommand readCommand) {
+        readCommandStartTimes.put(readCommand, System.currentTimeMillis());
     }
 
     public void unwatch(ReadCommand readCommand) {
-        Long startTime = timeoutMap.remove(readCommand);
+        Long startTime = readCommandStartTimes.remove(readCommand);
         if (startTime != null) {
             MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(),
                                                    System.currentTimeMillis() - startTime);
@@ -52,9 +48,9 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 
     public void run()
     {
-        ArrayList<ReadCommand> timedOutCommands = new ArrayList<>(timeoutMap.size());
-        for(Map.Entry<ReadCommand, Long> entry : timeoutMap.entrySet()) {
-            if (entry.getValue() <= System.currentTimeMillis()) {
+        ArrayList<ReadCommand> timedOutCommands = new ArrayList<>(readCommandStartTimes.size());
+        for(Map.Entry<ReadCommand, Long> entry : readCommandStartTimes.entrySet()) {
+            if (entry.getValue() + TIMEOUT <= System.currentTimeMillis()) {
                 timedOutCommands.add(entry.getKey());
             }
         }
