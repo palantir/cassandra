@@ -22,6 +22,9 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.net.MessagingService;
@@ -31,9 +34,12 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 {
     public static final LocalReadRunnableTimeoutWatcher INSTANCE = new LocalReadRunnableTimeoutWatcher();
     private final ConcurrentHashMap<ReadCommand, Long> readCommandStartTimes = new ConcurrentHashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(LocalReadRunnableTimeoutWatcher.class);
+
     private LocalReadRunnableTimeoutWatcher() { }
 
     public void watch(ReadCommand readCommand) {
+        logger.trace("Watching read command {} for timeout {}", readCommand, getTimeout());
         readCommandStartTimes.put(readCommand, System.currentTimeMillis());
     }
 
@@ -44,13 +50,15 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
     public void unwatch(ReadCommand readCommand) {
         Long startTime = readCommandStartTimes.remove(readCommand);
         if (startTime != null) {
-            MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(),
-                                                   System.currentTimeMillis() - startTime);
+            long latency = System.currentTimeMillis() - startTime;
+            MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(), latency);
+            logger.trace("Un-watching read command {} for timeout {} ", readCommand, getTimeout());
         }
     }
 
     public void run()
     {
+        logger.trace("Checking read commands {} to see if they've timed out", readCommandStartTimes);
         ArrayList<ReadCommand> timedOutCommands = new ArrayList<>(readCommandStartTimes.size());
         for(Map.Entry<ReadCommand, Long> entry : readCommandStartTimes.entrySet()) {
             if (entry.getValue() + getTimeout() <= System.currentTimeMillis()) {
