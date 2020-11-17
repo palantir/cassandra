@@ -23,7 +23,7 @@ import io.airlift.command.Command;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
-@Command(name = "setreaddelay", description = "Set a delay for all reads requested to this node from another node")
+@Command(name = "setreaddelay", description = "Set a delay for all local reads performed on this node")
 public class SetReadDelay extends NodeToolCmd
 {
 
