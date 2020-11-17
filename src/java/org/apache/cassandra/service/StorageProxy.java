@@ -1581,7 +1581,7 @@ public class StorageProxy implements StorageProxyMBean
             super(MessagingService.Verb.READ);
             this.command = command;
             this.handler = handler;
-            LocalReadRunnableTimeoutWatcher.INSTANCE.watch(command, 10000L);
+            LocalReadRunnableTimeoutWatcher.INSTANCE.watch(command);
         }
 
         protected void runMayThrow()

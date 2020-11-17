@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
@@ -30,12 +31,14 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 {
     public static final LocalReadRunnableTimeoutWatcher INSTANCE = new LocalReadRunnableTimeoutWatcher();
     private final ConcurrentHashMap<ReadCommand, Long> readCommandStartTimes = new ConcurrentHashMap<>();
-    private static final long TIMEOUT = 10000L;
-
     private LocalReadRunnableTimeoutWatcher() { }
 
     public void watch(ReadCommand readCommand) {
         readCommandStartTimes.put(readCommand, System.currentTimeMillis());
+    }
+
+    public long getTimeout() {
+        return DatabaseDescriptor.getReadRpcTimeout();
     }
 
     public void unwatch(ReadCommand readCommand) {
@@ -50,7 +53,7 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
     {
         ArrayList<ReadCommand> timedOutCommands = new ArrayList<>(readCommandStartTimes.size());
         for(Map.Entry<ReadCommand, Long> entry : readCommandStartTimes.entrySet()) {
-            if (entry.getValue() + TIMEOUT <= System.currentTimeMillis()) {
+            if (entry.getValue() + getTimeout() <= System.currentTimeMillis()) {
                 timedOutCommands.add(entry.getKey());
             }
         }
