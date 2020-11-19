@@ -43,7 +43,7 @@ public class RangeTombstoneCounter
             count++;
             RangeTombstone rangeTombstone = rangeTombstoneIterator.next();
 
-            if (rangeTombstone.getLocalDeletionTime() < gcBefore || rangeTombstone.timestamp() < gcBefore) {
+            if (rangeTombstone.data.isGcAble(gcBefore)) {
                 droppable++;
             }
         }
