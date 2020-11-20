@@ -44,14 +44,12 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.utils.Pair;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 
 public class DirectoriesTest
 {
@@ -87,6 +85,7 @@ public class DirectoriesTest
         Directories.overrideDataDirectoriesForTest(tempDataDir.getPath());
         // Create two fake data dir for tests, one using CF directories, one that do not.
         createTestFiles();
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.99);
     }
 
     @AfterClass
@@ -94,6 +93,7 @@ public class DirectoriesTest
     {
         Directories.resetDataDirectoriesAfterTest();
         FileUtils.deleteRecursive(tempDataDir);
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.99);
     }
 
     private static void createTestFiles() throws IOException
@@ -428,6 +428,15 @@ public class DirectoriesTest
     @Test
     public void testVerifyDiskHasEnoughUsableSpace() {
         Directories.verifyDiskHasEnoughUsableSpace();
+    }
+
+
+    @Test
+    public void testVerifyDiskRespectsConfig() {
+        Directories.verifyDiskHasEnoughUsableSpace();
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.0);
+        assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
+                .hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
     }
 
     @Test

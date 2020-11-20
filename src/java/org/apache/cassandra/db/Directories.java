@@ -110,8 +110,6 @@ public class Directories
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
 
-    public static final double MAX_DISK_UTILIZATION = 0.99;
-
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
     public static final String SECONDARY_INDEX_NAME_SEPARATOR = ".";
@@ -319,10 +317,11 @@ public class Directories
                                                                 "Failed to filter most full data directory"));
         logger.debug(String.format("Highest data directory disk utilization on path %s (%f)",
                                    maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
-        if (maxPathToUtilization.getValue() > MAX_DISK_UTILIZATION)
+        double threshold = DatabaseDescriptor.getMaxDiskUtilizationThreshold();
+        if (maxPathToUtilization.getValue() > threshold)
         {
             ExceededDiskThresholdException cause = new ExceededDiskThresholdException(
-                        maxPathToUtilization.getKey().location, maxPathToUtilization.getValue(), MAX_DISK_UTILIZATION);
+                                    maxPathToUtilization.getKey().location, maxPathToUtilization.getValue(), threshold);
             throw new FSWriteError(cause, maxPathToUtilization.getKey().location);
         }
     }
