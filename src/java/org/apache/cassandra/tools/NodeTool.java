@@ -156,6 +156,7 @@ public class NodeTool
                 ForceTerminateRepairSessions.class,
                 DynamicEndpointSnitchStats.class,
                 SetReadDelay.class,
+                SetWriteDelay.class,
                 SetRangeScanTokenRangesWarnThreshold.class
         );
 

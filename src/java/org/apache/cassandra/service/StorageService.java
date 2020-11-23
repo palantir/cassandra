@@ -4747,6 +4747,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info(String.format("Updated read_delay_in_s to %d", readDelay));
     }
 
+    public void setWriteDelay(int writeDelay) {
+        DatabaseDescriptor.setWriteDelay(writeDelay);
+        logger.info(String.format("Updated write_delay_in_s to %d", writeDelay));
+    }
+
     @VisibleForTesting
     static class BootstrapManager {
 

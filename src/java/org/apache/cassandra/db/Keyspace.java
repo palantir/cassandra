@@ -23,9 +23,11 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -371,6 +373,12 @@ public class Keyspace
 
     public Row getRow(QueryFilter filter)
     {
+        int readDelay = DatabaseDescriptor.getReadDelay();
+        if (readDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before performing read", readDelay);
+            Uninterruptibles.sleepUninterruptibly(readDelay, TimeUnit.SECONDS);
+        }
+
         ColumnFamilyStore cfStore = getColumnFamilyStore(filter.getColumnFamilyName());
         ColumnFamily columnFamily = cfStore.getColumnFamily(filter);
         Row row = new Row(filter.key, columnFamily);
@@ -393,6 +401,12 @@ public class Keyspace
      */
     public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
     {
+        int writeDelay = DatabaseDescriptor.getWriteDelay();
+        if (writeDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before performing write", writeDelay);
+            Uninterruptibles.sleepUninterruptibly(writeDelay, TimeUnit.SECONDS);
+        }
+
         if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
             throw new RuntimeException("Testing write failures");
 
