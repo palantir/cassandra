@@ -401,12 +401,6 @@ public class Keyspace
      */
     public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
     {
-        int writeDelay = DatabaseDescriptor.getWriteDelay();
-        if (writeDelay > 0) {
-            Tracing.trace("Sleeping for delay of {} seconds before performing write", writeDelay);
-            Uninterruptibles.sleepUninterruptibly(writeDelay, TimeUnit.SECONDS);
-        }
-
         if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
             throw new RuntimeException("Testing write failures");
 
