@@ -40,6 +40,12 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
             throw new IsBootstrappingException();
         }
 
+        int readDelay = DatabaseDescriptor.getReadDelay();
+        if (readDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before responding to read message", readDelay);
+            Uninterruptibles.sleepUninterruptibly(readDelay, TimeUnit.SECONDS);
+        }
+
         ReadCommand command = message.payload;
         Keyspace keyspace = Keyspace.open(command.ksName);
         Row row = command.getRow(keyspace);
