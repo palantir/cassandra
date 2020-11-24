@@ -43,7 +43,7 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
         readCommandStartTimes.put(readCommand, System.currentTimeMillis());
     }
 
-    public long getTimeout() {
+    private long getTimeout() {
         return DatabaseDescriptor.getReadRpcTimeout();
     }
 
