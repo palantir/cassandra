@@ -373,12 +373,6 @@ public class Keyspace
 
     public Row getRow(QueryFilter filter)
     {
-        int readDelay = DatabaseDescriptor.getReadDelay();
-        if (readDelay > 0) {
-            Tracing.trace("Sleeping for delay of {} seconds before performing read", readDelay);
-            Uninterruptibles.sleepUninterruptibly(readDelay, TimeUnit.SECONDS);
-        }
-
         ColumnFamilyStore cfStore = getColumnFamilyStore(filter.getColumnFamilyName());
         ColumnFamily columnFamily = cfStore.getColumnFamily(filter);
         Row row = new Row(filter.key, columnFamily);

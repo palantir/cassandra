@@ -2004,6 +2004,13 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         ColumnFamily result = null;
 
         long start = System.nanoTime();
+
+        int readDelay = DatabaseDescriptor.getReadDelay();
+        if (readDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before performing read", readDelay);
+            Uninterruptibles.sleepUninterruptibly(readDelay, TimeUnit.SECONDS);
+        }
+
         try
         {
             int gcBefore = gcBefore(filter.timestamp);
