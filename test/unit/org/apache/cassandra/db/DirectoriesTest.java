@@ -90,6 +90,8 @@ public class DirectoriesTest
         // Create two fake data dir for tests, one using CF directories, one that do not.
         createTestFiles();
         DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.99);
+        // Enough to make node not fully disabled for tests
+        StorageService.enableAutoCompaction();
     }
 
     @AfterClass
@@ -451,6 +453,29 @@ public class DirectoriesTest
         }
         assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
                 .hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
+    }
+
+    @Test
+    public void testScheduledVerifyDiskHasEnoughUsableSpaceThrowsIfNodeNotDisabled()
+    {
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(0L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+        Runnable check = Directories.getVerifyDiskHasEnoughUsableSpaceRunnable();
+        assertThatThrownBy(check::run).hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
+    }
+
+    @Test
+    public void testScheduledVerifyDiskHasEnoughUsableSpaceDoesNotThrowIfNodeDisabled()
+    {
+        StorageService.instance.disableNode();
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(0L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+        Runnable check = Directories.getVerifyDiskHasEnoughUsableSpaceRunnable();
+        check.run();
     }
 
     @Test

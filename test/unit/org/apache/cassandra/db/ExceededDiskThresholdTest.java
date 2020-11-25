@@ -102,22 +102,6 @@ public class ExceededDiskThresholdTest
     }
 
     @Test
-    public void testHandleExceededDiskThresholdIsInvokedByDefaultUncaughtExceptionHandler() throws InterruptedException
-    {
-        FSErrorHandler spyHandler = spy(new DefaultFSErrorHandler());
-        FileUtils.setFSErrorHandler(spyHandler);
-        FileUtils.setDefaultUncaughtExceptionHandler();
-
-        Thread testThread = new Thread(() -> {
-            throw new ExceededDiskThresholdException(null, 0, 0);
-        });
-        testThread.start();
-        testThread.join();
-
-        verify(spyHandler).handleExceededDiskThreshold(any());
-    }
-
-    @Test
     public void testExceededDiskThrowsOnFlush()
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE_1);

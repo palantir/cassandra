@@ -20,6 +20,7 @@ package org.apache.cassandra.service;
 
 import java.io.File;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +74,11 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             logger.debug("Node already disabled. Ignoring ExceededDiskThresholdException");
             return;
         }
+        handleExceededDiskThresholdInternal(e);
+    }
+
+    @VisibleForTesting
+    void handleExceededDiskThresholdInternal(ExceededDiskThresholdException e) {
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop:

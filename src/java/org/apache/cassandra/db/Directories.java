@@ -306,7 +306,7 @@ public class Directories
             try {
                 Directories.verifyDiskHasEnoughUsableSpace();
             } catch (FSWriteError e) {
-                // If node is already disabled propagating the exception is redundant and clogs logs.
+                // If node is already disabled propagating the exception from scheduled executor is redundant and clogs logs.
                 if (!StorageService.instance.isNodeDisabled()) {
                     throw e;
                 }
