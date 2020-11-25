@@ -26,6 +26,7 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
+import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
@@ -68,6 +69,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
     private ColumnCounter columnCounter;
 
     private CountingCellIterator reducedCells;
+
+    private RangeTombstoneCounter rangeTombstoneCounter = new RangeTombstoneCounter();
 
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count)
     {
@@ -273,6 +276,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
     {
         reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
+        rangeTombstoneCounter = container.getRangeTombstoneCounter();
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
         boolean hasBreachedCollectionThreshold = false;
@@ -466,7 +470,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public int lastTombstones()
     {
-        return columnCounter == null ? 0 : columnCounter.tombstones();
+        return columnCounter == null ? 0 : columnCounter.tombstones() + rangeTombstoneCounter.getCount();
     }
 
     public int lastLive()
@@ -476,7 +480,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public int lastReadDroppableTombstones()
     {
-        return reducedCells == null ? 0 : reducedCells.droppableTombstones();
+        return reducedCells == null ? 0 : reducedCells.droppableTombstones() + rangeTombstoneCounter.getDroppableCount();
     }
 
     public int lastReadDroppableTtls()
@@ -491,7 +495,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public int lastReadTombstones()
     {
-        return reducedCells == null ? 0 : reducedCells.tombstones();
+        return reducedCells == null ? 0 : reducedCells.tombstones() + rangeTombstoneCounter.getCount();
     }
 
     @Override
