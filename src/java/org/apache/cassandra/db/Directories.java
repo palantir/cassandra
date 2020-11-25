@@ -17,8 +17,6 @@
  */
 package org.apache.cassandra.db;
 
-import static com.google.common.collect.Sets.newHashSet;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOError;
@@ -28,9 +26,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
@@ -38,20 +47,26 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Iterables;
-
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.config.*;
+import org.apache.cassandra.concurrent.ScheduledExecutors;
+import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSWriteError;
+import org.apache.cassandra.io.sstable.Component;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.SSTable;
+import org.apache.cassandra.io.sstable.SnapshotDeletingTask;
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
 
+import static com.google.common.collect.Sets.newHashSet;
 /**
  * Encapsulate handling of paths to the data files.
  *
@@ -92,6 +107,8 @@ public class Directories
     private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
+
+    public static final double MAX_DISK_UTILIZATION = 0.99;
 
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
@@ -274,6 +291,39 @@ public class Directories
         }
     }
 
+    public static void startVerifyingDiskDoesNotExceedThreshold()
+    {
+        ScheduledExecutors.scheduledTasks.scheduleAtFixedRate(
+        Directories::verifyDiskHasEnoughUsableSpace, 1, 1, TimeUnit.MINUTES);
+    }
+
+    public static void verifyDiskHasEnoughUsableSpace()
+    {
+        Map<DataDirectory, Double> dirsToUtilization = Arrays.stream(dataDirectories)
+                                                             .collect(Collectors.toMap(
+                                                             Function.identity(),
+                                                             dir -> {
+                                                                 long total = dir.getTotalSpace();
+                                                                 long used = total - dir.getAvailableSpace();
+                                                                 return (double) used / total;
+                                                             })
+                                                             );
+
+        Map.Entry<DataDirectory, Double> maxPathToUtilization = dirsToUtilization
+                                                                .entrySet()
+                                                                .stream()
+                                                                .max(Map.Entry.comparingByValue())
+                                                                .orElseThrow(() -> new RuntimeException(
+                                                                "Failed to filter most full data directory"));
+        logger.debug(String.format("Highest data directory disk utilization on path %s (%f)",
+                                   maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
+        if (maxPathToUtilization.getValue() > MAX_DISK_UTILIZATION)
+        {
+            // There's not enough disk space to handle worst case scenario of total heap dump
+            throw new FSWriteError(new ExceededDiskThresholdException(maxPathToUtilization.getKey().location, maxPathToUtilization.getValue(), MAX_DISK_UTILIZATION), maxPathToUtilization.getKey().location);
+        }
+    }
+
     /**
      * Returns SSTable location which is inside given data directory.
      *
@@ -328,6 +378,7 @@ public class Directories
      */
     public DataDirectory getWriteableLocation(long writeSize)
     {
+        verifyDiskHasEnoughUsableSpace();
         List<DataDirectoryCandidate> candidates = new ArrayList<>();
 
         long totalAvailable = 0L;

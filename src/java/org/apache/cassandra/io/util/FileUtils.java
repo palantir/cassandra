@@ -27,6 +27,7 @@ import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import sun.nio.ch.DirectBuffer;
 
 import org.slf4j.Logger;
@@ -414,6 +415,13 @@ public final class FileUtils
         FSErrorHandler handler = fsErrorHandler.get();
         if (handler != null)
             handler.handleCorruptSSTable(e);
+    }
+
+    public static void handleExceededDiskThreshold(ExceededDiskThresholdException e)
+    {
+        FSErrorHandler handler = fsErrorHandler.get();
+        if (handler != null)
+            handler.handleExceededDiskThreshold(e);
     }
 
     public static void handleFSError(FSError e)

@@ -46,6 +46,7 @@ public interface StorageServiceMBean extends NotificationEmitter
      */
     public enum NonTransientError {
         COMMIT_LOG_CORRUPTION,
+        EXCEEDED_DISK_THRESHOLD,
         SSTABLE_CORRUPTION,
         FS_ERROR
     }

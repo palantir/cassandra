@@ -29,11 +29,9 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +73,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.StartupException;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
@@ -239,6 +238,8 @@ public class CassandraDaemon
 
                         if (e2.getCause() instanceof CorruptSSTableException)
                             FileUtils.handleCorruptSSTable((CorruptSSTableException) e2.getCause());
+                        else if (e2.getCause() instanceof ExceededDiskThresholdException)
+                            FileUtils.handleExceededDiskThreshold((ExceededDiskThresholdException) e2.getCause());
                         else
                             FileUtils.handleFSError((FSError) e2);
                     }
@@ -249,10 +250,17 @@ public class CassandraDaemon
                             logger.error("Exception in thread " + t, e2);
                         FileUtils.handleCorruptSSTable((CorruptSSTableException) e2);
                     }
+                    if (e2 instanceof ExceededDiskThresholdException)
+                    {
+                        if (e2 != e)
+                            logger.error("Exception in thread " + t, e2);
+                        FileUtils.handleExceededDiskThreshold((ExceededDiskThresholdException) e2);
+                    }
                 }
             }
         });
 
+        Directories.startVerifyingDiskDoesNotExceedThreshold();
         completeSetupMayThrowSstableException();
     }
 

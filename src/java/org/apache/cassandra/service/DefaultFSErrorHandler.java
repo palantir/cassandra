@@ -33,6 +33,7 @@ import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 
 public class DefaultFSErrorHandler implements FSErrorHandler
@@ -58,6 +59,30 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop_paranoid:
                 recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION, e.path);
                 logger.error("Stopping transports and compaction due to corrupt sstable exception, disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
+                break;
+        }
+    }
+
+    @Override
+    public void handleExceededDiskThreshold(ExceededDiskThresholdException e) {
+        if (!StorageService.instance.isSetupCompleted())
+            handleStartupFSError(e);
+
+        JVMStabilityInspector.inspectThrowable(e);
+        switch (DatabaseDescriptor.getDiskFailurePolicy())
+        {
+            case stop:
+                recordError(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD, e.file);
+                logger.error("Encountered exceeded disk threshold exception, not stopping transports due to disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
+                break;
+            case stop_paranoid_always:
+            case stop_paranoid:
+                recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD, e.file);
+                logger.error("Stopping transports and compaction due to exceeded disk threshold exception. Disk failure policy: \"{}\"",
                              DatabaseDescriptor.getDiskFailurePolicy(),
                              e);
                 break;
