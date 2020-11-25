@@ -27,11 +27,11 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.DisallowedDirectories;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
-import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 
 public class DefaultFSErrorHandler implements FSErrorHandler
@@ -69,6 +69,10 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             handleStartupFSError(e);
 
         JVMStabilityInspector.inspectThrowable(e);
+        if (StorageService.instance.isNodeDisabled()) {
+            logger.debug("Node already disabled. Ignoring ExceededDiskThresholdException");
+            return;
+        }
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop:
