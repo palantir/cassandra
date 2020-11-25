@@ -25,9 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.DisallowedDirectories;
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSErrorHandler;
@@ -144,24 +142,10 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
     private static void recordErrorAndDisableNode(StorageServiceMBean.NonTransientError error, File path) {
         recordError(error, path);
-        StorageService.instance.stopTransports();
-        disableAutoCompaction();
+        StorageService.instance.disableNode();
     }
 
     private static void recordError(StorageServiceMBean.NonTransientError error, File path) {
         StorageService.instance.recordNonTransientError(error, ImmutableMap.of("path", path.toString()));
-    }
-
-    private static void disableAutoCompaction() {
-        for (String keyspaceName : Schema.instance.getKeyspaces())
-        {
-            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
-            {
-                for (ColumnFamilyStore store : cfs.concatWithIndexes())
-                {
-                    store.disableAutoCompaction();
-                }
-            }
-        }
     }
 }

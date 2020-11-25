@@ -22,7 +22,6 @@ import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.sql.Time;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -436,21 +435,58 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void stopTransports()
     {
-        if (isInitialized())
+        if (isNativeTransportRunning())
         {
-            logger.error("Stopping gossiper");
-            stopGossiping();
+            logger.error("Stopping native transport");
+            stopNativeTransport();
         }
         if (isRPCServerRunning())
         {
             logger.error("Stopping RPC server");
             stopRPCServer();
         }
-        if (isNativeTransportRunning())
+        if (isInitialized())
         {
-            logger.error("Stopping native transport");
-            stopNativeTransport();
+            logger.error("Stopping gossiper");
+            stopGossiping();
         }
+    }
+
+    private void startTransports() {
+        if (!isInitialized() && !Gossiper.instance.isEnabled())
+        {
+            logger.info("Starting gossiper");
+            startGossiping();
+        }
+        if (!isRPCServerRunning())
+        {
+            logger.info("Starting RPC server");
+            startRPCServer();
+        }
+        if (!isNativeTransportRunning())
+        {
+            logger.info("Starting native transport");
+            startNativeTransport();
+        }
+    }
+
+    private boolean areAllTransportsStopped() {
+        return !isGossipRunning() && !isRPCServerRunning() && !isNativeTransportRunning();
+    }
+
+    private static boolean isAutoCompactionDisabled() {
+        boolean isDisabled = true;
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    isDisabled &= store.isAutoCompactionDisabled();
+                }
+            }
+        }
+        return isDisabled;
     }
 
     private void shutdownClientServers()
@@ -4648,6 +4684,49 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             cfs.enableAutoCompaction();
         }
+    }
+
+    public static void disableAutoCompaction() {
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    store.disableAutoCompaction();
+                }
+            }
+        }
+    }
+
+    public static void enableAutoCompaction() {
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    store.enableAutoCompaction();
+                }
+            }
+        }
+    }
+
+    public void enableNode() {
+        logger.info("Starting transports and enabling auto compaction");
+        enableAutoCompaction();
+        instance.startTransports();
+        instance.setOperationModeNormal();
+    }
+
+    public void disableNode() {
+        logger.info("Stopping transports and disabling auto compaction");
+        instance.stopTransports();
+        disableAutoCompaction();
+    }
+
+    public boolean isNodeDisabled() {
+        return instance.areAllTransportsStopped() && isAutoCompactionDisabled();
     }
 
     /** Returns the name of the cluster */
