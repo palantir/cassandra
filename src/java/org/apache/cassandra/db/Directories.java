@@ -62,6 +62,8 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.SSTable;
 import org.apache.cassandra.io.sstable.SnapshotDeletingTask;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
@@ -318,11 +320,31 @@ public class Directories
         logger.debug(String.format("Highest data directory disk utilization on path %s (%f)",
                                    maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
         double threshold = DatabaseDescriptor.getMaxDiskUtilizationThreshold();
-        if (maxPathToUtilization.getValue() > threshold)
+        double currUtilization = maxPathToUtilization.getValue();
+        if (currUtilization >= threshold)
         {
             ExceededDiskThresholdException cause = new ExceededDiskThresholdException(
-                                    maxPathToUtilization.getKey().location, maxPathToUtilization.getValue(), threshold);
+                                    maxPathToUtilization.getKey().location, currUtilization, threshold);
             throw new FSWriteError(cause, maxPathToUtilization.getKey().location);
+        }
+
+        if (currUtilization < threshold && StorageService.instance.isNodeDisabled() && StorageService.instance.isSetupCompleted())
+        {
+            Set<Map<String, String>> nonTransientErrors = StorageService.instance.getNonTransientErrors();
+            boolean isOnlyExceededDisk = true;
+            for (Map<String, String> nonTransientError : nonTransientErrors)
+            {
+                String errorType = nonTransientError.get(StorageService.NON_TRANSIENT_ERROR_TYPE_KEY);
+                isOnlyExceededDisk &= errorType.equals(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD.toString());
+            }
+            if (isOnlyExceededDisk)
+            {
+                logger.info(String.format(
+                    "Only non transient errors were of type ExceededDiskThreshold. Current disk use of %f is under threshold " +
+                    "of %f. Clearing non transient errors and enabling node", currUtilization, threshold));
+                StorageService.instance.clearNonTransientErrors();
+                StorageService.instance.enableNode();
+            }
         }
     }
 
