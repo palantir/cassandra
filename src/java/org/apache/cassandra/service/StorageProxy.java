@@ -1471,9 +1471,13 @@ public class StorageProxy implements StorageProxyMBean
 
                     // Do a full data read to resolve the correct response (and repair node that need be)
                     RowDataResolver resolver = new RowDataResolver(exec.command.ksName, exec.command.key, exec.command.filter(), exec.command.timestamp, exec.handler.endpoints.size());
+
+                    /**
+                     * Palantir: Only block on the request consistency level, as otherwise single node degradation can cause read timeouts when we've foreground blocking read repair
+                     */
                     ReadCallback<ReadResponse, Row> repairHandler = new ReadCallback<>(resolver,
-                                                                                       ConsistencyLevel.ALL,
-                                                                                       exec.getContactedReplicas().size(),
+                                                                                       consistencyLevel,
+                                                                                       consistencyLevel.blockFor(Keyspace.open(exec.command.getKeyspace())),
                                                                                        exec.command,
                                                                                        Keyspace.open(exec.command.getKeyspace()),
                                                                                        exec.handler.endpoints);
