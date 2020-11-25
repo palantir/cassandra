@@ -23,6 +23,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 
 import org.junit.AfterClass;
@@ -39,11 +40,14 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.service.DefaultFSErrorHandler;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.utils.Pair;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -430,7 +434,6 @@ public class DirectoriesTest
         Directories.verifyDiskHasEnoughUsableSpace();
     }
 
-
     @Test
     public void testVerifyDiskRespectsConfig() {
         Directories.verifyDiskHasEnoughUsableSpace();
@@ -440,7 +443,7 @@ public class DirectoriesTest
     }
 
     @Test
-    public void testVerifyDiskHasEnoughUsableSpaceThrows() throws IOException
+    public void testVerifyDiskHasEnoughUsableSpaceThrows()
     {
         for (DataDirectory dir : Directories.dataDirectories) {
             doReturn(0L).when(dir).getAvailableSpace();
@@ -448,6 +451,45 @@ public class DirectoriesTest
         }
         assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
                 .hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceEnablesNodeIfReturnsUnderThreshold()
+    {
+        StorageService.instance.clearNonTransientErrors();
+        StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD,
+                                                        ImmutableMap.of("path", "/test"));
+        StorageService.instance.disableNode();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(1L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+
+        try {
+            Directories.verifyDiskHasEnoughUsableSpace();
+        } catch (AssertionError e) {
+            assertThat(StorageService.instance.isNodeDisabled()).isFalse();
+        }
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceDoesNotEnableNodeIfReturnsUnderThresholdAndMoreNonTransientErrors()
+    {
+        StorageService.instance.clearNonTransientErrors();
+        StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
+                                                        ImmutableMap.of("path", "/test"));
+        StorageService.instance.disableNode();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(1L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+
+        Directories.verifyDiskHasEnoughUsableSpace();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
     }
 
     private List<Directories.DataDirectoryCandidate> getWriteableDirectories(DataDirectory[] dataDirectories, long writeSize)
