@@ -217,7 +217,7 @@ public class CassandraDaemon
 
         FileUtils.setDefaultUncaughtExceptionHandler();
 
-        Directories.startVerifyingDiskDoesNotExceedThreshold();
+        Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
         completeSetupMayThrowSstableException();
     }
 

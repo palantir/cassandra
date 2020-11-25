@@ -293,10 +293,25 @@ public class Directories
         }
     }
 
-    public static void startVerifyingDiskDoesNotExceedThreshold()
+    public static void scheduleVerifyingDiskDoesNotExceedThresholdChecks()
     {
         ScheduledExecutors.scheduledTasks.scheduleAtFixedRate(
-        Directories::verifyDiskHasEnoughUsableSpace, 1, 1, TimeUnit.MINUTES);
+                                getVerifyDiskHasEnoughUsableSpaceRunnable(), 1, 1, TimeUnit.MINUTES);
+    }
+
+    @VisibleForTesting
+    static Runnable getVerifyDiskHasEnoughUsableSpaceRunnable()
+    {
+        return () -> {
+            try {
+                Directories.verifyDiskHasEnoughUsableSpace();
+            } catch (FSWriteError e) {
+                // If node is already disabled propagating the exception is redundant and clogs logs.
+                if (!StorageService.instance.isNodeDisabled()) {
+                    throw e;
+                }
+            }
+        };
     }
 
     public static void verifyDiskHasEnoughUsableSpace()
