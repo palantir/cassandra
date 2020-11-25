@@ -67,6 +67,8 @@ import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
 
 import static com.google.common.collect.Sets.newHashSet;
+import static org.mockito.Mockito.spy;
+
 /**
  * Encapsulate handling of paths to the data files.
  *
@@ -319,8 +321,9 @@ public class Directories
                                    maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
         if (maxPathToUtilization.getValue() > MAX_DISK_UTILIZATION)
         {
-            // There's not enough disk space to handle worst case scenario of total heap dump
-            throw new FSWriteError(new ExceededDiskThresholdException(maxPathToUtilization.getKey().location, maxPathToUtilization.getValue(), MAX_DISK_UTILIZATION), maxPathToUtilization.getKey().location);
+            ExceededDiskThresholdException cause = new ExceededDiskThresholdException(
+                        maxPathToUtilization.getKey().location, maxPathToUtilization.getValue(), MAX_DISK_UTILIZATION);
+            throw new FSWriteError(cause, maxPathToUtilization.getKey().location);
         }
     }
 
@@ -959,7 +962,7 @@ public class Directories
     static void overrideDataDirectoriesForTest(String loc)
     {
         for (int i = 0; i < dataDirectories.length; ++i)
-            dataDirectories[i] = new DataDirectory(new File(loc));
+            dataDirectories[i] = spy(new DataDirectory(new File(loc)));
     }
 
     @VisibleForTesting

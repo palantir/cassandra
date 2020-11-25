@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import org.apache.commons.lang3.StringUtils;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -35,17 +36,22 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Directories.DataDirectory;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.service.DefaultFSErrorHandler;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.utils.Pair;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 public class DirectoriesTest
 {
@@ -73,6 +79,11 @@ public class DirectoriesTest
         tempDataDir.delete(); // hack to create a temp dir
         tempDataDir.mkdir();
 
+    }
+
+    @Before
+    public void before() throws IOException
+    {
         Directories.overrideDataDirectoriesForTest(tempDataDir.getPath());
         // Create two fake data dir for tests, one using CF directories, one that do not.
         createTestFiles();
@@ -412,6 +423,22 @@ public class DirectoriesTest
             if (i >= 10000000)
                 fail();
         }
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpace() {
+        Directories.verifyDiskHasEnoughUsableSpace();
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceThrows() throws IOException
+    {
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(0L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+        assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
+                .hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
     }
 
     private List<Directories.DataDirectoryCandidate> getWriteableDirectories(DataDirectory[] dataDirectories, long writeSize)

@@ -110,7 +110,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                                                                           "internal");
 
     // post-flush executor is single threaded to provide guarantee that any flush Future on a CF will never return until prior flushes have completed
-    private static final ExecutorService postFlushExecutor = new JMXEnabledThreadPoolExecutor(1,
+    @VisibleForTesting
+    static final ExecutorService postFlushExecutor = new JMXEnabledThreadPoolExecutor(1,
                                                                                               StageManager.KEEPALIVE,
                                                                                               TimeUnit.SECONDS,
                                                                                               new LinkedBlockingQueue<Runnable>(),
@@ -119,7 +120,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     // If a flush fails with an error the post-flush is never allowed to continue. This stores the error that caused it
     // to be able to show an error on following flushes instead of blindly continuing.
-    private static volatile FSWriteError previousFlushFailure = null;
+    @VisibleForTesting
+    static volatile FSWriteError previousFlushFailure = null;
 
     private static final ExecutorService reclaimExecutor = new JMXEnabledThreadPoolExecutor(1,
                                                                                             StageManager.KEEPALIVE,
