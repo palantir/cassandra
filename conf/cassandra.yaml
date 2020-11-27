@@ -296,15 +296,15 @@ commitlog_segment_size_in_mb: 32
 # any class that implements the SeedProvider interface and has a
 # constructor that takes a Map<String, String> of parameters will do.
 seed_provider:
-    # Addresses of hosts that are deemed contact points. 
-    # Cassandra nodes use this list of hosts to find each other and learn
-    # the topology of the ring.  You must change this if you are running
-    # multiple nodes!
-    - class_name: org.apache.cassandra.locator.SimpleSeedProvider
-      parameters:
-          # seeds is actually a comma-delimited list of addresses.
-          # Ex: "<ip1>,<ip2>,<ip3>"
-          - seeds: "127.0.0.1"
+  # Addresses of hosts that are deemed contact points.
+  # Cassandra nodes use this list of hosts to find each other and learn
+  # the topology of the ring.  You must change this if you are running
+  # multiple nodes!
+  - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+    parameters:
+      # seeds is actually a comma-delimited list of addresses.
+      # Ex: "<ip1>,<ip2>,<ip3>"
+      - seeds: "127.0.0.1"
 
 # For workloads with more data than can fit in memory, Cassandra's
 # bottleneck will be reads that need to fetch data from
@@ -615,7 +615,7 @@ unlogged_batch_across_partitions_warn_threshold: 10
 #
 # concurrent_compactors defaults to the smaller of (number of disks,
 # number of cores), with a minimum of 2 and a maximum of 8.
-# 
+#
 # If your data directories are backed by SSD, you should increase this
 # to the number of cores.
 #concurrent_compactors: 1
@@ -633,7 +633,7 @@ compaction_large_partition_warning_threshold_mb: 100
 
 # When compacting, the replacement sstable(s) can be opened before they
 # are completely written, and used in place of the prior sstables for
-# any range that has been written. This helps to smoothly transfer reads 
+# any range that has been written. This helps to smoothly transfer reads
 # between the sstables, reducing page cache churn and keeping hot rows hot
 sstable_preemptive_open_interval_in_mb: 50
 
@@ -672,7 +672,7 @@ request_timeout_in_ms: 10000
 # Enable operation timeout information exchange between nodes to accurately
 # measure request timeouts.  If disabled, replicas will assume that requests
 # were forwarded to them instantly by the coordinator, which means that
-# under overload conditions we will waste that much extra time processing 
+# under overload conditions we will waste that much extra time processing
 # already-timed-out requests.
 #
 # Warning: before enabling this property make sure to ntp is installed
@@ -751,7 +751,7 @@ endpoint_snitch: SimpleSnitch
 
 # controls how often to perform the more expensive part of host score
 # calculation
-dynamic_snitch_update_interval_in_ms: 100 
+dynamic_snitch_update_interval_in_ms: 100
 # controls how often to reset all host scores, allowing a bad host to
 # possibly recover
 dynamic_snitch_reset_interval_in_ms: 600000
@@ -781,7 +781,7 @@ request_scheduler: org.apache.cassandra.scheduler.NoScheduler
 # NoScheduler - Has no options
 # RoundRobin
 #  - throttle_limit -- The throttle_limit is the number of in-flight
-#                      requests per client.  Requests beyond 
+#                      requests per client.  Requests beyond
 #                      that limit are queued up until
 #                      running requests can complete.
 #                      The value of 80 here is twice the number of
@@ -820,35 +820,35 @@ request_scheduler: org.apache.cassandra.scheduler.NoScheduler
 # http://download.oracle.com/javase/6/docs/technotes/guides/security/jsse/JSSERefGuide.html#CreateKeystore
 #
 server_encryption_options:
-    internode_encryption: none
-    keystore: conf/.keystore
-    keystore_password: cassandra
-    truststore: conf/.truststore
-    truststore_password: cassandra
-    # More advanced defaults below:
-    # protocol: TLS
-    # algorithm: SunX509
-    # store_type: JKS
-    # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
-    # require_client_auth: false
-    # require_endpoint_verification: false
+  internode_encryption: none
+  keystore: conf/.keystore
+  keystore_password: cassandra
+  truststore: conf/.truststore
+  truststore_password: cassandra
+  # More advanced defaults below:
+  # protocol: TLS
+  # algorithm: SunX509
+  # store_type: JKS
+  # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
+  # require_client_auth: false
+  # require_endpoint_verification: false
 
 # enable or disable client/server encryption.
 client_encryption_options:
-    enabled: false
-    # If enabled and optional is set to true encrypted and unencrypted connections are handled.
-    optional: false
-    keystore: conf/.keystore
-    keystore_password: cassandra
-    # require_client_auth: false
-    # Set trustore and truststore_password if require_client_auth is true
-    # truststore: conf/.truststore
-    # truststore_password: cassandra
-    # More advanced defaults below:
-    # protocol: TLS
-    # algorithm: SunX509
-    # store_type: JKS
-    # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
+  enabled: false
+  # If enabled and optional is set to true encrypted and unencrypted connections are handled.
+  optional: false
+  keystore: conf/.keystore
+  keystore_password: cassandra
+  # require_client_auth: false
+  # Set trustore and truststore_password if require_client_auth is true
+  # truststore: conf/.truststore
+  # truststore_password: cassandra
+  # More advanced defaults below:
+  # protocol: TLS
+  # algorithm: SunX509
+  # store_type: JKS
+  # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]
 
 # internode_compression controls whether traffic between nodes is
 # compressed.
@@ -917,3 +917,8 @@ windows_timer_interval: 1
 
 # Do not try to coalesce messages if we already got that many messages. This should be more than 2 and less than 128.
 # otc_coalescing_enough_coalesced_messages: 8
+
+# Path to write full query log data to when the full query log is enabled
+# The full query log will recrusively delete the contents of this path at
+# times. Don't place links in this directory to other parts of the filesystem.
+#full_query_log_dir: /tmp/cassandrafullquerylog
