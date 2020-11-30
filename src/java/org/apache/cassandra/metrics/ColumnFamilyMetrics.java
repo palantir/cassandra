@@ -129,9 +129,9 @@ public class ColumnFamilyMetrics
     public final ColumnFamilyHistogram liveReadHistogram;
     /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
     public final ColumnFamilyHistogram tombstonesReadHistogram;
-    /** Ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    /** Range tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
     public final ColumnFamilyHistogram rangeTombstonesReadHistogram;
-    /** Droppable ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    /** Droppable range tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
     public final ColumnFamilyHistogram droppableRangeTombstonesReadHistogram;
     /** Number of tombstone read failures */
     public final Counter rowCountFailures;

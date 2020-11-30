@@ -54,7 +54,7 @@ public class RangeTombstoneCountingIteratorTest
     }
 
     @Test
-    public void countsRangedTombstones()
+    public void countsRangeTombstones()
     {
         Iterator<? extends OnDiskAtom> delegate = mock(Iterator.class);
         long timestamp = System.currentTimeMillis();
