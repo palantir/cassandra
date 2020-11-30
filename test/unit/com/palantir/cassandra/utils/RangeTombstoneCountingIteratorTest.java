@@ -26,23 +26,53 @@ import org.junit.Test;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.OnDiskAtom;
+import org.apache.cassandra.db.RangeTombstone;
+import org.apache.cassandra.db.composites.Composite;
 import org.mockito.Mockito;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class RangeTombstoneCountingIteratorTest
 {
 
+    private static final int GC_GRACE = 2000;
+
     @Test
-    public void delegatesAllMethodCalls() {
-        Iterator<? extends OnDiskAtom> delegate = Mockito.mock(Iterator.class);
-        Mockito.when(delegate.next()).thenReturn(Mockito.mock(Cell.class));
-        RangeTombstoneCountingIterator iterator = RangeTombstoneCountingIterator.wrapIterator(0,
-                                                                                              Mockito.mock(ColumnFamily.class),
-                                                                                              delegate);
+    public void delegatesAllMethodCalls()
+    {
+        Iterator<? extends OnDiskAtom> delegate = mock(Iterator.class);
+        RangeTombstoneCountingIterator iterator =
+            RangeTombstoneCountingIterator.wrapIterator(0, mock(ColumnFamily.class), delegate);
         iterator.hasNext();
-        Mockito.verify(delegate.hasNext());
+        Mockito.verify(delegate).hasNext();
         iterator.next();
-        Mockito.verify(delegate.next());
+        Mockito.verify(delegate).next();
         iterator.remove();
         Mockito.verify(delegate).remove();
+    }
+
+    @Test
+    public void countsRangedTombstones()
+    {
+        Iterator<? extends OnDiskAtom> delegate = mock(Iterator.class);
+        long timestamp = System.currentTimeMillis();
+        RangeTombstone droppableTombstone =
+            new RangeTombstone(mock(Composite.class), mock(Composite.class), timestamp - GC_GRACE, 0);
+        RangeTombstone tombstone = new RangeTombstone(mock(Composite.class), mock(Composite.class), timestamp, GC_GRACE);
+        when(delegate.next()).thenReturn(tombstone, droppableTombstone, tombstone);
+        RangeTombstoneCounter counter = new RangeTombstoneCounter();
+        ColumnFamily cf = mock(ColumnFamily.class);
+        when(cf.getRangeTombstoneCounter()).thenReturn(counter);
+        RangeTombstoneCountingIterator iterator = RangeTombstoneCountingIterator.wrapIterator(GC_GRACE,
+                                                                                              cf,
+                                                                                              delegate);
+        iterator.next();
+        assertThat(counter.getCount()).isEqualTo(1);
+        iterator.next();
+        iterator.next();
+        assertThat(counter.getCount()).isEqualTo(3);
+        assertThat(counter.getDroppableCount()).isEqualTo(1);
     }
 }

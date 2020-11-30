@@ -18,7 +18,6 @@
 package org.apache.cassandra.db;
 
 import java.io.*;
-import java.lang.management.ManagementFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -32,7 +31,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
-import javax.management.*;
 import javax.management.openmbean.*;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -2062,7 +2060,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 metric.liveReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadLive());
                 metric.tombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadTombstones());
 
-                metric.rangedTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount());
+                metric.rangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount());
                 metric.droppableRangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getDroppableCount());
 
                 if (((SliceQueryFilter) filter.filter).hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();

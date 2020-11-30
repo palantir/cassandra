@@ -21,10 +21,8 @@ import java.util.Set;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
-import com.codahale.metrics.MetricRegistry;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.metrics.ColumnFamilyMetrics.ColumnFamilyHistogram;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -92,7 +90,7 @@ public class KeyspaceMetrics
     public final Histogram tombstonesReadHistogram;
 
     /** Ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
-    public final Histogram rangedTombstonesReadHistogram;
+    public final Histogram rangeTombstonesReadHistogram;
     /** Droppable ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
     public final Histogram droppableRangeTombstonesReadHistogram;
 
@@ -250,8 +248,8 @@ public class KeyspaceMetrics
         droppableTtlsReadHistogram = Metrics.histogram(factory.createMetricName("DroppableTtlsReadHistogram"), false);
         liveReadHistogram = Metrics.histogram(factory.createMetricName("LiveReadHistogram"), false);
         tombstonesReadHistogram = Metrics.histogram(factory.createMetricName("TombstonesReadHistogram"), false);
-        rangedTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("RangedTombstonesReadHistogram"), false);
-        droppableRangeTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("DroppableRangedTombstonesReadHistogram"), false);
+        rangeTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("RangeTombstonesReadHistogram"), false);
+        droppableRangeTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("DroppableRangeTombstonesReadHistogram"), false);
         colUpdateTimeDeltaHistogram = Metrics.histogram(factory.createMetricName("ColUpdateTimeDeltaHistogram"), false);
         coordinatorScanRequestRounds = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestRounds"), false);
         coordinatorScanRequestQueries = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestQueries"), false);
