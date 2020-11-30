@@ -2061,6 +2061,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 metric.droppableTtlsReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadDroppableTtls());
                 metric.liveReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadLive());
                 metric.tombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadTombstones());
+
+                metric.rangedTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount());
+                metric.droppableRangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getDroppableCount());
+
                 if (((SliceQueryFilter) filter.filter).hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
             }
         }

@@ -470,7 +470,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public int lastTombstones()
     {
-        return columnCounter == null ? 0 : columnCounter.tombstones() + rangeTombstoneCounter.getCount();
+        return columnCounter == null ? 0 : columnCounter.tombstones();
     }
 
     public int lastLive()
@@ -480,7 +480,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public int lastReadDroppableTombstones()
     {
-        return reducedCells == null ? 0 : reducedCells.droppableTombstones() + rangeTombstoneCounter.getDroppableCount();
+        return reducedCells == null ? 0 : reducedCells.droppableTombstones();
     }
 
     public int lastReadDroppableTtls()
@@ -495,7 +495,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public int lastReadTombstones()
     {
-        return reducedCells == null ? 0 : reducedCells.tombstones() + rangeTombstoneCounter.getCount();
+        return reducedCells == null ? 0 : reducedCells.tombstones();
+    }
+
+    public RangeTombstoneCounter getLastReadRangeTombstones() {
+        return rangeTombstoneCounter;
     }
 
     @Override

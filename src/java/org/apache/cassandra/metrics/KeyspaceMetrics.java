@@ -90,6 +90,12 @@ public class KeyspaceMetrics
     public final Histogram liveReadHistogram;
     /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
     public final Histogram tombstonesReadHistogram;
+
+    /** Ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    public final Histogram rangedTombstonesReadHistogram;
+    /** Droppable ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    public final Histogram droppableRangeTombstonesReadHistogram;
+
     /** Column update time delta on this Keyspace */
     public final Histogram colUpdateTimeDeltaHistogram;
     /** Request rounds in range scan queries on this keyspace */
@@ -244,6 +250,8 @@ public class KeyspaceMetrics
         droppableTtlsReadHistogram = Metrics.histogram(factory.createMetricName("DroppableTtlsReadHistogram"), false);
         liveReadHistogram = Metrics.histogram(factory.createMetricName("LiveReadHistogram"), false);
         tombstonesReadHistogram = Metrics.histogram(factory.createMetricName("TombstonesReadHistogram"), false);
+        rangedTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("RangedTombstonesReadHistogram"), false);
+        droppableRangeTombstonesReadHistogram = Metrics.histogram(factory.createMetricName("DroppableRangedTombstonesReadHistogram"), false);
         colUpdateTimeDeltaHistogram = Metrics.histogram(factory.createMetricName("ColUpdateTimeDeltaHistogram"), false);
         coordinatorScanRequestRounds = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestRounds"), false);
         coordinatorScanRequestQueries = Metrics.histogram(factory.createMetricName("CoordinatorScanRequestQueries"), false);

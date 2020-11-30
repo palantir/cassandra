@@ -129,6 +129,10 @@ public class ColumnFamilyMetrics
     public final ColumnFamilyHistogram liveReadHistogram;
     /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
     public final ColumnFamilyHistogram tombstonesReadHistogram;
+    /** Ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    public final ColumnFamilyHistogram rangedTombstonesReadHistogram;
+    /** Droppable ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    public final ColumnFamilyHistogram droppableRangeTombstonesReadHistogram;
     /** Number of tombstone read failures */
     public final Counter rowCountFailures;
     /** Number of tombstone read warnings */
@@ -676,6 +680,8 @@ public class ColumnFamilyMetrics
         droppableTtlsReadHistogram = createColumnFamilyHistogram("DroppableTtlsReadHistogram", cfs.keyspace.metric.droppableTtlsReadHistogram, false);
         liveReadHistogram = createColumnFamilyHistogram("LiveReadHistogram", cfs.keyspace.metric.liveReadHistogram, false);
         tombstonesReadHistogram = createColumnFamilyHistogram("TombstonesReadHistogram", cfs.keyspace.metric.tombstonesReadHistogram, false);
+        rangedTombstonesReadHistogram = createColumnFamilyHistogram("RangedTombstonesReadHistogram", cfs.keyspace.metric.rangedTombstonesReadHistogram, false);
+        droppableRangeTombstonesReadHistogram = createColumnFamilyHistogram("DroppableRangedTombstonesReadHistogram", cfs.keyspace.metric.droppableRangeTombstonesReadHistogram, false);
         colUpdateTimeDeltaHistogram = createColumnFamilyHistogram("ColUpdateTimeDeltaHistogram", cfs.keyspace.metric.colUpdateTimeDeltaHistogram, false);
         coordinatorScanRequestRounds = createColumnFamilyHistogram("CoordinatorScanRequestRounds", cfs.keyspace.metric.coordinatorScanRequestRounds, false);
         coordinatorScanRequestQueries = createColumnFamilyHistogram("CoordinatorScanRequestQueries", cfs.keyspace.metric.coordinatorScanRequestQueries, false);
