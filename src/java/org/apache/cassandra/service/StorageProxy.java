@@ -23,12 +23,14 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.Uninterruptibles;
+
+import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -88,7 +90,10 @@ public class StorageProxy implements StorageProxyMBean
     };
     private static final ClientRequestMetrics readMetrics = new ClientRequestMetrics("Read");
     private static final ClientRequestMetrics rangeMetrics = new ClientRequestMetrics("RangeSlice");
-    private static final ClientRequestMetrics writeMetrics = new ClientRequestMetrics("Write");
+    private static final ClientRequestMetrics topWriteMetrics = new ClientRequestMetrics("Write");
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelWriteMetrics = Arrays.stream(
+            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topWriteMetrics)));
+
     private static final CASClientRequestMetrics casWriteMetrics = new CASClientRequestMetrics("CASWrite");
     private static final CASClientRequestMetrics casReadMetrics = new CASClientRequestMetrics("CASRead");
 
@@ -561,6 +566,8 @@ public class StorageProxy implements StorageProxyMBean
         long startTime = System.nanoTime();
         List<AbstractWriteResponseHandler<IMutation>> responseHandlers = new ArrayList<>(mutations.size());
 
+        ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
+
         try
         {
             for (IMutation mutation : mutations)
@@ -685,6 +692,8 @@ public class StorageProxy implements StorageProxyMBean
 
         List<WriteResponseHandlerWrapper> wrappers = new ArrayList<WriteResponseHandlerWrapper>(mutations.size());
         String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
+
+        ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
 
         try
         {
@@ -1573,13 +1582,13 @@ public class StorageProxy implements StorageProxyMBean
     {
         private final ReadCommand command;
         private final ReadCallback<ReadResponse, Row> handler;
-        private final long start = System.nanoTime();
 
         LocalReadRunnable(ReadCommand command, ReadCallback<ReadResponse, Row> handler)
         {
             super(MessagingService.Verb.READ);
             this.command = command;
             this.handler = handler;
+            LocalReadRunnableTimeoutWatcher.INSTANCE.watch(command);
         }
 
         protected void runMayThrow()
@@ -1589,7 +1598,7 @@ public class StorageProxy implements StorageProxyMBean
                 Keyspace keyspace = Keyspace.open(command.ksName);
                 Row r = command.getRow(keyspace);
                 ReadResponse result = ReadVerbHandler.getResponse(command, r);
-                MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+                LocalReadRunnableTimeoutWatcher.INSTANCE.unwatch(command);
                 handler.response(result);
             }
             catch (Throwable t)

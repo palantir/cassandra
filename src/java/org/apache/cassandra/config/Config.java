@@ -239,6 +239,7 @@ public class Config
     public volatile int counter_cache_keys_to_save = Integer.MAX_VALUE;
 
     public volatile int read_delay_in_s = 0;
+    public volatile int write_delay_in_s = 0;
 
     @Deprecated
     public String memory_allocator;

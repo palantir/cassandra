@@ -725,7 +725,13 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public Set<Map<String, String>> getNonTransientErrors();
 
-    /** Every read request sent to this node from another node will result in a delay of the specified value, in seconds
+    /**
+     * Every read this node performs will have the specified read delay
      */
     public void setReadDelay(int readDelay);
+
+    /**
+     * Every write this node performs will have the specified writeø delay
+     */
+    public void setWriteDelay(int writeDelay);
 }

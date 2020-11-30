@@ -1912,4 +1912,11 @@ public class DatabaseDescriptor
         return conf.read_delay_in_s;
     }
 
+    public static void setWriteDelay(int writeDelayInSeconds) {
+        conf.write_delay_in_s = writeDelayInSeconds;
+    }
+
+    public static int getWriteDelay() {
+        return conf.write_delay_in_s;
+    }
 }
