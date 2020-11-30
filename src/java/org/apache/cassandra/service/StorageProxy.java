@@ -29,6 +29,8 @@ import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.Uninterruptibles;
+
+import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -1580,13 +1582,13 @@ public class StorageProxy implements StorageProxyMBean
     {
         private final ReadCommand command;
         private final ReadCallback<ReadResponse, Row> handler;
-        private final long start = System.nanoTime();
 
         LocalReadRunnable(ReadCommand command, ReadCallback<ReadResponse, Row> handler)
         {
             super(MessagingService.Verb.READ);
             this.command = command;
             this.handler = handler;
+            LocalReadRunnableTimeoutWatcher.INSTANCE.watch(command);
         }
 
         protected void runMayThrow()
@@ -1596,7 +1598,7 @@ public class StorageProxy implements StorageProxyMBean
                 Keyspace keyspace = Keyspace.open(command.ksName);
                 Row r = command.getRow(keyspace);
                 ReadResponse result = ReadVerbHandler.getResponse(command, r);
-                MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+                LocalReadRunnableTimeoutWatcher.INSTANCE.unwatch(command);
                 handler.response(result);
             }
             catch (Throwable t)
