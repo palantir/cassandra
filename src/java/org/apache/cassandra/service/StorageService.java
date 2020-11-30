@@ -478,12 +478,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         boolean isDisabled = true;
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
-            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            Keyspace keyspace = Schema.instance.getKeyspaceInstance(keyspaceName);
+            if (keyspace != null)
             {
-                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
                 {
-                    isDisabled &= store.isAutoCompactionDisabled();
+                    for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                    {
+                        isDisabled &= store.isAutoCompactionDisabled();
+                    }
                 }
+
             }
         }
         return isDisabled;
