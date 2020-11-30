@@ -854,6 +854,10 @@ public class NodeProbe implements AutoCloseable
         ssProxy.setReadDelay(readDelay);
     }
 
+    public void setWriteDelay(Integer writeDelay) {
+        ssProxy.setWriteDelay(writeDelay);
+    }
+
     public void pauseHintsDelivery()
     {
         hhProxy.pauseHintsDelivery(true);

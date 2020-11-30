@@ -1445,6 +1445,13 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public void apply(DecoratedKey key, ColumnFamily columnFamily, SecondaryIndexManager.Updater indexer, OpOrder.Group opGroup, ReplayPosition replayPosition)
     {
         long start = System.nanoTime();
+
+        int writeDelay = DatabaseDescriptor.getWriteDelay();
+        if (writeDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before performing write", writeDelay);
+            Uninterruptibles.sleepUninterruptibly(writeDelay, TimeUnit.SECONDS);
+        }
+
         Memtable mt = data.getMemtableFor(opGroup, replayPosition);
         final long timeDelta = mt.put(key, columnFamily, indexer, opGroup);
         maybeUpdateRowCache(key);
@@ -1997,6 +2004,13 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         ColumnFamily result = null;
 
         long start = System.nanoTime();
+
+        int readDelay = DatabaseDescriptor.getReadDelay();
+        if (readDelay > 0) {
+            Tracing.trace("Sleeping for delay of {} seconds before performing read", readDelay);
+            Uninterruptibles.sleepUninterruptibly(readDelay, TimeUnit.SECONDS);
+        }
+
         try
         {
             int gcBefore = gcBefore(filter.timestamp);
