@@ -316,24 +316,7 @@ public class Directories
 
     public static void verifyDiskHasEnoughUsableSpace()
     {
-        Map<DataDirectory, Double> dirsToUtilization = Arrays.stream(dataDirectories)
-                                                             .collect(Collectors.toMap(
-                                                             Function.identity(),
-                                                             dir -> {
-                                                                 long total = dir.getTotalSpace();
-                                                                 long used = total - dir.getAvailableSpace();
-                                                                 return (double) used / total;
-                                                             })
-                                                             );
-
-        Map.Entry<DataDirectory, Double> maxPathToUtilization = dirsToUtilization
-                                                                .entrySet()
-                                                                .stream()
-                                                                .max(Map.Entry.comparingByValue())
-                                                                .orElseThrow(() -> new RuntimeException(
-                                                                "Failed to filter most full data directory"));
-        logger.debug(String.format("Highest data directory disk utilization on path %s (%f)",
-                                   maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
+        Map.Entry<DataDirectory, Double> maxPathToUtilization = getMaxPathToUtilization();
         double threshold = DatabaseDescriptor.getMaxDiskUtilizationThreshold();
         double currUtilization = maxPathToUtilization.getValue();
         if (currUtilization >= threshold)
@@ -356,6 +339,29 @@ public class Directories
                 StorageService.instance.enableNode();
             }
         }
+    }
+
+    private static Map.Entry<DataDirectory, Double> getMaxPathToUtilization()
+    {
+        Map<DataDirectory, Double> dirsToUtilization = Arrays.stream(dataDirectories)
+                                                             .collect(Collectors.toMap(
+                                                             Function.identity(),
+                                                             dir -> {
+                                                                 long total = dir.getTotalSpace();
+                                                                 long used = total - dir.getAvailableSpace();
+                                                                 return (double) used / total;
+                                                             })
+                                                             );
+
+        Map.Entry<DataDirectory, Double> maxPathToUtilization = dirsToUtilization
+                                                                .entrySet()
+                                                                .stream()
+                                                                .max(Map.Entry.comparingByValue())
+                                                                .orElseThrow(() -> new RuntimeException(
+                                                                "Failed to filter most full data directory"));
+        logger.debug(String.format("Highest data directory disk utilization on path %s (%f)",
+                                   maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
+        return maxPathToUtilization;
     }
 
     /**
