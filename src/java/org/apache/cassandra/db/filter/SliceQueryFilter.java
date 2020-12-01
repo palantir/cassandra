@@ -277,6 +277,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
         reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
         rangeTombstoneCounter = container.getRangeTombstoneCounter();
+        logger.trace("Number of tombstones {}", container.deletionInfo().rangeCount());
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
         boolean hasBreachedCollectionThreshold = false;
