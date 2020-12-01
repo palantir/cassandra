@@ -20,7 +20,11 @@ package com.palantir.cassandra.utils;
 
 import java.util.Iterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.ColumnFamily;
+import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.OnDiskAtom;
 import org.apache.cassandra.db.RangeTombstone;
 
@@ -29,6 +33,8 @@ public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
     private final Iterator<? extends  OnDiskAtom> delegate;
     private final int gcBefore;
     private final ColumnFamily returnCF;
+
+    private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
 
     private RangeTombstoneCountingIterator(int gcBefore, ColumnFamily returnCF, Iterator<? extends  OnDiskAtom> delegate) {
         this.delegate = delegate;
@@ -48,6 +54,10 @@ public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
     public OnDiskAtom next()
     {
         OnDiskAtom onDiskAtom = delegate.next();
+
+        logger.trace("Maybe counting cell as range tombstone", onDiskAtom instanceof RangeTombstone,
+                     returnCF.getRangeTombstoneCounter().getCount(),
+                     returnCF.getRangeTombstoneCounter().getDroppableCount());
 
         if (onDiskAtom instanceof RangeTombstone) {
             this.returnCF.getRangeTombstoneCounter().increment();

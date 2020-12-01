@@ -2060,6 +2060,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 metric.liveReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadLive());
                 metric.tombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadTombstones());
 
+                logger.trace("Ranged tombstones read {} and droppable {}",
+                             ((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount(),
+                             ((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getDroppableCount());
+
                 metric.rangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount());
                 metric.droppableRangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getDroppableCount());
 
