@@ -27,6 +27,8 @@ import java.net.InetAddress;
 import java.util.*;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 
 import org.junit.Before;
@@ -54,9 +56,11 @@ import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.cassandra.utils.FBUtilities;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
+import static org.mockito.Mockito.spy;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class StorageServiceServerTest
@@ -619,5 +623,43 @@ public class StorageServiceServerTest
 
         repairRangeFrom = StorageService.instance.createRepairRangeFrom("2000", "2000");
         assert repairRangeFrom.size() == 0;
+    }
+
+    @Test
+    public void testRecordTransientError()
+    {
+        StorageService.instance.clearTransientErrors();
+        assertThat(StorageService.instance.getTransientErrors()).isEmpty();
+        StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD, ImmutableMap.of());
+        assertThat(StorageService.instance.getTransientErrors()).hasSize(1);
+    }
+
+    @Test
+    public void testClearTransientError()
+    {
+        StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD, ImmutableMap.of());
+        assertThat(StorageService.instance.getTransientErrors()).isNotEmpty();
+        StorageService.instance.clearTransientErrors();
+        assertThat(StorageService.instance.getTransientErrors()).isEmpty();
+    }
+
+    @Test
+    public void testHasTransientError()
+    {
+        StorageService.instance.clearTransientErrors();
+        StorageServiceMBean.TransientError error = StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD;
+        assertThat(StorageService.instance.hasTransientError(error)).isFalse();
+        StorageService.instance.recordTransientError(error, ImmutableMap.of());
+        assertThat(StorageService.instance.hasTransientError(error)).isTrue();
+    }
+
+    @Test
+    public void testGetAllPresentTransientErrors()
+    {
+        StorageService.instance.clearTransientErrors();
+        StorageServiceMBean.TransientError error = StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD;
+        assertThat(StorageService.instance.getPresentTransientErrorTypes()).isEmpty();
+        StorageService.instance.recordTransientError(error, ImmutableMap.of());
+        assertThat(StorageService.instance.getPresentTransientErrorTypes()).isEqualTo(ImmutableSet.of(error));
     }
 }

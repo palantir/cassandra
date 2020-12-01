@@ -481,8 +481,9 @@ public class DirectoriesTest
     @Test
     public void testVerifyDiskHasEnoughUsableSpaceEnablesNodeIfReturnsUnderThreshold()
     {
+        StorageService.instance.clearTransientErrors();
         StorageService.instance.clearNonTransientErrors();
-        StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD,
+        StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD,
                                                         ImmutableMap.of("path", "/test"));
         StorageService.instance.disableNode();
         assertThat(StorageService.instance.isNodeDisabled()).isTrue();
@@ -500,7 +501,7 @@ public class DirectoriesTest
     }
 
     @Test
-    public void testVerifyDiskHasEnoughUsableSpaceDoesNotEnableNodeIfReturnsUnderThresholdAndMoreNonTransientErrors()
+    public void testVerifyDiskHasEnoughUsableSpaceDoesNotEnableNodeIfReturnsUnderThresholdAndNonTransientErrors()
     {
         StorageService.instance.clearNonTransientErrors();
         StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
