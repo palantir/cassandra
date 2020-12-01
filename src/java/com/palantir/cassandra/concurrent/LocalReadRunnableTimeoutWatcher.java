@@ -52,7 +52,6 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
         if (startTime != null) {
             long latency = System.currentTimeMillis() - startTime;
             MessagingService.instance().addLatency(FBUtilities.getBroadcastAddress(), latency);
-            logger.warn("Un-watching read command {} for timeout {} ", readCommand, getTimeout());
         }
     }
 
@@ -68,6 +67,7 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 
         for (ReadCommand command : timedOutCommands) {
             unwatch(command);
+            logger.warn("Un-watching read command {} for timeout {} ", command, getTimeout());
         }
     }
 }
