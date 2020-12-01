@@ -305,7 +305,7 @@ public class Directories
         return () -> {
             try {
                 Directories.verifyDiskHasEnoughUsableSpace();
-            } catch (FSWriteError e) {
+            } catch (ExceededDiskThresholdException e) {
                 // If node is already disabled propagating the exception from scheduled executor is redundant and clogs logs.
                 if (!StorageService.instance.isNodeDisabled()) {
                     throw e;
@@ -338,9 +338,7 @@ public class Directories
         double currUtilization = maxPathToUtilization.getValue();
         if (currUtilization >= threshold)
         {
-            ExceededDiskThresholdException cause = new ExceededDiskThresholdException(
-                                    maxPathToUtilization.getKey().location, currUtilization, threshold);
-            throw new FSWriteError(cause, maxPathToUtilization.getKey().location);
+            throw new ExceededDiskThresholdException(maxPathToUtilization.getKey().location, currUtilization, threshold);
         }
 
         if (currUtilization < threshold && StorageService.instance.isNodeDisabled() && StorageService.instance.isSetupCompleted())

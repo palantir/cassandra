@@ -441,7 +441,7 @@ public class DirectoriesTest
         Directories.verifyDiskHasEnoughUsableSpace();
         DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.0);
         assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
-                .hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
+                .isInstanceOf(ExceededDiskThresholdException.class);
     }
 
     @Test
@@ -452,7 +452,7 @@ public class DirectoriesTest
             doReturn(1L).when(dir).getTotalSpace();
         }
         assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
-                .hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
+                .isInstanceOf(ExceededDiskThresholdException.class);
     }
 
     @Test
@@ -463,7 +463,7 @@ public class DirectoriesTest
             doReturn(1L).when(dir).getTotalSpace();
         }
         Runnable check = Directories.getVerifyDiskHasEnoughUsableSpaceRunnable();
-        assertThatThrownBy(check::run).hasRootCauseInstanceOf(ExceededDiskThresholdException.class);
+        assertThatThrownBy(check::run).isInstanceOf(ExceededDiskThresholdException.class);
     }
 
     @Test

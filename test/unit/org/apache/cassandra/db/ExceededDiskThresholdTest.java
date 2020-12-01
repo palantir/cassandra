@@ -42,16 +42,11 @@ import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.compaction.CompactionsTest;
 import org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy;
 import org.apache.cassandra.io.ExceededDiskThresholdException;
-import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.locator.SimpleStrategy;
-import org.apache.cassandra.service.DefaultFSErrorHandler;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class ExceededDiskThresholdTest
