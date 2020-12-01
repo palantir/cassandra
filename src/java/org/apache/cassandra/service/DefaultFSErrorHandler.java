@@ -19,6 +19,7 @@
 package org.apache.cassandra.service;
 
 import java.io.File;
+import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -79,17 +80,24 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
     @VisibleForTesting
     void handleExceededDiskThresholdInternal(ExceededDiskThresholdException e) {
+        Map<String, String> attributes = ImmutableMap.of(
+            "path", e.file.toString(),
+            "utilization", String.valueOf(e.utilization),
+            "threshold", String.valueOf(e.threshold)
+        );
+        StorageServiceMBean.TransientError error = StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD;
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
             case stop:
-                recordError(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD, e.file);
+                StorageService.instance.recordTransientError(error, attributes);
                 logger.error("Encountered exceeded disk threshold exception, not stopping transports due to disk failure policy \"{}\"",
                              DatabaseDescriptor.getDiskFailurePolicy(),
                              e);
                 break;
             case stop_paranoid_always:
             case stop_paranoid:
-                recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD, e.file);
+                StorageService.instance.recordTransientError(error, attributes);
+                StorageService.instance.disableNode();
                 logger.error("Stopping transports and compaction due to exceeded disk threshold exception. Disk failure policy: \"{}\"",
                              DatabaseDescriptor.getDiskFailurePolicy(),
                              e);

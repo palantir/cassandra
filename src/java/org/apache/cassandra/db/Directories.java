@@ -341,21 +341,18 @@ public class Directories
             throw new ExceededDiskThresholdException(maxPathToUtilization.getKey().location, currUtilization, threshold);
         }
 
-        if (currUtilization < threshold && StorageService.instance.isNodeDisabled() && StorageService.instance.isSetupCompleted())
+        if (StorageService.instance.isNodeDisabled() && StorageService.instance.isSetupCompleted())
         {
-            Set<Map<String, String>> nonTransientErrors = StorageService.instance.getNonTransientErrors();
-            boolean isOnlyExceededDisk = true;
-            for (Map<String, String> nonTransientError : nonTransientErrors)
-            {
-                String errorType = nonTransientError.get(StorageService.NON_TRANSIENT_ERROR_TYPE_KEY);
-                isOnlyExceededDisk &= errorType.equals(StorageServiceMBean.NonTransientError.EXCEEDED_DISK_THRESHOLD.toString());
-            }
-            if (isOnlyExceededDisk)
-            {
+            boolean zeroNonTransientErrors = StorageService.instance.getNonTransientErrors().isEmpty();
+            boolean onlyExceededDiskThresholdTransientError = StorageService.instance.getPresentTransientErrorTypes()
+                                                                                     .equals(ImmutableSet.of(StorageServiceMBean
+                                                                                                             .TransientError
+                                                                                                             .EXCEEDED_DISK_THRESHOLD));
+            if (zeroNonTransientErrors && onlyExceededDiskThresholdTransientError) {
                 logger.info(String.format(
-                    "Only non transient errors were of type ExceededDiskThreshold. Current disk use of %f is under threshold " +
-                    "of %f. Clearing non transient errors and enabling node", currUtilization, threshold));
-                StorageService.instance.clearNonTransientErrors();
+                "Only transient errors were of type ExceededDiskThreshold. Current disk use of %f is under threshold " +
+                "of %f. Clearing transient errors and enabling node", currUtilization, threshold));
+                StorageService.instance.clearTransientErrors();
                 StorageService.instance.enableNode();
             }
         }
