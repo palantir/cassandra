@@ -54,6 +54,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 public class DirectoriesTest
 {
@@ -86,7 +87,7 @@ public class DirectoriesTest
     @Before
     public void before() throws IOException
     {
-        Directories.overrideDataDirectoriesForTest(tempDataDir.getPath());
+        overrideDataDirectoriesForTest(tempDataDir.getPath());
         // Create two fake data dir for tests, one using CF directories, one that do not.
         createTestFiles();
         DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.99);
@@ -516,6 +517,12 @@ public class DirectoriesTest
 
         Directories.verifyDiskHasEnoughUsableSpace();
         assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+    }
+
+    static void overrideDataDirectoriesForTest(String loc)
+    {
+        for (int i = 0; i < Directories.dataDirectories.length; ++i)
+            Directories.dataDirectories[i] = spy(new DataDirectory(new File(loc)));
     }
 
     private List<Directories.DataDirectoryCandidate> getWriteableDirectories(DataDirectory[] dataDirectories, long writeSize)

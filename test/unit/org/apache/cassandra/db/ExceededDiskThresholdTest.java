@@ -63,7 +63,7 @@ public class ExceededDiskThresholdTest
         tempDataDir = File.createTempFile("cassandra", "unittest");
         tempDataDir.delete(); // hack to create a temp dir
         tempDataDir.mkdir();
-        Directories.overrideDataDirectoriesForTest(tempDataDir.getPath());
+        DirectoriesTest.overrideDataDirectoriesForTest(tempDataDir.getPath());
         SchemaLoader.prepareServer();
         SchemaLoader.createKeyspace(KEYSPACE_1,
                                     SimpleStrategy.class,
@@ -79,7 +79,7 @@ public class ExceededDiskThresholdTest
     @Before
     public void before()
     {
-        Directories.overrideDataDirectoriesForTest(tempDataDir.getPath());
+        DirectoriesTest.overrideDataDirectoriesForTest(tempDataDir.getPath());
     }
 
     @After

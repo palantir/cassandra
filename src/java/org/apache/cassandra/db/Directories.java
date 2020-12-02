@@ -69,7 +69,6 @@ import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
 
 import static com.google.common.collect.Sets.newHashSet;
-import static org.mockito.Mockito.spy;
 
 /**
  * Encapsulate handling of paths to the data files.
@@ -995,12 +994,6 @@ public class Directories
         return StringUtils.join(s, File.separator);
     }
 
-    @VisibleForTesting
-    static void overrideDataDirectoriesForTest(String loc)
-    {
-        for (int i = 0; i < dataDirectories.length; ++i)
-            dataDirectories[i] = spy(new DataDirectory(new File(loc)));
-    }
 
     @VisibleForTesting
     static void resetDataDirectoriesAfterTest()
