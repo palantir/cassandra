@@ -39,9 +39,11 @@ import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.cassandra.service.DefaultFSErrorHandler;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.service.StorageServiceMBean;
+import org.apache.cassandra.thrift.Cassandra;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.utils.Pair;
@@ -78,6 +80,9 @@ public class DirectoriesTest
             CFM.add(new CFMetaData(KS, cf, ColumnFamilyType.Standard, null));
         }
 
+        CassandraDaemon testDaemon = CassandraDaemon.getInstanceForTesting();
+        testDaemon.completeSetup();
+        StorageService.instance.registerDaemon(testDaemon);
         tempDataDir = File.createTempFile("cassandra", "unittest");
         tempDataDir.delete(); // hack to create a temp dir
         tempDataDir.mkdir();
@@ -496,9 +501,28 @@ public class DirectoriesTest
 
         try {
             Directories.verifyDiskHasEnoughUsableSpace();
-        } catch (AssertionError e) {
-            assertThat(StorageService.instance.isNodeDisabled()).isFalse();
+        } catch (AssertionError ignored) {}
+        assertThat(StorageService.instance.isNodeDisabled()).isFalse();
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceDoesNotEnableNodeIfLessThan2UnderThreshold()
+    {
+        StorageService.instance.clearNonTransientErrors();
+        StorageService.instance.clearTransientErrors();
+        StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD,
+                                                     ImmutableMap.of("path", "/test"));
+        StorageService.instance.disableNode();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(1.0);
+
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(15L).when(dir).getAvailableSpace();
+            doReturn(1000L).when(dir).getTotalSpace();
         }
+
+        Directories.verifyDiskHasEnoughUsableSpace();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
     }
 
     @Test
