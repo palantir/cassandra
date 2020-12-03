@@ -39,12 +39,22 @@ public class RangeTombstoneCountingIteratorTest
 
     private static final int GC_GRACE = 2000;
 
+    private ColumnFamily columnFamily;
+    RangeTombstoneCounter counter;
+
+    @Before
+    public void setup() {
+        columnFamily = mock(ColumnFamily.class);
+        counter = new RangeTombstoneCounter();
+        when(columnFamily.getRangeTombstoneCounter()).thenReturn(counter);
+    }
+
     @Test
     public void delegatesAllMethodCalls()
     {
         Iterator<? extends OnDiskAtom> delegate = mock(Iterator.class);
         RangeTombstoneCountingIterator iterator =
-            RangeTombstoneCountingIterator.wrapIterator(0, mock(ColumnFamily.class), delegate);
+            RangeTombstoneCountingIterator.wrapIterator(0, columnFamily, delegate);
         iterator.hasNext();
         Mockito.verify(delegate).hasNext();
         iterator.next();
@@ -62,16 +72,14 @@ public class RangeTombstoneCountingIteratorTest
             new RangeTombstone(mock(Composite.class), mock(Composite.class), timestamp - GC_GRACE, 0);
         RangeTombstone tombstone = new RangeTombstone(mock(Composite.class), mock(Composite.class), timestamp, GC_GRACE);
         when(delegate.next()).thenReturn(tombstone, droppableTombstone, tombstone);
-        RangeTombstoneCounter counter = new RangeTombstoneCounter();
-        ColumnFamily cf = mock(ColumnFamily.class);
-        when(cf.getRangeTombstoneCounter()).thenReturn(counter);
+        when(delegate.hasNext()).thenReturn(true, true, true, false);
+
         RangeTombstoneCountingIterator iterator = RangeTombstoneCountingIterator.wrapIterator(GC_GRACE,
-                                                                                              cf,
+                                                                                              columnFamily,
                                                                                               delegate);
-        iterator.next();
-        assertThat(counter.getCount()).isEqualTo(1);
-        iterator.next();
-        iterator.next();
+        while(iterator.hasNext()) {
+            iterator.next();
+        }
         assertThat(counter.getCount()).isEqualTo(3);
         assertThat(counter.getDroppableCount()).isEqualTo(1);
     }
