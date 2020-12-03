@@ -133,6 +133,8 @@ public class ColumnFamilyMetrics
     public final ColumnFamilyHistogram rangeTombstonesReadHistogram;
     /** Droppable range tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
     public final ColumnFamilyHistogram droppableRangeTombstonesReadHistogram;
+    /** Range tombstones held in memory when performing a read on this CF */
+    public final ColumnFamilyHistogram rangeTombstonesHistogram;
     /** Number of tombstone read failures */
     public final Counter rowCountFailures;
     /** Number of tombstone read warnings */
@@ -682,6 +684,7 @@ public class ColumnFamilyMetrics
         tombstonesReadHistogram = createColumnFamilyHistogram("TombstonesReadHistogram", cfs.keyspace.metric.tombstonesReadHistogram, false);
         rangeTombstonesReadHistogram = createColumnFamilyHistogram("RangeTombstonesReadHistogram", cfs.keyspace.metric.rangeTombstonesReadHistogram, false);
         droppableRangeTombstonesReadHistogram = createColumnFamilyHistogram("DroppableRangeTombstonesReadHistogram", cfs.keyspace.metric.droppableRangeTombstonesReadHistogram, false);
+        rangeTombstonesHistogram = createColumnFamilyHistogram("RangeTombstonesHistogram", cfs.keyspace.metric.rangeTombstonesHistogram, false);
         colUpdateTimeDeltaHistogram = createColumnFamilyHistogram("ColUpdateTimeDeltaHistogram", cfs.keyspace.metric.colUpdateTimeDeltaHistogram, false);
         coordinatorScanRequestRounds = createColumnFamilyHistogram("CoordinatorScanRequestRounds", cfs.keyspace.metric.coordinatorScanRequestRounds, false);
         coordinatorScanRequestQueries = createColumnFamilyHistogram("CoordinatorScanRequestQueries", cfs.keyspace.metric.coordinatorScanRequestQueries, false);

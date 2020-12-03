@@ -65,6 +65,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
     private boolean hitTombstoneFailureThreshold = false;
     private boolean hitTombstoneWarnThreshold = false;
 
+    private int totalRangeTombstones = 0;
+
     // Not serialized, just a ack for range slices to find the number of live column counted, even when we group
     private ColumnCounter columnCounter;
 
@@ -277,7 +279,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
         reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
         rangeTombstoneCounter = container.getRangeTombstoneCounter();
-        logger.trace("Number of tombstones {}", container.deletionInfo().rangeCount());
+        totalRangeTombstones = container.deletionInfo().rangeCount();
+        logger.trace("Number of tombstones {}", totalRangeTombstones);
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
         boolean hasBreachedCollectionThreshold = false;
@@ -501,6 +504,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public RangeTombstoneCounter getLastReadRangeTombstones() {
         return rangeTombstoneCounter;
+    }
+
+    public int getLastRangeTombstonesCount() {
+        return totalRangeTombstones;
     }
 
     @Override
