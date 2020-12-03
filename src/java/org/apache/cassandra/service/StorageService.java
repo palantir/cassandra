@@ -22,12 +22,12 @@ import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.sql.Time;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
@@ -172,7 +172,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -189,6 +189,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private Collection<Token> bootstrapTokens = null;
 
     private final Set<ImmutableMap<String, String>> nonTransientErrors = Collections.synchronizedSet(new HashSet<>());
+    private final Set<ImmutableMap<String, String>> transientErrors = Collections.synchronizedSet(new HashSet<>());
 
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
@@ -436,21 +437,63 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void stopTransports()
     {
-        if (isInitialized())
+        if (isNativeTransportRunning())
         {
-            logger.error("Stopping gossiper");
-            stopGossiping();
+            logger.error("Stopping native transport");
+            stopNativeTransport();
         }
         if (isRPCServerRunning())
         {
             logger.error("Stopping RPC server");
             stopRPCServer();
         }
-        if (isNativeTransportRunning())
+        if (isInitialized())
         {
-            logger.error("Stopping native transport");
-            stopNativeTransport();
+            logger.error("Stopping gossiper");
+            stopGossiping();
         }
+    }
+
+    private void startTransports() {
+        if (!isInitialized() && !Gossiper.instance.isEnabled())
+        {
+            logger.info("Starting gossiper");
+            startGossiping();
+        }
+        if (!isRPCServerRunning())
+        {
+            logger.info("Starting RPC server");
+            startRPCServer();
+        }
+        if (!isNativeTransportRunning())
+        {
+            logger.info("Starting native transport");
+            startNativeTransport();
+        }
+    }
+
+    private boolean areAllTransportsStopped() {
+        return !isGossipRunning() && !isRPCServerRunning() && !isNativeTransportRunning();
+    }
+
+    private static boolean isAutoCompactionDisabled() {
+        boolean isDisabled = true;
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            Keyspace keyspace = Schema.instance.getKeyspaceInstance(keyspaceName);
+            if (keyspace != null)
+            {
+                for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
+                {
+                    for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                    {
+                        isDisabled &= store.isAutoCompactionDisabled();
+                    }
+                }
+
+            }
+        }
+        return isDisabled;
     }
 
     private void shutdownClientServers()
@@ -1362,6 +1405,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         nonTransientErrors.clear();
     }
 
+    public void clearTransientErrors() {
+        transientErrors.clear();
+    }
+
     public void setOperationModeNormal() {
         setOperationMode(Mode.NORMAL);
     }
@@ -1377,7 +1424,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
-        setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
+        setMode(Mode.NON_TRANSIENT_ERROR, String.format("Non transient error of type %s", nonTransientError.toString()), true);
         ImmutableMap<String, String> attributesWithErrorType =
             ImmutableMap.<String, String>builder()
             .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
@@ -1388,6 +1435,33 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public boolean hasNonTransientError(NonTransientError nonTransientError) {
         return nonTransientErrors.stream().anyMatch(errorAtrributes -> isErrorType(nonTransientError, errorAtrributes));
+    }
+
+    @Override
+    public Set<Map<String, String>> getTransientErrors()
+    {
+        return ImmutableSet.copyOf(transientErrors);
+    }
+
+    public Set<TransientError> getPresentTransientErrorTypes()
+    {
+        return Arrays.stream(StorageServiceMBean.TransientError.values())
+                     .filter(this::hasTransientError)
+                     .collect(Collectors.toSet());
+    }
+
+    public void recordTransientError(TransientError transientError, Map<String, String> attributes) {
+        setMode(Mode.TRANSIENT_ERROR, String.format("Transient error of type %s", transientError.toString()), true);
+        ImmutableMap<String, String> attributesWithErrorType =
+            ImmutableMap.<String, String>builder()
+            .put(StorageServiceMBean.TRANSIENT_ERROR_TYPE_KEY, transientError.name())
+            .putAll(attributes)
+            .build();
+        transientErrors.add(attributesWithErrorType);
+    }
+
+    public boolean hasTransientError(TransientError transientError) {
+        return transientErrors.stream().anyMatch(errorAtrributes -> isErrorType(transientError, errorAtrributes));
     }
 
     public boolean isBootstrapMode()
@@ -4650,6 +4724,49 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public static void disableAutoCompaction() {
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    store.disableAutoCompaction();
+                }
+            }
+        }
+    }
+
+    public static void enableAutoCompaction() {
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+                {
+                    store.enableAutoCompaction();
+                }
+            }
+        }
+    }
+
+    public void enableNode() {
+        logger.info("Starting transports and enabling auto compaction");
+        enableAutoCompaction();
+        instance.startTransports();
+        instance.setOperationModeNormal();
+    }
+
+    public void disableNode() {
+        logger.info("Stopping transports and disabling auto compaction");
+        instance.stopTransports();
+        disableAutoCompaction();
+    }
+
+    public boolean isNodeDisabled() {
+        return instance.areAllTransportsStopped() && isAutoCompactionDisabled();
+    }
+
     /** Returns the name of the cluster */
     public String getClusterName()
     {
@@ -4739,6 +4856,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private boolean isErrorType(NonTransientError nonTransientError, Map<String, String> errorAtrributes)
     {
         return nonTransientError.name().equals(errorAtrributes.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
+    }
+
+    private boolean isErrorType(TransientError transientError, Map<String, String> errorAtrributes)
+    {
+        return transientError.name().equals(errorAtrributes.get(StorageServiceMBean.TRANSIENT_ERROR_TYPE_KEY));
     }
 
     public void setReadDelay(int readDelay)

@@ -19,16 +19,17 @@
 package org.apache.cassandra.service;
 
 import java.io.File;
+import java.util.Map;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.DisallowedDirectories;
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
@@ -58,6 +59,46 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop_paranoid:
                 recordErrorAndDisableNode(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION, e.path);
                 logger.error("Stopping transports and compaction due to corrupt sstable exception, disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
+                break;
+        }
+    }
+
+    @Override
+    public void handleExceededDiskThreshold(ExceededDiskThresholdException e) {
+        if (!StorageService.instance.isSetupCompleted())
+            handleStartupFSError(e);
+
+        JVMStabilityInspector.inspectThrowable(e);
+        if (StorageService.instance.isNodeDisabled()) {
+            logger.debug("Node already disabled. Ignoring ExceededDiskThresholdException");
+            return;
+        }
+        handleExceededDiskThresholdInternal(e);
+    }
+
+    @VisibleForTesting
+    void handleExceededDiskThresholdInternal(ExceededDiskThresholdException e) {
+        Map<String, String> attributes = ImmutableMap.of(
+            "path", e.file.toString(),
+            "utilization", String.valueOf(e.utilization),
+            "threshold", String.valueOf(e.threshold)
+        );
+        StorageServiceMBean.TransientError error = StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD;
+        switch (DatabaseDescriptor.getDiskFailurePolicy())
+        {
+            case stop:
+                StorageService.instance.recordTransientError(error, attributes);
+                logger.error("Encountered exceeded disk threshold exception, not stopping transports due to disk failure policy \"{}\"",
+                             DatabaseDescriptor.getDiskFailurePolicy(),
+                             e);
+                break;
+            case stop_paranoid_always:
+            case stop_paranoid:
+                StorageService.instance.recordTransientError(error, attributes);
+                StorageService.instance.disableNode();
+                logger.error("Stopping transports and compaction due to exceeded disk threshold exception. Disk failure policy: \"{}\"",
                              DatabaseDescriptor.getDiskFailurePolicy(),
                              e);
                 break;
@@ -119,24 +160,10 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
     private static void recordErrorAndDisableNode(StorageServiceMBean.NonTransientError error, File path) {
         recordError(error, path);
-        StorageService.instance.stopTransports();
-        disableAutoCompaction();
+        StorageService.instance.disableNode();
     }
 
     private static void recordError(StorageServiceMBean.NonTransientError error, File path) {
         StorageService.instance.recordNonTransientError(error, ImmutableMap.of("path", path.toString()));
-    }
-
-    private static void disableAutoCompaction() {
-        for (String keyspaceName : Schema.instance.getKeyspaces())
-        {
-            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
-            {
-                for (ColumnFamilyStore store : cfs.concatWithIndexes())
-                {
-                    store.disableAutoCompaction();
-                }
-            }
-        }
     }
 }

@@ -18,14 +18,27 @@
 
 package org.apache.cassandra.io;
 
-import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import java.io.File;
 
-/**
- * Interface for handling file system errors.
- */
-public interface FSErrorHandler
+public class ExceededDiskThresholdException extends RuntimeException
 {
-    void handleCorruptSSTable(CorruptSSTableException e);
-    void handleExceededDiskThreshold(ExceededDiskThresholdException e);
-    void handleFSError(FSError e);
+
+        public final File file;
+        public final double utilization;
+        public final double threshold;
+
+        public ExceededDiskThresholdException(Exception cause, File file, double utilization, double threshold)
+        {
+            super(
+                String.format("Host too low on usable disk space on %s. Current utilization: %f; Max threshold: %f",
+                              file, utilization, threshold),
+                cause);
+            this.file = file;
+            this.utilization = utilization;
+            this.threshold = threshold;
+        }
+
+        public ExceededDiskThresholdException(File file, double utilization, double threshold) {
+            this(null, file, utilization, threshold);
+        }
 }

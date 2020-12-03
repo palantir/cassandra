@@ -17,28 +17,41 @@
  */
 package org.apache.cassandra.io.util;
 
-import java.io.*;
+import java.io.Closeable;
+import java.io.DataInput;
+import java.io.EOFException;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileStore;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 
-import sun.nio.ch.DirectBuffer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.ScheduledExecutors;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import org.apache.cassandra.metrics.StorageMetrics;
+import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import sun.nio.ch.DirectBuffer;
 
 import static org.apache.cassandra.utils.Throwables.maybeFail;
 import static org.apache.cassandra.utils.Throwables.merge;
@@ -70,6 +83,46 @@ public final class FileUtils
             logger.info("Cannot initialize un-mmaper.  (Are you using a non-Oracle JVM?)  Compacted data files will not be removed promptly.  Consider using an Oracle JVM or using standard disk access mode");
         }
         canCleanDirectBuffers = canClean;
+    }
+
+    public static void setDefaultUncaughtExceptionHandler() {
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler()
+        {
+            public void uncaughtException(Thread t, Throwable e)
+            {
+                StorageMetrics.exceptions.inc();
+                logger.error("Exception in thread " + t, e);
+                Tracing.trace("Exception in thread {}", t, e);
+                for (Throwable e2 = e; e2 != null; e2 = e2.getCause())
+                {
+                    JVMStabilityInspector.inspectThrowable(e2);
+
+                    if (e2 instanceof FSError)
+                    {
+                        if (e2 != e) // make sure FSError gets logged exactly once.
+                            logger.error("Exception in thread " + t, e2);
+
+                        if (e2.getCause() instanceof CorruptSSTableException)
+                            handleCorruptSSTable((CorruptSSTableException) e2.getCause());
+                        else if (e2.getCause() instanceof ExceededDiskThresholdException)
+                            handleExceededDiskThreshold((ExceededDiskThresholdException) e2.getCause());
+                        else
+                            handleFSError((FSError) e2);
+                    }
+
+                    if (e2 instanceof CorruptSSTableException) {
+                        if (e2 != e)
+                            logger.error("Exception in thread " + t, e2);
+                        handleCorruptSSTable((CorruptSSTableException) e2);
+                    }
+                    if (e2 instanceof ExceededDiskThresholdException) {
+                        if (e2 != e)
+                            logger.error("Exception in thread " + t, e2);
+                        handleExceededDiskThreshold((ExceededDiskThresholdException) e2);
+                    }
+                }
+            }
+        });
     }
 
     public static void createHardLink(String from, String to)
@@ -414,6 +467,13 @@ public final class FileUtils
         FSErrorHandler handler = fsErrorHandler.get();
         if (handler != null)
             handler.handleCorruptSSTable(e);
+    }
+
+    public static void handleExceededDiskThreshold(ExceededDiskThresholdException e)
+    {
+        FSErrorHandler handler = fsErrorHandler.get();
+        if (handler != null)
+            handler.handleExceededDiskThreshold(e);
     }
 
     public static void handleFSError(FSError e)

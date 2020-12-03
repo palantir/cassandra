@@ -23,9 +23,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -35,17 +37,26 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Directories.DataDirectory;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.cassandra.service.DefaultFSErrorHandler;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
+import org.apache.cassandra.thrift.Cassandra;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.utils.Pair;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 public class DirectoriesTest
 {
@@ -69,13 +80,24 @@ public class DirectoriesTest
             CFM.add(new CFMetaData(KS, cf, ColumnFamilyType.Standard, null));
         }
 
+        CassandraDaemon testDaemon = CassandraDaemon.getInstanceForTesting();
+        testDaemon.completeSetup();
+        StorageService.instance.registerDaemon(testDaemon);
         tempDataDir = File.createTempFile("cassandra", "unittest");
         tempDataDir.delete(); // hack to create a temp dir
         tempDataDir.mkdir();
 
-        Directories.overrideDataDirectoriesForTest(tempDataDir.getPath());
+    }
+
+    @Before
+    public void before() throws IOException
+    {
+        overrideDataDirectoriesForTest(tempDataDir.getPath());
         // Create two fake data dir for tests, one using CF directories, one that do not.
         createTestFiles();
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.99);
+        // Enough to make node not fully disabled for tests
+        StorageService.enableAutoCompaction();
     }
 
     @AfterClass
@@ -83,6 +105,7 @@ public class DirectoriesTest
     {
         Directories.resetDataDirectoriesAfterTest();
         FileUtils.deleteRecursive(tempDataDir);
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.99);
     }
 
     private static void createTestFiles() throws IOException
@@ -412,6 +435,118 @@ public class DirectoriesTest
             if (i >= 10000000)
                 fail();
         }
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpace() {
+        Directories.verifyDiskHasEnoughUsableSpace();
+    }
+
+    @Test
+    public void testVerifyDiskRespectsConfig() {
+        Directories.verifyDiskHasEnoughUsableSpace();
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(0.0);
+        assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
+                .isInstanceOf(ExceededDiskThresholdException.class);
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceThrows()
+    {
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(0L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+        assertThatThrownBy(Directories::verifyDiskHasEnoughUsableSpace)
+                .isInstanceOf(ExceededDiskThresholdException.class);
+    }
+
+    @Test
+    public void testScheduledVerifyDiskHasEnoughUsableSpaceThrowsIfNodeNotDisabled()
+    {
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(0L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+        Runnable check = Directories.getVerifyDiskHasEnoughUsableSpaceRunnable();
+        assertThatThrownBy(check::run).isInstanceOf(ExceededDiskThresholdException.class);
+    }
+
+    @Test
+    public void testScheduledVerifyDiskHasEnoughUsableSpaceDoesNotThrowIfNodeDisabled()
+    {
+        StorageService.instance.disableNode();
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(0L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+        Runnable check = Directories.getVerifyDiskHasEnoughUsableSpaceRunnable();
+        check.run();
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceEnablesNodeIfReturnsUnderThreshold()
+    {
+        StorageService.instance.clearTransientErrors();
+        StorageService.instance.clearNonTransientErrors();
+        StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD,
+                                                        ImmutableMap.of("path", "/test"));
+        StorageService.instance.disableNode();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(1L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+
+        try {
+            Directories.verifyDiskHasEnoughUsableSpace();
+        } catch (AssertionError ignored) {}
+        assertThat(StorageService.instance.isNodeDisabled()).isFalse();
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceDoesNotEnableNodeIfLessThan2UnderThreshold()
+    {
+        StorageService.instance.clearNonTransientErrors();
+        StorageService.instance.clearTransientErrors();
+        StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD,
+                                                     ImmutableMap.of("path", "/test"));
+        StorageService.instance.disableNode();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+        DatabaseDescriptor.setMaxDiskUtilizationThreshold(1.0);
+
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(15L).when(dir).getAvailableSpace();
+            doReturn(1000L).when(dir).getTotalSpace();
+        }
+
+        Directories.verifyDiskHasEnoughUsableSpace();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+    }
+
+    @Test
+    public void testVerifyDiskHasEnoughUsableSpaceDoesNotEnableNodeIfReturnsUnderThresholdAndNonTransientErrors()
+    {
+        StorageService.instance.clearNonTransientErrors();
+        StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
+                                                        ImmutableMap.of("path", "/test"));
+        StorageService.instance.disableNode();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+
+        for (DataDirectory dir : Directories.dataDirectories) {
+            doReturn(1L).when(dir).getAvailableSpace();
+            doReturn(1L).when(dir).getTotalSpace();
+        }
+
+        Directories.verifyDiskHasEnoughUsableSpace();
+        assertThat(StorageService.instance.isNodeDisabled()).isTrue();
+    }
+
+    static void overrideDataDirectoriesForTest(String loc)
+    {
+        for (int i = 0; i < Directories.dataDirectories.length; ++i)
+            Directories.dataDirectories[i] = spy(new DataDirectory(new File(loc)));
     }
 
     private List<Directories.DataDirectoryCandidate> getWriteableDirectories(DataDirectory[] dataDirectories, long writeSize)

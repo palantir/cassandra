@@ -1475,6 +1475,17 @@ public class DatabaseDescriptor
         indexAccessMode = mode;
     }
 
+    public static double getMaxDiskUtilizationThreshold()
+    {
+        return conf.max_disk_utilization;
+    }
+
+    @VisibleForTesting
+    public static void setMaxDiskUtilizationThreshold(double threshold)
+    {
+        conf.max_disk_utilization = threshold;
+    }
+
     public static void setDiskFailurePolicy(Config.DiskFailurePolicy policy)
     {
         conf.disk_failure_policy = policy;

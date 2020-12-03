@@ -29,11 +29,9 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +71,11 @@ import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.StartupException;
-import org.apache.cassandra.io.FSError;
-import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
-import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.service.StorageServiceMBean.NonTransientError;
 import org.apache.cassandra.thrift.ThriftServer;
-import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.*;
 
 /**
@@ -221,38 +215,9 @@ public class CassandraDaemon
 
         maybeInitJmx();
 
-        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler()
-        {
-            public void uncaughtException(Thread t, Throwable e)
-            {
-                StorageMetrics.exceptions.inc();
-                logger.error("Exception in thread " + t, e);
-                Tracing.trace("Exception in thread {}", t, e);
-                for (Throwable e2 = e; e2 != null; e2 = e2.getCause())
-                {
-                    JVMStabilityInspector.inspectThrowable(e2);
+        FileUtils.setDefaultUncaughtExceptionHandler();
 
-                    if (e2 instanceof FSError)
-                    {
-                        if (e2 != e) // make sure FSError gets logged exactly once.
-                            logger.error("Exception in thread " + t, e2);
-
-                        if (e2.getCause() instanceof CorruptSSTableException)
-                            FileUtils.handleCorruptSSTable((CorruptSSTableException) e2.getCause());
-                        else
-                            FileUtils.handleFSError((FSError) e2);
-                    }
-
-                    if (e2 instanceof CorruptSSTableException)
-                    {
-                        if (e2 != e)
-                            logger.error("Exception in thread " + t, e2);
-                        FileUtils.handleCorruptSSTable((CorruptSSTableException) e2);
-                    }
-                }
-            }
-        });
-
+        Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
         completeSetupMayThrowSstableException();
     }
 

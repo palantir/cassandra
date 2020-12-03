@@ -17,8 +17,6 @@
  */
 package org.apache.cassandra.db;
 
-import static com.google.common.collect.Sets.newHashSet;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOError;
@@ -28,9 +26,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
@@ -38,19 +47,28 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Iterables;
-
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.config.*;
+import org.apache.cassandra.concurrent.ScheduledExecutors;
+import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.io.ExceededDiskThresholdException;
 import org.apache.cassandra.io.FSError;
 import org.apache.cassandra.io.FSWriteError;
+import org.apache.cassandra.io.sstable.Component;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.SSTable;
+import org.apache.cassandra.io.sstable.SnapshotDeletingTask;
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.io.sstable.*;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
+
+import static com.google.common.collect.Sets.newHashSet;
 
 /**
  * Encapsulate handling of paths to the data files.
@@ -274,6 +292,81 @@ public class Directories
         }
     }
 
+    public static void scheduleVerifyingDiskDoesNotExceedThresholdChecks()
+    {
+        ScheduledExecutors.scheduledTasks.scheduleAtFixedRate(
+                                getVerifyDiskHasEnoughUsableSpaceRunnable(), 1, 1, TimeUnit.MINUTES);
+    }
+
+    @VisibleForTesting
+    static Runnable getVerifyDiskHasEnoughUsableSpaceRunnable()
+    {
+        return () -> {
+            try {
+                Directories.verifyDiskHasEnoughUsableSpace();
+            } catch (ExceededDiskThresholdException e) {
+                // If node is already disabled propagating the exception from scheduled executor is redundant and clogs logs.
+                if (!StorageService.instance.isNodeDisabled()) {
+                    throw e;
+                }
+            }
+        };
+    }
+
+    public static void verifyDiskHasEnoughUsableSpace()
+    {
+        Map.Entry<DataDirectory, Double> maxPathToUtilization = getMaxPathToUtilization();
+        double threshold = DatabaseDescriptor.getMaxDiskUtilizationThreshold();
+        double currUtilization = maxPathToUtilization.getValue();
+        if (currUtilization >= threshold)
+        {
+            throw new ExceededDiskThresholdException(maxPathToUtilization.getKey().location, currUtilization, threshold);
+        }
+        else if (shouldEnableNode(threshold, currUtilization))
+        {
+            logger.info(String.format(
+            "Only transient errors were of type ExceededDiskThreshold. Current disk use of %f is under threshold " +
+            "of %f. Clearing transient errors and enabling node", currUtilization, threshold));
+            StorageService.instance.clearTransientErrors();
+            StorageService.instance.enableNode();
+        }
+    }
+
+    private static boolean shouldEnableNode(double threshold, double currUtilization)
+    {
+        boolean underThreshold = threshold - currUtilization >= 0.02;
+        boolean nodeCanBeReEnabled = StorageService.instance.isNodeDisabled() && StorageService.instance.isSetupCompleted();
+        boolean zeroNonTransientErrors = StorageService.instance.getNonTransientErrors().isEmpty();
+        boolean onlyExceededDiskThresholdTransientError = StorageService.instance.getPresentTransientErrorTypes()
+                                                                                 .equals(ImmutableSet.of(StorageServiceMBean
+                                                                                                             .TransientError
+                                                                                                             .EXCEEDED_DISK_THRESHOLD));
+        return underThreshold && nodeCanBeReEnabled && zeroNonTransientErrors && onlyExceededDiskThresholdTransientError;
+    }
+
+    private static Map.Entry<DataDirectory, Double> getMaxPathToUtilization()
+    {
+        Map<DataDirectory, Double> dirsToUtilization = Arrays.stream(dataDirectories)
+                                                             .collect(Collectors.toMap(
+                                                             Function.identity(),
+                                                             dir -> {
+                                                                 long total = dir.getTotalSpace();
+                                                                 long used = total - dir.getAvailableSpace();
+                                                                 return (double) used / total;
+                                                             })
+                                                             );
+
+        Map.Entry<DataDirectory, Double> maxPathToUtilization = dirsToUtilization
+                                                                .entrySet()
+                                                                .stream()
+                                                                .max(Map.Entry.comparingByValue())
+                                                                .orElseThrow(() -> new RuntimeException(
+                                                                "Failed to filter most full data directory"));
+        logger.debug(String.format("Highest data directory disk utilization on path %s (%f)",
+                                   maxPathToUtilization.getKey().location, maxPathToUtilization.getValue()));
+        return maxPathToUtilization;
+    }
+
     /**
      * Returns SSTable location which is inside given data directory.
      *
@@ -328,6 +421,7 @@ public class Directories
      */
     public DataDirectory getWriteableLocation(long writeSize)
     {
+        verifyDiskHasEnoughUsableSpace();
         List<DataDirectoryCandidate> candidates = new ArrayList<>();
 
         long totalAvailable = 0L;
@@ -904,12 +998,6 @@ public class Directories
         return StringUtils.join(s, File.separator);
     }
 
-    @VisibleForTesting
-    static void overrideDataDirectoriesForTest(String loc)
-    {
-        for (int i = 0; i < dataDirectories.length; ++i)
-            dataDirectories[i] = new DataDirectory(new File(loc));
-    }
 
     @VisibleForTesting
     static void resetDataDirectoriesAfterTest()
