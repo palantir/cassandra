@@ -23,8 +23,8 @@ import java.util.Iterator;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
+import org.apache.cassandra.db.DeletionInfo;
 import org.apache.cassandra.db.OnDiskAtom;
 import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.db.composites.Composite;
@@ -40,13 +40,17 @@ public class RangeTombstoneCountingIteratorTest
     private static final int GC_GRACE = 2000;
 
     private ColumnFamily columnFamily;
+    private DeletionInfo deletionInfo;
     RangeTombstoneCounter counter;
 
     @Before
     public void setup() {
         columnFamily = mock(ColumnFamily.class);
+        deletionInfo = mock(DeletionInfo.class);
+
         counter = new RangeTombstoneCounter();
-        when(columnFamily.getRangeTombstoneCounter()).thenReturn(counter);
+        when(columnFamily.deletionInfo()).thenReturn(deletionInfo);
+        when(deletionInfo.getRangeTombstoneCounter()).thenReturn(counter);
     }
 
     @Test
@@ -80,7 +84,7 @@ public class RangeTombstoneCountingIteratorTest
         while(iterator.hasNext()) {
             iterator.next();
         }
-        assertThat(counter.getCount()).isEqualTo(3);
+        assertThat(counter.getNonDroppableCount()).isEqualTo(2);
         assertThat(counter.getDroppableCount()).isEqualTo(1);
     }
 }

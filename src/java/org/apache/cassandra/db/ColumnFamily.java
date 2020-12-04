@@ -31,7 +31,6 @@ import java.util.UUID;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import org.apache.cassandra.cache.IRowCacheEntry;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.Schema;
@@ -60,8 +59,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     public static final ColumnFamilySerializer serializer = new ColumnFamilySerializer();
 
     protected final CFMetaData metadata;
-
-    private final RangeTombstoneCounter rangeTombstoneCounter = new RangeTombstoneCounter();
 
     protected ColumnFamily(CFMetaData metadata)
     {
@@ -536,11 +533,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
      * @return an iterator where the removes are carried out once everything has been iterated
      */
     public abstract BatchRemoveIterator<Cell> batchRemoveIterator();
-
-    public RangeTombstoneCounter getRangeTombstoneCounter()
-    {
-        return rangeTombstoneCounter;
-    }
 
     public abstract static class Factory <T extends ColumnFamily>
     {

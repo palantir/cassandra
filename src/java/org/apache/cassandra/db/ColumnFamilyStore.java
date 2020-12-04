@@ -24,6 +24,7 @@ import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -2060,13 +2061,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 metric.liveReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadLive());
                 metric.tombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadTombstones());
 
-                logger.trace("Ranged tombstones read {} and droppable {}",
-                             ((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount(),
-                             ((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getDroppableCount());
+                Optional<DeletionInfo> maybeDeletionInfo = ((SliceQueryFilter) filter.filter).lastReadDeletionInfo();
 
-                metric.rangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getCount());
-                metric.droppableRangeTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).getLastReadRangeTombstones().getDroppableCount());
-                metric.rangeTombstonesHistogram.update(((SliceQueryFilter) filter.filter).getLastRangeTombstonesCount());
+                if (maybeDeletionInfo.isPresent()) {
+                    DeletionInfo deletionInfo = maybeDeletionInfo.get();
+                    logger.trace("Ranged tombstones read {} and droppable {}",
+                                 deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
+                                 deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+
+                    metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
+                    metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+                    metric.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
+                }
 
                 if (((SliceQueryFilter) filter.filter).hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
             }

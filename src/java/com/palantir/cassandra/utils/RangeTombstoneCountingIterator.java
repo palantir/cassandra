@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnFamilyStore;
+import org.apache.cassandra.db.DeletionInfo;
 import org.apache.cassandra.db.OnDiskAtom;
 import org.apache.cassandra.db.RangeTombstone;
 
@@ -55,15 +56,18 @@ public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
     {
         OnDiskAtom onDiskAtom = delegate.next();
 
+        DeletionInfo deletionInfo = returnCF.deletionInfo();
+
         logger.trace("Maybe counting cell as range tombstone", onDiskAtom instanceof RangeTombstone,
-                     returnCF.getRangeTombstoneCounter().getCount(),
-                     returnCF.getRangeTombstoneCounter().getDroppableCount());
+                     deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
+                     deletionInfo.getRangeTombstoneCounter().getDroppableCount());
 
         if (onDiskAtom instanceof RangeTombstone) {
-            this.returnCF.getRangeTombstoneCounter().increment();
 
             if (((RangeTombstone)onDiskAtom).data.isGcAble(gcBefore)) {
-                this.returnCF.getRangeTombstoneCounter().incrementDroppable();
+                deletionInfo.getRangeTombstoneCounter().incrementDroppable();
+            } else {
+                deletionInfo.getRangeTombstoneCounter().incrementNonDroppable();
             }
         }
 

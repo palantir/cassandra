@@ -20,14 +20,14 @@ package com.palantir.cassandra.utils;
 
 public class RangeTombstoneCounter
 {
-    private int count = 0;
+    private int nonDroppableCount = 0;
     private int droppableCount = 0;
 
     public RangeTombstoneCounter() {
     }
 
-    void increment() {
-        count++;
+    void incrementNonDroppable() {
+        nonDroppableCount++;
     }
 
     void incrementDroppable() {
@@ -39,8 +39,8 @@ public class RangeTombstoneCounter
         return droppableCount;
     }
 
-    public int getCount()
+    public int getNonDroppableCount()
     {
-        return count;
+        return nonDroppableCount;
     }
 }
