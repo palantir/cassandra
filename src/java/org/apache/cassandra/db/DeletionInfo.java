@@ -26,6 +26,7 @@ import java.util.Iterator;
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterators;
 
+import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import org.apache.cassandra.cache.IMeasurableMemory;
 import org.apache.cassandra.db.composites.CType;
 import org.apache.cassandra.db.composites.Composite;
@@ -54,6 +55,8 @@ public class DeletionInfo implements IMeasurableMemory
      * (to save an allocation (since it's a common case).
      */
     private RangeTombstoneList ranges;
+
+    private final RangeTombstoneCounter rangeTombstoneCounter = new RangeTombstoneCounter();
 
     /**
      * Creates a DeletionInfo with only a top-level (row) tombstone.
@@ -383,6 +386,11 @@ public class DeletionInfo implements IMeasurableMemory
     public long unsharedHeapSize()
     {
         return EMPTY_SIZE + topLevel.unsharedHeapSize() + (ranges == null ? 0 : ranges.unsharedHeapSize());
+    }
+
+    public RangeTombstoneCounter getRangeTombstoneCounter()
+    {
+        return rangeTombstoneCounter;
     }
 
     public static class Serializer implements IVersionedSerializer<DeletionInfo>

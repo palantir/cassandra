@@ -35,6 +35,8 @@ import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Range;
 import com.google.common.collect.UnmodifiableIterator;
 
+import com.palantir.cassandra.utils.RangeTombstoneCounter;
+import com.palantir.cassandra.utils.RangeTombstoneCountingIterator;
 import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
@@ -150,7 +152,8 @@ public class QueryFilter
                                                   int gcBefore,
                                                   long timestamp) {
         Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
-        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), merged, gcBefore);
+        Iterator<OnDiskAtom> countRangeTombstones = RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF, merged);
+        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore);
         Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
             returnCF, filter.getColumnComparator(returnCF.getComparator()), filtered);
         filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp);
@@ -165,7 +168,7 @@ public class QueryFilter
     {
         List<Iterator<Cell>> filteredIterators = new ArrayList<>(toCollate.size());
         for (Iterator<? extends OnDiskAtom> iter : toCollate)
-            filteredIterators.add(gatherTombstones(returnCF, iter));
+            filteredIterators.add(gatherTombstones(returnCF, RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF, iter)));
         collateColumns(returnCF, filteredIterators, filter, key, gcBefore, timestamp);
     }
 
@@ -213,7 +216,7 @@ public class QueryFilter
     {
         filter.collectReducedColumns(
             returnCF,
-            gatherTombstones(returnCF, toCollate),
+            gatherTombstones(returnCF, RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF, toCollate)),
             this.key,
             gcBefore,
             timestamp);
