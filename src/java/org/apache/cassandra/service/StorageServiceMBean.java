@@ -51,6 +51,21 @@ public interface StorageServiceMBean extends NotificationEmitter
     }
 
     /**
+     * Transient error type key.
+     *
+     * @see TransientError
+     * @see #getTransientErrors()
+     */
+    static final String TRANSIENT_ERROR_TYPE_KEY = "type";
+
+    /**
+     * Type of transient errors.
+     */
+    public enum TransientError {
+        EXCEEDED_DISK_THRESHOLD
+    }
+
+    /**
      * Retrieve the list of live nodes in the cluster, where "liveness" is
      * determined by the failure detector of the node being queried.
      *
@@ -786,6 +801,31 @@ public interface StorageServiceMBean extends NotificationEmitter
      * @return a map of all recorded non transient errors.
      */
     public Set<Map<String, String>> getNonTransientErrors();
+
+    /**
+     * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
+     *
+     * Each map representing an error is guarenteed to have the key {@link #TRANSIENT_ERROR_TYPE_KEY} and the
+     * matching value from {@link TransientError} representing the type of the transient error.
+     * <p>
+     * Transient errors:
+     * <ul>
+     *      <li>{@link TransientError#EXCEEDED_DISK_THRESHOLD}
+     *          <ul>
+     *              <li>attributes:
+     *                  <ul>
+     *                      <li> {@code path} - field representing path of the highest utilized disk.</li>
+     *                      <li> {@code utilization} - the current percentage of disk being used.</li>
+     *                      <li> {@code threshold} - the threshold specified by Config.max_disk_utilization.</li>
+     *                  </ul>
+     *              </li>
+     *          </ul>
+     *      </li>
+     * </ul>
+     *
+     * @return a map of all recorded transient errors.
+     */
+    public Set<Map<String, String>> getTransientErrors();
 
     /** Every read request sent to this node from another node will result in a delay of the specified value, in seconds
      */
