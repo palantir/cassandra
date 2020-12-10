@@ -1846,6 +1846,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return ImmutableSet.copyOf(nonTransientErrors);
     }
 
+    @Override
+    public Set<Map<String, String>> getTransientErrors() {
+        throw new UnsupportedOperationException("Transient errors not currently supported in Cassandra 3");
+    }
+
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
         setMode(Mode.NON_TRANSIENT_ERROR, String.format("None transient error of type %s", nonTransientError.toString()), true);
         ImmutableMap<String, String> attributesWithErrorType = ImmutableMap.<String, String>builder()
