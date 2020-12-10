@@ -51,7 +51,6 @@ public interface StorageServiceMBean extends NotificationEmitter
     }
 
     /**
-<<<<<<< HEAD
      * Transient error type key.
      *
      * @see TransientError
