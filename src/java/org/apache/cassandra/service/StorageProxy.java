@@ -1573,8 +1573,14 @@ public class StorageProxy implements StorageProxyMBean
                     Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairLatency.addNano(latency);
                 }
             }
+            for (AbstractReadExecutor exc : readExecutors) {
+                try {
+                    exc.writePredictedSpeculativeRetryPerformanceMetrics(System.nanoTime());
+                } catch (RuntimeException e) {
+                    logger.error("Failed to write predicted speculative retry performance metrics", e);
+                }
+            }
         } while (!commandsToRetry.isEmpty());
-
         return rows;
     }
 
