@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DynamicEndpointSnitchTest
 {
@@ -41,6 +42,14 @@ public class DynamicEndpointSnitchTest
                 dsnitch.receiveTiming(hosts.get(i), scores[i]);
         }
         Thread.sleep(150);
+    }
+
+    @Test
+    public void testGetP99LatencyThrowsWhenNullSamples() {
+        SimpleSnitch ss = new SimpleSnitch();
+        DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
+        InetAddress self = FBUtilities.getBroadcastAddress();
+        assertThatThrownBy(() -> dsnitch.getP99Latency(self)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
