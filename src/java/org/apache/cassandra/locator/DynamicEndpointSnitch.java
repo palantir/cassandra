@@ -250,6 +250,11 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         sample.update(latency);
     }
 
+    public long getP99Latency(InetAddress endpoint)
+    {
+        return (long) samples.get(endpoint).getSnapshot().get99thPercentile();
+    }
+
     private void updateScores() // this is expensive
     {
         if (!StorageService.instance.isInitialized()) 

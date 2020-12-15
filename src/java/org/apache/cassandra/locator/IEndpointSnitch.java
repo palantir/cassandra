@@ -55,6 +55,11 @@ public interface IEndpointSnitch
     public int compareEndpoints(InetAddress target, InetAddress a1, InetAddress a2);
 
     /**
+     * returns p99 latency of current samples for given endpoint in nanoseconds
+     */
+    public long getP99Latency(InetAddress endpoint);
+
+    /**
      * called after Gossiper instance exists immediately before it starts gossiping
      */
     public void gossiperStarting();

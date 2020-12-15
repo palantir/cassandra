@@ -55,6 +55,11 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
         });
     }
 
+    public long getP99Latency(InetAddress endpoint)
+    {
+        return Long.MIN_VALUE;
+    }
+
     public void gossiperStarting()
     {
         // noop by default
