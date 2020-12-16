@@ -4877,7 +4877,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @VisibleForTesting
     static class BootstrapManager {
 
-        private boolean allowedToBootstrap = false;
+        private volatile boolean allowedToBootstrap = false;
         private final Monitor monitor = new Monitor();
         private final Monitor.Guard isAllowedToBootstrap = getNewGuard(monitor);
 
