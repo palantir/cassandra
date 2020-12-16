@@ -38,6 +38,8 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -110,6 +112,7 @@ public class Directories
     private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
+    private static final ReadWriteLock SNAPSHOT_LOCK = new ReentrantReadWriteLock();
 
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
@@ -799,7 +802,7 @@ public class Directories
      * @return  Return a map of all snapshots to space being used
      * The pair for a snapshot has size on disk and true size.
      */
-    public synchronized Map<String, Pair<Long, Long>> getSnapshotDetails()
+    public Map<String, Pair<Long, Long>> getSnapshotDetails()
     {
         final Map<String, Pair<Long, Long>> snapshotSpaceMap = new HashMap<>();
         for (File snapshot : listSnapshots())
@@ -817,7 +820,7 @@ public class Directories
     }
 
 
-    public synchronized List<String> listEphemeralSnapshots()
+    public List<String> listEphemeralSnapshots()
     {
         final List<String> ephemeralSnapshots = new LinkedList<>();
         for (File snapshot : listSnapshots())
@@ -830,27 +833,35 @@ public class Directories
 
     private List<File> listSnapshots()
     {
-        final List<File> snapshots = new LinkedList<>();
-        for (final File dir : dataPaths)
+        SNAPSHOT_LOCK.readLock().lock();
+        try
         {
-            File snapshotDir = isSecondaryIndexFolder(dir)
-                               ? new File(dir.getParent(), SNAPSHOT_SUBDIR)
-                               : new File(dir, SNAPSHOT_SUBDIR);
-            if (snapshotDir.exists() && snapshotDir.isDirectory())
+            final List<File> snapshots = new LinkedList<>();
+            for (final File dir : dataPaths)
             {
-                final File[] snapshotDirs  = snapshotDir.listFiles();
-                if (snapshotDirs != null)
+                File snapshotDir = isSecondaryIndexFolder(dir)
+                                   ? new File(dir.getParent(), SNAPSHOT_SUBDIR)
+                                   : new File(dir, SNAPSHOT_SUBDIR);
+                if (snapshotDir.exists() && snapshotDir.isDirectory())
                 {
-                    for (final File snapshot : snapshotDirs)
+                    final File[] snapshotDirs  = snapshotDir.listFiles();
+                    if (snapshotDirs != null)
                     {
-                        if (snapshot.isDirectory())
-                            snapshots.add(snapshot);
+                        for (final File snapshot : snapshotDirs)
+                        {
+                            if (snapshot.isDirectory())
+                                snapshots.add(snapshot);
+                        }
                     }
                 }
             }
-        }
 
-        return snapshots;
+            return snapshots;
+        }
+        finally
+        {
+            SNAPSHOT_LOCK.readLock().unlock();
+        }
     }
 
     public boolean snapshotExists(String snapshotName)
@@ -872,28 +883,36 @@ public class Directories
         return false;
     }
 
-    public synchronized static void clearSnapshot(String snapshotName, List<File> snapshotDirectories)
+    public static void clearSnapshot(String snapshotName, List<File> snapshotDirectories)
     {
-        // If snapshotName is empty or null, we will delete the entire snapshot directory
-        String tag = snapshotName == null ? "" : snapshotName;
-        for (File dir : snapshotDirectories)
+        SNAPSHOT_LOCK.writeLock().lock();
+        try
         {
-            File snapshotDir = new File(dir, join(SNAPSHOT_SUBDIR, tag));
-            if (snapshotDir.exists())
+            // If snapshotName is empty or null, we will delete the entire snapshot directory
+            String tag = snapshotName == null ? "" : snapshotName;
+            for (File dir : snapshotDirectories)
             {
-                logger.trace("Removing snapshot directory {}", snapshotDir);
-                try
+                File snapshotDir = new File(dir, join(SNAPSHOT_SUBDIR, tag));
+                if (snapshotDir.exists())
                 {
-                    FileUtils.deleteRecursive(snapshotDir);
-                }
-                catch (FSWriteError e)
-                {
-                    if (FBUtilities.isWindows())
-                        SnapshotDeletingTask.addFailedSnapshot(snapshotDir);
-                    else
-                        throw e;
+                    logger.trace("Removing snapshot directory {}", snapshotDir);
+                    try
+                    {
+                        FileUtils.deleteRecursive(snapshotDir);
+                    }
+                    catch (FSWriteError e)
+                    {
+                        if (FBUtilities.isWindows())
+                            SnapshotDeletingTask.addFailedSnapshot(snapshotDir);
+                        else
+                            throw e;
+                    }
                 }
             }
+        }
+        finally
+        {
+            SNAPSHOT_LOCK.writeLock().unlock();
         }
     }
 
