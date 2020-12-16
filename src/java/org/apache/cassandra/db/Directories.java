@@ -799,7 +799,7 @@ public class Directories
      * @return  Return a map of all snapshots to space being used
      * The pair for a snapshot has size on disk and true size.
      */
-    public Map<String, Pair<Long, Long>> getSnapshotDetails()
+    public synchronized Map<String, Pair<Long, Long>> getSnapshotDetails()
     {
         final Map<String, Pair<Long, Long>> snapshotSpaceMap = new HashMap<>();
         for (File snapshot : listSnapshots())
@@ -817,7 +817,7 @@ public class Directories
     }
 
 
-    public List<String> listEphemeralSnapshots()
+    public synchronized List<String> listEphemeralSnapshots()
     {
         final List<String> ephemeralSnapshots = new LinkedList<>();
         for (File snapshot : listSnapshots())
@@ -872,7 +872,7 @@ public class Directories
         return false;
     }
 
-    public static void clearSnapshot(String snapshotName, List<File> snapshotDirectories)
+    public synchronized static void clearSnapshot(String snapshotName, List<File> snapshotDirectories)
     {
         // If snapshotName is empty or null, we will delete the entire snapshot directory
         String tag = snapshotName == null ? "" : snapshotName;
