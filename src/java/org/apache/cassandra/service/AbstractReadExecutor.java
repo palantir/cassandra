@@ -21,7 +21,6 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -30,12 +29,10 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData.SpeculativeRetry.RetryType;
-import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.config.ReadRepairDecision;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -145,16 +142,6 @@ public abstract class AbstractReadExecutor
         }
     }
 
-    public enum Threshold
-    {
-        P99,
-        P95,
-        P50,
-        SECONDS_5,
-        SECONDS_1,
-        MILLISECONDS_100
-    }
-
     /**
      * Perform additional requests if it looks like the original will time out.  May block while it waits
      * to see if the original requests are answered first.
@@ -188,64 +175,12 @@ public abstract class AbstractReadExecutor
      */
     public void writePredictedSpeculativeRetryPerformanceMetrics(long timestamp) {
         InetAddress extraReplica = Iterables.getLast(targetReplicas);
-        for (Threshold threshold : Threshold.values()) {
-            writePredSpecRetryPerformanceMetricByThreshold(threshold, timestamp, extraReplica);
+        for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
+            metrics.maybeWriteMetrics(cfs, start, timestamp, extraReplica);
         }
     }
 
-    private void writePredSpecRetryPerformanceMetricByThreshold(Threshold threshold, long timestamp, InetAddress extraReplica) {
-        long thresholdTime;
-        TimeUnit unit;
-        switch (threshold) {
-            case SECONDS_5:
-                thresholdTime = 5;
-                unit = TimeUnit.SECONDS;
-                break;
-            case SECONDS_1:
-                thresholdTime = 1;
-                unit = TimeUnit.SECONDS;
-                break;
-            case MILLISECONDS_100:
-                thresholdTime = 100;
-                unit = TimeUnit.MILLISECONDS;
-                break;
-            case P50:
-                thresholdTime = (long) (cfs.metric.coordinatorReadLatency.getSnapshot().getMedian());
-                unit = TimeUnit.NANOSECONDS;
-                break;
-            case P95:
-                thresholdTime = (long) (cfs.metric.coordinatorReadLatency.getSnapshot().get95thPercentile());
-                unit = TimeUnit.NANOSECONDS;
-                break;
-            case P99:
-                thresholdTime = (long) (cfs.metric.coordinatorReadLatency.getSnapshot().get99thPercentile());
-                unit = TimeUnit.NANOSECONDS;
-                break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + threshold);
-        }
-        if (thresholdTime < 1) {
-            // Don't want uninitialized percentile latencies to skew the metrics
-            return;
-        }
-        long extraReplicaP99Latency;
-        try {
-            Snapshot extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
-            extraReplicaP99Latency = (long) extraReplicaSnapshot.get99thPercentile();
-        } catch (UnsupportedOperationException e) {
-            extraReplicaP99Latency = Long.MIN_VALUE;
-        } catch (RuntimeException e) {
-            logger.error("Failed to get p99 latency from endpoint snitch to record predicted speculative retry metrics", e);
-            return;
-        }
-        thresholdTime = TimeUnit.NANOSECONDS.convert(thresholdTime, unit);
-        if (timestamp - start > thresholdTime && extraReplicaP99Latency > 0) {
-            invokePredSpecRetryPerformanceMetricWriter(threshold, thresholdTime + extraReplicaP99Latency);
-        }
-    }
-
-    @VisibleForTesting
-    protected abstract void invokePredSpecRetryPerformanceMetricWriter(Threshold threshold, long nanos);
+    protected abstract List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics();
 
     /**
      * @return an executor appropriate for the configured speculative read policy
@@ -308,10 +243,8 @@ public abstract class AbstractReadExecutor
     @VisibleForTesting
     static class NeverSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        protected static final Map<Threshold, PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
-            Arrays.stream(Threshold.values())
-              .collect(Collectors.toMap(e -> e,
-                                        e -> new PredictedSpeculativeRetryPerformanceMetrics(e, NeverSpeculatingReadExecutor.class)));
+        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
+                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(NeverSpeculatingReadExecutor.class);
 
         public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs, long timestamp)
         {
@@ -340,18 +273,17 @@ public abstract class AbstractReadExecutor
             return targetReplicas;
         }
 
-        protected void invokePredSpecRetryPerformanceMetricWriter(Threshold threshold, long nanos) {
-            specRetryPerformanceMetrics.get(threshold).addNano(nanos);
+        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
+            return specRetryPerformanceMetrics;
         }
     }
 
     @VisibleForTesting
     static class SpeculatingReadExecutor extends AbstractReadExecutor
     {
-        protected static final Map<Threshold, PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
-            Arrays.stream(Threshold.values())
-              .collect(Collectors.toMap(e -> e,
-                                        e -> new PredictedSpeculativeRetryPerformanceMetrics(e, SpeculatingReadExecutor.class)));
+        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
+                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(SpeculatingReadExecutor.class);
+
         private volatile boolean speculated = false;
 
         public SpeculatingReadExecutor(ColumnFamilyStore cfs,
@@ -418,18 +350,17 @@ public abstract class AbstractReadExecutor
                  : targetReplicas.subList(0, targetReplicas.size() - 1);
         }
 
-        protected void invokePredSpecRetryPerformanceMetricWriter(Threshold threshold, long nanos) {
-            specRetryPerformanceMetrics.get(threshold).addNano(nanos);
+        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
+            return specRetryPerformanceMetrics;
         }
     }
 
     @VisibleForTesting
     static class AlwaysSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        protected static final Map<Threshold, PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
-            Arrays.stream(Threshold.values())
-              .collect(Collectors.toMap(e -> e,
-                                        e -> new PredictedSpeculativeRetryPerformanceMetrics(e, AlwaysSpeculatingReadExecutor.class)));
+        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
+                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(AlwaysSpeculatingReadExecutor.class);
+
         public AlwaysSpeculatingReadExecutor(ColumnFamilyStore cfs,
                                              ReadCommand command,
                                              ConsistencyLevel consistencyLevel,
@@ -457,8 +388,8 @@ public abstract class AbstractReadExecutor
             cfs.metric.speculativeRetries.inc();
         }
 
-        protected void invokePredSpecRetryPerformanceMetricWriter(Threshold threshold, long nanos) {
-            specRetryPerformanceMetrics.get(threshold).addNano(nanos);
+        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
+            return specRetryPerformanceMetrics;
         }
     }
 }
