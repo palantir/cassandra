@@ -1517,60 +1517,64 @@ public class StorageProxy implements StorageProxyMBean
                     Row row;
                     try
                     {
-                        row = handler.get();
-                    }
-                    catch (DigestMismatchException e)
-                    {
-                        throw new AssertionError(e); // full data requested from each node here, no digests should be sent
-                    }
-                    catch (ReadTimeoutException e)
-                    {
-                        if (Tracing.isTracing())
-                            Tracing.trace("Timed out waiting on digest mismatch repair requests");
-                        else
-                            logger.trace("Timed out waiting on digest mismatch repair requests");
-                        // the caught exception here will have CL.ALL from the repair command,
-                        // not whatever CL the initial command was at (CASSANDRA-7947)
-                        int blockFor = consistencyLevel.blockFor(Keyspace.open(command.getKeyspace()));
-                        throw new ReadTimeoutException(consistencyLevel, blockFor-1, blockFor, true);
-                    }
+                        try
+                        {
+                            row = handler.get();
+                        }
+                        catch (DigestMismatchException e)
+                        {
+                            throw new AssertionError(e); // full data requested from each node here, no digests should be sent
+                        }
+                        catch (ReadTimeoutException e)
+                        {
+                            if (Tracing.isTracing())
+                                Tracing.trace("Timed out waiting on digest mismatch repair requests");
+                            else
+                                logger.trace("Timed out waiting on digest mismatch repair requests");
+                            // the caught exception here will have CL.ALL from the repair command,
+                            // not whatever CL the initial command was at (CASSANDRA-7947)
+                            int blockFor = consistencyLevel.blockFor(Keyspace.open(command.getKeyspace()));
+                            throw new ReadTimeoutException(consistencyLevel, blockFor-1, blockFor, true);
+                        }
 
-                    RowDataResolver resolver = (RowDataResolver)handler.resolver;
-                    try
-                    {
-                        // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
-                        // behind on writes in case the out-of-sync row is read multiple times in quick succession
-                        FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
-                    }
-                    catch (TimeoutException e)
-                    {
-                        if (Tracing.isTracing())
-                            Tracing.trace("Timed out waiting on digest mismatch repair acknowledgements");
-                        else
-                            logger.trace("Timed out waiting on digest mismatch repair acknowledgements");
-                        int blockFor = consistencyLevel.blockFor(Keyspace.open(command.getKeyspace()));
-                        throw new ReadTimeoutException(consistencyLevel, blockFor-1, blockFor, true);
-                    }
+                        RowDataResolver resolver = (RowDataResolver)handler.resolver;
+                        try
+                        {
+                            // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
+                            // behind on writes in case the out-of-sync row is read multiple times in quick succession
+                            FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                        }
+                        catch (TimeoutException e)
+                        {
+                            if (Tracing.isTracing())
+                                Tracing.trace("Timed out waiting on digest mismatch repair acknowledgements");
+                            else
+                                logger.trace("Timed out waiting on digest mismatch repair acknowledgements");
+                            int blockFor = consistencyLevel.blockFor(Keyspace.open(command.getKeyspace()));
+                            throw new ReadTimeoutException(consistencyLevel, blockFor-1, blockFor, true);
+                        }
 
-                    // retry any potential short reads
-                    ReadCommand retryCommand = command.maybeGenerateRetryCommand(resolver, row);
-                    if (retryCommand != null)
-                    {
-                        Tracing.trace("Issuing retry for read command");
-                        if (commandsToRetry == Collections.EMPTY_LIST)
-                            commandsToRetry = new ArrayList<>();
-                        commandsToRetry.add(retryCommand);
-                        continue;
-                    }
+                        // retry any potential short reads
+                        ReadCommand retryCommand = command.maybeGenerateRetryCommand(resolver, row);
+                        if (retryCommand != null)
+                        {
+                            Tracing.trace("Issuing retry for read command");
+                            if (commandsToRetry == Collections.EMPTY_LIST)
+                                commandsToRetry = new ArrayList<>();
+                            commandsToRetry.add(retryCommand);
+                            continue;
+                        }
 
-                    if (row != null)
+                        if (row != null)
+                        {
+                            row = command.maybeTrim(row);
+                            rows.add(row);
+                        }
+                    } finally
                     {
-                        row = command.maybeTrim(row);
-                        rows.add(row);
+                        long latency = System.nanoTime() - blockingReadRepairStartTimes.get(command);
+                        Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairLatency.addNano(latency);
                     }
-
-                    long latency = System.nanoTime() - blockingReadRepairStartTimes.get(command);
-                    Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairLatency.addNano(latency);
                 }
             }
         } while (!commandsToRetry.isEmpty());
