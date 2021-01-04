@@ -45,11 +45,11 @@ public class DynamicEndpointSnitchTest
     }
 
     @Test
-    public void testGetP99LatencyThrowsWhenNullSamples() {
+    public void testGetSnapshotThrowsWhenNullSamples() {
         SimpleSnitch ss = new SimpleSnitch();
         DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
         InetAddress self = FBUtilities.getBroadcastAddress();
-        assertThatThrownBy(() -> dsnitch.getP99Latency(self)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> dsnitch.getSnapshot(self)).isInstanceOf(NullPointerException.class);
     }
 
     @Test

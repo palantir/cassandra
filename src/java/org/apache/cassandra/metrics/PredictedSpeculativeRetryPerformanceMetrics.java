@@ -49,7 +49,7 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
                      .collect(Collectors.toList());
     }
 
-    public void maybeWriteMetrics(ColumnFamilyStore cfs, long start, long timestamp, InetAddress extraReplica) {
+    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, long start, long timestamp, InetAddress extraReplica) {
         long thresholdTime;
         TimeUnit unit;
         switch (threshold) {
@@ -82,7 +82,7 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
         }
         if (thresholdTime < 1) {
             // Don't want uninitialized percentile latencies to skew the metrics
-            return;
+            return false;
         }
         long extraReplicaP99Latency;
         try {
@@ -92,12 +92,19 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
             extraReplicaP99Latency = Long.MIN_VALUE;
         } catch (RuntimeException e) {
             logger.error("Failed to get p99 latency from endpoint snitch to record predicted speculative retry metrics", e);
-            return;
+            return false;
         }
         thresholdTime = TimeUnit.NANOSECONDS.convert(thresholdTime, unit);
         if (timestamp - start > thresholdTime && extraReplicaP99Latency > 0) {
             this.addNano(thresholdTime + extraReplicaP99Latency);
+            return true;
         }
+        return false;
+    }
+
+    // Needed for Mockito.verify()
+    public void addNano(long nanos) {
+        super.addNano(nanos);
     }
 
     public enum Threshold
