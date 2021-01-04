@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
@@ -113,6 +114,7 @@ public class Directories
                                                             ? 0.95
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
     private static final ReadWriteLock SNAPSHOT_LOCK = new ReentrantReadWriteLock();
+    private static final int LOCK_TIMEOUT_SECONDS = 60;
 
     public static final String BACKUPS_SUBDIR = "backups";
     public static final String SNAPSHOT_SUBDIR = "snapshots";
@@ -833,7 +835,7 @@ public class Directories
 
     private List<File> listSnapshots()
     {
-        SNAPSHOT_LOCK.readLock().lock();
+        maybeAcquireLock(SNAPSHOT_LOCK.readLock());
         try
         {
             final List<File> snapshots = new LinkedList<>();
@@ -885,7 +887,7 @@ public class Directories
 
     public static void clearSnapshot(String snapshotName, List<File> snapshotDirectories)
     {
-        SNAPSHOT_LOCK.writeLock().lock();
+        maybeAcquireLock(SNAPSHOT_LOCK.writeLock());
         try
         {
             // If snapshotName is empty or null, we will delete the entire snapshot directory
@@ -913,6 +915,14 @@ public class Directories
         finally
         {
             SNAPSHOT_LOCK.writeLock().unlock();
+        }
+    }
+
+    private static void maybeAcquireLock(Lock lock) {
+        try {
+            lock.tryLock(LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Could not acquire snapshot lock after " + LOCK_TIMEOUT_SECONDS + " seconds", e);
         }
     }
 
