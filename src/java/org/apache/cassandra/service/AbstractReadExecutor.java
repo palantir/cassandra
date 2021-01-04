@@ -30,6 +30,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
@@ -229,7 +230,10 @@ public abstract class AbstractReadExecutor
         }
         long extraReplicaP99Latency;
         try {
-            extraReplicaP99Latency = DatabaseDescriptor.getEndpointSnitch().getP99Latency(extraReplica);
+            Snapshot extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
+            extraReplicaP99Latency = (long) extraReplicaSnapshot.get99thPercentile();
+        } catch (UnsupportedOperationException e) {
+            extraReplicaP99Latency = Long.MIN_VALUE;
         } catch (RuntimeException e) {
             logger.error("Failed to get p99 latency from endpoint snitch to record predicted speculative retry metrics", e);
             return;

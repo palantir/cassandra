@@ -21,6 +21,8 @@ import java.net.InetAddress;
 import java.util.Collection;
 import java.util.List;
 
+import com.codahale.metrics.Snapshot;
+
 /**
  * This interface helps determine location of node in the data center relative to another node.
  * Give a node A and another node B it can tell if A and B are on the same rack or in the same
@@ -57,7 +59,7 @@ public interface IEndpointSnitch
     /**
      * returns p99 latency of current samples for given endpoint in nanoseconds
      */
-    public long getP99Latency(InetAddress endpoint);
+    public Snapshot getSnapshot(InetAddress endpoint);
 
     /**
      * called after Gossiper instance exists immediately before it starts gossiping

@@ -1502,6 +1502,15 @@ public class StorageProxy implements StorageProxyMBean
                         MessagingService.instance().sendRRWithFailure(message, endpoint, repairHandler);
                     }
                 }
+                finally {
+                    for (AbstractReadExecutor exc : readExecutors) {
+                        try {
+                            exc.writePredictedSpeculativeRetryPerformanceMetrics(System.nanoTime());
+                        } catch (RuntimeException e) {
+                            logger.error("Failed to write predicted speculative retry performance metrics", e);
+                        }
+                    }
+                }
             }
 
             commandsToRetry.clear();
@@ -1571,13 +1580,6 @@ public class StorageProxy implements StorageProxyMBean
 
                     long latency = System.nanoTime() - blockingReadRepairStartTimes.get(command);
                     Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairLatency.addNano(latency);
-                }
-            }
-            for (AbstractReadExecutor exc : readExecutors) {
-                try {
-                    exc.writePredictedSpeculativeRetryPerformanceMetrics(System.nanoTime());
-                } catch (RuntimeException e) {
-                    logger.error("Failed to write predicted speculative retry performance metrics", e);
                 }
             }
         } while (!commandsToRetry.isEmpty());

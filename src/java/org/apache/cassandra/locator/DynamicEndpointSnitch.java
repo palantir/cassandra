@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 
+import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
@@ -250,9 +251,8 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         sample.update(latency);
     }
 
-    public long getP99Latency(InetAddress endpoint)
-    {
-        return (long) samples.get(endpoint).getSnapshot().get99thPercentile();
+    public Snapshot getSnapshot(InetAddress endpoint) {
+        return samples.get(endpoint).getSnapshot();
     }
 
     private void updateScores() // this is expensive

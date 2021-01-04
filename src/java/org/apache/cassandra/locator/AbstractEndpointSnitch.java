@@ -20,6 +20,7 @@ package org.apache.cassandra.locator;
 import java.net.InetAddress;
 import java.util.*;
 
+import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.config.DatabaseDescriptor;
 
 public abstract class AbstractEndpointSnitch implements IEndpointSnitch
@@ -55,9 +56,9 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
         });
     }
 
-    public long getP99Latency(InetAddress endpoint)
+    public Snapshot getSnapshot(InetAddress endpoint)
     {
-        return Long.MIN_VALUE;
+        throw new UnsupportedOperationException("getSnapshot not supported for AbstractEndpointSnitch");
     }
 
     public void gossiperStarting()
