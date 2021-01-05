@@ -1503,12 +1503,10 @@ public class StorageProxy implements StorageProxyMBean
                     }
                 }
                 finally {
-                    for (AbstractReadExecutor exc : readExecutors) {
-                        try {
-                            exc.writePredictedSpeculativeRetryPerformanceMetrics(System.nanoTime());
-                        } catch (RuntimeException e) {
-                            logger.error("Failed to write predicted speculative retry performance metrics", e);
-                        }
+                    try {
+                        exec.writePredictedSpeculativeRetryPerformanceMetrics(System.nanoTime());
+                    } catch (RuntimeException e) {
+                        logger.error("Failed to write predicted speculative retry performance metrics", e);
                     }
                 }
             }
