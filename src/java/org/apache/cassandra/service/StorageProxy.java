@@ -1504,7 +1504,7 @@ public class StorageProxy implements StorageProxyMBean
                 }
                 finally {
                     try {
-                        exec.writePredictedSpeculativeRetryPerformanceMetrics(System.nanoTime());
+                        exec.writePredictedSpeculativeRetryPerformanceMetrics();
                     } catch (RuntimeException e) {
                         logger.error("Failed to write predicted speculative retry performance metrics", e);
                     }
@@ -1866,7 +1866,7 @@ public class StorageProxy implements StorageProxyMBean
                     // collect replies and resolve according to consistency level
                     RangeSliceResponseResolver resolver = new RangeSliceResponseResolver(nodeCmd.keyspace, command.timestamp);
                     List<InetAddress> minimalEndpoints = filteredEndpoints.subList(0, Math.min(filteredEndpoints.size(), consistency_level.blockFor(keyspace)));
-                    ReadCallback<RangeSliceReply, Iterable<Row>> handler = new ReadCallback<>(resolver, consistency_level, nodeCmd, minimalEndpoints);
+                    ReadCallback<RangeSliceReply, Iterable<Row>> handler = new ReadCallback<>(resolver, consistency_level, nodeCmd, minimalEndpoints, null);
                     handler.assureSufficientLiveNodes();
                     resolver.setSources(filteredEndpoints);
                     if (filteredEndpoints.size() == 1

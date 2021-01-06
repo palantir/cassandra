@@ -18,6 +18,7 @@
 package org.apache.cassandra.service;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -69,26 +70,21 @@ public abstract class AbstractReadExecutor
     protected final ReadCallback<ReadResponse, Row> handler;
     protected final TraceState traceState;
     protected final ColumnFamilyStore cfs;
-    protected final long start;
+    protected final List<Long> latencies;
 
     AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
-    {
-        this(command, consistencyLevel, targetReplicas, cfs, System.nanoTime());
-    }
-
-    AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs, long timestamp)
     {
         this.command = command;
         this.targetReplicas = targetReplicas;
         this.cfs = cfs;
         resolver = new RowDigestResolver(command.ksName, command.key, targetReplicas.size());
         traceState = Tracing.instance.get();
-        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas);
-        this.start = timestamp;
+        this.latencies = new ArrayList<>();
+        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, latencies);
     }
 
-    private static boolean isLocalRequest(InetAddress replica)
-    {
+    @VisibleForTesting
+    boolean isLocalRequest(InetAddress replica) {
         return replica.equals(FBUtilities.getBroadcastAddress());
     }
 
@@ -120,16 +116,26 @@ public abstract class AbstractReadExecutor
             logger.trace("reading {} from {}", readCommand.isDigestQuery() ? "digest" : "data", endpoint);
             if (message == null)
                 message = readCommand.createMessage();
-            MessagingService.instance().sendRRWithFailure(message, endpoint, handler);
+            // Handler adds remote requests latencies to list
+            getMessagingServiceInstance().sendRRWithFailure(message, endpoint, handler);
         }
 
         // We delay the local (potentially blocking) read till the end to avoid stalling remote requests.
         if (hasLocalEndpoint)
         {
+            long localStart = System.nanoTime();
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
             KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
             StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
+            synchronized (latencies) {
+                latencies.add(System.nanoTime() - localStart);
+            }
         }
+    }
+
+    @VisibleForTesting
+    MessagingService getMessagingServiceInstance() {
+        return MessagingService.instance();
     }
 
     private static Stage stage(ReadCommand command) {
@@ -171,10 +177,10 @@ public abstract class AbstractReadExecutor
      * Compare difference between passed timestamp and start field against Threshold cutoffs. If the threshold is
      * exceeded, the current p99 latency of the retry endpoint is added to the threshold as the "predicted performance"
      */
-    public void writePredictedSpeculativeRetryPerformanceMetrics(long timestamp) {
+    public void writePredictedSpeculativeRetryPerformanceMetrics() {
         InetAddress extraReplica = Iterables.getLast(targetReplicas);
         for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
-            metrics.maybeWriteMetrics(cfs, start, timestamp, extraReplica);
+            metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
         }
     }
 
@@ -243,11 +249,6 @@ public abstract class AbstractReadExecutor
     {
         protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
                 PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(NeverSpeculatingReadExecutor.class);
-
-        public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs, long timestamp)
-        {
-            super(command, consistencyLevel, targetReplicas, cfs, timestamp);
-        }
 
         public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
         {

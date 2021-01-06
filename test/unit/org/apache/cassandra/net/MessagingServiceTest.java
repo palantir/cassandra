@@ -54,4 +54,8 @@ public class MessagingServiceTest
         assertEquals(7500, (int)messagingService.getDroppedMessages().get(verb.toString()));
     }
 
+    public static MessagingService getTestService() {
+        return MessagingService.test();
+    }
+
 }

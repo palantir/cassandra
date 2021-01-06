@@ -94,6 +94,7 @@ public final class MessagingService implements MessagingServiceMBean
     public static final int PROTOCOL_MAGIC = 0xCA552DFA;
 
     private boolean allNodesAtLeast22 = true;
+    private final boolean testOnly;
 
     /* All verb handler identifiers */
     public enum Verb
@@ -357,6 +358,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     private MessagingService(boolean testOnly)
     {
+        this.testOnly = testOnly;
         for (Verb verb : DROPPABLE_VERBS)
             droppedMessagesMap.put(verb, new DroppedMessages(verb));
 
@@ -668,7 +670,9 @@ public final class MessagingService implements MessagingServiceMBean
     public int sendRR(MessageOut message, InetAddress to, IAsyncCallback cb, long timeout, boolean failureCallback)
     {
         int id = addCallback(cb, message, to, timeout, failureCallback);
-        sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE) : message, id, to);
+        if (!testOnly) {
+            sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE) : message, id, to);
+        }
         return id;
     }
 

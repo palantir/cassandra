@@ -19,7 +19,6 @@
 package org.apache.cassandra.metrics;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +48,7 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
                      .collect(Collectors.toList());
     }
 
-    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, long start, long timestamp, InetAddress extraReplica) {
+    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, List<Long> latencies, InetAddress extraReplica) {
         long thresholdTime;
         TimeUnit unit;
         switch (threshold) {
@@ -91,11 +90,15 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
         } catch (UnsupportedOperationException e) {
             extraReplicaP99Latency = Long.MIN_VALUE;
         } catch (RuntimeException e) {
-            logger.error("Failed to get p99 latency from endpoint snitch to record predicted speculative retry metrics", e);
+            logger.warn("Failed to get p99 latency from endpoint snitch to record predicted speculative retry metrics", e);
             return false;
         }
         thresholdTime = TimeUnit.NANOSECONDS.convert(thresholdTime, unit);
-        if (timestamp - start > thresholdTime && extraReplicaP99Latency > 0) {
+        int numRequestsAboveThreshold = 0;
+        for (Long latency : latencies) {
+            numRequestsAboveThreshold += (latency > thresholdTime) ? 1 : 0;
+        }
+        if (numRequestsAboveThreshold == 1 && extraReplicaP99Latency > 0) {
             this.addNano(thresholdTime + extraReplicaP99Latency);
             return true;
         }
