@@ -131,6 +131,7 @@ public abstract class AbstractReadExecutor
                 latencies.add(System.nanoTime() - localStart);
             }
         }
+        logger.trace("measured read latencies {} ns", latencies);
     }
 
     @VisibleForTesting
@@ -179,8 +180,10 @@ public abstract class AbstractReadExecutor
      */
     public void writePredictedSpeculativeRetryPerformanceMetrics() {
         InetAddress extraReplica = Iterables.getLast(targetReplicas);
-        for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
-            metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
+        synchronized (latencies) {
+            for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
+                metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
+            }
         }
     }
 
