@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import org.apache.cassandra.utils.FBUtilities;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -45,11 +46,11 @@ public class DynamicEndpointSnitchTest
     }
 
     @Test
-    public void testGetSnapshotThrowsWhenNullSamples() {
+    public void testGetSnapshotReturnsEmptyWhenNullSamples() {
         SimpleSnitch ss = new SimpleSnitch();
         DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
         InetAddress self = FBUtilities.getBroadcastAddress();
-        assertThatThrownBy(() -> dsnitch.getSnapshot(self)).isInstanceOf(NullPointerException.class);
+        assertThat(dsnitch.getSnapshot(self)).isEqualTo(Optional.empty());
     }
 
     @Test

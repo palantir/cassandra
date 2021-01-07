@@ -112,7 +112,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
                         IReadCommand command,
                         Keyspace keyspace,
                         List<InetAddress> endpoints) {
-        this(resolver, consistencyLevel, blockfor, command, keyspace, endpoints, null);
+        this(resolver, consistencyLevel, blockfor, command, keyspace, endpoints, Optional.empty());
     }
 
     public ReadCallback(IResponseResolver<TMessage, TResolved> resolver,

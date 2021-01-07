@@ -118,7 +118,7 @@ public abstract class AbstractReadExecutor
             if (message == null)
                 message = readCommand.createMessage();
             // Handler adds remote requests latencies to list
-            getMessagingServiceInstance().sendRRWithFailure(message, endpoint, handler);
+            MessagingService.instance().sendRRWithFailure(message, endpoint, handler);
         }
 
         // We delay the local (potentially blocking) read till the end to avoid stalling remote requests.
@@ -131,11 +131,6 @@ public abstract class AbstractReadExecutor
             latencies.add(System.nanoTime() - localStart);
         }
         logger.trace("measured read latencies {} ns", latencies);
-    }
-
-    @VisibleForTesting
-    MessagingService getMessagingServiceInstance() {
-        return MessagingService.instance();
     }
 
     private static Stage stage(ReadCommand command) {
