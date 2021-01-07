@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -88,7 +89,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         IEndpointSnitch snitch = spy(new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode())));
         Snapshot mockSnapshot = mock(Snapshot.class);
         when(mockSnapshot.get99thPercentile()).thenReturn(100.0);
-        doReturn(mockSnapshot).when(snitch).getSnapshot(any());
+        doReturn(Optional.of(mockSnapshot)).when(snitch).getSnapshot(any());
         DatabaseDescriptor.setEndpointSnitch(snitch);
     }
 
@@ -265,26 +266,11 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
     }
 
     @Test
-    public void testMaybeWriteMetricsIgnoresWhenNoSamples() {
+    public void testMaybeWriteMetricsIgnoresWhenNoSnapshot() {
         ColumnFamilyStore cfs = spy(MockSchema.newCFS());
         SimpleSnitch ss = new SimpleSnitch();
         IEndpointSnitch snitch = spy(new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode())));
-        doThrow(new NullPointerException()).when(snitch).getSnapshot(any());
-        DatabaseDescriptor.setEndpointSnitch(snitch);
-
-        long timestamp = TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS) + 100;
-        List<Long> latencies = ImmutableList.of(timestamp);
-        for (PredictedSpeculativeRetryPerformanceMetrics specMetrics : thresholdToMetrics.values()) {
-            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isFalse();
-        }
-    }
-
-    @Test
-    public void testMaybeWriteMetricsIgnoresWhenUnsupportedGetSnapshot() {
-        ColumnFamilyStore cfs = spy(MockSchema.newCFS());
-        SimpleSnitch ss = new SimpleSnitch();
-        IEndpointSnitch snitch = spy(new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode())));
-        doThrow(new UnsupportedOperationException()).when(snitch).getSnapshot(any());
+        doReturn(Optional.empty()).when(snitch).getSnapshot(any());
         DatabaseDescriptor.setEndpointSnitch(snitch);
 
         long timestamp = TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS) + 100;

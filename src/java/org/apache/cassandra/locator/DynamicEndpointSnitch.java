@@ -251,8 +251,8 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         sample.update(latency);
     }
 
-    public Snapshot getSnapshot(InetAddress endpoint) {
-        return samples.get(endpoint).getSnapshot();
+    public Optional<Snapshot> getSnapshot(InetAddress endpoint) {
+        return Optional.ofNullable(samples.get(endpoint).getSnapshot());
     }
 
     private void updateScores() // this is expensive

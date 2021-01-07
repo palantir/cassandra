@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -85,25 +86,27 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
             return false;
         }
         long extraReplicaP99Latency;
-        try {
-            Snapshot extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
-            extraReplicaP99Latency = (long) extraReplicaSnapshot.get99thPercentile();
-        } catch (UnsupportedOperationException e) {
-            extraReplicaP99Latency = Long.MIN_VALUE;
-        } catch (RuntimeException e) {
-            logger.warn("Failed to get p99 latency from endpoint snitch to record predicted speculative retry metrics", e);
+        Optional<Snapshot> extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
+        if (extraReplicaSnapshot.isPresent()) {
+            extraReplicaP99Latency = (long) extraReplicaSnapshot.get().get99thPercentile();
+        } else {
             return false;
         }
+
         thresholdTime = TimeUnit.NANOSECONDS.convert(thresholdTime, unit);
-        int numRequestsAboveThreshold = 0;
-        for (Long latency : latencies) {
-            numRequestsAboveThreshold += (latency > thresholdTime) ? 1 : 0;
-        }
-        if (numRequestsAboveThreshold == 1 && extraReplicaP99Latency > 0) {
+        if (isRetryHelpful(latencies, thresholdTime)) {
             this.addNano(thresholdTime + extraReplicaP99Latency);
             return true;
         }
         return false;
+    }
+
+    private boolean isRetryHelpful(Collection<Long> latencies, long thresholdTime) {
+        int numRequestsAboveThreshold = 0;
+        for (Long latency : latencies) {
+            numRequestsAboveThreshold += (latency > thresholdTime) ? 1 : 0;
+        }
+        return numRequestsAboveThreshold == 1;
     }
 
     // Needed for Mockito.verify()

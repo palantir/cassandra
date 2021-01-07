@@ -20,6 +20,7 @@ package org.apache.cassandra.locator;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import com.codahale.metrics.Snapshot;
 
@@ -59,7 +60,7 @@ public interface IEndpointSnitch
     /**
      * returns p99 latency of current samples for given endpoint in nanoseconds
      */
-    public Snapshot getSnapshot(InetAddress endpoint);
+    public Optional<Snapshot> getSnapshot(InetAddress endpoint);
 
     /**
      * called after Gossiper instance exists immediately before it starts gossiping

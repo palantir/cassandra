@@ -56,9 +56,9 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
         });
     }
 
-    public Snapshot getSnapshot(InetAddress endpoint)
+    public Optional<Snapshot> getSnapshot(InetAddress endpoint)
     {
-        throw new UnsupportedOperationException("getSnapshot not supported for AbstractEndpointSnitch");
+        return Optional.empty();
     }
 
     public void gossiperStarting()
