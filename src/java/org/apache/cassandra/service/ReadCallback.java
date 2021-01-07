@@ -18,17 +18,17 @@
 package org.apache.cassandra.service;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
@@ -73,7 +73,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
     final long start;
     final int blockfor;
     final List<InetAddress> endpoints;
-    final List<Long> latencies;
+    final Optional<Collection<Long>> latencies;
     private final IReadCommand command;
     private final ConsistencyLevel consistencyLevel;
     private static final AtomicIntegerFieldUpdater<ReadCallback> recievedUpdater
@@ -92,7 +92,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
                         ConsistencyLevel consistencyLevel,
                         IReadCommand command,
                         List<InetAddress> filteredEndpoints,
-                        List<Long> latencies) {
+                        Optional<Collection<Long>> latencies) {
         this(resolver,
              consistencyLevel,
              consistencyLevel.blockFor(Keyspace.open(command.getKeyspace())),
@@ -121,7 +121,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
                         IReadCommand command,
                         Keyspace keyspace,
                         List<InetAddress> endpoints,
-                        List<Long> latencies) {
+                        Optional<Collection<Long>> latencies) {
         this.command = command;
         this.keyspace = keyspace;
         this.blockfor = blockfor;
@@ -177,11 +177,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
             }
             return blockfor == 1 ? resolver.getData() : resolver.resolve();
         } finally {
-            if (latencies != null) {
-                synchronized(latencies) {
-                    latencies.add(System.nanoTime() - start);
-                }
-            }
+            latencies.ifPresent(latencyCollection -> latencyCollection.add(System.nanoTime() - start));
         }
     }
 

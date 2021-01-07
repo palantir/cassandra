@@ -18,9 +18,10 @@
 package org.apache.cassandra.service;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -70,7 +71,7 @@ public abstract class AbstractReadExecutor
     protected final ReadCallback<ReadResponse, Row> handler;
     protected final TraceState traceState;
     protected final ColumnFamilyStore cfs;
-    protected final List<Long> latencies;
+    protected final ConcurrentLinkedQueue<Long> latencies;
 
     AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
     {
@@ -79,8 +80,8 @@ public abstract class AbstractReadExecutor
         this.cfs = cfs;
         resolver = new RowDigestResolver(command.ksName, command.key, targetReplicas.size());
         traceState = Tracing.instance.get();
-        this.latencies = new ArrayList<>();
-        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, latencies);
+        this.latencies = new ConcurrentLinkedQueue<>();
+        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
     }
 
     @VisibleForTesting
@@ -127,9 +128,7 @@ public abstract class AbstractReadExecutor
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
             KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
             StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
-            synchronized (latencies) {
-                latencies.add(System.nanoTime() - localStart);
-            }
+            latencies.add(System.nanoTime() - localStart);
         }
         logger.trace("measured read latencies {} ns", latencies);
     }
@@ -180,10 +179,8 @@ public abstract class AbstractReadExecutor
      */
     public void writePredictedSpeculativeRetryPerformanceMetrics() {
         InetAddress extraReplica = Iterables.getLast(targetReplicas);
-        synchronized (latencies) {
-            for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
-                metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
-            }
+        for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
+            metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
         }
     }
 

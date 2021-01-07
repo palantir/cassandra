@@ -21,6 +21,7 @@ package org.apache.cassandra.service;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.BeforeClass;
@@ -67,19 +68,19 @@ public class ReadCallbackTest {
                                                                          ConsistencyLevel.ANY,
                                                                          ReadExecutorTest.getReadCommand(KEYSPACE, CF),
                                                                          targetReplicas,
-                                                                         latencies));
+                                                                         Optional.of(latencies)));
         doReturn(true).when(handler).await(anyLong(), any());
         handler.get();
         assertThat(latencies).hasSize(1);
     }
 
     @Test
-    public void testLatenciesIgnoredWhenNull() throws DigestMismatchException {
+    public void testLatenciesIgnoredWhenAbsent() throws DigestMismatchException {
         ReadCallback<ReadResponse, Row> handler = spy(new ReadCallback<>(resolver,
                                                                          ConsistencyLevel.ANY,
                                                                          ReadExecutorTest.getReadCommand(KEYSPACE, CF),
                                                                          targetReplicas,
-                                                                         null));
+                                                                         Optional.empty()));
         doReturn(true).when(handler).await(anyLong(), any());
         handler.get();
     }
@@ -92,12 +93,12 @@ public class ReadCallbackTest {
                                                                           ConsistencyLevel.ANY,
                                                                           ReadExecutorTest.getReadCommand(KEYSPACE, CF),
                                                                           targetReplicas,
-                                                                          latencies));
+                                                                          Optional.of(latencies)));
         ReadCallback<ReadResponse, Row> handler2 = spy(new ReadCallback<>(resolver,
                                                                           ConsistencyLevel.ANY,
                                                                           ReadExecutorTest.getReadCommand(KEYSPACE, CF),
                                                                           targetReplicas,
-                                                                          latencies));
+                                                                          Optional.of(latencies)));
         doReturn(true).when(handler1).await(anyLong(), any());
         doReturn(true).when(handler2).await(anyLong(), any());
         Runnable get1 = getRunnable(handler1);
@@ -116,12 +117,12 @@ public class ReadCallbackTest {
                                                                           ConsistencyLevel.ANY,
                                                                           ReadExecutorTest.getReadCommand(KEYSPACE, CF),
                                                                           targetReplicas,
-                                                                          latencies));
+                                                                          Optional.of(latencies)));
         ReadCallback<ReadResponse, Row> handler2 = spy(new ReadCallback<>(resolver,
                                                                           ConsistencyLevel.ANY,
                                                                           ReadExecutorTest.getReadCommand(KEYSPACE, CF),
                                                                           targetReplicas,
-                                                                          latencies));
+                                                                          Optional.of(latencies)));
         doReturn(true).when(handler1).await(anyLong(), any());
         doReturn(true).when(handler2).await(anyLong(), any());
         Runnable get1 = getRunnable(handler1);

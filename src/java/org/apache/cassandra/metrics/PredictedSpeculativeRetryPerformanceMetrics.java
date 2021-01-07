@@ -20,6 +20,7 @@ package org.apache.cassandra.metrics;
 
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -48,7 +49,7 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
                      .collect(Collectors.toList());
     }
 
-    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, List<Long> latencies, InetAddress extraReplica) {
+    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, Collection<Long> latencies, InetAddress extraReplica) {
         long thresholdTime;
         TimeUnit unit;
         switch (threshold) {
