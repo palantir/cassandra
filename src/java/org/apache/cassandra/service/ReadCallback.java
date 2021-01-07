@@ -207,11 +207,6 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
         }
     }
 
-    @VisibleForTesting
-    public void responseForTest() {
-        condition.signalAll();
-    }
-
     /*
      * Returns a map indicatin whether or not a reply had been received at timeout, for each address the query was sent.
      * This iterates through the one-use `messages` iterator on the resolver so can only be called after a query has

@@ -19,6 +19,8 @@
 package org.apache.cassandra.service;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Collections;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -36,17 +38,19 @@ import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.ReadCommand;
+import org.apache.cassandra.db.ReadResponse;
+import org.apache.cassandra.db.Row;
 import org.apache.cassandra.db.SliceByNamesReadCommand;
 import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.filter.NamesQueryFilter;
 import org.apache.cassandra.locator.SimpleStrategy;
+import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
-import org.apache.cassandra.net.MessagingServiceTest;
+import org.apache.cassandra.utils.FBUtilities;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -54,10 +58,7 @@ import static org.mockito.Mockito.when;
 public class ReadExecutorTest {
     private static final String KEYSPACE = "ReadExecutorTestKeyspace";
     private static final String CF = "ReadExecutorTestCF";
-    private static final InetAddress addr1 = mock(InetAddress.class);
-    private static final InetAddress addr2 = mock(InetAddress.class);
-    private static final List<InetAddress> targetReplicas = ImmutableList.of(addr1, addr2);
-    private static final RowDigestResolver resolver = mock(RowDigestResolver.class);
+    private static final InetAddress remoteEndpoint = mock(InetAddress.class);
 
     @BeforeClass
     public static void beforeClass() {
@@ -70,8 +71,8 @@ public class ReadExecutorTest {
 
     @Test
     public void testLatenciesRecordedForLocalEndpoint() {
-        AbstractReadExecutor exc = spy(getTestNeverSpeculatingReadExecutor(KEYSPACE, CF, ImmutableList.of(addr1)));
-        when(exc.isLocalRequest(addr1)).thenReturn(true);
+        InetAddress self = FBUtilities.getBroadcastAddress();
+        AbstractReadExecutor exc = spy(getTestNeverSpeculatingReadExecutor(KEYSPACE, CF, ImmutableList.of(self)));
 
         assertThat(exc.latencies).isEmpty();
         exc.executeAsync();
@@ -79,34 +80,42 @@ public class ReadExecutorTest {
     }
 
     @Test
-    public void testLatenciesRecordedForRemoteEndpoint() throws DigestMismatchException
+    public void testLatenciesRecordedForRemoteEndpoint() throws DigestMismatchException, UnknownHostException
     {
-        AbstractReadExecutor exc = spy(getTestNeverSpeculatingReadExecutor(KEYSPACE, CF, ImmutableList.of(addr2)));
-        when(exc.isLocalRequest(addr2)).thenReturn(false);
+        InetAddress remote = InetAddress.getByName("127.0.0.2");
+        AbstractReadExecutor exc = spy(getTestNeverSpeculatingReadExecutor(KEYSPACE, CF, ImmutableList.of(remote)));
+        when(exc.isLocalRequest(remoteEndpoint)).thenReturn(false);
 
-        MessagingService messagingService = MessagingServiceTest.getTestService();
-        doReturn(messagingService).when(exc).getMessagingServiceInstance();
+        MessageIn<ReadResponse> readResponse = MessageIn.create(remoteEndpoint,
+                                                                new ReadResponse(mock(Row.class)),
+                                                                Collections.emptyMap(),
+                                                                MessagingService.Verb.INTERNAL_RESPONSE,
+                                                                MessagingService.current_version);
 
         assertThat(exc.latencies).isEmpty();
         exc.executeAsync();
-        exc.handler.responseForTest();
+        exc.handler.response(readResponse);
         exc.get();
         assertThat(exc.latencies).hasSize(1);
     }
 
     @Test
-    public void testLatenciesRecordedForMultipleEndpoints() throws DigestMismatchException
+    public void testLatenciesRecordedForMultipleEndpoints() throws DigestMismatchException, UnknownHostException
     {
-        AbstractReadExecutor exc = spy(getTestNeverSpeculatingReadExecutor(KEYSPACE, CF, targetReplicas));
-        when(exc.isLocalRequest(addr2)).thenReturn(false);
-        when(exc.isLocalRequest(addr1)).thenReturn(true);
 
-        MessagingService messagingService = MessagingServiceTest.getTestService();
-        doReturn(messagingService).when(exc).getMessagingServiceInstance();
+        InetAddress remote = InetAddress.getByName("127.0.0.2");
+        List<InetAddress> targetReplicas = ImmutableList.of(FBUtilities.getBroadcastAddress(), remote);
+        AbstractReadExecutor exc = spy(getTestNeverSpeculatingReadExecutor(KEYSPACE, CF, targetReplicas));
 
         assertThat(exc.latencies).isEmpty();
         exc.executeAsync();
-        exc.handler.responseForTest();
+
+        MessageIn<ReadResponse> readResponse = MessageIn.create(remoteEndpoint,
+                                                                new ReadResponse(mock(Row.class)),
+                                                                Collections.emptyMap(),
+                                                                MessagingService.Verb.INTERNAL_RESPONSE,
+                                                                MessagingService.current_version);
+        exc.handler.response(readResponse);
         exc.get();
         assertThat(exc.latencies).hasSize(2);
         for (Long latency : exc.latencies) {

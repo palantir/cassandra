@@ -53,9 +53,4 @@ public class MessagingServiceTest
         assertEquals("READ messages were dropped in last 5000 ms: 1250 for internal timeout and 1250 for cross node timeout", logs.get(0));
         assertEquals(7500, (int)messagingService.getDroppedMessages().get(verb.toString()));
     }
-
-    public static MessagingService getTestService() {
-        return MessagingService.test();
-    }
-
 }
