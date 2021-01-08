@@ -20,8 +20,11 @@ package org.apache.cassandra.service;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +44,7 @@ import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.exceptions.ReadFailureException;
 import org.apache.cassandra.exceptions.ReadTimeoutException;
 import org.apache.cassandra.exceptions.UnavailableException;
+import org.apache.cassandra.metrics.PredictedSpeculativeRetryPerformanceMetrics;
 import org.apache.cassandra.metrics.ReadRepairMetrics;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
@@ -66,25 +70,28 @@ public abstract class AbstractReadExecutor
     protected final RowDigestResolver resolver;
     protected final ReadCallback<ReadResponse, Row> handler;
     protected final TraceState traceState;
+    protected final ColumnFamilyStore cfs;
+    protected final ConcurrentLinkedQueue<Long> latencies;
 
-    AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas)
+    AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
     {
         this.command = command;
         this.targetReplicas = targetReplicas;
+        this.cfs = cfs;
         resolver = new RowDigestResolver(command.ksName, command.key, targetReplicas.size());
         traceState = Tracing.instance.get();
-        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas);
+        this.latencies = new ConcurrentLinkedQueue<>();
+        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
     }
 
-    private static boolean isLocalRequest(InetAddress replica)
-    {
+    @VisibleForTesting
+    boolean isLocalRequest(InetAddress replica) {
         return replica.equals(FBUtilities.getBroadcastAddress());
     }
 
     protected void makeDataRequests(Iterable<InetAddress> endpoints)
     {
         makeRequests(command, endpoints);
-
     }
 
     protected void makeDigestRequests(Iterable<InetAddress> endpoints)
@@ -110,16 +117,20 @@ public abstract class AbstractReadExecutor
             logger.trace("reading {} from {}", readCommand.isDigestQuery() ? "digest" : "data", endpoint);
             if (message == null)
                 message = readCommand.createMessage();
+            // Handler adds remote requests latencies to list
             MessagingService.instance().sendRRWithFailure(message, endpoint, handler);
         }
 
         // We delay the local (potentially blocking) read till the end to avoid stalling remote requests.
         if (hasLocalEndpoint)
         {
+            long localStart = System.nanoTime();
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
             KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
             StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
+            latencies.add(System.nanoTime() - localStart);
         }
+        logger.trace("measured read latencies {} ns", latencies);
     }
 
     private static Stage stage(ReadCommand command) {
@@ -158,6 +169,19 @@ public abstract class AbstractReadExecutor
     }
 
     /**
+     * Compare difference between passed timestamp and start field against Threshold cutoffs. If the threshold is
+     * exceeded, the current p99 latency of the retry endpoint is added to the threshold as the "predicted performance"
+     */
+    public void writePredictedSpeculativeRetryPerformanceMetrics() {
+        InetAddress extraReplica = Iterables.getLast(targetReplicas);
+        for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
+            metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
+        }
+    }
+
+    protected abstract List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics();
+
+    /**
      * @return an executor appropriate for the configured speculative read policy
      */
     public static AbstractReadExecutor getReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel) throws UnavailableException
@@ -175,7 +199,6 @@ public abstract class AbstractReadExecutor
             Tracing.trace("Read-repair {}", repairDecision);
             ReadRepairMetrics.attempted.mark();
             Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.attemptedReadRepairs.mark();
-
         }
 
         ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(command.cfName);
@@ -183,7 +206,7 @@ public abstract class AbstractReadExecutor
 
         // Speculative retry is disabled *OR* there are simply no extra replicas to speculate.
         if (retryType == RetryType.NONE || consistencyLevel.blockFor(keyspace) == allReplicas.size())
-            return new NeverSpeculatingReadExecutor(command, consistencyLevel, targetReplicas);
+            return new NeverSpeculatingReadExecutor(command, consistencyLevel, targetReplicas, cfs);
 
         if (targetReplicas.size() == allReplicas.size())
         {
@@ -216,11 +239,15 @@ public abstract class AbstractReadExecutor
             return new SpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas);
     }
 
-    private static class NeverSpeculatingReadExecutor extends AbstractReadExecutor
+    @VisibleForTesting
+    static class NeverSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas)
+        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
+                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(NeverSpeculatingReadExecutor.class);
+
+        public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
         {
-            super(command, consistencyLevel, targetReplicas);
+            super(command, consistencyLevel, targetReplicas, cfs);
         }
 
         public void executeAsync()
@@ -239,11 +266,18 @@ public abstract class AbstractReadExecutor
         {
             return targetReplicas;
         }
+
+        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
+            return specRetryPerformanceMetrics;
+        }
     }
 
-    private static class SpeculatingReadExecutor extends AbstractReadExecutor
+    @VisibleForTesting
+    static class SpeculatingReadExecutor extends AbstractReadExecutor
     {
-        private final ColumnFamilyStore cfs;
+        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
+                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(SpeculatingReadExecutor.class);
+
         private volatile boolean speculated = false;
 
         public SpeculatingReadExecutor(ColumnFamilyStore cfs,
@@ -251,8 +285,7 @@ public abstract class AbstractReadExecutor
                                        ConsistencyLevel consistencyLevel,
                                        List<InetAddress> targetReplicas)
         {
-            super(command, consistencyLevel, targetReplicas);
-            this.cfs = cfs;
+            super(command, consistencyLevel, targetReplicas, cfs);
         }
 
         public void executeAsync()
@@ -310,19 +343,24 @@ public abstract class AbstractReadExecutor
                  ? targetReplicas
                  : targetReplicas.subList(0, targetReplicas.size() - 1);
         }
+
+        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
+            return specRetryPerformanceMetrics;
+        }
     }
 
-    private static class AlwaysSpeculatingReadExecutor extends AbstractReadExecutor
+    @VisibleForTesting
+    static class AlwaysSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        private final ColumnFamilyStore cfs;
+        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
+                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(AlwaysSpeculatingReadExecutor.class);
 
         public AlwaysSpeculatingReadExecutor(ColumnFamilyStore cfs,
                                              ReadCommand command,
                                              ConsistencyLevel consistencyLevel,
                                              List<InetAddress> targetReplicas)
         {
-            super(command, consistencyLevel, targetReplicas);
-            this.cfs = cfs;
+            super(command, consistencyLevel, targetReplicas, cfs);
         }
 
         public void maybeTryAdditionalReplicas()
@@ -342,6 +380,10 @@ public abstract class AbstractReadExecutor
             if (targetReplicas.size() > 2)
                 makeDigestRequests(targetReplicas.subList(2, targetReplicas.size()));
             cfs.metric.speculativeRetries.inc();
+        }
+
+        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
+            return specRetryPerformanceMetrics;
         }
     }
 }

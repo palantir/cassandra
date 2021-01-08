@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 
+import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
@@ -248,6 +249,15 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
                 sample = maybeNewSample;
         }
         sample.update(latency);
+    }
+
+    public Optional<Snapshot> getSnapshot(InetAddress endpoint) {
+        ExponentiallyDecayingReservoir endpointSamples = samples.get(endpoint);
+        if (endpointSamples != null) {
+            return Optional.ofNullable(samples.get(endpoint).getSnapshot());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private void updateScores() // this is expensive

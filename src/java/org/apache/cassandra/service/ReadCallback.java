@@ -18,11 +18,13 @@
 package org.apache.cassandra.service;
 
 import java.net.InetAddress;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -71,6 +73,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
     final long start;
     final int blockfor;
     final List<InetAddress> endpoints;
+    final Optional<Collection<Long>> latencies;
     private final IReadCommand command;
     private final ConsistencyLevel consistencyLevel;
     private static final AtomicIntegerFieldUpdater<ReadCallback> recievedUpdater
@@ -85,15 +88,40 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
     /**
      * Constructor when response count has to be calculated and blocked for.
      */
-    public ReadCallback(IResponseResolver<TMessage, TResolved> resolver, ConsistencyLevel consistencyLevel, IReadCommand command, List<InetAddress> filteredEndpoints)
-    {
-        this(resolver, consistencyLevel, consistencyLevel.blockFor(Keyspace.open(command.getKeyspace())), command, Keyspace.open(command.getKeyspace()), filteredEndpoints);
+    public ReadCallback(IResponseResolver<TMessage, TResolved> resolver,
+                        ConsistencyLevel consistencyLevel,
+                        IReadCommand command,
+                        List<InetAddress> filteredEndpoints,
+                        Optional<Collection<Long>> latencies) {
+        this(resolver,
+             consistencyLevel,
+             consistencyLevel.blockFor(Keyspace.open(command.getKeyspace())),
+             command,
+             Keyspace.open(command.getKeyspace()),
+             filteredEndpoints,
+             latencies);
+
         if (logger.isTraceEnabled())
-            logger.trace(String.format("Blockfor is %s; setting up requests to %s", blockfor, StringUtils.join(this.endpoints, ",")));
+            logger.trace(String.format("Blockfor is %s; setting up requests to %s",
+                                       blockfor, StringUtils.join(this.endpoints, ",")));
     }
 
-    public ReadCallback(IResponseResolver<TMessage, TResolved> resolver, ConsistencyLevel consistencyLevel, int blockfor, IReadCommand command, Keyspace keyspace, List<InetAddress> endpoints)
-    {
+    public ReadCallback(IResponseResolver<TMessage, TResolved> resolver,
+                        ConsistencyLevel consistencyLevel,
+                        int blockfor,
+                        IReadCommand command,
+                        Keyspace keyspace,
+                        List<InetAddress> endpoints) {
+        this(resolver, consistencyLevel, blockfor, command, keyspace, endpoints, Optional.empty());
+    }
+
+    public ReadCallback(IResponseResolver<TMessage, TResolved> resolver,
+                        ConsistencyLevel consistencyLevel,
+                        int blockfor,
+                        IReadCommand command,
+                        Keyspace keyspace,
+                        List<InetAddress> endpoints,
+                        Optional<Collection<Long>> latencies) {
         this.command = command;
         this.keyspace = keyspace;
         this.blockfor = blockfor;
@@ -101,6 +129,7 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
         this.resolver = resolver;
         this.start = System.nanoTime();
         this.endpoints = endpoints;
+        this.latencies = latencies;
         // we don't support read repair (or rapid read protection) for range scans yet (CASSANDRA-6897)
         assert !(resolver instanceof RangeSliceResponseResolver) || blockfor >= endpoints.size();
     }
@@ -120,33 +149,36 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
 
     public TResolved get() throws ReadFailureException, ReadTimeoutException, DigestMismatchException
     {
-        if (!await(command.getTimeout(), TimeUnit.MILLISECONDS))
-        {
-            // Same as for writes, see AbstractWriteResponseHandler
-            ReadTimeoutException ex = new ReadTimeoutException(consistencyLevel, received, blockfor, resolver.isDataPresent());
-            Tracing.trace("Read timeout: {}", ex.toString());
-            if (logger.isDebugEnabled() && !SYSTEM_KEYSPACE_NAMES.contains(keyspace.getName()))
-                logger.debug("Read timeout: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
-                        ex.toString(),
-                        endpoints.get(0).getHostName(),
-                        keyspace.getName(),
-                        receivedReplyAtTimeout().toString());
-            throw ex;
-        }
+        try {
+            if (!await(command.getTimeout(), TimeUnit.MILLISECONDS))
+            {
+                // Same as for writes, see AbstractWriteResponseHandler
+                ReadTimeoutException ex = new ReadTimeoutException(consistencyLevel, received, blockfor, resolver.isDataPresent());
+                Tracing.trace("Read timeout: {}", ex.toString());
+                if (logger.isDebugEnabled() && !SYSTEM_KEYSPACE_NAMES.contains(keyspace.getName()))
+                    logger.debug("Read timeout: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
+                                 ex.toString(),
+                                 endpoints.get(0).getHostName(),
+                                 keyspace.getName(),
+                                 receivedReplyAtTimeout().toString());
+                throw ex;
+            }
 
-        if (blockfor + failures > endpoints.size())
-        {
-            ReadFailureException ex = new ReadFailureException(consistencyLevel, received, failures, blockfor, resolver.isDataPresent());
-            if (logger.isDebugEnabled() && !SYSTEM_KEYSPACE_NAMES.contains(keyspace.getName()))
-                logger.debug("Read failure: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
-                             ex.toString(),
-                             endpoints.get(0).getHostName(),
-                             keyspace.getName(),
-                             receivedReplyAtTimeout().toString());
-            throw ex;
+            if (blockfor + failures > endpoints.size())
+            {
+                ReadFailureException ex = new ReadFailureException(consistencyLevel, received, failures, blockfor, resolver.isDataPresent());
+                if (logger.isDebugEnabled() && !SYSTEM_KEYSPACE_NAMES.contains(keyspace.getName()))
+                    logger.debug("Read failure: {}, Sent data request to {} for keyspace {}. Received reply map: {}",
+                                 ex.toString(),
+                                 endpoints.get(0).getHostName(),
+                                 keyspace.getName(),
+                                 receivedReplyAtTimeout().toString());
+                throw ex;
+            }
+            return blockfor == 1 ? resolver.getData() : resolver.resolve();
+        } finally {
+            latencies.ifPresent(latencyCollection -> latencyCollection.add(System.nanoTime() - start));
         }
-
-        return blockfor == 1 ? resolver.getData() : resolver.resolve();
     }
 
     public void response(MessageIn<TMessage> message)

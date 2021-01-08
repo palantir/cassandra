@@ -29,7 +29,9 @@ import org.junit.Test;
 
 import org.apache.cassandra.utils.FBUtilities;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DynamicEndpointSnitchTest
 {
@@ -41,6 +43,14 @@ public class DynamicEndpointSnitchTest
                 dsnitch.receiveTiming(hosts.get(i), scores[i]);
         }
         Thread.sleep(150);
+    }
+
+    @Test
+    public void testGetSnapshotReturnsEmptyWhenNullSamples() {
+        SimpleSnitch ss = new SimpleSnitch();
+        DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
+        InetAddress self = FBUtilities.getBroadcastAddress();
+        assertThat(dsnitch.getSnapshot(self)).isEqualTo(Optional.empty());
     }
 
     @Test

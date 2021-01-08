@@ -20,6 +20,9 @@ package org.apache.cassandra.locator;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+
+import com.codahale.metrics.Snapshot;
 
 /**
  * This interface helps determine location of node in the data center relative to another node.
@@ -53,6 +56,11 @@ public interface IEndpointSnitch
      * compares two endpoints in relation to the target endpoint, returning as Comparator.compare would
      */
     public int compareEndpoints(InetAddress target, InetAddress a1, InetAddress a2);
+
+    /**
+     * returns p99 latency of current samples for given endpoint in nanoseconds
+     */
+    public Optional<Snapshot> getSnapshot(InetAddress endpoint);
 
     /**
      * called after Gossiper instance exists immediately before it starts gossiping
