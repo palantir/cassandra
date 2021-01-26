@@ -774,4 +774,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Every write this node performs will have the specified writeø delay
      */
     public void setWriteDelay(int writeDelay);
+
+    /**
+     * Disables node (all transport), but keeps process alive
+     */
+    public void disableNode();
+
+    /**
+     * Re-enables the node (NO-OP if already enabled)
+     */
+    public void enableNode();
 }

@@ -172,7 +172,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, DISABLED }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -4750,17 +4750,24 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void internalDisableNode() {
+        logger.info("Stopping transports and disabling auto compaction");
+        instance.stopTransports();
+        disableAutoCompaction();
+    }
+
+    @Override
+    public void disableNode() {
+        setMode(Mode.DISABLED, "Node has been disabled", true);
+        internalDisableNode();
+    }
+
+    @Override
     public void enableNode() {
         logger.info("Starting transports and enabling auto compaction");
         enableAutoCompaction();
         instance.startTransports();
         instance.setOperationModeNormal();
-    }
-
-    public void disableNode() {
-        logger.info("Stopping transports and disabling auto compaction");
-        instance.stopTransports();
-        disableAutoCompaction();
     }
 
     public boolean isNodeDisabled() {
