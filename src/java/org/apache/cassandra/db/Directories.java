@@ -775,6 +775,7 @@ public class Directories
                         return false;
 
                     Pair<Descriptor, Component> pair = SSTable.tryComponentFromFilename(file.getParentFile(), file.getName());
+                    logger.info("Evaluating pair", pair, file.getParentFile(), file.getName());
                     if (pair == null)
                         return false;
 

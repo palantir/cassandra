@@ -827,8 +827,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         for (SSTableReader sstable : data.getView().sstables)
             currentDescriptors.add(sstable.descriptor);
         Set<SSTableReader> newSSTables = new HashSet<>();
+        logger.info("currentDesscriptors for sstable", currentDescriptors);
 
         Directories.SSTableLister lister = directories.sstableLister().skipTemporary(true);
+        logger.info("Directories", directories);
+        logger.info("CF Directories", directories.getCFDirectories());
         logger.info("Listing sstables", lister.list());
         for (Map.Entry<Descriptor, Set<Component>> entry : lister.list().entrySet())
         {
