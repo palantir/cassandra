@@ -829,15 +829,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         Set<SSTableReader> newSSTables = new HashSet<>();
 
         Directories.SSTableLister lister = directories.sstableLister().skipTemporary(true);
+        logger.info("Listing sstables", lister.list());
         for (Map.Entry<Descriptor, Set<Component>> entry : lister.list().entrySet())
         {
             Descriptor descriptor = entry.getKey();
-
+            logger.info("Checking descriptor", descriptor, currentDescriptors);
             if (currentDescriptors.contains(descriptor))
                 continue; // old (initialized) SSTable found, skipping
+            logger.info("Checking if temporary", descriptor, descriptor.type.isTemporary);
             if (descriptor.type.isTemporary) // in the process of being written
                 continue;
-
+            logger.info("SStable passed inital pass", descriptor);
             if (!descriptor.isCompatible())
                 throw new RuntimeException(String.format("Can't open incompatible SSTable! Current version %s, found file: %s",
                         descriptor.getFormat().getLatestVersion(),
