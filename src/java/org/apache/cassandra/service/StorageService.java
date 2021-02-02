@@ -4766,6 +4766,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void enableNode() {
         logger.info("Starting transports and enabling auto compaction");
         enableAutoCompaction();
+
+        // Let's wait until gossip is finished before allowing requests
+        instance.startGossiping();
+        CassandraDaemon.waitForGossipToSettle();
         instance.startTransports();
         instance.setOperationModeNormal();
     }
