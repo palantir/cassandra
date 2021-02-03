@@ -91,6 +91,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 public class StorageService extends NotificationBroadcasterSupport implements IEndpointStateChangeSubscriber, StorageServiceMBean
 {
     private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
+    private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
@@ -4892,6 +4893,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         public void awaitBootstrappable() {
             try {
+                if (DISABLE_WAIT_TO_BOOTSTRAP)
+                    return;
                 monitor.enterWhen(isAllowedToBootstrap);
             } catch (InterruptedException | IllegalStateException e) {
                 throw new RuntimeException("Failed to start bootstrap", e);
