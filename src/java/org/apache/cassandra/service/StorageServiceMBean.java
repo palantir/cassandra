@@ -781,7 +781,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void disableNode();
 
     /**
-     * Re-enables the node (NO-OP if already enabled)
+     * Re-enables the node (NO-OP if already enabled), starts gossip up first
      */
     public void enableNode();
 }
