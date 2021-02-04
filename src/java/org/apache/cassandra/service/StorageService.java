@@ -4758,12 +4758,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public void disableNode() {
-        setMode(Mode.DISABLED, "Node has been disabled", true);
-        internalDisableNode();
+        String operationMode = getOperationMode();
+        if (Mode.NORMAL.toString().equals(operationMode)) {
+            setMode(Mode.DISABLED, "Node has been disabled", true);
+            internalDisableNode();
+        } else {
+            logger.warn("Not disabling node as in mode {} instead of NORMAL", operationMode);
+        }
     }
 
-    @Override
-    public void enableNode() {
+    public void internalEnableNode() {
         logger.info("Starting transports and enabling auto compaction");
         enableAutoCompaction();
 
@@ -4772,6 +4776,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         CassandraDaemon.waitForGossipToSettle();
         instance.startTransports();
         instance.setOperationModeNormal();
+    }
+
+    @Override
+    public void enableNode() {
+        String operationMode = getOperationMode();
+        if (Mode.DISABLED.toString().equals(operationMode)) {
+            internalEnableNode();
+        } else {
+            logger.warn("Not enabling node as in mode {} instead of DISABLED", operationMode);
+        }
     }
 
     public boolean isNodeDisabled() {
