@@ -53,7 +53,7 @@ public class DefaultFSErrorHandlerTest
         DefaultFSErrorHandler spyHandler = spy(new DefaultFSErrorHandler());
         FileUtils.setFSErrorHandler(spyHandler);
         FileUtils.setDefaultUncaughtExceptionHandler();
-        StorageService.instance.internalDisableNode();
+        StorageService.instance.unsafeDisableNode();
 
         Thread testThread = new Thread(() -> {
             throw new ExceededDiskThresholdException(null, 0, 0);

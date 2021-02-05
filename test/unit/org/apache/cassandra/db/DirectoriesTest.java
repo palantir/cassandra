@@ -474,7 +474,7 @@ public class DirectoriesTest
     @Test
     public void testScheduledVerifyDiskHasEnoughUsableSpaceDoesNotThrowIfNodeDisabled()
     {
-        StorageService.instance.internalDisableNode();
+        StorageService.instance.unsafeDisableNode();
         for (DataDirectory dir : Directories.dataDirectories) {
             doReturn(0L).when(dir).getAvailableSpace();
             doReturn(1L).when(dir).getTotalSpace();
@@ -490,7 +490,7 @@ public class DirectoriesTest
         StorageService.instance.clearNonTransientErrors();
         StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD,
                                                         ImmutableMap.of("path", "/test"));
-        StorageService.instance.internalDisableNode();
+        StorageService.instance.unsafeDisableNode();
         assertThat(StorageService.instance.isNodeDisabled()).isTrue();
 
         for (DataDirectory dir : Directories.dataDirectories) {
@@ -511,7 +511,7 @@ public class DirectoriesTest
         StorageService.instance.clearTransientErrors();
         StorageService.instance.recordTransientError(StorageServiceMBean.TransientError.EXCEEDED_DISK_THRESHOLD,
                                                      ImmutableMap.of("path", "/test"));
-        StorageService.instance.internalDisableNode();
+        StorageService.instance.unsafeDisableNode();
         assertThat(StorageService.instance.isNodeDisabled()).isTrue();
         DatabaseDescriptor.setMaxDiskUtilizationThreshold(1.0);
 
@@ -530,7 +530,7 @@ public class DirectoriesTest
         StorageService.instance.clearNonTransientErrors();
         StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                                                         ImmutableMap.of("path", "/test"));
-        StorageService.instance.internalDisableNode();
+        StorageService.instance.unsafeDisableNode();
         assertThat(StorageService.instance.isNodeDisabled()).isTrue();
 
         for (DataDirectory dir : Directories.dataDirectories) {

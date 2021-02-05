@@ -4750,7 +4750,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    public void internalDisableNode() {
+    // Unsafe as does not check state before disabling the node
+    public void unsafeDisableNode() {
         logger.info("Stopping transports and disabling auto compaction");
         instance.stopTransports();
         disableAutoCompaction();
@@ -4761,13 +4762,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         String operationMode = getOperationMode();
         if (Mode.NORMAL.toString().equals(operationMode)) {
             setMode(Mode.DISABLED, "Node has been disabled", true);
-            internalDisableNode();
+            unsafeDisableNode();
         } else {
-            logger.warn("Not disabling node as in mode {} instead of NORMAL", operationMode);
+            logger.warn("Not disabling node as in mode {}; should be NORMAL", operationMode);
         }
     }
 
-    public void internalEnableNode() {
+    // Unsafe as does not check state before enabling the node
+    public void unsafeEnableNode() {
         logger.info("Starting transports and enabling auto compaction");
         enableAutoCompaction();
 
@@ -4782,9 +4784,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void enableNode() {
         String operationMode = getOperationMode();
         if (Mode.DISABLED.toString().equals(operationMode)) {
-            internalEnableNode();
+            unsafeEnableNode();
         } else {
-            logger.warn("Not enabling node as in mode {} instead of DISABLED", operationMode);
+            logger.warn("Not enabling node as in mode {}; should be DISABLED", operationMode);
         }
     }
 

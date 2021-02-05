@@ -333,7 +333,7 @@ public class Directories
             "Only transient errors were of type ExceededDiskThreshold. Current disk use of %f is under threshold " +
             "of %f. Clearing transient errors and enabling node", currUtilization, threshold));
             StorageService.instance.clearTransientErrors();
-            StorageService.instance.internalEnableNode();
+            StorageService.instance.unsafeEnableNode();
         }
     }
 

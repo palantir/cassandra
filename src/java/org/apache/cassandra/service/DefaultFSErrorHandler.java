@@ -97,7 +97,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             case stop_paranoid_always:
             case stop_paranoid:
                 StorageService.instance.recordTransientError(error, attributes);
-                StorageService.instance.internalDisableNode();
+                StorageService.instance.unsafeDisableNode();
                 logger.error("Stopping transports and compaction due to exceeded disk threshold exception. Disk failure policy: \"{}\"",
                              DatabaseDescriptor.getDiskFailurePolicy(),
                              e);
@@ -160,7 +160,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
     private static void recordErrorAndDisableNode(StorageServiceMBean.NonTransientError error, File path) {
         recordError(error, path);
-        StorageService.instance.internalDisableNode();
+        StorageService.instance.unsafeDisableNode();
     }
 
     private static void recordError(StorageServiceMBean.NonTransientError error, File path) {
