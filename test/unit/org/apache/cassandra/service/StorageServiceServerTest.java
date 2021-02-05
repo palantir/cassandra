@@ -54,13 +54,17 @@ import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.locator.PropertyFileSnitch;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.schema.LegacySchemaTables;
+import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.utils.FBUtilities;
+import org.apache.hadoop.hdfs.server.common.StorageInfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class StorageServiceServerTest
@@ -95,6 +99,36 @@ public class StorageServiceServerTest
         // stopping the client.
         //StorageService.instance.decommission();
         StorageService.instance.stopClient();
+    }
+
+    @Test
+    public void disableNode_canOnlyDisableWhenNormal() {
+        for(StorageService.Mode mode : StorageService.Mode.values()) {
+            StorageService.instance.setOperationMode(mode);
+            if(mode.equals(StorageService.Mode.NORMAL)) {
+                mode = StorageService.Mode.DISABLED;
+            }
+            StorageService.instance.disableNode();
+            assertThat(StorageService.instance.getOperationMode()).isEqualTo(mode.name());
+        }
+    }
+
+    @Test
+    public void enableNode_canOnlyEnableWhenDisabled() {
+        StorageService.instance.initServer(0);
+        CassandraDaemon daemon = mock(CassandraDaemon.class);
+        CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
+        daemon.thriftServer = server;
+        daemon.nativeServer = server;
+        StorageService.instance.registerDaemon(daemon);
+        for(StorageService.Mode mode : StorageService.Mode.values()) {
+            StorageService.instance.setOperationMode(mode);
+            if(mode.equals(StorageService.Mode.DISABLED)) {
+                mode = StorageService.Mode.NORMAL;
+            }
+            StorageService.instance.enableNode();
+            assertThat(StorageService.instance.getOperationMode()).isEqualTo(mode.toString());
+        }
     }
 
     @Test

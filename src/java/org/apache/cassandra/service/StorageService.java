@@ -173,7 +173,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, DISABLED }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -4751,17 +4751,44 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    public void enableNode() {
+    // Unsafe as does not check state before disabling the node
+    public void unsafeDisableNode() {
+        logger.info("Stopping transports and disabling auto compaction");
+        instance.stopTransports();
+        disableAutoCompaction();
+    }
+
+    @Override
+    public void disableNode() {
+        String operationMode = getOperationMode();
+        if (Mode.NORMAL.toString().equals(operationMode)) {
+            setMode(Mode.DISABLED, "Node has been disabled", true);
+            unsafeDisableNode();
+        } else {
+            logger.warn("Not disabling node as in mode {}; should be NORMAL", operationMode);
+        }
+    }
+
+    // Unsafe as does not check state before enabling the node
+    public void unsafeEnableNode() {
         logger.info("Starting transports and enabling auto compaction");
         enableAutoCompaction();
+
+        // Let's wait until gossip is finished before allowing requests
+        instance.startGossiping();
+        CassandraDaemon.waitForGossipToSettle();
         instance.startTransports();
         instance.setOperationModeNormal();
     }
 
-    public void disableNode() {
-        logger.info("Stopping transports and disabling auto compaction");
-        instance.stopTransports();
-        disableAutoCompaction();
+    @Override
+    public void enableNode() {
+        String operationMode = getOperationMode();
+        if (Mode.DISABLED.toString().equals(operationMode)) {
+            unsafeEnableNode();
+        } else {
+            logger.warn("Not enabling node as in mode {}; should be DISABLED", operationMode);
+        }
     }
 
     public boolean isNodeDisabled() {
