@@ -21,9 +21,8 @@ buildscript {
     }
 
     dependencies {
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:0.4.0'
         classpath 'com.palantir.gradle.docker:gradle-docker:0.22.1'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
-        classpath 'com.netflix.nebula:nebula-publishing-plugin:9.5.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.3'
     }
 }
@@ -32,8 +31,9 @@ buildscript {
 // it is up to the user to ensure that the artifacts desired by the varios publish tasks in this
 // repo have already been generated.
 
-apply from: "${project.rootDir}/gradle/publish-dist.gradle"
+apply plugin: 'com.palantir.external-publish-application-dist'
 
+apply plugin: 'com.palantir.external-publish'
 apply plugin: 'com.palantir.git-version'
 
 repositories {

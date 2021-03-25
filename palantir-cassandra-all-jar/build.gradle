@@ -15,7 +15,7 @@
  */
 
 apply from: "${project.rootDir}/gradle/generate-pom-from-existing-file.gradle"
-apply from: "${project.rootDir}/gradle/publish-jar.gradle"
+apply plugin: 'com.palantir.external-publish-jar'
 
 afterEvaluate {
     publishing {
