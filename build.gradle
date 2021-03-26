@@ -16,6 +16,7 @@
 
 buildscript {
     repositories {
+        mavenCentral()
         jcenter()
         maven { url 'https://palantir.bintray.com/releases'}
     }
@@ -37,6 +38,7 @@ apply plugin: 'com.palantir.external-publish'
 apply plugin: 'com.palantir.git-version'
 
 repositories {
+    mavenCentral()
     jcenter()
     maven {
         url 'https://dl.bintray.com/palantir/releases/'
