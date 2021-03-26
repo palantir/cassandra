@@ -33,7 +33,7 @@ buildscript {
 // it is up to the user to ensure that the artifacts desired by the varios publish tasks in this
 // repo have already been generated.
 
-apply plugin: 'com.palantir.external-publish-application-dist'
+apply plugin: 'com.palantir.external-publish-dist'
 
 apply plugin: 'com.palantir.external-publish'
 apply plugin: 'com.palantir.git-version'
@@ -83,14 +83,5 @@ docker {
 publish.dependsOn dockerPush
 dockerPush.onlyIf {
     versionDetails().isCleanTag
-}
-
-publishing {
-    publications {
-        dist(MavenPublication) {
-            artifact distTar
-            artifactId 'palantir-cassandra'
-        }
-    }
 }
 
