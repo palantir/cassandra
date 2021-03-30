@@ -15,19 +15,14 @@
  */
 
 apply from: "${project.rootDir}/gradle/generate-pom-from-existing-file.gradle"
-apply plugin: 'com.palantir.external-publish-jar'
+apply plugin: 'com.palantir.external-publish-custom'
 
-afterEvaluate {
-    publishing {
-        publications {
-            nebula(MavenPublication) {
-                artifacts = []
-                artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
-                artifactId 'cassandra-thrift'
-                pom.withXml {
-                    generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")
-                }
-            }
+externalPublishing {
+    publication('maven') {
+        artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
+        artifactId 'cassandra-thrift'
+        pom.withXml {
+            generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")
         }
     }
 }
