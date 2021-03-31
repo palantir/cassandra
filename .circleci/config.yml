@@ -51,7 +51,7 @@ jobs:
       GRADLE_OPTS: -Dorg.gradle.console=plain -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
     steps:
       - attach_workspace: { at: /home/circleci }
-      - run: ./gradlew --no-daemon ant-artifacts
+      - run: ./gradlew --no-daemon ant-artifacts ant-sources-jar ant-javadoc-jar
       - persist_to_workspace:
           root: /home/circleci
           paths: [ project, .gradle, .m2 ]
