@@ -20,10 +20,11 @@ buildscript {
         mavenCentral()
         jcenter()
         maven { url 'https://palantir.bintray.com/releases'}
+        mavenLocal()
     }
 
     dependencies {
-        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:0.4.4'
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:0.4.8'
         classpath 'com.palantir.gradle.docker:gradle-docker:0.22.1'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.3'
     }
