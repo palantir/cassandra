@@ -26,7 +26,7 @@ jobs:
           key: 'maven-ant-build-v2-{{ checksum "build.xml" }}'
           paths: [ build ]
       - restore_cache: { key: 'gradle-wrapper-v2-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}' }
-      - run: ./gradlew --no-daemon check
+      - run: ./gradlew --no-daemon
       - save_cache:
           key: 'gradle-wrapper-v2-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}'
           paths: [ ~/.gradle/wrapper ]
@@ -52,6 +52,7 @@ jobs:
     steps:
       - attach_workspace: { at: /home/circleci }
       - run: ./gradlew --no-daemon ant-artifacts
+      - run: ./gradlew --no-daemon check
       - persist_to_workspace:
           root: /home/circleci
           paths: [ project, .gradle, .m2 ]

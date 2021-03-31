@@ -19,10 +19,13 @@ apply plugin: 'com.palantir.external-publish-custom'
 
 externalPublishing {
     publication('maven') {
-        artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
-        artifactId 'cassandra-thrift'
-        pom.withXml {
-            generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")
+        afterEvaluate {
+            artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
+            artifactId 'cassandra-thrift'
+
+            pom.withXml {
+                generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")
+            }
         }
     }
 }
