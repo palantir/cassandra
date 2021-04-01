@@ -20,8 +20,19 @@ apply plugin: 'com.palantir.external-publish-custom'
 externalPublishing {
     publication('maven') {
         afterEvaluate {
-            artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
             artifactId 'cassandra-thrift'
+
+            def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}"
+
+            artifact(file("${jarFileNameRoot}.jar"))
+
+            artifact(file("${jarFileNameRoot}-sources.jar")) {
+                classifier 'sources'
+            }
+
+            artifact(file("${jarFileNameRoot}-javadoc.jar")) {
+                classifier 'javadoc'
+            }
 
             pom.withXml {
                 generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")

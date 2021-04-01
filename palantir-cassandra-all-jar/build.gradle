@@ -25,8 +25,20 @@ externalPublishing {
         }
     }
     publication('pom') {
-        artifact(file("${project.rootDir}/build/palantir-cassandra-${project.version}.jar"))
         artifactId 'cassandra-all'
+
+        def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-${project.version}"
+
+        artifact(file("${jarFileNameRoot}.jar"))
+
+        artifact(file("${jarFileNameRoot}-sources.jar")) {
+            classifier 'sources'
+        }
+
+        artifact(file("${jarFileNameRoot}-javadoc.jar")) {
+            classifier 'javadoc'
+        }
+
         pom.withXml {
             generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
         }
