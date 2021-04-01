@@ -28,13 +28,10 @@ externalPublishing {
         artifactId 'cassandra-all'
 
         def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-${project.version}"
-
         artifact(file("${jarFileNameRoot}.jar"))
-
         artifact(file("${jarFileNameRoot}-sources.jar")) {
             classifier 'sources'
         }
-
         artifact(file("${jarFileNameRoot}-javadoc.jar")) {
             classifier 'javadoc'
         }
