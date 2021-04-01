@@ -23,6 +23,12 @@ afterEvaluate {
             nebula(MavenPublication) {
                 artifacts = []
                 artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.jar"))
+                artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}-sources.jar")) {
+                    classifier "sources"
+                }
+                artifact(file("${project.rootDir}/build/palantir-cassandra-thrift-${project.version}-javadoc.jar")) {
+                    classifier "javadoc"
+                }
                 artifactId 'cassandra-thrift'
                 pom.withXml {
                     generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-thrift-${project.version}.pom")
