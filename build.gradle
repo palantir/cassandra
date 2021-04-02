@@ -35,7 +35,7 @@ buildscript {
 // repo have already been generated.
 
 apply plugin: 'com.palantir.external-publish'
-apply plugin: 'com.palantir.external-publish-dist'
+apply plugin: 'com.palantir.external-publish-custom'
 
 apply plugin: 'com.palantir.git-version'
 
@@ -67,6 +67,13 @@ task distTar (type: Tar) {
     version project.version
     extension 'tgz'
     compression = Compression.GZIP
+}
+
+externalPublishing {
+    publication('dist') {
+        artifactId 'palantir-cassandra'
+        artifact distTar
+    }
 }
 
 apply plugin: 'com.palantir.docker'
