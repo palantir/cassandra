@@ -30,6 +30,7 @@ import org.apache.cassandra.db.compaction.CompactionInterruptedException;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.utils.FBUtilities;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 
@@ -122,6 +123,7 @@ public class CrcCheckChanceTest extends CQLTester
     }
 
 
+    @Ignore // palantir: this test flakes a bunch
     @Test
     public void testDropDuringCompaction() throws Throwable
     {
