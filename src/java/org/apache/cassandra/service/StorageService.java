@@ -37,6 +37,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -868,9 +869,38 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
             bootstrapManager.awaitBootstrappable();
             if (SystemKeyspace.bootstrapInProgress())
-                logger.warn("Detected previous bootstrap failure; retrying");
+            {
+                // on detection of previous bootstrap failure prevent boostrap from proceeding if data directories are
+                // filled up beyond palantir_cassandra.bootstrap_disk_usage_threshold_percentage
+                Integer threshold = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
+                Entry<Directories.DataDirectory, Double> mostUtilizedDataDir = Directories.getMostUtilizedDataDir();
+                Double percentageDataDirUtilization = mostUtilizedDataDir.getValue() * 100;
+
+                if (threshold != null && percentageDataDirUtilization > Double.valueOf(threshold))
+                {
+                    // disable node preventing bootstrap continuation.
+                    setMode(Mode.NON_TRANSIENT_ERROR, "Detected previous bootstrap failure, data dir too full to proceed.", true);
+                    logger.error("Preventing node from continuing after failed bootstrap as data_file_dirs are too full ({}%) " +
+                                 "and exceed palantir_cassandra.bootstrap_disk_usage_threshold_percentage ({}%) ",
+                                 percentageDataDirUtilization,
+                                 threshold);
+                    unsafeDisableNode();
+                    // leave node in non-transient error state and prevent it from bootstrapping into the cluster
+                    // throw new IllegalStateException("Preventing node from continuing after failed bootstrap as data_file_dirs are too full.");
+                    throw new BootstrappingSafetyException(Mode.NON_TRANSIENT_ERROR.toString(),
+                                                          mostUtilizedDataDir.getKey().location.toString(),
+                                                          percentageDataDirUtilization,
+                                                          Double.valueOf(threshold));
+                }
+                else
+                {
+                    logger.warn("Detected previous bootstrap failure; retrying");
+                }
+            }
             else
+            {
                 SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
+            }
             setMode(Mode.JOINING, "waiting for ring information", true);
             // first sleep the delay to make sure we see all our peers
             for (int i = 0; i < delay; i += 1000)
