@@ -1068,8 +1068,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 if(initalTokens.isEmpty()) {
                     joinTokenRing(0);
                 } else {
-                    Preconditions.checkState(SystemKeyspace.getSavedTokens().isEmpty(), "Cannot join ring with new tokens as SystemKeyspace already has tokens sets.");
                     Preconditions.checkState(operationMode.equals(Mode.ZOMBIE), "Cannot join ring without being in Zombie mode.");
+                    Preconditions.checkState(SystemKeyspace.getSavedTokens().isEmpty(), "Cannot join ring with new tokens as SystemKeyspace already has tokens sets.");
                     joinTokenRing(0, false, initalTokens);
                 }
             }
@@ -4891,6 +4891,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         DatabaseDescriptor.setHintedHandoffThrottleInKB(throttleInKB);
         logger.info(String.format("Updated hinted_handoff_throttle_in_kb to %d", throttleInKB));
+    }
+
+    /**
+     * Dangerous method, do not use outside of unit testing.
+     * @param value true if he node has joined, false otherwise
+     */
+    @VisibleForTesting
+    void setJoinedTestingOnly(boolean value) {
+        this.joined = value;
     }
 
     @VisibleForTesting
