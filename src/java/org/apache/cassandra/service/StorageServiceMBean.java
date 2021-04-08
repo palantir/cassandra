@@ -549,6 +549,8 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
 
     // allows a node that have been started without joining the ring to join it
     public void joinRing() throws IOException;
+    // allows a node that has been started and has empty state to join the ring with specified tokens
+    public void joinRing(Collection<String> initialTokens) throws IOException;
     public boolean isJoined();
 
     /** Check if currently bootstrapping.
