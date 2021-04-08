@@ -349,17 +349,7 @@ public class Directories
         return underThreshold && nodeCanBeReEnabled && zeroNonTransientErrors && onlyExceededDiskThresholdTransientError;
     }
 
-    /**
-     * Finds busiest data directory and returns its utilization as a percentage.
-     *
-     * @return Map.Entry<DataDirectory, Double> where the key represents the directory
-     *         and the value represents percentage utilization of the directory.
-     */
-    public static Map.Entry<DataDirectory, Double> getMostUtilizedDataDir() {
-        return getMaxPathToUtilization();
-    }
-
-    private static Map.Entry<DataDirectory, Double> getMaxPathToUtilization()
+    public static Map.Entry<DataDirectory, Double> getMaxPathToUtilization()
     {
         Map<DataDirectory, Double> dirsToUtilization = Arrays.stream(dataDirectories)
                                                              .collect(Collectors.toMap(

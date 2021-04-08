@@ -319,12 +319,12 @@ public class CassandraDaemon
         }
         catch (BootstrappingSafetyException e)
         {
-            System.out.println(e.getMessage() + "\nNon-fatal bootstrap error. Server will continue but is disabled and without metrics.");
+            logger.error("Non-fatal bootstrap error. Server will continue but is disabled and without metrics.", e);
             return;
         }
         catch (ConfigurationException e)
         {
-            System.err.println(e.getMessage() + "\nFatal configuration error; unable to start server.  See log for stacktrace.");
+            logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", e);
             exitOrFail(1, "Fatal configuration error", e);
         }
 
