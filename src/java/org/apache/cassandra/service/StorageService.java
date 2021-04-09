@@ -900,12 +900,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             return;
 
         logger.warn(String.format("There are nodes in the cluster with a different schema version than us we did not merged schemas from, " +
-                        "our version : (%s), outstanding versions -> endpoints : %s",
+                        "our version : (%s), outstanding versions -> endpoints : %s. Use -Dcassandra.skip_schema_check=true " +
+                        "to ignore this.",
                 Schema.instance.getVersion(),
                 MigrationCoordinator.instance.outstandingVersions()));
 
         if (REQUIRE_SCHEMAS)
-            throw new RuntimeException("Didn't receive schemas for all known versions within the timeout");
+            throw new RuntimeException("Didn't receive schemas for all known versions within the timeout. " +
+                    "Use -Dcassandra.skip_schema_check=true to skip this check.");
     }
 
     private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens)
@@ -2674,6 +2676,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void removeEndpoint(InetAddress endpoint)
     {
         Gossiper.instance.removeEndpoint(endpoint);
+        MigrationCoordinator.instance.removeVersionInfoForEndpoint(endpoint);
         SystemKeyspace.removeEndpoint(endpoint);
     }
 
