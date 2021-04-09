@@ -18,9 +18,8 @@ buildscript {
     repositories {
         gradlePluginPortal()
         mavenCentral()
+        maven { url 'https://palantir.bintray.com/releases' }
         jcenter()
-        maven { url 'https://palantir.bintray.com/releases'}
-        mavenLocal()
     }
 
     dependencies {
@@ -41,10 +40,8 @@ apply plugin: 'com.palantir.git-version'
 
 repositories {
     mavenCentral()
+    maven { url 'https://palantir.bintray.com/releases' }
     jcenter()
-    maven {
-        url 'https://dl.bintray.com/palantir/releases/'
-    }
 }
 
 allprojects {
