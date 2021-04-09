@@ -1068,6 +1068,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 if(initalTokens.isEmpty()) {
                     joinTokenRing(0);
                 } else {
+                    initalTokens.stream().forEach(getPartitioner().getTokenFactory()::validate);
                     Preconditions.checkState(operationMode.equals(Mode.ZOMBIE), "Cannot join ring without being in Zombie mode.");
                     Preconditions.checkState(SystemKeyspace.getSavedTokens().isEmpty(), "Cannot join ring with new tokens as SystemKeyspace already has tokens sets.");
                     joinTokenRing(0, false, initalTokens);

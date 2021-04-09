@@ -720,4 +720,12 @@ public class StorageServiceServerTest
         assertThatThrownBy(() -> StorageService.instance.joinRing(ImmutableList.of(new LongToken(1).toString())))
         .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    public void testJoinRingThrowsWhenTokensMalformatted() {
+        StorageService.instance.setJoinedTestingOnly(false);
+        assertThat(StorageService.instance.hasJoined()).isFalse();
+        assertThatThrownBy(() -> StorageService.instance.joinRing(ImmutableList.of("0x00")))
+        .isInstanceOf(IOException.class);
+    }
 }
