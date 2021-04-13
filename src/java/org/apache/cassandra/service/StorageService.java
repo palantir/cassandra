@@ -34,6 +34,7 @@ import javax.management.openmbean.TabularDataSupport;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
@@ -773,7 +774,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private boolean shouldBootstrap()
     {
-        return DatabaseDescriptor.isAutoBootstrap() && !SystemKeyspace.bootstrapComplete() && !DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress());
+        return shouldBootstrap(DatabaseDescriptor.isAutoBootstrap());
+    }
+
+    private boolean shouldBootstrap(boolean autoBootstrap)
+    {
+        return autoBootstrap && !SystemKeyspace.bootstrapComplete() && !DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress());
     }
 
     private void prepareToJoin() throws ConfigurationException
@@ -835,8 +841,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    private void joinTokenRing(int delay) throws ConfigurationException
-    {
+    private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens) {
         joined = true;
 
         // We bootstrap if we haven't successfully bootstrapped before, as long as we are not a seed.
@@ -852,18 +857,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (logger.isDebugEnabled())
         {
             logger.debug("Bootstrap variables: {} {} {} {}",
-                         DatabaseDescriptor.isAutoBootstrap(),
+                         autoBootstrap,
                          SystemKeyspace.bootstrapInProgress(),
                          SystemKeyspace.bootstrapComplete(),
                          DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress()));
         }
-        if (DatabaseDescriptor.isAutoBootstrap() && !SystemKeyspace.bootstrapComplete() && DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress()))
+
+        if (autoBootstrap && !SystemKeyspace.bootstrapComplete() && DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress()))
         {
             logger.info("This node will not auto bootstrap because it is configured to be a seed node.");
         }
 
         boolean dataAvailable = true; // make this to false when bootstrap streaming failed
-        if (shouldBootstrap())
+        if (shouldBootstrap(autoBootstrap))
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
             bootstrapManager.awaitBootstrappable();
@@ -916,7 +922,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     throw new UnsupportedOperationException(s);
                 }
                 setMode(Mode.JOINING, "getting bootstrap token", true);
-                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata);
+                bootstrapTokens = BootStrapper.getBootstrapTokens(tokenMetadata, initialTokens);
             }
             else
             {
@@ -972,7 +978,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             bootstrapTokens = SystemKeyspace.getSavedTokens();
             if (bootstrapTokens.isEmpty())
             {
-                Collection<String> initialTokens = DatabaseDescriptor.getInitialTokens();
                 if (initialTokens.size() < 1)
                 {
                     bootstrapTokens = BootStrapper.getRandomTokens(tokenMetadata, DatabaseDescriptor.getNumTokens());
@@ -1029,6 +1034,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    private void joinTokenRing(int delay) throws ConfigurationException
+    {
+        joinTokenRing(delay, DatabaseDescriptor.isAutoBootstrap(), DatabaseDescriptor.getInitialTokens());
+    }
+
     @VisibleForTesting
     public void ensureTraceKeyspace()
     {
@@ -1049,14 +1059,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         Gossiper.instance.addLocalApplicationState(ApplicationState.RACK, StorageService.instance.valueFactory.rack(rack));
     }
 
-    public synchronized void joinRing() throws IOException
-    {
+    public synchronized void joinRing(Collection<String> initalTokens) throws IOException {
         if (!joined)
         {
             logger.info("Joining ring by operator request");
             try
             {
-                joinTokenRing(0);
+                if(initalTokens.isEmpty()) {
+                    joinTokenRing(0);
+                } else {
+                    initalTokens.stream().forEach(getPartitioner().getTokenFactory()::validate);
+                    Preconditions.checkState(operationMode.equals(Mode.ZOMBIE), "Cannot join ring without being in Zombie mode.");
+                    Preconditions.checkState(SystemKeyspace.getSavedTokens().isEmpty(), "Cannot join ring with new tokens as SystemKeyspace already has tokens sets.");
+                    joinTokenRing(0, false, initalTokens);
+                }
             }
             catch (ConfigurationException e)
             {
@@ -1084,6 +1100,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // bootstrap is not complete hence node cannot join the ring
             logger.warn("Can't join the ring because bootstrap hasn't completed.");
         }
+    }
+
+    public synchronized void joinRing() throws IOException
+    {
+        joinRing(ImmutableSet.<String>of());
     }
 
     private void finishJoiningRing(Collection<Token> tokens)
@@ -4871,6 +4892,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         DatabaseDescriptor.setHintedHandoffThrottleInKB(throttleInKB);
         logger.info(String.format("Updated hinted_handoff_throttle_in_kb to %d", throttleInKB));
+    }
+
+    /**
+     * Dangerous method, do not use outside of unit testing.
+     * @param value true if he node has joined, false otherwise
+     */
+    @VisibleForTesting
+    void setJoinedTestingOnly(boolean value) {
+        this.joined = value;
     }
 
     @VisibleForTesting

@@ -27,6 +27,7 @@ import java.net.InetAddress;
 import java.util.*;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
@@ -44,6 +45,7 @@ import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.WindowsFailedSnapshotTracker;
 import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.dht.OrderPreservingPartitioner.StringToken;
@@ -54,11 +56,12 @@ import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.locator.PropertyFileSnitch;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.schema.LegacySchemaTables;
-import org.apache.cassandra.thrift.ThriftServer;
+import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -695,5 +698,34 @@ public class StorageServiceServerTest
         assertThat(StorageService.instance.getPresentTransientErrorTypes()).isEmpty();
         StorageService.instance.recordTransientError(error, ImmutableMap.of());
         assertThat(StorageService.instance.getPresentTransientErrorTypes()).isEqualTo(ImmutableSet.of(error));
+    }
+
+    @Test
+    public void testJoinRingThrowsWhenSystemKeyspaceHasTokens() {
+        StorageService.instance.setOperationMode(StorageService.Mode.ZOMBIE);
+        StorageService.instance.setPartitionerUnsafe(ByteOrderedPartitioner.instance);
+        SystemKeyspace.updateTokens(ImmutableList.of(new ByteOrderedPartitioner.BytesToken(ByteBufferUtil.bytes(String.format("token%d", 0)))));
+        StorageService.instance.setJoinedTestingOnly(false);
+        assertThat(StorageService.instance.hasJoined()).isFalse();
+        assertThat(SystemKeyspace.getSavedTokens()).isNotEmpty();
+        assertThatThrownBy(() -> StorageService.instance.joinRing(ImmutableList.of(new LongToken(1).toString())))
+        .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void testJoinRingThrowsWhenNotZombieMode() {
+        StorageService.instance.setJoinedTestingOnly(false);
+        assertThat(StorageService.instance.hasJoined()).isFalse();
+        StorageService.instance.setOperationMode(StorageService.Mode.NORMAL);
+        assertThatThrownBy(() -> StorageService.instance.joinRing(ImmutableList.of(new LongToken(1).toString())))
+        .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void testJoinRingThrowsWhenTokensMalformatted() {
+        StorageService.instance.setJoinedTestingOnly(false);
+        assertThat(StorageService.instance.hasJoined()).isFalse();
+        assertThatThrownBy(() -> StorageService.instance.joinRing(ImmutableList.of("0x00")))
+        .isInstanceOf(IOException.class);
     }
 }

@@ -154,9 +154,8 @@ public class BootStrapper extends ProgressEventNotifierSupport
      * otherwise, if num_tokens == 1, pick a token to assume half the load of the most-loaded node.
      * else choose num_tokens tokens at random
      */
-    public static Collection<Token> getBootstrapTokens(final TokenMetadata metadata) throws ConfigurationException
+    public static Collection<Token> getBootstrapTokens(final TokenMetadata metadata, Collection<String> initialTokens) throws ConfigurationException
     {
-        Collection<String> initialTokens = DatabaseDescriptor.getInitialTokens();
         // if user specified tokens, use those
         if (initialTokens.size() > 0)
         {
