@@ -47,7 +47,8 @@ public interface StorageServiceMBean extends NotificationEmitter
     public enum NonTransientError {
         COMMIT_LOG_CORRUPTION,
         SSTABLE_CORRUPTION,
-        FS_ERROR
+        FS_ERROR,
+        BOOTSTRAP_ERROR
     }
 
     /**

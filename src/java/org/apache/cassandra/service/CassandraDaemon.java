@@ -59,6 +59,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
+import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -316,9 +317,14 @@ public class CassandraDaemon
         {
             StorageService.instance.initServer();
         }
+        catch (BootstrappingSafetyException e)
+        {
+            logger.error("Non-fatal bootstrap error. Server will continue but is disabled and without metrics.", e);
+            return;
+        }
         catch (ConfigurationException e)
         {
-            System.err.println(e.getMessage() + "\nFatal configuration error; unable to start server.  See log for stacktrace.");
+            logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", e);
             exitOrFail(1, "Fatal configuration error", e);
         }
 

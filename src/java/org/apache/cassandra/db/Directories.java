@@ -349,7 +349,7 @@ public class Directories
         return underThreshold && nodeCanBeReEnabled && zeroNonTransientErrors && onlyExceededDiskThresholdTransientError;
     }
 
-    private static Map.Entry<DataDirectory, Double> getMaxPathToUtilization()
+    public static Map.Entry<DataDirectory, Double> getMaxPathToUtilization()
     {
         Map<DataDirectory, Double> dirsToUtilization = Arrays.stream(dataDirectories)
                                                              .collect(Collectors.toMap(
