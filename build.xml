@@ -421,6 +421,7 @@
           	<exclusion groupId="org.mortbay.jetty" artifactId="jetty"/> <!-- older version, also via hadoop-core + pig -->
           	<exclusion groupId="org.mortbay.jetty" artifactId="jetty-util"/> <!-- older version, also via hadoop-core + pig -->
             <exclusion groupId="org.apache.ant" artifactId="ant"/> <!-- older version 1.8.3 -->
+            <exclusion groupId="com.sun" artifactId="tools"/> <!-- enables JDK 11 Build -->
           </dependency>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.agent" version="${jacoco.version}"/>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" version="${jacoco.version}"/>

@@ -42,13 +42,13 @@ public class Locks
     // enters the object's monitor IF UNSAFE IS PRESENT. If it isn't, this is a no-op.
     public static void monitorEnterUnsafe(Object object)
     {
-        if (unsafe != null)
-            unsafe.monitorEnter(object);
+//        if (unsafe != null)
+//            unsafe.monitorEnter(object);
     }
 
     public static void monitorExitUnsafe(Object object)
     {
-        if (unsafe != null)
-            unsafe.monitorExit(object);
+//        if (unsafe != null)
+//            unsafe.monitorExit(object);
     }
 }
