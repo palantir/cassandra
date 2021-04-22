@@ -421,7 +421,6 @@
           	<exclusion groupId="org.mortbay.jetty" artifactId="jetty"/> <!-- older version, also via hadoop-core + pig -->
           	<exclusion groupId="org.mortbay.jetty" artifactId="jetty-util"/> <!-- older version, also via hadoop-core + pig -->
             <exclusion groupId="org.apache.ant" artifactId="ant"/> <!-- older version 1.8.3 -->
-            <exclusion groupId="com.sun" artifactId="tools"/> <!-- enables JDK 11 Build -->
           </dependency>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.agent" version="${jacoco.version}"/>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" version="${jacoco.version}"/>
@@ -531,6 +530,9 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <!-- some dependencies contain javax.annotation.Generated which was removed in java 9. -->
+        <dependency groupId="javax.annotation" artifactId="javax.annotation-api" version="1.3.1"/>
+
       </artifact:pom>
       <!-- this build-deps-pom-sources "artifact" is the same as build-deps-pom but only with those
            artifacts that have "-source.jar" files -->
