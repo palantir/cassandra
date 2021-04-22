@@ -24,7 +24,7 @@ import java.util.Random;
 import org.junit.Assert;
 import org.junit.Test;
 
-import sun.misc.VM;
+import org.apache.cassandra.db.MmapFileTest;
 
 import static org.junit.Assert.assertEquals;
 
@@ -32,6 +32,28 @@ public class SafeMemoryWriterTest
 {
     Random rand = new Random();
     static final int CHUNK = 54321;
+
+    static final long maxDirectMemory;
+    static
+    {
+        try
+        {
+            Class<?> cVM;
+            try
+            {
+                cVM = Class.forName("jdk.internal.misc.VM");
+            }
+            catch (ClassNotFoundException e)
+            {
+                cVM = Class.forName("sun.misc.VM");
+            }
+            maxDirectMemory = (Long) cVM.getDeclaredMethod("maxDirectMemory").invoke(null);
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Test
     public void testTrim() throws IOException
@@ -50,10 +72,10 @@ public class SafeMemoryWriterTest
         // start with smaller initial size, but make sure it would grow to the required value above
         while (initialSize * 2 / 3 > 1024L * 1024L * DataOutputBuffer.DOUBLING_THRESHOLD)
             initialSize = initialSize * 2 / 3;
-
-        if (VM.maxDirectMemory() * 2 / 3 < testSize)
+        
+        if (maxDirectMemory * 2 / 3 < testSize)
         {
-            testSize = VM.maxDirectMemory() * 2 / 3;
+            testSize = maxDirectMemory * 2 / 3;
             System.err.format("Insufficient direct memory for full test, reducing to: %,d %x\n", testSize, testSize);
         }
 
