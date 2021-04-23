@@ -315,7 +315,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         lock.lock();
     }
 
-    protected void releaseLock()
+    private void releaseLock()
     {
         lock.unlock();
     }

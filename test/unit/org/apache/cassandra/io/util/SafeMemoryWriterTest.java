@@ -72,7 +72,7 @@ public class SafeMemoryWriterTest
         // start with smaller initial size, but make sure it would grow to the required value above
         while (initialSize * 2 / 3 > 1024L * 1024L * DataOutputBuffer.DOUBLING_THRESHOLD)
             initialSize = initialSize * 2 / 3;
-        
+
         if (maxDirectMemory * 2 / 3 < testSize)
         {
             testSize = maxDirectMemory * 2 / 3;
