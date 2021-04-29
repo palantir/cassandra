@@ -1671,6 +1671,14 @@ public class CompactionManager implements CompactionManagerMBean
         }
     }
 
+    public void stopAllCompactions() {
+        for (OperationType type : OperationType.values()) {
+            logger.info("Stopping compactions of type {}", type.name());
+            stopCompaction(type.name());
+        }
+        logger.info("All compactions stopped");
+    }
+
     public void stopCompaction(String type)
     {
         OperationType operation = OperationType.valueOf(type);

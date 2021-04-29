@@ -4806,9 +4806,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     // Unsafe as does not check state before disabling the node
     public void unsafeDisableNode() {
-        logger.info("Stopping transports and disabling auto compaction");
+        logger.info("Stopping transports, disabling auto compactions, stopping in-progress compactions");
         instance.stopTransports();
         disableAutoCompaction();
+        CompactionManager.instance.stopAllCompactions();
     }
 
     @Override
