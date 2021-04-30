@@ -173,7 +173,7 @@ public class StorageServiceServerTest
     }
 
     @Test
-    public void testSnapshotJoiningNode() throws InterruptedException, IOException
+    public void testSnapshotJoiningNode() throws IOException
     {
         StorageService ss = StorageService.instance;
         ss.setOperationMode(StorageService.Mode.JOINING);

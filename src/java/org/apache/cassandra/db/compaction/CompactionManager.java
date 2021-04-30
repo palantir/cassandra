@@ -80,6 +80,13 @@ public class CompactionManager implements CompactionManagerMBean
     public static final int NO_GC = Integer.MIN_VALUE;
     public static final int GC_ALL = Integer.MAX_VALUE;
 
+    public static final EnumSet<OperationType> STOPPABLE_COMPACTION_TYPES = EnumSet.of(OperationType.COMPACTION,
+                                                                                       OperationType.VALIDATION,
+                                                                                       OperationType.CLEANUP,
+                                                                                       OperationType.SCRUB,
+                                                                                       OperationType.INDEX_BUILD);
+
+
     // A thread local that tells us if the current thread is owned by the compaction manager. Used
     // by CounterContext to figure out if it should log a warning for invalid counter shards.
     public static final ThreadLocal<Boolean> isCompactionManager = new ThreadLocal<Boolean>()
@@ -1669,6 +1676,14 @@ public class CompactionManager implements CompactionManagerMBean
                 throw new RuntimeException();
             }
         }
+    }
+
+    public void stopAllCompactions() {
+        for (OperationType type : STOPPABLE_COMPACTION_TYPES) {
+            logger.info("Stopping compactions of type {}", type.name());
+            stopCompaction(type.name());
+        }
+        logger.info("All compactions stopped");
     }
 
     public void stopCompaction(String type)
