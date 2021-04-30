@@ -219,17 +219,6 @@ JVM_OPTS="$JVM_OPTS -Xss256k"
 # Larger interned string table, for gossip's benefit (CASSANDRA-6410)
 JVM_OPTS="$JVM_OPTS -XX:StringTableSize=1000003"
 
-# JPMS Settings
-JVM_OPTS="$JVM_OPTS -Djdk.attach.allowAttachSelf=true"
-JVM_OPTS="$JVM_OPTS --add-exports java.base/jdk.internal.misc=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-opens java.base/jdk.internal.module=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-exports java.base/jdk.internal.ref=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-exports java.base/sun.nio.ch=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-exports java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-exports java.rmi/sun.rmi.registry=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-exports java.rmi/sun.rmi.server=ALL-UNNAMED"
-JVM_OPTS="$JVM_OPTS --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED"
-
 # GC tuning options
 JVM_OPTS="$JVM_OPTS -XX:+UseG1GC"
 JVM_OPTS="$JVM_OPTS -XX:+ParallelRefProcEnabled"
