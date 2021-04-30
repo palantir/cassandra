@@ -21,6 +21,7 @@ package org.apache.cassandra.db.compaction;
 import org.junit.Test;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -31,7 +32,11 @@ public class CompactionManagerTest
         CompactionManager manager = spy(CompactionManager.instance);
         manager.stopAllCompactions();
         for (OperationType type : OperationType.values()) {
-            verify(manager).stopCompaction(eq(type.name()));
+            if (CompactionManager.STOPPABLE_COMPACTION_TYPES.contains(type)) {
+                verify(manager).stopCompaction(eq(type.name()));
+            } else {
+                verify(manager, never()).stopCompaction(eq(type.name()));
+            }
         }
     }
 }
