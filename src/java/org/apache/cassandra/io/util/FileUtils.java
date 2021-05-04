@@ -87,6 +87,7 @@ public final class FileUtils
             mhCleanerClean = MethodHandles.lookup().unreflect(mCleanerClean);
 
             ByteBuffer buf = ByteBuffer.allocateDirect(1);
+            clean(buf);
             canClean = true;
         }
         catch (Throwable t)
