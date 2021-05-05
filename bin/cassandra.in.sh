@@ -41,8 +41,17 @@ cassandra_bin="$cassandra_bin:$CASSANDRA_HOME/build/classes/thrift"
 # if not set in cassandra.yaml
 cassandra_storagedir="$CASSANDRA_HOME/data"
 
-# JAVA_HOME can optionally be set here
-#JAVA_HOME=/usr/local/jdk6
+if [ -n "${JAVA_11_HOME}" ]; then
+    JAVA_HOME="${JAVA_11_HOME}"
+fi
+
+# verify that JAVA_HOME points to java 11
+java_ver_output=`"$JAVA_HOME/bin/java" -version 2>&1 | grep '[openjdk|java] version' | awk -F'"' 'NR==1 {print $2}'`
+jvm_version=${java_ver_output%_*}
+if [ "$jvm_version" \< "11.0" ] ; then
+    echo "Palantir Cassandra 2.0.x requires Java 11, but JAVA_HOME is set to '$JAVA_HOME' with version $jvm_version"
+    exit 1;
+fi
 
 # The java classpath (required)
 CLASSPATH="$CASSANDRA_CONF:$cassandra_bin"
