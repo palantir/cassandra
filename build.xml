@@ -127,6 +127,10 @@
 
     <property name="ecj.version" value="4.4.2"/>
 
+    <!-- java 11 build properties -->
+    <property name="jdk11-javac-exports" value="--add-exports java.rmi/sun.rmi.registry=ALL-UNNAMED"/>
+    <property name="jdk11-javadoc-exports" value="${jdk11-javac-exports} --frames"/>
+
     <condition property="maven-ant-tasks.jar.exists">
       <available file="${build.dir}/maven-ant-tasks-${maven-ant-tasks.version}.jar" />
     </condition>
@@ -175,7 +179,7 @@
         windowtitle="${ant.project.name} API" classpathref="cassandra.classpath"
         bottom="Copyright &amp;copy; ${YEAR} The Apache Software Foundation"
         useexternalfile="yes"
-        maxmemory="256m">
+        maxmemory="256m" additionalparam="${jdk11-javadoc-exports}">
         <filesets/>
       </javadoc>
     </sequential>
@@ -421,6 +425,7 @@
           	<exclusion groupId="org.mortbay.jetty" artifactId="jetty"/> <!-- older version, also via hadoop-core + pig -->
           	<exclusion groupId="org.mortbay.jetty" artifactId="jetty-util"/> <!-- older version, also via hadoop-core + pig -->
             <exclusion groupId="org.apache.ant" artifactId="ant"/> <!-- older version 1.8.3 -->
+            <exclusion groupId="com.sun" artifactId="tools" /> <!-- enables java 11 build -->
           </dependency>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.agent" version="${jacoco.version}"/>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" version="${jacoco.version}"/>
