@@ -24,6 +24,8 @@ import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import com.palantir.cassandra.db.filter.MetricsQueryFilter;
+import com.palantir.cassandra.utils.CountingCellIterator;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.commons.lang3.StringUtils;
 import com.google.common.collect.AbstractIterator;
@@ -41,13 +43,15 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileDataInput;
 import org.apache.cassandra.utils.SearchIterator;
 
-public class NamesQueryFilter implements IDiskAtomFilter
+public class NamesQueryFilter implements IDiskAtomFilter, MetricsQueryFilter
 {
     public final SortedSet<CellName> columns;
 
     // If true, getLiveCount will always return either 0 or 1. This uses the fact that we know 
     // CQL3 will never use a name filter with cell names spanning multiple CQL3 rows.
     private final boolean countCQL3Rows;
+
+    private CountingCellIterator reducedCells;
 
     public NamesQueryFilter(SortedSet<CellName> columns)
     {
@@ -96,9 +100,10 @@ public class NamesQueryFilter implements IDiskAtomFilter
 
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now)
     {
+        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         DeletionInfo.InOrderTester tester = container.inOrderDeletionTester();
-        while (reducedColumns.hasNext())
-            container.maybeAppendColumn(reducedColumns.next(), tester, gcBefore);
+        while (reducedCells.hasNext())
+            container.maybeAppendColumn(reducedCells.next(), tester, gcBefore);
     }
 
     public Comparator<Cell> getColumnComparator(CellNameType comparator)
@@ -297,5 +302,25 @@ public class NamesQueryFilter implements IDiskAtomFilter
                 return endOfData();
             }
         };
+    }
+
+    public int lastReadDroppableTombstones()
+    {
+        return reducedCells == null ? 0 : reducedCells.droppableTombstones();
+    }
+
+    public int lastReadDroppableTtls()
+    {
+        return reducedCells == null ? 0 : reducedCells.droppableTtls();
+    }
+
+    public int lastReadLive()
+    {
+        return reducedCells == null ? 0 : reducedCells.live();
+    }
+
+    public int lastReadTombstones()
+    {
+        return reducedCells == null ? 0 : reducedCells.tombstones();
     }
 }

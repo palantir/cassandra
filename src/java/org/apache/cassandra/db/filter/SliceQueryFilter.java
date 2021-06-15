@@ -24,6 +24,8 @@ import java.util.*;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
+
+import com.palantir.cassandra.db.filter.MetricsQueryFilter;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
@@ -44,7 +46,7 @@ import org.apache.cassandra.io.util.FileDataInput;
 import org.apache.cassandra.service.ClientWarn;
 import org.apache.cassandra.tracing.Tracing;
 
-public class SliceQueryFilter implements IDiskAtomFilter
+public class SliceQueryFilter implements IDiskAtomFilter, MetricsQueryFilter
 {
     private static final Logger logger = LoggerFactory.getLogger(SliceQueryFilter.class);
 
@@ -65,14 +67,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
     private boolean hitTombstoneFailureThreshold = false;
     private boolean hitTombstoneWarnThreshold = false;
 
-    private DeletionInfo deletionInfo;
-
     // Not serialized, just a ack for range slices to find the number of live column counted, even when we group
     private ColumnCounter columnCounter;
 
     private CountingCellIterator reducedCells;
-
-    private RangeTombstoneCounter rangeTombstoneCounter = new RangeTombstoneCounter();
 
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count)
     {
@@ -278,7 +276,6 @@ public class SliceQueryFilter implements IDiskAtomFilter
     {
         reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
-        deletionInfo = container.deletionInfo();
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
         boolean hasBreachedCollectionThreshold = false;
@@ -498,10 +495,6 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public int lastReadTombstones()
     {
         return reducedCells == null ? 0 : reducedCells.tombstones();
-    }
-
-    public Optional<DeletionInfo> lastReadDeletionInfo() {
-        return Optional.ofNullable(deletionInfo);
     }
 
     @Override
