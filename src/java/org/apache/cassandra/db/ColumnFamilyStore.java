@@ -2072,7 +2072,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     private void recordMetrics(SliceQueryFilter filter) {
         // Log the number of tombstones scanned on single key queries
-        logger.info("lastLive {} vs lastReadLive {}", filter.lastLive(), filter.lastReadLive());
         metric.tombstoneScannedHistogram.update(filter.lastTombstones());
         metric.liveScannedHistogram.update(filter.lastLive());
         metric.droppableTombstonesReadHistogram.update(filter.lastReadDroppableTombstones());
