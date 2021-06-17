@@ -2515,8 +2515,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         boolean ignoreTombstonedPartitions = filter.ignoreTombstonedPartitions();
         int rowCountFailureThreshold = DatabaseDescriptor.getRowCountFailureThreshold();
 
-        Set<SliceQueryFilter> sliceQueryFilters = new HashSet<>();
-
         try
         {
             Row rawRow = null;
@@ -2548,7 +2546,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
                     IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
                     if (queryFilter instanceof SliceQueryFilter) {
-                        sliceQueryFilters.add((SliceQueryFilter) queryFilter);
+                        recordMetrics((SliceQueryFilter) queryFilter);
                     }
                 }
                 else
@@ -2604,8 +2602,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                               numTombstonedRows);
                 logger.warn(msg);
             }
-
-            sliceQueryFilters.stream().forEach(this::recordMetrics);
 
             return rows;
         }
