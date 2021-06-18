@@ -2053,30 +2053,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
             removeDroppedColumns(result);
 
-            if (filter.filter instanceof SliceQueryFilter)
-            {
-                // Log the number of tombstones scanned on single key queries
-                metric.tombstoneScannedHistogram.update(((SliceQueryFilter) filter.filter).lastTombstones());
-                metric.liveScannedHistogram.update(((SliceQueryFilter) filter.filter).lastLive());
-                metric.droppableTombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadDroppableTombstones());
-                metric.droppableTtlsReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadDroppableTtls());
-                metric.liveReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadLive());
-                metric.tombstonesReadHistogram.update(((SliceQueryFilter) filter.filter).lastReadTombstones());
-
-                Optional<DeletionInfo> maybeDeletionInfo = ((SliceQueryFilter) filter.filter).lastReadDeletionInfo();
-
-                if (maybeDeletionInfo.isPresent()) {
-                    DeletionInfo deletionInfo = maybeDeletionInfo.get();
-                    logger.trace("Ranged tombstones read {} and droppable {}",
-                                 deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
-                                 deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-
-                    metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
-                    metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-                    metric.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
-                }
-
-                if (((SliceQueryFilter) filter.filter).hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
+            if (filter.filter instanceof SliceQueryFilter) {
+                recordMetrics((SliceQueryFilter) filter.filter);
             }
         }
         finally
@@ -2090,6 +2068,31 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         return result;
+    }
+
+    private void recordMetrics(SliceQueryFilter filter) {
+        // Log the number of tombstones scanned on single key queries
+        metric.tombstoneScannedHistogram.update(filter.lastTombstones());
+        metric.liveScannedHistogram.update(filter.lastLive());
+        metric.droppableTombstonesReadHistogram.update(filter.lastReadDroppableTombstones());
+        metric.droppableTtlsReadHistogram.update(filter.lastReadDroppableTtls());
+        metric.liveReadHistogram.update(filter.lastReadLive());
+        metric.tombstonesReadHistogram.update(filter.lastReadTombstones());
+
+        Optional<DeletionInfo> maybeDeletionInfo = filter.lastReadDeletionInfo();
+
+        if (maybeDeletionInfo.isPresent()) {
+            DeletionInfo deletionInfo = maybeDeletionInfo.get();
+            logger.trace("Ranged tombstones read {} and droppable {}",
+                         deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
+                         deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+
+            metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
+            metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+            metric.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
+        }
+
+        if (filter.hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
     }
 
     /**
@@ -2540,6 +2543,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                     logger.trace("{} satisfies all filter expressions", data);
                     // cut the resultset back to what was requested, if necessary
                     data = filter.prune(rawRow.key, data);
+
+                    IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
+                    if (queryFilter instanceof SliceQueryFilter) {
+                        recordMetrics((SliceQueryFilter) queryFilter);
+                    }
                 }
                 else
                 {

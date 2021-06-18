@@ -8,4 +8,6 @@ ant maven-ant-tasks-retrieve-build
 ./gradlew --no-daemon
 ant build build-test
 ./gradlew --no-daemon ant-artifacts
+./gradlew ant-javadoc-jar
+./gradlew ant-sources-jar
 ./gradlew publishToMavenLocal
