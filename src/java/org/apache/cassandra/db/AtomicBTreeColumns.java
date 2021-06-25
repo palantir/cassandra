@@ -37,6 +37,7 @@ import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.db.filter.ColumnSlice;
 import org.apache.cassandra.db.marshal.BytesType;
+import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.SearchIterator;
 import org.apache.cassandra.utils.btree.BTree;
@@ -87,6 +88,8 @@ public class AtomicBTreeColumns extends ColumnFamily
      */
     private volatile int wasteTracker = TRACKER_NEVER_WASTED;
 
+    // tunable locking
+    private static final boolean ENFORCE_LOCKING = Boolean.getBoolean("palantir_cassandra.enforce_locking");
     // Replacement for Unsafe.monitorEnter/monitorExit used in o.a.c.concurrent.Locks
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -266,7 +269,7 @@ public class AtomicBTreeColumns extends ColumnFamily
 
     boolean usePessimisticLocking()
     {
-        return wasteTracker == TRACKER_PESSIMISTIC_LOCKING;
+        return ENFORCE_LOCKING && wasteTracker == TRACKER_PESSIMISTIC_LOCKING;
     }
 
     /**
@@ -312,11 +315,13 @@ public class AtomicBTreeColumns extends ColumnFamily
 
     private void acquireLock()
     {
+        Java11ExperimentMetrics.aquired.inc();
         lock.lock();
     }
 
     private void releaseLock()
     {
+        Java11ExperimentMetrics.released.inc();
         lock.unlock();
     }
 

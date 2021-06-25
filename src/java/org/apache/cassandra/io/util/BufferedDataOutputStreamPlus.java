@@ -28,6 +28,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.config.Config;
+import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.memory.MemoryUtil;
 
 

@@ -27,6 +27,7 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.compress.BufferType;
 import org.apache.cassandra.io.compress.ICompressor;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.SyncUtil;
 
 /*
@@ -38,6 +39,7 @@ public class CompressedSegment extends CommitLogSegment
     static private final ThreadLocal<ByteBuffer> compressedBufferHolder = new ThreadLocal<ByteBuffer>() {
         protected ByteBuffer initialValue()
         {
+            Java11ExperimentMetrics.compressed.inc();
             return ByteBuffer.allocate(0);
         }
     };
@@ -75,6 +77,7 @@ public class CompressedSegment extends CommitLogSegment
 
     ByteBuffer allocate(int size)
     {
+        Java11ExperimentMetrics.compressed.inc();
         return compressor.preferredBufferType().allocate(size);
     }
 

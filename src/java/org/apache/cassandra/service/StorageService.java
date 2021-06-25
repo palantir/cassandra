@@ -622,6 +622,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Thrift API version: {}", cassandraConstants.VERSION);
         logger.info("CQL supported versions: {} (default: {})",
                     StringUtils.join(ClientState.getCQLSupportedVersion(), ","), ClientState.DEFAULT_CQL_VERSION);
+        logger.info("Enforcing locking {}", Boolean.getBoolean("palantir_cassandra.enforce_locking"));
 
         initialized = true;
 
