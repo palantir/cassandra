@@ -23,8 +23,10 @@ import com.codahale.metrics.Counter;
 public class Java11ExperimentMetrics
 {
     private static final MetricNameFactory metricFactory = new DefaultNameFactory("J11_LOCKING");
+    // locking
     public static final Counter aquired = CassandraMetricsRegistry.Metrics.counter(metricFactory.createMetricName("acquired"));
     public static final Counter released = CassandraMetricsRegistry.Metrics.counter(metricFactory.createMetricName("released"));
+    // buffers
     public static final Counter buffersCleaned = CassandraMetricsRegistry.Metrics.counter(metricFactory.createMetricName("buffer-clean"));
     public static final Counter mmapSegment = CassandraMetricsRegistry.Metrics.counter(metricFactory.createMetricName("buffer-mmap"));
     public static final Counter compressed = CassandraMetricsRegistry.Metrics.counter(metricFactory.createMetricName("buffer-compressed"));
