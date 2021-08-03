@@ -26,9 +26,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.concurrent.OpOrder;
+import sun.nio.ch.DirectBuffer;
 
 /**
 + * The SlabAllocator is a bump-the-pointer allocator that allocates
@@ -114,7 +114,7 @@ public class SlabAllocator extends MemtableBufferAllocator
     public void setDiscarded()
     {
         for (Region region : offHeapRegions)
-            FileUtils.clean(region.data);
+            ((DirectBuffer) region.data).cleaner().clean();
         super.setDiscarded();
     }
 
