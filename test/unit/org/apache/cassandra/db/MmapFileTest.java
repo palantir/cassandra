@@ -29,7 +29,7 @@ import javax.management.ObjectName;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.cassandra.io.util.FileUtils;
+import sun.nio.ch.DirectBuffer;
 
 public class MmapFileTest
 {
@@ -88,7 +88,7 @@ public class MmapFileTest
                 buffer.putInt(42);
                 buffer.putInt(42);
 
-                FileUtils.clean(buffer);
+                ((DirectBuffer) buffer).cleaner().clean();
             }
 
             mmapCount = (Long) mbs.getAttribute(bpmName, "Count");
@@ -115,7 +115,7 @@ public class MmapFileTest
                 buffer.putInt(42);
                 buffer.putInt(42);
 
-                FileUtils.clean(buffer);
+                ((DirectBuffer) buffer).cleaner().clean();
             }
 
             mmapCount = (Long) mbs.getAttribute(bpmName, "Count");
@@ -140,7 +140,7 @@ public class MmapFileTest
                 buffer.putInt(42);
                 buffer.putInt(42);
 
-                FileUtils.clean(buffer);
+                ((DirectBuffer) buffer).cleaner().clean();
             }
 
             mmapCount = (Long) mbs.getAttribute(bpmName, "Count");
