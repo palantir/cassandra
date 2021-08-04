@@ -92,7 +92,6 @@ public class SSLFactoryTest
         InetAddress endpoint = FBUtilities.getLocalAddress();
         assertThat(endpoint.getHostName()).isNotNull();
         try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), endpoint, PORT)) {
-            // TODO: does server need SNI..?
             SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), endpoint, PORT);
             assertThat(client.getSSLParameters().getServerNames()).isNotEmpty();
             server.close();

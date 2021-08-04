@@ -173,6 +173,8 @@ public final class SSLFactory
 
     private static void maybeAddSni(InetAddress endpoint, SSLParameters sslParameters)
     {
+        logger.trace(
+                "Maybe adding SNI header to socket for {}/{}", endpoint.getHostName(), endpoint.getHostAddress());
         if (endpoint.getHostName() != null)
         {
             SNIServerName name = new SNIHostName(endpoint.getHostName());
