@@ -171,11 +171,13 @@ public final class SSLFactory
         return ret;
     }
 
-    private static void maybeAddSni(InetAddress endpoint, SSLParameters sslParameters)
+    private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters)
     {
-        if (endpoint.getHostName() != null)
+        logger.trace(
+            "Adding SNI header to socket if hostname present for {}/{}", addr.getHostName(), addr.getHostAddress());
+        if (addr.getHostName() != null)
         {
-            SNIServerName name = new SNIHostName(endpoint.getHostName());
+            SNIServerName name = new SNIHostName(addr.getHostName());
             List<SNIServerName> sniHostNames = ImmutableList.of(name);
             sslParameters.setServerNames(sniHostNames);
         }
