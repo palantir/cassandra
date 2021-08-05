@@ -186,6 +186,7 @@ public class Config
     public Integer commitlog_total_space_in_mb;
     public CommitLogSync commitlog_sync;
     public Double commitlog_sync_batch_window_in_ms;
+    public double commitlog_sync_group_window_in_ms = Double.NaN;
     public Integer commitlog_sync_period_in_ms;
     public int commitlog_segment_size_in_mb = 32;
     public ParameterizedClass commitlog_compression;
@@ -368,7 +369,8 @@ public class Config
     public static enum CommitLogSync
     {
         periodic,
-        batch
+        batch,
+        group
     }
     public static enum InternodeCompression
     {
