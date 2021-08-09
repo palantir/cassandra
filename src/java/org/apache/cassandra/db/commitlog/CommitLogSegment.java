@@ -302,7 +302,7 @@ public abstract class CommitLogSegment
         syncComplete.signalAll();
     }
 
-    protected void writeSyncMarker(ByteBuffer buffer, int offset, int filePos, int nextMarker)
+    protected static void writeSyncMarker(long id, ByteBuffer buffer, int offset, int filePos, int nextMarker)
     {
         ICRC32 crc = CRC32Factory.instance.create();
         crc.updateInt((int) (id & 0xFFFFFFFFL));
