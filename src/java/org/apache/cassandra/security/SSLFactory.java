@@ -28,8 +28,11 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
@@ -39,10 +42,14 @@ import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.utils.Pair;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -54,7 +61,7 @@ import com.google.common.collect.Sets;
 public final class SSLFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
-    public static final String[] ACCEPTED_PROTOCOLS = new String[] {"SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
+    public static final String[] ACCEPTED_PROTOCOLS = new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"};
     private static boolean checkedExpiry = false;
 
     public static SSLServerSocket getServerSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
@@ -72,7 +79,7 @@ public final class SSLFactory
     {
         SSLContext ctx = createSSLContext(options, true);
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(address, port, localAddress, localPort);
-        prepareSocket(socket, options);
+        prepareSocket(socket, options, address);
         return socket;
     }
 
@@ -81,11 +88,11 @@ public final class SSLFactory
     {
         SSLContext ctx = createSSLContext(options, true);
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(address, port);
-        prepareSocket(socket, options);
+        prepareSocket(socket, options, address);
         return socket;
     }
 
-    /** Just create a socket */
+    /** Just create a socket. Note that no SNI headeers are added. */
     public static SSLSocket getSocket(EncryptionOptions options) throws IOException
     {
         SSLContext ctx = createSSLContext(options, true);
@@ -136,7 +143,6 @@ public final class SSLFactory
             kmf.init(ks, options.keystore_password.toCharArray());
 
             ctx.init(kmf.getKeyManagers(), trustManagers, null);
-
         }
         catch (Exception e)
         {
@@ -163,6 +169,18 @@ public final class SSLFactory
             logger.warn("Filtering out {} as it isn't supported by the socket", Iterables.toString(missing));
         }
         return ret;
+    }
+
+    private static void maybeAddSni(InetAddress endpoint, SSLParameters sslParameters)
+    {
+        logger.trace(
+                "Maybe adding SNI header to socket for {}/{}", endpoint.getHostName(), endpoint.getHostAddress());
+        if (endpoint.getHostName() != null)
+        {
+            SNIServerName name = new SNIHostName(endpoint.getHostName());
+            List<SNIServerName> sniHostNames = ImmutableList.of(name);
+            sslParameters.setServerNames(sniHostNames);
+        }
     }
 
     /** Sets relevant socket options specified in encryption settings */
@@ -192,5 +210,20 @@ public final class SSLFactory
         }
         socket.setEnabledCipherSuites(suites);
         socket.setEnabledProtocols(ACCEPTED_PROTOCOLS);
+    }
+
+    /**
+     * Sets relevant socket options specified in encryption settings. May add SNI headers to the socket's SSLParameters
+     * if the given endpoint includes a hostname.
+     */
+    private static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
+    {
+        prepareSocket(socket, options);
+        if (options.require_endpoint_verification)
+        {
+            SSLParameters sslParameters = socket.getSSLParameters();
+            maybeAddSni(endpoint, sslParameters);
+            socket.setSSLParameters(sslParameters);
+        }
     }
 }
