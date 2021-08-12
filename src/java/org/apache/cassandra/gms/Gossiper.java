@@ -602,7 +602,6 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         InetAddress endpoint = InetAddress.getByName(address);
         EndpointState epState = endpointStateMap.get(endpoint);
-        Collection<Token> tokens = null;
         logger.warn("Assassinating {} via gossip", SafeArg.of("endpoint", endpoint));
 
         if (epState == null)
@@ -629,17 +628,20 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             epState.getHeartBeatState().forceNewerGenerationUnsafe();
         }
 
-        try
-        {
-            tokens = StorageService.instance.getTokenMetadata().getTokens(endpoint);
-        }
-        catch (Throwable th)
-        {
-            JVMStabilityInspector.inspectThrowable(th);
-            // TODO this is broken
-            logger.warn("Unable to calculate tokens for {}.  Will use a random one", address);
-            tokens = Collections.singletonList(StorageService.getPartitioner().getRandomToken());
-        }
+            Collection<Token> tokens = null;
+            try
+            {
+                tokens = StorageService.instance.getTokenMetadata().getTokens(endpoint);
+            }
+            catch (Throwable th)
+            {
+                JVMStabilityInspector.inspectThrowable(th);
+            }
+            if (tokens == null || tokens.isEmpty())
+            {
+                logger.warn("Trying to assassinate an endpoint {} that does not have any tokens assigned. This should not have happened, trying to continue with a random token.", SafeArg.of("address", address));
+                tokens = Collections.singletonList(StorageService.getPartitioner().getRandomToken());
+            }
 
         // do not pass go, do not collect 200 dollars, just gtfo
         epState.addApplicationState(ApplicationState.STATUS, StorageService.instance.valueFactory.left(tokens, computeExpireTime()));
@@ -668,7 +670,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     private boolean sendGossip(MessageOut<GossipDigestSyn> message, Set<InetAddress> epSet)
     {
         List<InetAddress> liveEndpoints = ImmutableList.copyOf(epSet);
-        
+
         int size = liveEndpoints.size();
         if (size < 1)
             return false;
@@ -1257,7 +1259,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         for (Entry<ApplicationState, VersionedValue> remoteEntry : remoteStates)
             doOnChangeNotifications(addr, remoteEntry.getKey(), remoteEntry.getValue());
     }
-    
+
     // notify that a local application state is going to change (doesn't get triggered for remote changes)
     private void doBeforeChangeNotifications(InetAddress addr, EndpointState epState, ApplicationState apState, VersionedValue newValue)
     {
