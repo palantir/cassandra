@@ -580,12 +580,12 @@ public class TokenMetadata
     public Collection<Token> getTokens(InetAddress endpoint)
     {
         assert endpoint != null;
-        assert isMember(endpoint); // don't want to return nulls
 
         publicLock.readLock().lock();
         lock.readLock().lock();
         try
         {
+            assert isMember(endpoint); // don't want to return nulls
             return new ArrayList<>(tokenToEndpointMap.inverse().get(endpoint));
         }
         finally
