@@ -51,6 +51,7 @@ import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
+import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.JVMStabilityInspector;
@@ -357,14 +358,15 @@ public final class FileUtils
         // TODO Once we can get rid of Java 8, it's simpler to call sun.misc.Unsafe.invokeCleaner(ByteBuffer),
         // but need to take care of the attachment handling (i.e. whether 'buf' is a duplicate or slice) - that
         // is different in sun.misc.Unsafe.invokeCleaner and this implementation.
+        // sun.misc.Unsafe.getUnsafe().invokeCleaner(buffer);
 
         try
         {
             Object cleaner = mhDirectBufferCleaner.bindTo(buffer).invoke();
             if (cleaner != null)
             {
-                // ((DirectBuffer) buf).cleaner().clean();
                 mhCleanerClean.bindTo(cleaner).invoke();
+                Java11ExperimentMetrics.buffersCleaned.inc();
             }
         }
         catch (RuntimeException e)
