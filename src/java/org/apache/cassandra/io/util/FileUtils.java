@@ -23,6 +23,9 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -51,7 +54,7 @@ import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.JVMStabilityInspector;
-import sun.nio.ch.DirectBuffer;
+import org.apache.cassandra.utils.memory.MemoryUtil;
 
 import static org.apache.cassandra.utils.Throwables.maybeFail;
 import static org.apache.cassandra.utils.Throwables.merge;
@@ -68,19 +71,30 @@ public final class FileUtils
     private static final boolean canCleanDirectBuffers;
     private static final AtomicReference<FSErrorHandler> fsErrorHandler = new AtomicReference<>();
 
+    private static Class clsDirectBuffer;
+    private static MethodHandle mhDirectBufferCleaner;
+    private static MethodHandle mhCleanerClean;
+
     static
     {
         boolean canClean = false;
         try
         {
+            clsDirectBuffer = Class.forName("sun.nio.ch.DirectBuffer");
+            Method mDirectBufferCleaner = clsDirectBuffer.getMethod("cleaner");
+            mhDirectBufferCleaner = MethodHandles.lookup().unreflect(mDirectBufferCleaner);
+            Method mCleanerClean = mDirectBufferCleaner.getReturnType().getMethod("clean");
+            mhCleanerClean = MethodHandles.lookup().unreflect(mCleanerClean);
+
             ByteBuffer buf = ByteBuffer.allocateDirect(1);
-            ((DirectBuffer) buf).cleaner().clean();
+            clean(buf);
             canClean = true;
         }
         catch (Throwable t)
         {
+            logger.error("FATAL: Cannot initialize optimized memory deallocator. Some data, both in-memory and on-disk, may live longer due to garbage collection.");
             JVMStabilityInspector.inspectThrowable(t);
-            logger.info("Cannot initialize un-mmaper.  (Are you using a non-Oracle JVM?)  Compacted data files will not be removed promptly.  Consider using an Oracle JVM or using standard disk access mode");
+            throw new RuntimeException(t);
         }
         canCleanDirectBuffers = canClean;
     }
@@ -337,8 +351,30 @@ public final class FileUtils
 
     public static void clean(ByteBuffer buffer)
     {
-        if (isCleanerAvailable() && buffer.isDirect())
-            ((DirectBuffer)buffer).cleaner().clean();
+        if (buffer == null || !buffer.isDirect())
+            return;
+
+        // TODO Once we can get rid of Java 8, it's simpler to call sun.misc.Unsafe.invokeCleaner(ByteBuffer),
+        // but need to take care of the attachment handling (i.e. whether 'buf' is a duplicate or slice) - that
+        // is different in sun.misc.Unsafe.invokeCleaner and this implementation.
+
+        try
+        {
+            Object cleaner = mhDirectBufferCleaner.bindTo(buffer).invoke();
+            if (cleaner != null)
+            {
+                // ((DirectBuffer) buf).cleaner().clean();
+                mhCleanerClean.bindTo(cleaner).invoke();
+            }
+        }
+        catch (RuntimeException e)
+        {
+            throw e;
+        }
+        catch (Throwable e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void createDirectory(String directory)

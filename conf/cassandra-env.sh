@@ -183,9 +183,6 @@ JVM_OPTS="$JVM_OPTS -XX:+CMSClassUnloadingEnabled"
 # enable thread priorities, primarily so we can give periodic tasks
 # a lower priority to avoid interfering with client workload
 JVM_OPTS="$JVM_OPTS -XX:+UseThreadPriorities"
-# allows lowering thread priority without being root.  see
-# http://tech.stolsvik.com/2010/01/linux-java-thread-priorities-workaround.html
-JVM_OPTS="$JVM_OPTS -XX:ThreadPriorityPolicy=42"
 
 # min and max heap sizes should be set to the same value to avoid
 # stop-the-world GC pauses during resize, and so that we can lock the
@@ -223,17 +220,26 @@ JVM_OPTS="$JVM_OPTS -Xss256k"
 JVM_OPTS="$JVM_OPTS -XX:StringTableSize=1000003"
 
 # GC tuning options
-JVM_OPTS="$JVM_OPTS -XX:+UseParNewGC" 
-JVM_OPTS="$JVM_OPTS -XX:+UseConcMarkSweepGC" 
-JVM_OPTS="$JVM_OPTS -XX:+CMSParallelRemarkEnabled" 
+JVM_OPTS="$JVM_OPTS -XX:+UseG1GC"
+JVM_OPTS="$JVM_OPTS -XX:+ParallelRefProcEnabled"
+JVM_OPTS="$JVM_OPTS -XX:MaxGCPauseMillis=500"
+# JVM_OPTS="$JVM_OPTS -XX:G1RSetUpdatingPauseTimePercent"
+# JVM_OPTS="$JVM_OPTS -XX:-UseTransparentHugePages"
+# JVM_OPTS="$JVM_OPTS -XX:+AlwaysPreTouch"
+# JVM_OPTS="$JVM_OPTS -XX:+UseNUMA"
+# JVM_OPTS="$JVM_OPTS -XX:G1NewSizePercent"
+# JVM_OPTS="$JVM_OPTS -XX:G1MaxNewSizePercent"
+# JVM_OPTS="$JVM_OPTS -XX:G1HeapRegionSize"
+# JVM_OPTS="$JVM_OPTS -XX:G1MixedGCCountTarget"
+# JVM_OPTS="$JVM_OPTS -XX:G1MixedGCLiveThresholdPercent"
+# JVM_OPTS="$JVM_OPTS -XX:G1HeapWastePercent"
+# JVM_OPTS="$JVM_OPTS -XX:InitiatingHeapOccupancyPercent"
+# JVM_OPTS="$JVM_OPTS -XX:G1OldCSetRegionThresholdPercent"
 JVM_OPTS="$JVM_OPTS -XX:SurvivorRatio=8" 
 JVM_OPTS="$JVM_OPTS -XX:MaxTenuringThreshold=1"
-JVM_OPTS="$JVM_OPTS -XX:CMSInitiatingOccupancyFraction=75"
-JVM_OPTS="$JVM_OPTS -XX:+UseCMSInitiatingOccupancyOnly"
 JVM_OPTS="$JVM_OPTS -XX:+UseTLAB"
 JVM_OPTS="$JVM_OPTS -XX:+PerfDisableSharedMem"
 JVM_OPTS="$JVM_OPTS -XX:CompileCommandFile=$CASSANDRA_CONF/hotspot_compiler"
-JVM_OPTS="$JVM_OPTS -XX:CMSWaitDuration=10000"
 
 # note: bash evals '1.7.x' as > '1.7' so this is really a >= 1.7 jvm check
 if { [ "$JVM_VERSION" \> "1.7" ] && [ "$JVM_VERSION" \< "1.8.0" ] && [ "$JVM_PATCH_VERSION" -ge "60" ]; } || [ "$JVM_VERSION" \> "1.8" ] ; then
@@ -245,20 +251,7 @@ if [ "$JVM_ARCH" = "64-Bit" ] ; then
 fi
 
 # GC logging options
-JVM_OPTS="$JVM_OPTS -XX:+PrintGCDetails"
-JVM_OPTS="$JVM_OPTS -XX:+PrintGCDateStamps"
-JVM_OPTS="$JVM_OPTS -XX:+PrintHeapAtGC"
-JVM_OPTS="$JVM_OPTS -XX:+PrintTenuringDistribution"
-JVM_OPTS="$JVM_OPTS -XX:+PrintGCApplicationStoppedTime"
-JVM_OPTS="$JVM_OPTS -XX:+PrintPromotionFailure"
-#JVM_OPTS="$JVM_OPTS -XX:PrintFLSStatistics=1"
-
-JVM_OPTS="$JVM_OPTS -Xloggc:${CASSANDRA_HOME}/logs/gc.log"
-JVM_OPTS="$JVM_OPTS -XX:+UseGCLogFileRotation"
-JVM_OPTS="$JVM_OPTS -XX:NumberOfGCLogFiles=10"
-JVM_OPTS="$JVM_OPTS -XX:GCLogFileSize=10M"
-# if using version before JDK 6u34 or 7u2 use this instead of log rotation
-# JVM_OPTS="$JVM_OPTS -Xloggc:/var/log/cassandra/gc-`date +%s`.log"
+JVM_OPTS="$JVM_OPTS -Xlog:gc=info,heap*=trace,age*=debug,safepoint=info,promotion*=trace:file=${CASSANDRA_HOME}/logs/gc.log:time,uptime,pid,tid,level:filecount=10,filesize=10485760"
 
 # uncomment to have Cassandra JVM listen for remote debuggers/profilers on port 1414
 # JVM_OPTS="$JVM_OPTS -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1414"
