@@ -42,7 +42,7 @@ cassandra_bin="$cassandra_bin:$CASSANDRA_HOME/build/classes/thrift"
 cassandra_storagedir="$CASSANDRA_HOME/data"
 
 if [ -n "${JAVA_11_HOME}" ]; then
-    JAVA_HOME="${JAVA_11_HOME}"
+    JAVA_HOME="${JAVA_15_HOME}"
 fi
 
 # verify that JAVA_HOME points to java 11
