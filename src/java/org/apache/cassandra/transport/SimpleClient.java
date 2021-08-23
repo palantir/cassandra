@@ -300,7 +300,7 @@ public class SimpleClient implements Closeable
                 sslEngine.setSSLParameters(sslParameters);
             }
             sslEngine.setEnabledCipherSuites(suites);
-            sslEngine.setEnabledProtocols(SSLFactory.ACCEPTED_PROTOCOLS);
+            sslEngine.setEnabledProtocols(SSLFactory.ACCEPTED_CLIENT_PROTOCOLS);
             channel.pipeline().addFirst("ssl", new SslHandler(sslEngine));
         }
     }

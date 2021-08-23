@@ -381,7 +381,7 @@ public class Server implements CassandraDaemon.Server
             }
             sslEngine.setEnabledCipherSuites(suites);
             sslEngine.setNeedClientAuth(encryptionOptions.require_client_auth);
-            sslEngine.setEnabledProtocols(SSLFactory.ACCEPTED_PROTOCOLS);
+            sslEngine.setEnabledProtocols(SSLFactory.ACCEPTED_SERVER_PROTOCOLS);
             return new SslHandler(sslEngine);
         }
     }

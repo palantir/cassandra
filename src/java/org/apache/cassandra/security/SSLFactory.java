@@ -28,7 +28,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -42,12 +41,10 @@ import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.utils.Pair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -61,7 +58,15 @@ import com.google.common.collect.Sets;
 public final class SSLFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
-    public static final String[] ACCEPTED_PROTOCOLS = new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"};
+
+    // Clients will send SSLv2Hello `Client Hello` messages during the SSL/TLS handshake to initiate SSL/TLS version
+    // protocol with the server. We want to get rid of SSLv2Hello because it does not support SNI headers, but
+    // getting rid of support entirely causes a breaking change while upgrading (the upgraded node will reject the
+    // initial SSLv2Hello message from the non-upgraded nodes, failing to connect and causing downtime). Consequently
+    // we stop only clients from sending SSLv2Hello messages (and may later stop servers from accepting them as well).
+    public static final String[] ACCEPTED_SERVER_PROTOCOLS = new String[]{ "SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
+    public static final String[] ACCEPTED_CLIENT_PROTOCOLS = new String[]{ "TLSv1", "TLSv1.1", "TLSv1.2"};
+
     private static boolean checkedExpiry = false;
 
     public static SSLServerSocket getServerSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
@@ -109,6 +114,7 @@ public final class SSLFactory
         SSLContext ctx;
         try
         {
+            logger.trace("Creating socket with protocol {}", options.protocol);
             ctx = SSLContext.getInstance(options.protocol);
             TrustManager[] trustManagers = null;
 
@@ -195,7 +201,7 @@ public final class SSLFactory
         }
         serverSocket.setEnabledCipherSuites(suites);
         serverSocket.setNeedClientAuth(options.require_client_auth);
-        serverSocket.setEnabledProtocols(ACCEPTED_PROTOCOLS);
+        serverSocket.setEnabledProtocols(ACCEPTED_SERVER_PROTOCOLS);
     }
 
     /** Sets relevant socket options specified in encryption settings */
@@ -209,7 +215,7 @@ public final class SSLFactory
             socket.setSSLParameters(sslParameters);
         }
         socket.setEnabledCipherSuites(suites);
-        socket.setEnabledProtocols(ACCEPTED_PROTOCOLS);
+        socket.setEnabledProtocols(ACCEPTED_CLIENT_PROTOCOLS);
     }
 
     /**
