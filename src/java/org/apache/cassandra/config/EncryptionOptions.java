@@ -28,7 +28,7 @@ public abstract class EncryptionOptions
         "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA" 
     };
-    public String protocol = "TLSv1.2";
+    public String protocol = "TLS";
     public String algorithm = "SunX509";
     public String store_type = "JKS";
     public boolean require_client_auth = false;

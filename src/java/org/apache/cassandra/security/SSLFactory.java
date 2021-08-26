@@ -60,8 +60,8 @@ public final class SSLFactory
     private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
 
     // Clients will send SSLv2Hello `Client Hello` messages during the SSL/TLS handshake to initiate SSL/TLS version
-    // protocol with the server. We want to get rid of SSLv2Hello because it does not support SNI headers, but
-    // getting rid of support entirely causes a breaking change while upgrading (the upgraded node will reject the
+    // negotiation with the server. We want to get rid of SSLv2Hello because it does not support SNI headers, but
+    // removing support entirely causes a breaking change while upgrading (the upgraded node will reject the
     // initial SSLv2Hello message from the non-upgraded nodes, failing to connect and causing downtime). Consequently
     // we stop only clients from sending SSLv2Hello messages (and may later stop servers from accepting them as well).
     public static final String[] ACCEPTED_SERVER_PROTOCOLS = new String[]{ "SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
