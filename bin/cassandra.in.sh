@@ -41,15 +41,15 @@ cassandra_bin="$cassandra_bin:$CASSANDRA_HOME/build/classes/thrift"
 # if not set in cassandra.yaml
 cassandra_storagedir="$CASSANDRA_HOME/data"
 
-if [ -n "${JAVA_11_HOME}" ]; then
+if [ -n "${JAVA_15_HOME}" ]; then
     JAVA_HOME="${JAVA_15_HOME}"
 fi
 
-# verify that JAVA_HOME points to java 11
+# verify that JAVA_HOME points to java 15
 java_ver_output=`"$JAVA_HOME/bin/java" -version 2>&1 | grep '[openjdk|java] version' | awk -F'"' 'NR==1 {print $2}'`
 jvm_version=${java_ver_output%_*}
-if [ "$jvm_version" \< "11.0" ] ; then
-    echo "Palantir Cassandra 2.0.x requires Java 11, but JAVA_HOME is set to '$JAVA_HOME' with version $jvm_version"
+if [ "$jvm_version" \< "15.0" ] ; then
+    echo "Palantir Cassandra 2.0.x requires Java 15, but JAVA_HOME is set to '$JAVA_HOME' with version $jvm_version"
     exit 1;
 fi
 

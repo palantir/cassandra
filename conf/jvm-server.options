@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# Java 11 JPMS
+# Java JPMS
 -Djdk.attach.allowAttachSelf=true
 --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
 --add-exports java.base/jdk.internal.ref=ALL-UNNAMED
