@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import com.sun.jna.Native;
-import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import sun.misc.Unsafe;
 
 public abstract class MemoryUtil
@@ -158,7 +157,6 @@ public abstract class MemoryUtil
             throw new AssertionError(e);
         }
         instance.order(ByteOrder.nativeOrder());
-        Java11ExperimentMetrics.direct.inc();
         return instance;
     }
 

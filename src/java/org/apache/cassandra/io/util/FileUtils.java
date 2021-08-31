@@ -51,7 +51,6 @@ import org.apache.cassandra.io.FSErrorHandler;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
-import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.JVMStabilityInspector;
@@ -366,7 +365,6 @@ public final class FileUtils
             if (cleaner != null)
             {
                 mhCleanerClean.bindTo(cleaner).invoke();
-                Java11ExperimentMetrics.buffersCleaned.inc();
             }
         }
         catch (RuntimeException e)

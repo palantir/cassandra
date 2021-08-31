@@ -25,7 +25,6 @@ import java.nio.channels.FileChannel;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.CLibrary;
 import org.apache.cassandra.utils.SyncUtil;
 
@@ -57,7 +56,6 @@ public class MemoryMappedSegment extends CommitLogSegment
         {
             MappedByteBuffer mappedFile = channel.map(FileChannel.MapMode.READ_WRITE, 0, DatabaseDescriptor.getCommitLogSegmentSize());
             commitLog.allocator.addSize(DatabaseDescriptor.getCommitLogSegmentSize());
-            Java11ExperimentMetrics.mmapSegment.inc();
             return mappedFile;
         }
         catch (IOException e)

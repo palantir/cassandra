@@ -31,7 +31,6 @@ import com.google.common.primitives.Ints;
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.io.util.*;
-import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.FBUtilities;
 
 /**
@@ -84,7 +83,6 @@ public class CompressedRandomAccessReader extends RandomAccessReader
     protected ByteBuffer allocateBuffer(int bufferSize, BufferType bufferType)
     {
         assert Integer.bitCount(bufferSize) == 1;
-        Java11ExperimentMetrics.crar.inc();
         return bufferType.allocate(bufferSize);
     }
 

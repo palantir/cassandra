@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.io.util.FileUtils;
-import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 
@@ -212,7 +211,6 @@ public class SlabAllocator extends MemtableBufferAllocator
                 {
                     // we got the alloc
                     allocCount.incrementAndGet();
-                    Java11ExperimentMetrics.slab.inc();
                     return (ByteBuffer) data.duplicate().position(oldOffset).limit(oldOffset + size);
                 }
                 // we raced and lost alloc, try again

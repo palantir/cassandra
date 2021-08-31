@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.compress.BufferType;
-import org.apache.cassandra.metrics.Java11ExperimentMetrics;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 public class RandomAccessReader extends AbstractDataInput implements FileDataInput
@@ -67,7 +66,6 @@ public class RandomAccessReader extends AbstractDataInput implements FileDataInp
     protected ByteBuffer allocateBuffer(int bufferSize, BufferType bufferType)
     {
         int size = (int) Math.min(fileLength, bufferSize);
-        Java11ExperimentMetrics.rar.inc();
         return bufferType.allocate(size);
     }
 
