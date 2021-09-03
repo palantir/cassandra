@@ -18,6 +18,175 @@
 
 package com.palantir.cassandra.ppam;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.cassandra.concurrent.DebuggableScheduledThreadPoolExecutor;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.net.MessageOut;
+import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.utils.FBUtilities;
+
+/**
+ * Similar to {@link org.apache.cassandra.gms.Gossiper}, this class is responsible for sending
+ * {@link org.apache.cassandra.gms.GossipDigestAck} messages to seed nodes and managing the internal/external node IP
+ * mapping for cross-vpc connections.
+ */
 public class PrivatePublicAddressMappingCoordinator
 {
+    private static final Logger logger = LoggerFactory.getLogger(PrivatePublicAddressMappingCoordinator.class);
+    public static final PrivatePublicAddressMappingCoordinator instance = new PrivatePublicAddressMappingCoordinator();
+    // A single cross-VPC hostname can resolve to 3 valid IPs. More on the key/values
+    // here in the Edge Cases + Questions section of the RFC
+    private final ConcurrentHashMap<InetAddressIp, Set<InetAddressIp>> privatePublicIpMappings;
+    private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor("PrivatePublicAddressMappingTasks");
+    private volatile ScheduledFuture<?> scheduledPPAMTask;
+    public final static int intervalInMillis = 30000;
+
+    @VisibleForTesting
+    final AtomicLong numTasks = new AtomicLong();
+
+    private PrivatePublicAddressMappingCoordinator()
+    {
+        this.privatePublicIpMappings = new ConcurrentHashMap<>();
+    }
+
+    @VisibleForTesting
+    ConcurrentHashMap<InetAddressIp, Set<InetAddressIp>> getPrivatePublicAddressMapping()
+    {
+        return privatePublicIpMappings;
+    }
+
+    @VisibleForTesting
+    void clearPrivatePublicAddressMapping()
+    {
+        privatePublicIpMappings.clear();
+    }
+
+    public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
+    {
+        Map<InetAddressIp, Set<InetAddressIp>> endpointMappings = instance.getPrivatePublicAddressMapping();
+        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
+        if (endpointMappings.containsKey(proposedAddress) && DatabaseDescriptor.privatePublicIpSwappingEnabled())
+        {
+            // Open question below on which of the 3 resolvable endpoints to return
+            // Shouldn't happen, but to be safe would also check that the Set is not empty
+            Set<InetAddressIp> candidates = endpointMappings.get(proposedAddress);
+            if (candidates.size() > 0)
+            {
+                InetAddressIp choice = candidates.stream().findAny().get();
+                logger.trace("Swapped address {} for {}", endpoint, choice);
+                return InetAddress.getByName(choice.toString());
+            }
+        }
+        return endpoint;
+    }
+
+    public void updatePrivatePublicAddressMapping(InetAddressHostname host, InetAddressIp key, InetAddressIp newValue)
+    {
+        Set<InetAddressIp> externalTargetAddresses = PrivatePublicAddressMappingCoordinator.instance.getPrivatePublicAddressMapping()
+                                                                                                  .getOrDefault(key, new HashSet<>());
+        Set<InetAddressIp> newExternalTargetAddresses = Sets.union(externalTargetAddresses, Sets.newHashSet(newValue));
+        PrivatePublicAddressMappingCoordinator.instance.getPrivatePublicAddressMapping()
+                                                       .put(key, newExternalTargetAddresses);
+        logger.trace("Updated private/public IP mapping for {}/{} to {}", host, key, newExternalTargetAddresses);
+    }
+
+    public void removePrivatePublicAddressMapping(InetAddress key, InetAddress value)
+    {
+        // todo
+    }
+
+    // This could potentially be invoked for unreachable nodes by the Gossiper
+    // Although, not sure if we would really use this as the Gossiper might not include
+    // the target's hostname in which case we would throw
+    public static void triggerHandshakeFromSelf(Set<InetAddress> targets)
+    {
+        instance.numTasks.getAndIncrement();
+        InetAddress self = FBUtilities.getBroadcastAddress();
+        if (self.getHostName() == null)
+        {
+            // This would mean broadcast address was provided as an IP in config.
+            // We would want to find a way to combine this IP w/ the node's actual
+            // hostname into one InetAddress for testing on IL (more info below)
+        }
+        logger.trace("Triggering handshakes from {} to {}", self, targets);
+        targets.forEach(target -> triggerHandshake(self, target, false));
+    }
+
+    @VisibleForTesting
+    static void triggerHandshake(InetAddress source, InetAddress target, boolean test)
+    {
+        if (target.equals(FBUtilities.getBroadcastAddress()) && !test)
+        {
+            logger.trace("Not handshaking self");
+            return;
+        }
+        PrivatePublicAddressMappingSyn syn = new PrivatePublicAddressMappingSyn(
+            // todo this without DNS resolution to test broadcast address
+            new InetAddressHostname(source.getHostName()),
+            new InetAddressIp(source.getHostAddress()),
+            new InetAddressHostname(target.getHostName()),
+            new InetAddressIp(target.getHostAddress())
+        );
+
+        MessageOut<PrivatePublicAddressMappingSyn> synMessage = new MessageOut<>(
+                                                    MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN,
+                                                    syn,
+                                                    PrivatePublicAddressMappingSyn.serializer);
+        MessagingService.instance().sendOneWay(synMessage, target);
+    }
+
+    // This could be the task that's run on a schedule
+    private static class PrivatePublicAddressMappingTask implements Runnable
+    {
+        public void run()
+        {
+            // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
+            // who we currently are going to handshake with like the Gossiper does
+            Set<InetAddress> seeds = DatabaseDescriptor.getSeeds().stream()
+                                                       .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
+                                                       .collect(Collectors.toSet());
+
+            PrivatePublicAddressMappingCoordinator.triggerHandshakeFromSelf(seeds);
+        }
+    }
+
+    public void start()
+    {
+        logger.trace("Started running PrivatePublicAddressMappingTask at interval of {} ms",
+                     PrivatePublicAddressMappingCoordinator.intervalInMillis);
+        scheduledPPAMTask = executor.scheduleWithFixedDelay(new PrivatePublicAddressMappingTask(),
+                                                            0L,
+                                                            PrivatePublicAddressMappingCoordinator.intervalInMillis,
+                                                            TimeUnit.MILLISECONDS);
+    }
+
+    public boolean isEnabled()
+    {
+        return (scheduledPPAMTask != null) && (!scheduledPPAMTask.isCancelled());
+    }
+
+    public void stop()
+    {
+        if (scheduledPPAMTask != null)
+        {
+            scheduledPPAMTask.cancel(false);
+            logger.trace("Stopped running PrivatePublicAddressMappingTask at interval");
+        }
+    }
 }
