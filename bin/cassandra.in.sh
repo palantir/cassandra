@@ -41,15 +41,15 @@ cassandra_bin="$cassandra_bin:$CASSANDRA_HOME/build/classes/thrift"
 # if not set in cassandra.yaml
 cassandra_storagedir="$CASSANDRA_HOME/data"
 
-if [ -n "${JAVA_15_HOME}" ]; then
-    JAVA_HOME="${JAVA_15_HOME}"
+if [ -n "${JAVA_8_HOME}" ]; then
+    JAVA_HOME="${JAVA_8_HOME}"
 fi
 
 # verify that JAVA_HOME points to java 15
 java_ver_output=`"$JAVA_HOME/bin/java" -version 2>&1 | grep '[openjdk|java] version' | awk -F'"' 'NR==1 {print $2}'`
 jvm_version=${java_ver_output%_*}
-if [ "$jvm_version" \< "15.0" ] ; then
-    echo "Palantir Cassandra 2.0.x requires Java 15, but JAVA_HOME is set to '$JAVA_HOME' with version $jvm_version"
+if [ "$jvm_version" \< "1.8.0" ] ; then
+    echo "Palantir Cassandra 2.0.x requires Java 8, but JAVA_HOME is set to '$JAVA_HOME' with version $jvm_version"
     exit 1;
 fi
 
@@ -98,9 +98,9 @@ CASSANDRA_TEMP_DIR=$SERVICE_HOME/var/data/tmp
 JVM_OPTS="${JVM_OPTS} -Djava.io.tmpdir=$CASSANDRA_TEMP_DIR"
 JVM_OPTS="${JVM_OPTS} -Djna.tmpdir=$CASSANDRA_TEMP_DIR"
 
-# parse the jvm options files and add them to JVM_OPTS
-JVM_OPTS_FILE=$CASSANDRA_CONF/jvm${jvmoptions_variant:--clients}.options
-for opt in `grep "^-" $JVM_OPTS_FILE`
-do
-  JVM_OPTS="$JVM_OPTS $opt"
-done
+## parse the jvm options files and add them to JVM_OPTS
+#JVM_OPTS_FILE=$CASSANDRA_CONF/jvm${jvmoptions_variant:--clients}.options
+#for opt in `grep "^-" $JVM_OPTS_FILE`
+#do
+#  JVM_OPTS="$JVM_OPTS $opt"
+#done
