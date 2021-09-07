@@ -47,6 +47,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.jmx.JMXConfiguratorMBean;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
+import com.palantir.cassandra.ppam.PrivatePublicAddressMappingCoordinator;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -425,6 +426,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (daemon == null)
         {
             throw new IllegalStateException("No configured daemon");
+        }
+        if (PrivatePublicAddressMappingCoordinator.instance.isEnabled())
+        {
+            PrivatePublicAddressMappingCoordinator.instance.stop();
         }
         if (daemon.nativeServer != null)
             daemon.nativeServer.stop();

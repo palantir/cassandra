@@ -60,6 +60,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.ppam.PrivatePublicAddressMappingCoordinator;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -401,6 +402,11 @@ public class CassandraDaemon
             throw new IllegalStateException("thrift transport should be set up before it can be started");
         thriftServer.start();
         logger.info("Thrift server running on {}", new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getRpcPort()));
+
+        if (!PrivatePublicAddressMappingCoordinator.instance.isEnabled())
+        {
+            PrivatePublicAddressMappingCoordinator.instance.start();
+        }
     }
 
     private void validateTransportsCanStart()
@@ -541,6 +547,7 @@ public class CassandraDaemon
             thriftServer.start();
         else
             logger.info("Not starting RPC server as requested. Use JMX (StorageService->startRPCServer()) or nodetool (enablethrift) to start it");
+        PrivatePublicAddressMappingCoordinator.instance.start();
     }
 
     /**
