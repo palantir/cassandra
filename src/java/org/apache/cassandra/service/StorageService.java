@@ -47,7 +47,9 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.jmx.JMXConfiguratorMBean;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
+import com.palantir.cassandra.ppam.PrivatePublicAddressMappingAckVerbHandler;
 import com.palantir.cassandra.ppam.PrivatePublicAddressMappingCoordinator;
+import com.palantir.cassandra.ppam.PrivatePublicAddressMappingSynVerbHandler;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -278,6 +280,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.SNAPSHOT, new SnapshotVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.ECHO, new EchoVerbHandler());
+
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN, new PrivatePublicAddressMappingSynVerbHandler());
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_ACK, new PrivatePublicAddressMappingAckVerbHandler());
     }
 
     public void registerDaemon(CassandraDaemon daemon)
