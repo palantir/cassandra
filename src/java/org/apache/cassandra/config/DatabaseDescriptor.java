@@ -1321,6 +1321,16 @@ public class DatabaseDescriptor
         return conf.listen_on_broadcast_address;
     }
 
+    public static Boolean privatePublicIpSwappingEnabled()
+    {
+        return conf.private_public_ip_swapping_enabled;
+    }
+
+    public static void setPrivatePublicIpSwapping(boolean setting)
+    {
+        conf.private_public_ip_swapping_enabled = setting;
+    }
+
     public static IInternodeAuthenticator getInternodeAuthenticator()
     {
         return internodeAuthenticator;
