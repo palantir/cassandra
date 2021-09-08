@@ -117,29 +117,18 @@ public class PrivatePublicAddressMappingCoordinator
     public static void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
         instance.numTasks.getAndIncrement();
-        InetAddress self = FBUtilities.getBroadcastAddress();
-        if (self.getHostName() == null)
-        {
-            // This would mean broadcast address was provided as an IP in config.
-            // We would want to find a way to combine this IP w/ the node's actual
-            // hostname into one InetAddress for testing on IL (more info below)
-        }
-        logger.trace("Triggering handshakes from {} to {}", self, targets);
-        targets.forEach(target -> triggerHandshake(self, target, false));
+        InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
+        InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
+        logger.trace("Triggering handshakes from {}/{} to {}", selfName, selfIp, targets);
+        targets.forEach(target -> triggerHandshake(selfName, selfIp, target));
     }
 
     @VisibleForTesting
-    static void triggerHandshake(InetAddress source, InetAddress target, boolean test)
+    static void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
     {
-        if (target.equals(FBUtilities.getBroadcastAddress()) && !test)
-        {
-            logger.trace("Not handshaking self");
-            return;
-        }
         PrivatePublicAddressMappingSyn syn = new PrivatePublicAddressMappingSyn(
-            // todo this without DNS resolution to test broadcast address
-            new InetAddressHostname(source.getHostName()),
-            new InetAddressIp(source.getHostAddress()),
+            sourceName,
+            sourceIp,
             new InetAddressHostname(target.getHostName()),
             new InetAddressIp(target.getHostAddress())
         );
