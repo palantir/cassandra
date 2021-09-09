@@ -49,11 +49,8 @@ public class CrossVpcIpMappingHandshaker
 {
     private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingHandshaker.class);
     public static final CrossVpcIpMappingHandshaker instance = new CrossVpcIpMappingHandshaker();
-    // A single cross-VPC hostname can resolve to 3 valid IPs. More on the key/values
-    // here in the Edge Cases + Questions section of the RFC
-    private final ConcurrentHashMap<InetAddressIp, InetAddressIp> crossVpcIpMappings;
-    private static final DebuggableScheduledThreadPoolExecutor executor =
-                                    new DebuggableScheduledThreadPoolExecutor("CrossVpcIpMappingTasks");
+    private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor(
+    "CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledPPAMTask;
     public final static int intervalInMillis = 30000;
 
@@ -62,42 +59,6 @@ public class CrossVpcIpMappingHandshaker
 
     private CrossVpcIpMappingHandshaker()
     {
-        this.crossVpcIpMappings = new ConcurrentHashMap<>();
-    }
-
-    @VisibleForTesting
-    ConcurrentHashMap<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
-    {
-        return crossVpcIpMappings;
-    }
-
-    @VisibleForTesting
-    void clearCrossVpcIpMapping()
-    {
-        crossVpcIpMappings.clear();
-    }
-
-    public void updateCrossVpcIpMapping(InetAddressHostname host, InetAddressIp key, InetAddressIp newValue)
-    {
-
-        InetAddressIp old = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpMapping().put(key, newValue);
-        if (!Objects.equals(newValue, old))
-        {
-            logger.trace("Updated private/public IP mapping for {}/{} from {} to {}", host, key, old, newValue);
-        }
-    }
-
-    public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
-    {
-        Map<InetAddressIp, InetAddressIp> endpointMappings = instance.getCrossVpcIpMapping();
-        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        if (endpointMappings.containsKey(proposedAddress) && DatabaseDescriptor.crossVpcIpSwappingEnabled())
-        {
-            InetAddressIp publicAddress = endpointMappings.get(proposedAddress);
-            logger.trace("Swapped address {} for {}", endpoint, publicAddress);
-            return InetAddress.getByName(publicAddress.toString());
-        }
-        return endpoint;
     }
 
     // This could potentially be invoked for unreachable nodes by the Gossiper
@@ -115,43 +76,31 @@ public class CrossVpcIpMappingHandshaker
     @VisibleForTesting
     static void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
     {
-        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(
-            sourceName,
-            sourceIp,
-            new InetAddressHostname(target.getHostName()),
-            new InetAddressIp(target.getHostAddress())
-        );
+        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName,
+                                                            sourceIp,
+                                                            new InetAddressHostname(target.getHostName()),
+                                                            new InetAddressIp(target.getHostAddress()));
 
-        MessageOut<CrossVpcIpMappingSyn> synMessage = new MessageOut<>(
-        MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
-        syn,
-        CrossVpcIpMappingSyn.serializer);
+        MessageOut<CrossVpcIpMappingSyn> synMessage = new MessageOut<>(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
+                                                                       syn,
+                                                                       CrossVpcIpMappingSyn.serializer);
         MessagingService.instance().sendOneWay(synMessage, target);
-    }
-
-    // This could be the task that's run on a schedule
-    private static class CrossVpcIpMappingTask implements Runnable
-    {
-        public void run()
-        {
-            // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
-            // who we currently are going to handshake with like the Gossiper does
-            Set<InetAddress> seeds = DatabaseDescriptor.getSeeds().stream()
-                                                       .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
-                                                       .collect(Collectors.toSet());
-
-            CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(seeds);
-        }
     }
 
     public void start()
     {
         logger.trace("Started running CrossVpcIpMappingTask at interval of {} ms",
                      CrossVpcIpMappingHandshaker.intervalInMillis);
-        scheduledPPAMTask = executor.scheduleWithFixedDelay(new CrossVpcIpMappingTask(),
-                                                            0L,
-                                                            CrossVpcIpMappingHandshaker.intervalInMillis,
-                                                            TimeUnit.MILLISECONDS);
+        scheduledPPAMTask = executor.scheduleWithFixedDelay(() -> {
+            // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
+            // who we currently are going to handshake with like the Gossiper does
+            Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
+                                                       .stream()
+                                                       .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
+                                                       .collect(Collectors.toSet());
+
+            CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(seeds);
+        }, 0L, CrossVpcIpMappingHandshaker.intervalInMillis, TimeUnit.MILLISECONDS);
     }
 
     public boolean isEnabled()

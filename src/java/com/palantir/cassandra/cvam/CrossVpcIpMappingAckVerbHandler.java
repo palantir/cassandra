@@ -27,15 +27,15 @@ import org.apache.cassandra.net.MessageIn;
 public class CrossVpcIpMappingAckVerbHandler implements IVerbHandler<CrossVpcIpMappingAck>
 {
     private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingAckVerbHandler.class);
+
     public void doVerb(MessageIn<CrossVpcIpMappingAck> message, int id)
     {
         CrossVpcIpMappingAck ackMessage = message.payload;
         InetAddressHostname targetName = ackMessage.getTargetHostname();
-        logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}/{}", targetName, message.from);
-
-        InetAddressIp targetInternalIp = ackMessage.getTargetInternalAddress();
-        InetAddressIp targetExternalIp = ackMessage.getTargetExternalAddress();
-
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(targetName, targetInternalIp, targetExternalIp);
+        logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}/{}. {} -> {}",
+                     targetName,
+                     message.from,
+                     ackMessage.getTargetInternalAddress(),
+                     ackMessage.getTargetExternalAddress());
     }
 }

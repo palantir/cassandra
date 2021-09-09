@@ -36,12 +36,10 @@ import org.apache.cassandra.utils.FBUtilities;
 public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpMappingSyn>
 {
     private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingSynVerbHandler.class);
+
     public void doVerb(MessageIn<CrossVpcIpMappingSyn> message, int id) throws UnknownHostException
     {
         CrossVpcIpMappingSyn synMessage = message.payload;
-        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}/{}",
-                                                        message.from, synMessage.getSourceHostname());
-
         InetAddressHostname sourceName = synMessage.getSourceHostname();
         InetAddressIp sourceInternalIp = synMessage.getSourceInternalAddress();
 
@@ -49,17 +47,23 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressIp targetExternalIp = synMessage.getTargetExternalAddress();
 
         // InetAddress.getByHostname performs a DNS lookup
-        InetAddressIp sourceExternalIp = new InetAddressIp(InetAddress.getByName(sourceName.toString()).getHostAddress());
+        InetAddressIp sourceExternalIp = new InetAddressIp(InetAddress.getByName(sourceName.toString())
+                                                                      .getHostAddress());
 
         InetAddressIp targetInternalIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
 
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(sourceName, sourceInternalIp, sourceExternalIp);
+        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}/{}. source: {} -> {}; target: {} -> {}",
+                     message.from,
+                     synMessage.getSourceHostname(),
+                     sourceInternalIp,
+                     sourceExternalIp,
+                     targetInternalIp,
+                     targetExternalIp);
 
         CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
-        MessageOut<CrossVpcIpMappingAck> ackMessage = new MessageOut<>(
-        MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
-        ack,
-        CrossVpcIpMappingAck.serializer);
+        MessageOut<CrossVpcIpMappingAck> ackMessage = new MessageOut<>(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
+                                                                       ack,
+                                                                       CrossVpcIpMappingAck.serializer);
         logger.trace("Sending CrossVpcIpMappingAck to {}", sourceExternalIp);
         reply(ackMessage, sourceExternalIp);
     }

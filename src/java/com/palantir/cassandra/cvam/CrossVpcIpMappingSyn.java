@@ -38,7 +38,10 @@ public class CrossVpcIpMappingSyn
     private final InetAddressHostname targetHostname;
     private final InetAddressIp targetExternalAddress;
 
-    public CrossVpcIpMappingSyn(@Nonnull InetAddressHostname sourceHostname, @Nonnull InetAddressIp sourceInternalAddress, @Nonnull InetAddressHostname targetHostname, @Nonnull InetAddressIp targetExternalAddress)
+    public CrossVpcIpMappingSyn(@Nonnull InetAddressHostname sourceHostname,
+                                @Nonnull InetAddressIp sourceInternalAddress,
+                                @Nonnull InetAddressHostname targetHostname,
+                                @Nonnull InetAddressIp targetExternalAddress)
     {
         this.sourceHostname = sourceHostname;
         this.sourceInternalAddress = sourceInternalAddress;
@@ -73,14 +76,13 @@ public class CrossVpcIpMappingSyn
 
         CrossVpcIpMappingSyn other = (CrossVpcIpMappingSyn) o;
         return Objects.equals(this.getSourceHostname(), other.getSourceHostname())
-                   && Objects.equals(this.getSourceInternalAddress(), other.getSourceInternalAddress())
-                   && Objects.equals(this.getTargetHostname(), other.getTargetHostname())
-                   && Objects.equals(this.getTargetExternalAddress(), other.getTargetExternalAddress());
+               && Objects.equals(this.getSourceInternalAddress(), other.getSourceInternalAddress())
+               && Objects.equals(this.getTargetHostname(), other.getTargetHostname())
+               && Objects.equals(this.getTargetExternalAddress(), other.getTargetExternalAddress());
     }
 }
 
-class CrossVpcIpMappingSynSerializer
-implements IVersionedSerializer<CrossVpcIpMappingSyn>
+class CrossVpcIpMappingSynSerializer implements IVersionedSerializer<CrossVpcIpMappingSyn>
 {
     public void serialize(CrossVpcIpMappingSyn synMessage, DataOutputPlus out, int version) throws IOException
     {

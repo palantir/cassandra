@@ -54,7 +54,8 @@ public class CrossVpcIpMappingHandshakerTest
 
     @Test
     public void stop_stopsPpamTask()
-    {}
+    {
+    }
 
     @Test
     public void isEnabled_trueWhenStarted()
@@ -94,46 +95,11 @@ public class CrossVpcIpMappingHandshakerTest
     public void triggerHandshakeFromSelf_sendsSyn() throws UnknownHostException
     {
         InetAddress target = InetAddress.getByName("localhost");
-        CrossVpcIpMappingHandshaker.triggerHandshake(new InetAddressHostname("source"), new InetAddressIp("10.0.0.1"), target);
+        CrossVpcIpMappingHandshaker.triggerHandshake(new InetAddressHostname("source"),
+                                                     new InetAddressIp("10.0.0.1"),
+                                                     target);
         Map<String, Long> completed = MessagingService.instance().getSmallMessageCompletedTasks();
         assertThat(completed).containsKey(target.getHostAddress());
         assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
-    }
-
-    @Test
-    public void maybeSwapPrivateForPublicAddress_noopWhenDisabled() throws UnknownHostException
-    {
-        InetAddressHostname sourceName = new InetAddressHostname("localhost");
-        InetAddressIp sourceInternal = new InetAddressIp("127.0.0.1");
-        InetAddressIp sourceExternal = new InetAddressIp("2.0.0.0");
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(sourceName, sourceInternal, sourceExternal);
-
-        DatabaseDescriptor.setCrossVpcIpSwapping(false);
-        assertThat(DatabaseDescriptor.crossVpcIpSwappingEnabled()).isFalse();
-        InetAddress initial = InetAddress.getByName("localhost");
-        assertThat(CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(initial)).isEqualTo(initial);
-    }
-
-    @Test
-    public void maybeSwapPrivateForPublicAddress_swapsWhenMappingAvailable() throws UnknownHostException
-    {
-        InetAddressHostname sourceName = new InetAddressHostname("localhost");
-        InetAddressIp sourceInternal = new InetAddressIp("127.0.0.1");
-        InetAddressIp sourceExternal = new InetAddressIp("2.0.0.0");
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(sourceName, sourceInternal, sourceExternal);
-
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
-        assertThat(DatabaseDescriptor.crossVpcIpSwappingEnabled()).isTrue();
-        assertThat(CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(InetAddress.getByName("localhost"))).isEqualTo(InetAddress.getByName(sourceExternal.toString()));
-    }
-
-    @Test
-    public void maybeSwapPrivateForPublicAddress_noopsWhenNoMappingAvailable() throws UnknownHostException
-    {
-        InetAddress source = InetAddress.getByName("localhost");
-        CrossVpcIpMappingHandshaker.instance.clearCrossVpcIpMapping();
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
-        assertThat(DatabaseDescriptor.crossVpcIpSwappingEnabled()).isTrue();
-        assertThat(CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(source)).isEqualTo(source);
     }
 }

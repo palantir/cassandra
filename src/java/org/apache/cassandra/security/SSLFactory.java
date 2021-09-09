@@ -72,8 +72,7 @@ public final class SSLFactory
     public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException
     {
         SSLContext ctx = createSSLContext(options, true);
-        InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(address);
-        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort);
+        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(address, port, localAddress, localPort);
         prepareSocket(socket, options);
         return socket;
     }
@@ -82,8 +81,7 @@ public final class SSLFactory
     public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
     {
         SSLContext ctx = createSSLContext(options, true);
-        InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(address);
-        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port);
+        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(address, port);
         prepareSocket(socket, options);
         return socket;
     }

@@ -30,17 +30,17 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 
 public class CrossVpcIpMappingAck
 {
-    // This name is pretty long :(
     public static final IVersionedSerializer<CrossVpcIpMappingAck> serializer = new CrossVpcIpMappingAckSerializer();
 
-    // target node's hostname and VPC-internal IP / broadcast_address
     private final InetAddressHostname targetHostname;
     private final InetAddressIp targetInternalAddress;
 
-    // target node's resolved IP from source-node's DNS
+    // target node's resolved IP from source-node's DNS (within other VPC)
     private final InetAddressIp targetExternalAddress;
 
-    public CrossVpcIpMappingAck(@Nonnull InetAddressHostname targetHostname, @Nonnull InetAddressIp targetInternalAddress, @Nonnull InetAddressIp targetExternalAddress)
+    public CrossVpcIpMappingAck(@Nonnull InetAddressHostname targetHostname,
+                                @Nonnull InetAddressIp targetInternalAddress,
+                                @Nonnull InetAddressIp targetExternalAddress)
     {
         this.targetHostname = targetHostname;
         this.targetExternalAddress = targetExternalAddress;
@@ -69,13 +69,12 @@ public class CrossVpcIpMappingAck
 
         CrossVpcIpMappingAck other = (CrossVpcIpMappingAck) o;
         return Objects.equals(this.getTargetHostname(), other.getTargetHostname())
-                  && Objects.equals(this.getTargetExternalAddress(), other.getTargetExternalAddress())
-                  && Objects.equals(this.getTargetInternalAddress(), other.getTargetInternalAddress());
+               && Objects.equals(this.getTargetExternalAddress(), other.getTargetExternalAddress())
+               && Objects.equals(this.getTargetInternalAddress(), other.getTargetInternalAddress());
     }
 }
 
-class CrossVpcIpMappingAckSerializer
-implements IVersionedSerializer<CrossVpcIpMappingAck>
+class CrossVpcIpMappingAckSerializer implements IVersionedSerializer<CrossVpcIpMappingAck>
 {
     public void serialize(CrossVpcIpMappingAck ackMessage, DataOutputPlus out, int version) throws IOException
     {
@@ -95,7 +94,7 @@ implements IVersionedSerializer<CrossVpcIpMappingAck>
     public long serializedSize(CrossVpcIpMappingAck ack, int version)
     {
         return TypeSizes.NATIVE.sizeof(ack.getTargetHostname().toString())
-                    + TypeSizes.NATIVE.sizeof(ack.getTargetInternalAddress().toString())
-                    + TypeSizes.NATIVE.sizeof(ack.getTargetExternalAddress().toString());
+               + TypeSizes.NATIVE.sizeof(ack.getTargetInternalAddress().toString())
+               + TypeSizes.NATIVE.sizeof(ack.getTargetExternalAddress().toString());
     }
 }
