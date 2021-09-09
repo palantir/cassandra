@@ -20,17 +20,9 @@
  */
 package org.apache.cassandra.net;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
-
-import com.palantir.cassandra.cvam.CrossVpcIpMappingAck;
-import com.palantir.cassandra.cvam.InetAddressHostname;
-import com.palantir.cassandra.cvam.InetAddressIp;
-import com.palantir.cassandra.cvam.CrossVpcIpMappingSyn;
 
 import static org.junit.Assert.assertEquals;
 
@@ -60,40 +52,5 @@ public class MessagingServiceTest
         logs = messagingService.getDroppedMessagesLogs();
         assertEquals("READ messages were dropped in last 5000 ms: 1250 for internal timeout and 1250 for cross node timeout", logs.get(0));
         assertEquals(7500, (int)messagingService.getDroppedMessages().get(verb.toString()));
-    }
-
-    @Test
-    public void receive_handlesPPAMSyn() throws UnknownHostException
-    {
-        InetAddressHostname sourceName = new InetAddressHostname("source");
-        InetAddressIp sourceInternalIp = new InetAddressIp("1.0.0.0");
-        InetAddressHostname targetName = new InetAddressHostname("target");
-        InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
-        InetAddress remote = InetAddress.getByName("127.0.0.2");
-        MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(
-            remote,
-            new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp),
-            Collections.emptyMap(),
-            MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
-            MessagingService.current_version);
-        messagingService.receive(messageIn, 0, 0, false);
-    }
-
-    @Test
-    public void receive_handlesPPAMAck() throws UnknownHostException
-    {
-        InetAddress remote = InetAddress.getByName("127.0.0.2");
-        InetAddressHostname targetName = new InetAddressHostname("target");
-        InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
-        InetAddressIp targetInternalIp = new InetAddressIp("1.0.0.0");
-        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
-
-        MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(
-            remote,
-            ack,
-            Collections.emptyMap(),
-            MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
-            MessagingService.current_version);
-        messagingService.receive(messageIn, 0, 0, false);
     }
 }

@@ -37,7 +37,6 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
-import com.palantir.cassandra.cvam.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
 import org.slf4j.Logger;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.cvam;
+package com.palantir.cassandra.cvim;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

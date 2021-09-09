@@ -16,14 +16,10 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.cvam;
+package com.palantir.cassandra.cvim;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -51,19 +47,14 @@ public class CrossVpcIpMappingHandshaker
     public static final CrossVpcIpMappingHandshaker instance = new CrossVpcIpMappingHandshaker();
     private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor(
     "CrossVpcIpMappingTasks");
-    private volatile ScheduledFuture<?> scheduledPPAMTask;
+    private volatile ScheduledFuture<?> scheduledCVIMTask;
     public final static int intervalInMillis = 30000;
 
     @VisibleForTesting
     final AtomicLong numTasks = new AtomicLong();
 
-    private CrossVpcIpMappingHandshaker()
-    {
-    }
+    private CrossVpcIpMappingHandshaker() {}
 
-    // This could potentially be invoked for unreachable nodes by the Gossiper
-    // Although, not sure if we would really use this as the Gossiper might not include
-    // the target's hostname in which case we would throw
     public static void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
         instance.numTasks.getAndIncrement();
@@ -89,9 +80,16 @@ public class CrossVpcIpMappingHandshaker
 
     public void start()
     {
-        logger.trace("Started running CrossVpcIpMappingTask at interval of {} ms",
+        if (!DatabaseDescriptor.crossVpcIpSwappingEnabled()) {
+            logger.info("Cross VPC IP Swapping is disabled. Not scheduling handshake task.");
+        }
+        if (isEnabled())
+        {
+            logger.info("Cross VPC IP Swapping already enabled and scheduled. Ignoring extra start() call.");
+        }
+        logger.info("Started running CrossVpcIpMappingTask at interval of {} ms",
                      CrossVpcIpMappingHandshaker.intervalInMillis);
-        scheduledPPAMTask = executor.scheduleWithFixedDelay(() -> {
+        scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
             // who we currently are going to handshake with like the Gossiper does
             Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
@@ -105,14 +103,14 @@ public class CrossVpcIpMappingHandshaker
 
     public boolean isEnabled()
     {
-        return (scheduledPPAMTask != null) && (!scheduledPPAMTask.isCancelled());
+        return (scheduledCVIMTask != null) && (!scheduledCVIMTask.isCancelled());
     }
 
     public void stop()
     {
-        if (scheduledPPAMTask != null)
+        if (scheduledCVIMTask != null)
         {
-            scheduledPPAMTask.cancel(false);
+            scheduledCVIMTask.cancel(false);
             logger.trace("Stopped running CrossVpcIpMappingTask at interval");
         }
     }

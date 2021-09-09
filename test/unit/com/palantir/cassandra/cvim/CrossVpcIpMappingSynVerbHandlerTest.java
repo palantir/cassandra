@@ -16,50 +16,56 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.cvam;
+package com.palantir.cassandra.cvim;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
-import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
-import org.apache.cassandra.service.StorageService;
 
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class CrossVpcIpMappingAckVerbHandlerTest
+public class CrossVpcIpMappingSynVerbHandlerTest
 {
-    private final CrossVpcIpMappingAckVerbHandler handler = spy(new CrossVpcIpMappingAckVerbHandler());
+    private final CrossVpcIpMappingSynVerbHandler handler = spy(new CrossVpcIpMappingSynVerbHandler());
+
+    @Before
+    public void before() throws UnknownHostException
+    {
+        doNothing().when(handler).reply(any(), any());
+    }
 
     @Test
     public void doVerb_invokedByMessagingService() throws UnknownHostException
     {
         InetAddress remote = InetAddress.getByName("127.0.0.2");
+        InetAddressHostname sourceName = new InetAddressHostname("localhost");
+        InetAddressIp sourceInternalIp = new InetAddressIp("1.0.0.0");
         InetAddressHostname targetName = new InetAddressHostname("target");
         InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
-        InetAddressIp targetInternalIp = new InetAddressIp("1.0.0.0");
-        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
+        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
 
-        MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(remote,
-                                                                     ack,
+        MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(remote,
+                                                                     syn,
                                                                      Collections.emptyMap(),
-                                                                     MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
+                                                                     MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
                                                                      MessagingService.current_version);
 
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK, handler);
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, handler);
         MessagingService.instance().receive(messageIn, 0, 0, false);
         // Potential race condition since MessageDeliveryTask is run in another executor
         verify(handler, times(1)).doVerb(eq(messageIn), anyInt());

@@ -16,14 +16,19 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.cvam;
+package com.palantir.cassandra.cvim;
 
 import com.palantir.cassandra.objects.Wrapper;
+import sun.net.util.IPAddressUtil;
 
-public class InetAddressHostname extends Wrapper<String>
+public class InetAddressIp extends Wrapper<String>
 {
-    public InetAddressHostname(String hostname)
+    public InetAddressIp(String ipAddress)
     {
-        super(hostname);
+        super(ipAddress);
+        if (!(IPAddressUtil.isIPv4LiteralAddress(ipAddress) || IPAddressUtil.isIPv6LiteralAddress(ipAddress)))
+        {
+            throw new IllegalArgumentException("Provided IP address is not valid IPv4 or IPv6 format: " + ipAddress);
+        }
     }
 }

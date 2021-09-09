@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.cvam;
+package com.palantir.cassandra.cvim;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -39,22 +35,6 @@ public class CrossVpcIpMappingHandshakerTest
     public void before()
     {
         CrossVpcIpMappingHandshaker.instance.stop();
-    }
-
-    @Test
-    @Ignore
-    public void start_startsPpamTask() throws InterruptedException
-    {
-        CrossVpcIpMappingHandshaker.instance.stop();
-        long initial = CrossVpcIpMappingHandshaker.instance.numTasks.get();
-        CrossVpcIpMappingHandshaker.instance.start();
-        Thread.sleep(1000);
-        assertThat(CrossVpcIpMappingHandshaker.instance.numTasks.get()).isGreaterThan(initial);
-    }
-
-    @Test
-    public void stop_stopsPpamTask()
-    {
     }
 
     @Test
@@ -76,19 +56,6 @@ public class CrossVpcIpMappingHandshakerTest
     public void isEnabled_falseWhenNotStarted()
     {
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
-    }
-
-    @Test
-    @Ignore
-    public void ppamTask_sendsSyn() throws UnknownHostException
-    {
-        InetAddress target = InetAddress.getByName("localhost");
-        Set<InetAddress> targets = new HashSet<>();
-        targets.add(target);
-        CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(targets);
-        Map<String, Long> completed = MessagingService.instance().getSmallMessageCompletedTasks();
-        assertThat(completed).containsKey(target.getHostAddress());
-        assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
     }
 
     @Test

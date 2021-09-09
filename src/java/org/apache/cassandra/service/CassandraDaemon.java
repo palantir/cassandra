@@ -60,7 +60,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
-import com.palantir.cassandra.cvam.CrossVpcIpMappingHandshaker;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -40,8 +40,8 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.palantir.cassandra.cvam.CrossVpcIpMappingAck;
-import com.palantir.cassandra.cvam.CrossVpcIpMappingSyn;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
