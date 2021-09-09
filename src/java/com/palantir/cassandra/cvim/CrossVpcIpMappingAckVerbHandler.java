@@ -32,9 +32,9 @@ public class CrossVpcIpMappingAckVerbHandler implements IVerbHandler<CrossVpcIpM
     {
         CrossVpcIpMappingAck ackMessage = message.payload;
         InetAddressHostname targetName = ackMessage.getTargetHostname();
-        logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}/{}. {} -> {}",
-                     targetName,
+        logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}. {}/{} -> {}",
                      message.from,
+                     targetName,
                      ackMessage.getTargetInternalAddress(),
                      ackMessage.getTargetExternalAddress());
     }

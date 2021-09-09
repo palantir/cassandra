@@ -25,6 +25,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -34,14 +35,23 @@ public class CrossVpcIpMappingHandshakerTest
     @Before
     public void before()
     {
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
         CrossVpcIpMappingHandshaker.instance.stop();
     }
 
     @Test
-    public void isEnabled_trueWhenStarted()
+    public void start_isEnabledTrueWhenConfigEnabled()
     {
         CrossVpcIpMappingHandshaker.instance.start();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
+    }
+
+    @Test
+    public void start_isEnabledFalseWhenConfigDisabled()
+    {
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+        CrossVpcIpMappingHandshaker.instance.start();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
     }
 
     @Test

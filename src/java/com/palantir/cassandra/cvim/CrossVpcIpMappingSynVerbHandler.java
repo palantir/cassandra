@@ -52,7 +52,7 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
 
         InetAddressIp targetInternalIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
 
-        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}/{}. source: {} -> {}; target: {} -> {}",
+        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {} -> {}",
                      message.from,
                      synMessage.getSourceHostname(),
                      sourceInternalIp,

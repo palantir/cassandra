@@ -38,7 +38,7 @@ import org.apache.cassandra.utils.FBUtilities;
 
 /**
  * Similar to {@link org.apache.cassandra.gms.Gossiper}, this class is responsible for sending
- * {@link org.apache.cassandra.gms.GossipDigestAck} messages to seed nodes and managing the internal/external node IP
+ * {@link CrossVpcIpMappingSyn} messages to seed nodes and managing the internal/external node IP
  * mapping for cross-vpc connections.
  */
 public class CrossVpcIpMappingHandshaker
@@ -80,8 +80,9 @@ public class CrossVpcIpMappingHandshaker
 
     public void start()
     {
-        if (!DatabaseDescriptor.crossVpcIpSwappingEnabled()) {
+        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled()) {
             logger.info("Cross VPC IP Swapping is disabled. Not scheduling handshake task.");
+            return;
         }
         if (isEnabled())
         {

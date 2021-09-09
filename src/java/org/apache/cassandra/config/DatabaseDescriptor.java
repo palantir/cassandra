@@ -1321,7 +1321,7 @@ public class DatabaseDescriptor
         return conf.listen_on_broadcast_address;
     }
 
-    public static Boolean crossVpcIpSwappingEnabled()
+    public static Boolean isCrossVpcIpSwappingEnabled()
     {
         return conf.cross_vpc_ip_swapping_enabled;
     }
