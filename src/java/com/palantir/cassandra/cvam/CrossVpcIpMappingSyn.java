@@ -16,25 +16,21 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.io.DataInput;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
-import com.palantir.cassandra.objects.Wrapper;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 
-public class PrivatePublicAddressMappingSyn
+public class CrossVpcIpMappingSyn
 {
-    public static final IVersionedSerializer<PrivatePublicAddressMappingSyn> serializer = new PrivatePublicAddressMappingSynSerializer();
+    public static final IVersionedSerializer<CrossVpcIpMappingSyn> serializer = new CrossVpcIpMappingSynSerializer();
 
     private final InetAddressHostname sourceHostname;
     private final InetAddressIp sourceInternalAddress;
@@ -42,7 +38,7 @@ public class PrivatePublicAddressMappingSyn
     private final InetAddressHostname targetHostname;
     private final InetAddressIp targetExternalAddress;
 
-    public PrivatePublicAddressMappingSyn(@Nonnull InetAddressHostname sourceHostname, @Nonnull InetAddressIp sourceInternalAddress, @Nonnull InetAddressHostname targetHostname, @Nonnull InetAddressIp targetExternalAddress)
+    public CrossVpcIpMappingSyn(@Nonnull InetAddressHostname sourceHostname, @Nonnull InetAddressIp sourceInternalAddress, @Nonnull InetAddressHostname targetHostname, @Nonnull InetAddressIp targetExternalAddress)
     {
         this.sourceHostname = sourceHostname;
         this.sourceInternalAddress = sourceInternalAddress;
@@ -73,9 +69,9 @@ public class PrivatePublicAddressMappingSyn
     @Override
     public boolean equals(Object o)
     {
-        if (!(o instanceof PrivatePublicAddressMappingSyn)) return false;
+        if (!(o instanceof CrossVpcIpMappingSyn)) return false;
 
-        PrivatePublicAddressMappingSyn other = (PrivatePublicAddressMappingSyn) o;
+        CrossVpcIpMappingSyn other = (CrossVpcIpMappingSyn) o;
         return Objects.equals(this.getSourceHostname(), other.getSourceHostname())
                    && Objects.equals(this.getSourceInternalAddress(), other.getSourceInternalAddress())
                    && Objects.equals(this.getTargetHostname(), other.getTargetHostname())
@@ -83,10 +79,10 @@ public class PrivatePublicAddressMappingSyn
     }
 }
 
-class PrivatePublicAddressMappingSynSerializer
-implements IVersionedSerializer<PrivatePublicAddressMappingSyn>
+class CrossVpcIpMappingSynSerializer
+implements IVersionedSerializer<CrossVpcIpMappingSyn>
 {
-    public void serialize(PrivatePublicAddressMappingSyn synMessage, DataOutputPlus out, int version) throws IOException
+    public void serialize(CrossVpcIpMappingSyn synMessage, DataOutputPlus out, int version) throws IOException
     {
         out.writeUTF(synMessage.getSourceHostname().toString());
         out.writeUTF(synMessage.getSourceInternalAddress().toString());
@@ -94,16 +90,16 @@ implements IVersionedSerializer<PrivatePublicAddressMappingSyn>
         out.writeUTF(synMessage.getTargetExternalAddress().toString());
     }
 
-    public PrivatePublicAddressMappingSyn deserialize(DataInput in, int version) throws IOException
+    public CrossVpcIpMappingSyn deserialize(DataInput in, int version) throws IOException
     {
         InetAddressHostname sourceHostname = new InetAddressHostname(in.readUTF());
         InetAddressIp sourceInternalAddress = new InetAddressIp(in.readUTF());
         InetAddressHostname targetHostname = new InetAddressHostname(in.readUTF());
         InetAddressIp targetExternalAddress = new InetAddressIp(in.readUTF());
-        return new PrivatePublicAddressMappingSyn(sourceHostname, sourceInternalAddress, targetHostname, targetExternalAddress);
+        return new CrossVpcIpMappingSyn(sourceHostname, sourceInternalAddress, targetHostname, targetExternalAddress);
     }
 
-    public long serializedSize(PrivatePublicAddressMappingSyn syn, int version)
+    public long serializedSize(CrossVpcIpMappingSyn syn, int version)
     {
         return TypeSizes.NATIVE.sizeof(syn.getSourceHostname().toString())
                + TypeSizes.NATIVE.sizeof(syn.getSourceInternalAddress().toString())

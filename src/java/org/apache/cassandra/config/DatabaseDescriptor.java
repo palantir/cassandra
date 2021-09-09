@@ -1321,14 +1321,14 @@ public class DatabaseDescriptor
         return conf.listen_on_broadcast_address;
     }
 
-    public static Boolean privatePublicIpSwappingEnabled()
+    public static Boolean crossVpcIpSwappingEnabled()
     {
-        return conf.private_public_ip_swapping_enabled;
+        return conf.cross_vpc_ip_swapping_enabled;
     }
 
-    public static void setPrivatePublicIpSwapping(boolean setting)
+    public static void setCrossVpcIpSwapping(boolean setting)
     {
-        conf.private_public_ip_swapping_enabled = setting;
+        conf.cross_vpc_ip_swapping_enabled = setting;
     }
 
     public static IInternodeAuthenticator getInternodeAuthenticator()

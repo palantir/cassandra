@@ -20,8 +20,6 @@ package com.palantir.cassandra.objects;
 
 import java.util.Objects;
 
-import com.palantir.cassandra.ppam.InetAddressHostname;
-
 public abstract class Wrapper<T>
 {
     final T value;

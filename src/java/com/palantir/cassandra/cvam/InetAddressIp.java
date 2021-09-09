@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
-
-import java.net.InetAddress;
-
-import com.google.common.net.InetAddresses;
+package com.palantir.cassandra.cvam;
 
 import com.palantir.cassandra.objects.Wrapper;
 import sun.net.util.IPAddressUtil;

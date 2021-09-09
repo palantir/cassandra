@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.io.DataInput;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
@@ -28,12 +27,11 @@ import javax.annotation.Nonnull;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 
-public class PrivatePublicAddressMappingAck
+public class CrossVpcIpMappingAck
 {
     // This name is pretty long :(
-    public static final IVersionedSerializer<PrivatePublicAddressMappingAck> serializer = new PrivatePublicAddressMappingAckSerializer();
+    public static final IVersionedSerializer<CrossVpcIpMappingAck> serializer = new CrossVpcIpMappingAckSerializer();
 
     // target node's hostname and VPC-internal IP / broadcast_address
     private final InetAddressHostname targetHostname;
@@ -42,7 +40,7 @@ public class PrivatePublicAddressMappingAck
     // target node's resolved IP from source-node's DNS
     private final InetAddressIp targetExternalAddress;
 
-    public PrivatePublicAddressMappingAck(@Nonnull InetAddressHostname targetHostname, @Nonnull InetAddressIp targetInternalAddress, @Nonnull InetAddressIp targetExternalAddress)
+    public CrossVpcIpMappingAck(@Nonnull InetAddressHostname targetHostname, @Nonnull InetAddressIp targetInternalAddress, @Nonnull InetAddressIp targetExternalAddress)
     {
         this.targetHostname = targetHostname;
         this.targetExternalAddress = targetExternalAddress;
@@ -67,34 +65,34 @@ public class PrivatePublicAddressMappingAck
     @Override
     public boolean equals(Object o)
     {
-        if (!(o instanceof PrivatePublicAddressMappingAck)) return false;
+        if (!(o instanceof CrossVpcIpMappingAck)) return false;
 
-        PrivatePublicAddressMappingAck other = (PrivatePublicAddressMappingAck) o;
+        CrossVpcIpMappingAck other = (CrossVpcIpMappingAck) o;
         return Objects.equals(this.getTargetHostname(), other.getTargetHostname())
                   && Objects.equals(this.getTargetExternalAddress(), other.getTargetExternalAddress())
                   && Objects.equals(this.getTargetInternalAddress(), other.getTargetInternalAddress());
     }
 }
 
-class PrivatePublicAddressMappingAckSerializer
-implements IVersionedSerializer<PrivatePublicAddressMappingAck>
+class CrossVpcIpMappingAckSerializer
+implements IVersionedSerializer<CrossVpcIpMappingAck>
 {
-    public void serialize(PrivatePublicAddressMappingAck ackMessage, DataOutputPlus out, int version) throws IOException
+    public void serialize(CrossVpcIpMappingAck ackMessage, DataOutputPlus out, int version) throws IOException
     {
         out.writeUTF(ackMessage.getTargetHostname().toString());
         out.writeUTF(ackMessage.getTargetInternalAddress().toString());
         out.writeUTF(ackMessage.getTargetExternalAddress().toString());
     }
 
-    public PrivatePublicAddressMappingAck deserialize(DataInput in, int version) throws IOException
+    public CrossVpcIpMappingAck deserialize(DataInput in, int version) throws IOException
     {
         InetAddressHostname targetHostname = new InetAddressHostname(in.readUTF());
         InetAddressIp targetInternalAddress = new InetAddressIp(in.readUTF());
         InetAddressIp targetExternalAddress = new InetAddressIp(in.readUTF());
-        return new PrivatePublicAddressMappingAck(targetHostname, targetInternalAddress, targetExternalAddress);
+        return new CrossVpcIpMappingAck(targetHostname, targetInternalAddress, targetExternalAddress);
     }
 
-    public long serializedSize(PrivatePublicAddressMappingAck ack, int version)
+    public long serializedSize(CrossVpcIpMappingAck ack, int version)
     {
         return TypeSizes.NATIVE.sizeof(ack.getTargetHostname().toString())
                     + TypeSizes.NATIVE.sizeof(ack.getTargetInternalAddress().toString())

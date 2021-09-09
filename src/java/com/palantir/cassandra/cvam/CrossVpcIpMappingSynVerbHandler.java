@@ -16,16 +16,13 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.Set;
 
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,13 +33,14 @@ import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
 
-public class PrivatePublicAddressMappingSynVerbHandler implements IVerbHandler<PrivatePublicAddressMappingSyn>
+public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpMappingSyn>
 {
-    private static final Logger logger = LoggerFactory.getLogger(PrivatePublicAddressMappingSynVerbHandler.class);
-    public void doVerb(MessageIn<PrivatePublicAddressMappingSyn> message, int id) throws UnknownHostException
+    private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingSynVerbHandler.class);
+    public void doVerb(MessageIn<CrossVpcIpMappingSyn> message, int id) throws UnknownHostException
     {
-        PrivatePublicAddressMappingSyn synMessage = message.payload;
-        logger.trace("Handling new PPAM Syn message from {}/{}", message.from, synMessage.getSourceHostname());
+        CrossVpcIpMappingSyn synMessage = message.payload;
+        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}/{}",
+                                                        message.from, synMessage.getSourceHostname());
 
         InetAddressHostname sourceName = synMessage.getSourceHostname();
         InetAddressIp sourceInternalIp = synMessage.getSourceInternalAddress();
@@ -55,19 +53,19 @@ public class PrivatePublicAddressMappingSynVerbHandler implements IVerbHandler<P
 
         InetAddressIp targetInternalIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
 
-        PrivatePublicAddressMappingCoordinator.instance.updatePrivatePublicAddressMapping(sourceName, sourceInternalIp, sourceExternalIp);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(sourceName, sourceInternalIp, sourceExternalIp);
 
-        PrivatePublicAddressMappingAck ack = new PrivatePublicAddressMappingAck(targetName, targetInternalIp, targetExternalIp);
-        MessageOut<PrivatePublicAddressMappingAck> ackMessage = new MessageOut<>(
-                                                    MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_ACK,
-                                                    ack,
-                                                    PrivatePublicAddressMappingAck.serializer);
-        logger.trace("Sending PrivatePublicAddressMappingAck to {}", sourceExternalIp);
+        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
+        MessageOut<CrossVpcIpMappingAck> ackMessage = new MessageOut<>(
+        MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
+        ack,
+        CrossVpcIpMappingAck.serializer);
+        logger.trace("Sending CrossVpcIpMappingAck to {}", sourceExternalIp);
         reply(ackMessage, sourceExternalIp);
     }
 
     @VisibleForTesting
-    void reply(MessageOut<PrivatePublicAddressMappingAck> ackMessage, InetAddressIp sourceExternal) throws UnknownHostException
+    void reply(MessageOut<CrossVpcIpMappingAck> ackMessage, InetAddressIp sourceExternal) throws UnknownHostException
     {
         MessagingService.instance().sendOneWay(ackMessage, InetAddress.getByName(sourceExternal.toString()));
     }

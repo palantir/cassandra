@@ -40,9 +40,8 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingAck;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingSyn;
-import org.apache.cassandra.concurrent.ExecutorLocal;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingAck;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingSyn;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -139,8 +138,8 @@ public final class MessagingService implements MessagingServiceMBean
         PAXOS_COMMIT,
         PAGED_RANGE,
         // use to map internal/external IPs across VPCs for internode communication
-        PRIVATE_PUBLIC_ADDR_MAPPING_SYN,
-        PRIVATE_PUBLIC_ADDR_MAPPING_ACK,
+        CROSS_VPC_IP_MAPPING_SYN,
+        CROSS_VPC_IP_MAPPING_ACK,
         // remember to add new verbs at the end, since we serialize by ordinal
         UNUSED_1,
         UNUSED_2,
@@ -189,8 +188,8 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.SNAPSHOT, Stage.MISC);
         put(Verb.ECHO, Stage.GOSSIP);
 
-        put(Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN, Stage.PRIVATE_PUBLIC_ADDRESS_MAPPING);
-        put(Verb.PRIVATE_PUBLIC_ADDR_MAPPING_ACK, Stage.PRIVATE_PUBLIC_ADDRESS_MAPPING);
+        put(Verb.CROSS_VPC_IP_MAPPING_SYN, Stage.CROSS_VPC_IP_MAPPING);
+        put(Verb.CROSS_VPC_IP_MAPPING_ACK, Stage.CROSS_VPC_IP_MAPPING);
 
         put(Verb.UNUSED_1, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_2, Stage.INTERNAL_RESPONSE);
@@ -230,8 +229,8 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.PAXOS_PREPARE, Commit.serializer);
         put(Verb.PAXOS_PROPOSE, Commit.serializer);
         put(Verb.PAXOS_COMMIT, Commit.serializer);
-        put(Verb.PRIVATE_PUBLIC_ADDR_MAPPING_ACK, PrivatePublicAddressMappingAck.serializer);
-        put(Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN, PrivatePublicAddressMappingSyn.serializer);
+        put(Verb.CROSS_VPC_IP_MAPPING_ACK, CrossVpcIpMappingAck.serializer);
+        put(Verb.CROSS_VPC_IP_MAPPING_SYN, CrossVpcIpMappingSyn.serializer);
     }};
 
     /**

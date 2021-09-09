@@ -37,7 +37,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingCoordinator;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
 import org.slf4j.Logger;
@@ -72,7 +72,7 @@ public final class SSLFactory
     public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException
     {
         SSLContext ctx = createSSLContext(options, true);
-        InetAddress mappedAddress = PrivatePublicAddressMappingCoordinator.instance.maybeSwapPrivateForPublicAddress(address);
+        InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(address);
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort);
         prepareSocket(socket, options);
         return socket;
@@ -82,7 +82,7 @@ public final class SSLFactory
     public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
     {
         SSLContext ctx = createSSLContext(options, true);
-        InetAddress mappedAddress = PrivatePublicAddressMappingCoordinator.instance.maybeSwapPrivateForPublicAddress(address);
+        InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(address);
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port);
         prepareSocket(socket, options);
         return socket;

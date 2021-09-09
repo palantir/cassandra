@@ -16,14 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.Set;
-
-import com.google.common.collect.Sets;
+package com.palantir.cassandra.cvam;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,18 +24,18 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 
-public class PrivatePublicAddressMappingAckVerbHandler implements IVerbHandler<PrivatePublicAddressMappingAck>
+public class CrossVpcIpMappingAckVerbHandler implements IVerbHandler<CrossVpcIpMappingAck>
 {
-    private static final Logger logger = LoggerFactory.getLogger(PrivatePublicAddressMappingAckVerbHandler.class);
-    public void doVerb(MessageIn<PrivatePublicAddressMappingAck> message, int id)
+    private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingAckVerbHandler.class);
+    public void doVerb(MessageIn<CrossVpcIpMappingAck> message, int id)
     {
-        PrivatePublicAddressMappingAck ackMessage = message.payload;
+        CrossVpcIpMappingAck ackMessage = message.payload;
         InetAddressHostname targetName = ackMessage.getTargetHostname();
-        logger.trace("Handling new PPAM Ack message from {}/{}", targetName, message.from);
+        logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}/{}", targetName, message.from);
 
         InetAddressIp targetInternalIp = ackMessage.getTargetInternalAddress();
         InetAddressIp targetExternalIp = ackMessage.getTargetExternalAddress();
 
-        PrivatePublicAddressMappingCoordinator.instance.updatePrivatePublicAddressMapping(targetName, targetInternalIp, targetExternalIp);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(targetName, targetInternalIp, targetExternalIp);
     }
 }

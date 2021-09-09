@@ -16,43 +16,40 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
-import org.apache.cassandra.utils.FBUtilities;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-public class PrivatePublicAddressMappingCoordinatorTest
+public class CrossVpcIpMappingHandshakerTest
 {
     @Before
     public void before()
     {
-        PrivatePublicAddressMappingCoordinator.instance.stop();
+        CrossVpcIpMappingHandshaker.instance.stop();
     }
 
     @Test
     @Ignore
     public void start_startsPpamTask() throws InterruptedException
     {
-        PrivatePublicAddressMappingCoordinator.instance.stop();
-        long initial = PrivatePublicAddressMappingCoordinator.instance.numTasks.get();
-        PrivatePublicAddressMappingCoordinator.instance.start();
+        CrossVpcIpMappingHandshaker.instance.stop();
+        long initial = CrossVpcIpMappingHandshaker.instance.numTasks.get();
+        CrossVpcIpMappingHandshaker.instance.start();
         Thread.sleep(1000);
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.numTasks.get()).isGreaterThan(initial);
+        assertThat(CrossVpcIpMappingHandshaker.instance.numTasks.get()).isGreaterThan(initial);
     }
 
     @Test
@@ -62,22 +59,22 @@ public class PrivatePublicAddressMappingCoordinatorTest
     @Test
     public void isEnabled_trueWhenStarted()
     {
-        PrivatePublicAddressMappingCoordinator.instance.start();
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.isEnabled()).isTrue();
+        CrossVpcIpMappingHandshaker.instance.start();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
     }
 
     @Test
     public void isEnabled_falseWhenStopped()
     {
-        PrivatePublicAddressMappingCoordinator.instance.start();
-        PrivatePublicAddressMappingCoordinator.instance.stop();
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.isEnabled()).isFalse();
+        CrossVpcIpMappingHandshaker.instance.start();
+        CrossVpcIpMappingHandshaker.instance.stop();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
     }
 
     @Test
     public void isEnabled_falseWhenNotStarted()
     {
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.isEnabled()).isFalse();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
     }
 
     @Test
@@ -87,7 +84,7 @@ public class PrivatePublicAddressMappingCoordinatorTest
         InetAddress target = InetAddress.getByName("localhost");
         Set<InetAddress> targets = new HashSet<>();
         targets.add(target);
-        PrivatePublicAddressMappingCoordinator.triggerHandshakeFromSelf(targets);
+        CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(targets);
         Map<String, Long> completed = MessagingService.instance().getSmallMessageCompletedTasks();
         assertThat(completed).containsKey(target.getHostAddress());
         assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
@@ -97,7 +94,7 @@ public class PrivatePublicAddressMappingCoordinatorTest
     public void triggerHandshakeFromSelf_sendsSyn() throws UnknownHostException
     {
         InetAddress target = InetAddress.getByName("localhost");
-        PrivatePublicAddressMappingCoordinator.triggerHandshake(new InetAddressHostname("source"), new InetAddressIp("10.0.0.1"), target);
+        CrossVpcIpMappingHandshaker.triggerHandshake(new InetAddressHostname("source"), new InetAddressIp("10.0.0.1"), target);
         Map<String, Long> completed = MessagingService.instance().getSmallMessageCompletedTasks();
         assertThat(completed).containsKey(target.getHostAddress());
         assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
@@ -109,12 +106,12 @@ public class PrivatePublicAddressMappingCoordinatorTest
         InetAddressHostname sourceName = new InetAddressHostname("localhost");
         InetAddressIp sourceInternal = new InetAddressIp("127.0.0.1");
         InetAddressIp sourceExternal = new InetAddressIp("2.0.0.0");
-        PrivatePublicAddressMappingCoordinator.instance.updatePrivatePublicAddressMapping(sourceName, sourceInternal, sourceExternal);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(sourceName, sourceInternal, sourceExternal);
 
-        DatabaseDescriptor.setPrivatePublicIpSwapping(false);
-        assertThat(DatabaseDescriptor.privatePublicIpSwappingEnabled()).isFalse();
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+        assertThat(DatabaseDescriptor.crossVpcIpSwappingEnabled()).isFalse();
         InetAddress initial = InetAddress.getByName("localhost");
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.maybeSwapPrivateForPublicAddress(initial)).isEqualTo(initial);
+        assertThat(CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(initial)).isEqualTo(initial);
     }
 
     @Test
@@ -123,20 +120,20 @@ public class PrivatePublicAddressMappingCoordinatorTest
         InetAddressHostname sourceName = new InetAddressHostname("localhost");
         InetAddressIp sourceInternal = new InetAddressIp("127.0.0.1");
         InetAddressIp sourceExternal = new InetAddressIp("2.0.0.0");
-        PrivatePublicAddressMappingCoordinator.instance.updatePrivatePublicAddressMapping(sourceName, sourceInternal, sourceExternal);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcIpMapping(sourceName, sourceInternal, sourceExternal);
 
-        DatabaseDescriptor.setPrivatePublicIpSwapping(true);
-        assertThat(DatabaseDescriptor.privatePublicIpSwappingEnabled()).isTrue();
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.maybeSwapPrivateForPublicAddress(InetAddress.getByName("localhost"))).isEqualTo(InetAddress.getByName(sourceExternal.toString()));
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        assertThat(DatabaseDescriptor.crossVpcIpSwappingEnabled()).isTrue();
+        assertThat(CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(InetAddress.getByName("localhost"))).isEqualTo(InetAddress.getByName(sourceExternal.toString()));
     }
 
     @Test
     public void maybeSwapPrivateForPublicAddress_noopsWhenNoMappingAvailable() throws UnknownHostException
     {
         InetAddress source = InetAddress.getByName("localhost");
-        PrivatePublicAddressMappingCoordinator.instance.clearPrivatePublicAddressMapping();
-        DatabaseDescriptor.setPrivatePublicIpSwapping(true);
-        assertThat(DatabaseDescriptor.privatePublicIpSwappingEnabled()).isTrue();
-        assertThat(PrivatePublicAddressMappingCoordinator.instance.maybeSwapPrivateForPublicAddress(source)).isEqualTo(source);
+        CrossVpcIpMappingHandshaker.instance.clearCrossVpcIpMapping();
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        assertThat(DatabaseDescriptor.crossVpcIpSwappingEnabled()).isTrue();
+        assertThat(CrossVpcIpMappingHandshaker.instance.maybeSwapPrivateForPublicAddress(source)).isEqualTo(source);
     }
 }

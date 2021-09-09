@@ -60,7 +60,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingCoordinator;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -403,9 +403,9 @@ public class CassandraDaemon
         thriftServer.start();
         logger.info("Thrift server running on {}", new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getRpcPort()));
 
-        if (!PrivatePublicAddressMappingCoordinator.instance.isEnabled())
+        if (!CrossVpcIpMappingHandshaker.instance.isEnabled())
         {
-            PrivatePublicAddressMappingCoordinator.instance.start();
+            CrossVpcIpMappingHandshaker.instance.start();
         }
     }
 
@@ -547,7 +547,7 @@ public class CassandraDaemon
             thriftServer.start();
         else
             logger.info("Not starting RPC server as requested. Use JMX (StorageService->startRPCServer()) or nodetool (enablethrift) to start it");
-        PrivatePublicAddressMappingCoordinator.instance.start();
+        CrossVpcIpMappingHandshaker.instance.start();
     }
 
     /**

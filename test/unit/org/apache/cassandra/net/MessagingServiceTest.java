@@ -27,10 +27,10 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.palantir.cassandra.ppam.InetAddressHostname;
-import com.palantir.cassandra.ppam.InetAddressIp;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingAck;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingSyn;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingAck;
+import com.palantir.cassandra.cvam.InetAddressHostname;
+import com.palantir.cassandra.cvam.InetAddressIp;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingSyn;
 
 import static org.junit.Assert.assertEquals;
 
@@ -70,11 +70,11 @@ public class MessagingServiceTest
         InetAddressHostname targetName = new InetAddressHostname("target");
         InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
         InetAddress remote = InetAddress.getByName("127.0.0.2");
-        MessageIn<PrivatePublicAddressMappingSyn> messageIn = MessageIn.create(
+        MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(
             remote,
-            new PrivatePublicAddressMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp),
+            new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp),
             Collections.emptyMap(),
-            MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN,
+            MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
             MessagingService.current_version);
         messagingService.receive(messageIn, 0, 0, false);
     }
@@ -86,13 +86,13 @@ public class MessagingServiceTest
         InetAddressHostname targetName = new InetAddressHostname("target");
         InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
         InetAddressIp targetInternalIp = new InetAddressIp("1.0.0.0");
-        PrivatePublicAddressMappingAck ack = new PrivatePublicAddressMappingAck(targetName, targetInternalIp, targetExternalIp);
+        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
 
-        MessageIn<PrivatePublicAddressMappingAck> messageIn = MessageIn.create(
+        MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(
             remote,
             ack,
             Collections.emptyMap(),
-            MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_ACK,
+            MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
             MessagingService.current_version);
         messagingService.receive(messageIn, 0, 0, false);
     }

@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -31,7 +30,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,63 +45,59 @@ import org.apache.cassandra.utils.FBUtilities;
  * {@link org.apache.cassandra.gms.GossipDigestAck} messages to seed nodes and managing the internal/external node IP
  * mapping for cross-vpc connections.
  */
-public class PrivatePublicAddressMappingCoordinator
+public class CrossVpcIpMappingHandshaker
 {
-    private static final Logger logger = LoggerFactory.getLogger(PrivatePublicAddressMappingCoordinator.class);
-    public static final PrivatePublicAddressMappingCoordinator instance = new PrivatePublicAddressMappingCoordinator();
+    private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingHandshaker.class);
+    public static final CrossVpcIpMappingHandshaker instance = new CrossVpcIpMappingHandshaker();
     // A single cross-VPC hostname can resolve to 3 valid IPs. More on the key/values
     // here in the Edge Cases + Questions section of the RFC
-    private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
-    private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor("PrivatePublicAddressMappingTasks");
+    private final ConcurrentHashMap<InetAddressIp, InetAddressIp> crossVpcIpMappings;
+    private static final DebuggableScheduledThreadPoolExecutor executor =
+                                    new DebuggableScheduledThreadPoolExecutor("CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledPPAMTask;
     public final static int intervalInMillis = 30000;
 
     @VisibleForTesting
     final AtomicLong numTasks = new AtomicLong();
 
-    private PrivatePublicAddressMappingCoordinator()
+    private CrossVpcIpMappingHandshaker()
     {
-        this.privatePublicIpMappings = new ConcurrentHashMap<>();
+        this.crossVpcIpMappings = new ConcurrentHashMap<>();
     }
 
     @VisibleForTesting
-    ConcurrentHashMap<InetAddressIp, InetAddressIp> getPrivatePublicAddressMapping()
+    ConcurrentHashMap<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
     {
-        return privatePublicIpMappings;
+        return crossVpcIpMappings;
     }
 
     @VisibleForTesting
-    void clearPrivatePublicAddressMapping()
+    void clearCrossVpcIpMapping()
     {
-        privatePublicIpMappings.clear();
+        crossVpcIpMappings.clear();
     }
 
-    public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
-    {
-        Map<InetAddressIp, InetAddressIp> endpointMappings = instance.getPrivatePublicAddressMapping();
-        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        if (endpointMappings.containsKey(proposedAddress) && DatabaseDescriptor.privatePublicIpSwappingEnabled())
-        {
-            InetAddressIp publicAddress = endpointMappings.get(proposedAddress);
-            logger.trace("Swapped address {} for {}", endpoint, publicAddress);
-            return InetAddress.getByName(publicAddress.toString());
-        }
-        return endpoint;
-    }
-
-    public void updatePrivatePublicAddressMapping(InetAddressHostname host, InetAddressIp key, InetAddressIp newValue)
+    public void updateCrossVpcIpMapping(InetAddressHostname host, InetAddressIp key, InetAddressIp newValue)
     {
 
-        InetAddressIp old = PrivatePublicAddressMappingCoordinator.instance.getPrivatePublicAddressMapping().put(key, newValue);
+        InetAddressIp old = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpMapping().put(key, newValue);
         if (!Objects.equals(newValue, old))
         {
             logger.trace("Updated private/public IP mapping for {}/{} from {} to {}", host, key, old, newValue);
         }
     }
 
-    public void removePrivatePublicAddressMapping(InetAddress key, InetAddress value)
+    public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
     {
-        // todo
+        Map<InetAddressIp, InetAddressIp> endpointMappings = instance.getCrossVpcIpMapping();
+        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
+        if (endpointMappings.containsKey(proposedAddress) && DatabaseDescriptor.crossVpcIpSwappingEnabled())
+        {
+            InetAddressIp publicAddress = endpointMappings.get(proposedAddress);
+            logger.trace("Swapped address {} for {}", endpoint, publicAddress);
+            return InetAddress.getByName(publicAddress.toString());
+        }
+        return endpoint;
     }
 
     // This could potentially be invoked for unreachable nodes by the Gossiper
@@ -121,22 +115,22 @@ public class PrivatePublicAddressMappingCoordinator
     @VisibleForTesting
     static void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
     {
-        PrivatePublicAddressMappingSyn syn = new PrivatePublicAddressMappingSyn(
+        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(
             sourceName,
             sourceIp,
             new InetAddressHostname(target.getHostName()),
             new InetAddressIp(target.getHostAddress())
         );
 
-        MessageOut<PrivatePublicAddressMappingSyn> synMessage = new MessageOut<>(
-                                                    MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN,
-                                                    syn,
-                                                    PrivatePublicAddressMappingSyn.serializer);
+        MessageOut<CrossVpcIpMappingSyn> synMessage = new MessageOut<>(
+        MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
+        syn,
+        CrossVpcIpMappingSyn.serializer);
         MessagingService.instance().sendOneWay(synMessage, target);
     }
 
     // This could be the task that's run on a schedule
-    private static class PrivatePublicAddressMappingTask implements Runnable
+    private static class CrossVpcIpMappingTask implements Runnable
     {
         public void run()
         {
@@ -146,17 +140,17 @@ public class PrivatePublicAddressMappingCoordinator
                                                        .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
                                                        .collect(Collectors.toSet());
 
-            PrivatePublicAddressMappingCoordinator.triggerHandshakeFromSelf(seeds);
+            CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(seeds);
         }
     }
 
     public void start()
     {
-        logger.trace("Started running PrivatePublicAddressMappingTask at interval of {} ms",
-                     PrivatePublicAddressMappingCoordinator.intervalInMillis);
-        scheduledPPAMTask = executor.scheduleWithFixedDelay(new PrivatePublicAddressMappingTask(),
+        logger.trace("Started running CrossVpcIpMappingTask at interval of {} ms",
+                     CrossVpcIpMappingHandshaker.intervalInMillis);
+        scheduledPPAMTask = executor.scheduleWithFixedDelay(new CrossVpcIpMappingTask(),
                                                             0L,
-                                                            PrivatePublicAddressMappingCoordinator.intervalInMillis,
+                                                            CrossVpcIpMappingHandshaker.intervalInMillis,
                                                             TimeUnit.MILLISECONDS);
     }
 
@@ -170,7 +164,7 @@ public class PrivatePublicAddressMappingCoordinator
         if (scheduledPPAMTask != null)
         {
             scheduledPPAMTask.cancel(false);
-            logger.trace("Stopped running PrivatePublicAddressMappingTask at interval");
+            logger.trace("Stopped running CrossVpcIpMappingTask at interval");
         }
     }
 }

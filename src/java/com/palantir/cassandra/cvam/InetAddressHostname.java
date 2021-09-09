@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
-
-import java.util.Objects;
+package com.palantir.cassandra.cvam;
 
 import com.palantir.cassandra.objects.Wrapper;
 

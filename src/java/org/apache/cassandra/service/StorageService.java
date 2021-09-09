@@ -47,9 +47,9 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.jmx.JMXConfiguratorMBean;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingAckVerbHandler;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingCoordinator;
-import com.palantir.cassandra.ppam.PrivatePublicAddressMappingSynVerbHandler;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingAckVerbHandler;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingHandshaker;
+import com.palantir.cassandra.cvam.CrossVpcIpMappingSynVerbHandler;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -281,8 +281,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.SNAPSHOT, new SnapshotVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.ECHO, new EchoVerbHandler());
 
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN, new PrivatePublicAddressMappingSynVerbHandler());
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_ACK, new PrivatePublicAddressMappingAckVerbHandler());
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, new CrossVpcIpMappingSynVerbHandler());
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK, new CrossVpcIpMappingAckVerbHandler());
     }
 
     public void registerDaemon(CassandraDaemon daemon)
@@ -432,9 +432,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             throw new IllegalStateException("No configured daemon");
         }
-        if (PrivatePublicAddressMappingCoordinator.instance.isEnabled())
+        if (CrossVpcIpMappingHandshaker.instance.isEnabled())
         {
-            PrivatePublicAddressMappingCoordinator.instance.stop();
+            CrossVpcIpMappingHandshaker.instance.stop();
         }
         if (daemon.nativeServer != null)
             daemon.nativeServer.stop();

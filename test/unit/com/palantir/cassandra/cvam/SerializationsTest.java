@@ -16,70 +16,61 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.junit.Test;
 
 import org.apache.cassandra.AbstractSerializationsTester;
-import org.apache.cassandra.gms.EndpointState;
-import org.apache.cassandra.gms.GossipDigest;
-import org.apache.cassandra.gms.GossipDigestAck;
-import org.apache.cassandra.gms.GossipDigestAck2;
-import org.apache.cassandra.gms.GossipDigestSyn;
 import org.apache.cassandra.io.util.DataOutputStreamPlus;
-import org.apache.cassandra.service.StorageService;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 public class SerializationsTest extends AbstractSerializationsTester
 {
-    private static final String BIN = "ppam.PrivatePublicAddressMapping.bin";
+    private static final String BIN = "ppam.CrossVpcIpMapping.bin";
 
     @Test
-    public void testPrivatePublicAddressMapping_syn() throws IOException
+    public void testCrossVpcIpMapping_syn() throws IOException
     {
         InetAddressHostname sourceName = new InetAddressHostname("localhost");
         InetAddressIp sourceInternalIp = new InetAddressIp("1.0.0.0");
         InetAddressHostname targetName = new InetAddressHostname("target");
         InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
-        PrivatePublicAddressMappingSyn syn = new PrivatePublicAddressMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
+        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
 
         DataOutputStreamPlus out = getOutput(BIN);
-        PrivatePublicAddressMappingSyn.serializer.serialize(syn, out, getVersion());
+        CrossVpcIpMappingSyn.serializer.serialize(syn, out, getVersion());
         out.close();
 
         DataInputStream in = getInput(BIN);
-        PrivatePublicAddressMappingSyn deserialized = PrivatePublicAddressMappingSyn.serializer.deserialize(in, getVersion());
+        CrossVpcIpMappingSyn deserialized = CrossVpcIpMappingSyn.serializer.deserialize(in, getVersion());
         in.close();
 
         assertThat(syn).isEqualTo(deserialized);
 
-        testSerializedSize(syn, PrivatePublicAddressMappingSyn.serializer);
+        testSerializedSize(syn, CrossVpcIpMappingSyn.serializer);
     }
 
     @Test
-    public void testPrivatePublicAddressMapping_ack() throws IOException
+    public void testCrossVpcIpMapping_ack() throws IOException
     {
         InetAddressHostname targetName = new InetAddressHostname("target");
         InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
         InetAddressIp targetInternalIp = new InetAddressIp("1.0.0.0");
-        PrivatePublicAddressMappingAck ack = new PrivatePublicAddressMappingAck(targetName, targetInternalIp, targetExternalIp);
+        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
 
         DataOutputStreamPlus out = getOutput(BIN);
-        PrivatePublicAddressMappingAck.serializer.serialize(ack, out, getVersion());
+        CrossVpcIpMappingAck.serializer.serialize(ack, out, getVersion());
         out.close();
 
         DataInputStream in = getInput(BIN);
-        PrivatePublicAddressMappingAck deserialized = PrivatePublicAddressMappingAck.serializer.deserialize(in, getVersion());
+        CrossVpcIpMappingAck deserialized = CrossVpcIpMappingAck.serializer.deserialize(in, getVersion());
         in.close();
 
         assertThat(ack).isEqualTo(deserialized);
-        testSerializedSize(ack, PrivatePublicAddressMappingAck.serializer);
+        testSerializedSize(ack, CrossVpcIpMappingAck.serializer);
     }
 }

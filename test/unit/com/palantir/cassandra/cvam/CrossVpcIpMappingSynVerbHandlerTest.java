@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.ppam;
+package com.palantir.cassandra.cvam;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 
-import com.google.common.net.InetAddresses;
 import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.net.MessageIn;
-import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.assertj.core.api.Assertions;
 
@@ -40,9 +37,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
-public class PrivatePublicAddressMappingSynVerbHandlerTest
+public class CrossVpcIpMappingSynVerbHandlerTest
 {
-    private final PrivatePublicAddressMappingSynVerbHandler handler = spy(new PrivatePublicAddressMappingSynVerbHandler());
+    private final CrossVpcIpMappingSynVerbHandler handler = spy(new CrossVpcIpMappingSynVerbHandler());
 
     @Before
     public void before() throws UnknownHostException
@@ -59,17 +56,17 @@ public class PrivatePublicAddressMappingSynVerbHandlerTest
         InetAddressIp sourceInternalIp = new InetAddressIp("1.0.0.0");
         InetAddressHostname targetName = new InetAddressHostname("target");
         InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
-        PrivatePublicAddressMappingSyn syn = new PrivatePublicAddressMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
+        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
 
-        MessageIn<PrivatePublicAddressMappingSyn> messageIn = MessageIn.create(
+        MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(
             remote,
             syn,
             Collections.emptyMap(),
-            MessagingService.Verb.PRIVATE_PUBLIC_ADDR_MAPPING_SYN,
+            MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
             MessagingService.current_version);
 
-        PrivatePublicAddressMappingCoordinator.instance.clearPrivatePublicAddressMapping();
-        Map<InetAddressIp, InetAddressIp> map = PrivatePublicAddressMappingCoordinator.instance.getPrivatePublicAddressMapping();
+        CrossVpcIpMappingHandshaker.instance.clearCrossVpcIpMapping();
+        Map<InetAddressIp, InetAddressIp> map = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpMapping();
         Assertions.assertThat(map).hasSize(0);
         handler.doVerb(messageIn, 0);
         Assertions.assertThat(map).hasSize(1);
