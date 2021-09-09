@@ -29,18 +29,23 @@ import org.junit.Test;
 
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.service.StorageService;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class CrossVpcIpMappingAckVerbHandlerTest
 {
     private final CrossVpcIpMappingAckVerbHandler handler = spy(new CrossVpcIpMappingAckVerbHandler());
 
     @Test
-    public void doVerb_updatesNewMapping() throws UnknownHostException
+    public void doVerb_invokedByMessagingService() throws UnknownHostException
     {
         InetAddress remote = InetAddress.getByName("127.0.0.2");
         InetAddressHostname targetName = new InetAddressHostname("target");
@@ -48,19 +53,15 @@ public class CrossVpcIpMappingAckVerbHandlerTest
         InetAddressIp targetInternalIp = new InetAddressIp("1.0.0.0");
         CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
 
-        MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(
-            remote,
-            ack,
-            Collections.emptyMap(),
-            MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
-            MessagingService.current_version);
+        MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(remote,
+                                                                     ack,
+                                                                     Collections.emptyMap(),
+                                                                     MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
+                                                                     MessagingService.current_version);
 
-        CrossVpcIpMappingHandshaker.instance.clearCrossVpcIpMapping();
-        Map<InetAddressIp, InetAddressIp> map = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpMapping();
-        assertThat(map).hasSize(0);
-        handler.doVerb(messageIn, 0);
-        assertThat(map).hasSize(1);
-
-        assertThat(map.get(targetInternalIp)).isEqualTo(targetExternalIp);
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK, handler);
+        MessagingService.instance().receive(messageIn, 0, 0, false);
+        // Potential race condition since MessageDeliveryTask is run in another executor
+        verify(handler, times(1)).doVerb(eq(messageIn), anyInt());
     }
 }
