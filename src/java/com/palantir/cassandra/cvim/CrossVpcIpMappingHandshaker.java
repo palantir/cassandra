@@ -62,6 +62,23 @@ public class CrossVpcIpMappingHandshaker
         this.privateIpHostnameMappings = new ConcurrentHashMap<>();
     }
 
+    public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp, InetAddressIp externalIp)
+    {
+        InetAddressIp oldExternalIp = this.privatePublicIpMappings.get(internalIp);
+        if (!externalIp.equals(oldExternalIp))
+        {
+            this.privatePublicIpMappings.put(internalIp, externalIp);
+            logger.trace("Updated private/public IP mapping for {} from {}->{} to {}", host, internalIp, oldExternalIp, externalIp);
+        }
+
+        InetAddressHostname old = this.privateIpHostnameMappings.get(internalIp);
+        if (!host.equals(old))
+        {
+            this.privateIpHostnameMappings.put(internalIp, host);
+            logger.trace("Updated private IP/hostname mapping from {}->{} to {}", internalIp, old, host);
+        }
+    }
+
     public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
     {
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
@@ -98,7 +115,8 @@ public class CrossVpcIpMappingHandshaker
             {
                 logger.trace("Executing requested handshake");
                 triggerHandshakeWithSeeds();
-            } else
+            }
+            else
             {
                 logger.trace("Ignoring handshake request as last handshake is too recent");
             }
@@ -111,12 +129,12 @@ public class CrossVpcIpMappingHandshaker
                                                        .collect(Collectors.toSet());
 
             triggerHandshakeFromSelf(seeds);
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             logger.error("Caught exception trying to trigger CrossVpcIpMapping handshake with seeds", e);
         }
     }
-
     @VisibleForTesting
     synchronized void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
