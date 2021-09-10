@@ -20,7 +20,9 @@ package com.palantir.cassandra.cvim;
 
 import java.net.InetAddress;
 import java.time.Duration;
+import java.net.UnknownHostException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -46,16 +48,61 @@ public class CrossVpcIpMappingHandshaker
     private static final Logger logger = LoggerFactory.getLogger(CrossVpcIpMappingHandshaker.class);
     public static final CrossVpcIpMappingHandshaker instance = new CrossVpcIpMappingHandshaker();
     private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor(
-    "CrossVpcIpMappingTasks");
+                                                                                "CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledCVIMTask;
     public final static Duration interval = Duration.ofSeconds(1);
+    private static volatile long lastTriggeredHandshakeMillis;
+    public final static int minIntervalMillis = 1000;
+    public final static int scheduledIntervalMillis = 30000;
+    private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
+    private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> privateIpHostnameMappings;
 
-    private CrossVpcIpMappingHandshaker() {}
+    private CrossVpcIpMappingHandshaker() {
+        this.privatePublicIpMappings = new ConcurrentHashMap<>();
+        this.privateIpHostnameMappings = new ConcurrentHashMap<>();
+    }
 
-    public void triggerHandshakeWithSeeds()
+    public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
+    {
+        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
+        if (privateIpHostnameMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled())
+        {
+            InetAddressHostname hostname = privateIpHostnameMappings.get(proposedAddress);
+            logger.trace("Performing DNS lookup for host {}", hostname);
+            InetAddress resolved = InetAddress.getByName(hostname.toString());
+            if (!resolved.equals(endpoint))
+            {
+                logger.trace("DNS-resolved address different than provided endpoint. Swapping. provided: {} resolved: {}", endpoint, resolved);
+                return resolved;
+            }
+            return endpoint;
+        }
+
+        if (privatePublicIpMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcIpSwappingEnabled())
+        {
+            InetAddressIp result = privatePublicIpMappings.get(proposedAddress);
+            if (!result.equals(proposedAddress))
+            {
+                logger.trace("Swapped address {} for {}", endpoint, result);
+                return InetAddress.getByName(result.toString());
+            }
+        }
+        return endpoint;
+    }
+
+    void triggerHandshakeWithSeeds()
     {
         try
         {
+            if (System.currentTimeMillis() - lastTriggeredHandshakeMillis > minIntervalMillis)
+            {
+                logger.trace("Executing requested handshake");
+                triggerHandshakeWithSeeds();
+            } else
+            {
+                logger.trace("Ignoring handshake request as last handshake is too recent");
+            }
+            lastTriggeredHandshakeMillis = System.currentTimeMillis();
             // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
             // who we currently are going to handshake with like the Gossiper does
             Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
@@ -70,9 +117,9 @@ public class CrossVpcIpMappingHandshaker
         }
     }
 
-    public void triggerHandshakeFromSelf(Set<InetAddress> targets)
+    @VisibleForTesting
+    synchronized void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
-        logger.warn("here");
         InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
         targets.forEach(target -> {
