@@ -19,6 +19,7 @@ package org.apache.cassandra.db.compaction;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
@@ -28,6 +29,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+
+import org.apache.cassandra.db.filter.NamesQueryFilter;
+import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +49,8 @@ public class LeveledManifest
 {
     private static final Logger logger = LoggerFactory.getLogger(LeveledManifest.class);
     private static final boolean USE_STCS_ALWAYS_IN_L0 = Boolean.getBoolean("palantir_cassandra.use_stcs_always_in_l0");
+    private static final boolean LIMIT_MAX_SSTABLE_SIZE_IN_L0 = Boolean.getBoolean("palantir_cassandra.limit_max_sstable_size_in_l0");
+    private static final long MAX_SSTABLE_SIZE_IN_L0_IN_G = Long.getLong("palantir_cassandra.max_sstable_size_in_l0_in_gb", 100L) * 1024 * 1024 * 1024;
 
     /**
      * limit the number of L0 sstables we do at once, because compaction bloom filter creation
@@ -382,7 +388,25 @@ public class LeveledManifest
     {
         Iterable<SSTableReader> candidates = cfs.getTracker().getUncompacting(sstables);
         List<Pair<SSTableReader,Long>> pairs = SizeTieredCompactionStrategy.createSSTableAndLengthPairs(AbstractCompactionStrategy.filterSuspectSSTables(candidates));
-        List<List<SSTableReader>> buckets = SizeTieredCompactionStrategy.getBuckets(pairs,
+        // if LIMIT_MAX_SSTABLE_SIZE_IN_L0 is enabled - evict tables that are less than MAX_SSTABLE_SIZE_IN_L0_IN_G (in gigabytes)
+        List<Pair<SSTableReader, Long>> filteredPairs = LIMIT_MAX_SSTABLE_SIZE_IN_L0
+                                                        ? pairs.stream().filter(p -> p.right < MAX_SSTABLE_SIZE_IN_L0_IN_G).collect(Collectors.toList())
+                                                        : pairs;
+
+        // proposed alternative - uglier code but more logging.
+        //    if (LIMIT_MAX_SSTABLE_SIZE_IN_L0) {
+        //        List<Pair<SSTableReader, Long>> filteredPairs2 = Collections.emptyList();
+        //        for (Pair<SSTableReader, Long> p : pairs) {
+        //            if (p.right < MAX_SSTABLE_SIZE_IN_L0_IN_G) {
+        //                filteredPairs2.add(p);
+        //                logger.debug("Retaining table {}", p.left.getFilename());
+        //            } else {
+        //                logger.warn("Ignoring table exceeding max size in L0 threshold {}", p.left.getFilename());
+        //            }
+        //        }
+        //    }
+
+        List<List<SSTableReader>> buckets = SizeTieredCompactionStrategy.getBuckets(filteredPairs,
                                                                                     options.bucketHigh,
                                                                                     options.bucketLow,
                                                                                     minSsTableSize);
