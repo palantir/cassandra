@@ -127,6 +127,7 @@ public class Config
     public Boolean listen_on_broadcast_address = false;
     public String internode_authenticator;
     public Boolean cross_vpc_ip_swapping_enabled = false;
+    public Boolean cross_vpc_hostname_swapping_enabled = false;
 
     /* intentionally left set to true, despite being set to false in stock 2.2 cassandra.yaml
        we don't want to surprise Thrift users who have the setting blank in the yaml during 2.1->2.2 upgrade */

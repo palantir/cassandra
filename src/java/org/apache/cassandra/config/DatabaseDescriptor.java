@@ -1331,6 +1331,16 @@ public class DatabaseDescriptor
         conf.cross_vpc_ip_swapping_enabled = setting;
     }
 
+    public static Boolean isCrossVpcHostnameSwappingEnabled()
+    {
+        return conf.cross_vpc_hostname_swapping_enabled;
+    }
+
+    public static void setCrossVpcHostnameSwapping(boolean setting)
+    {
+        conf.cross_vpc_hostname_swapping_enabled = setting;
+    }
+
     public static IInternodeAuthenticator getInternodeAuthenticator()
     {
         return internodeAuthenticator;
