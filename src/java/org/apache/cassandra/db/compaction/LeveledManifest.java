@@ -45,9 +45,18 @@ import org.apache.cassandra.utils.Pair;
 public class LeveledManifest
 {
     private static final Logger logger = LoggerFactory.getLogger(LeveledManifest.class);
+
     private static final boolean USE_STCS_ALWAYS_IN_L0 = Boolean.getBoolean("palantir_cassandra.use_stcs_always_in_l0");
+
     private static final boolean LIMIT_MAX_SSTABLE_SIZE_IN_L0 = Boolean.getBoolean("palantir_cassandra.limit_max_sstable_size_in_l0");
-    private static final long MAX_SSTABLE_SIZE_IN_L0_IN_GB = Long.getLong("palantir_cassandra.max_sstable_size_in_l0_in_gb", 100L) * 1024 * 1024 * 1024;
+    private static final long MAX_SSTABLE_SIZE_IN_L0 = Long.getLong("palantir_cassandra.max_sstable_size_in_l0_in_gb", 100L) * 1024 * 1024 * 1024;
+
+    private static final boolean LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 = Boolean.getBoolean("palantir_cassandra.limit_total_compaction_candidate_size_in_l0");
+    /**
+     * Palantir: limit the combined size of L0 sstables we do at once, to prevent us from creating
+     * giant sstables in specific scenarios.
+     */
+    private static final long MAX_COMPACTING_SIZE_IN_L0 = Long.getLong("palantir_cassandra.max_l0_total_compaction_candidate_size_in_gb", 10) * 1024L * 1024L * 1024L;
 
     /**
      * limit the number of L0 sstables we do at once, because compaction bloom filter creation
@@ -55,6 +64,7 @@ public class LeveledManifest
      * or even OOMing when compacting highly overlapping sstables
      */
     private static final int MAX_COMPACTING_L0 = 32;
+
     /**
      * If we go this many rounds without compacting
      * in the highest level, we start bringing in sstables from
@@ -389,12 +399,12 @@ public class LeveledManifest
         List<Pair<SSTableReader, Long>> filteredPairs = LIMIT_MAX_SSTABLE_SIZE_IN_L0
                                                         ? pairs.stream()
                                                                .peek(pair -> {
-                                                                   if (pair.right > MAX_SSTABLE_SIZE_IN_L0_IN_GB) {
+                                                                   if (pair.right > MAX_SSTABLE_SIZE_IN_L0) {
                                                                        logger.trace("Excluding sstable {} because size {} is greater than max allowed in L0",
                                                                                     pair.left.getFilename(), pair.right);
                                                                    }
                                                                })
-                                                               .filter(p -> p.right <= MAX_SSTABLE_SIZE_IN_L0_IN_GB)
+                                                               .filter(p -> p.right <= MAX_SSTABLE_SIZE_IN_L0)
                                                                .collect(Collectors.toList())
                                                         : pairs;
 
@@ -612,6 +622,7 @@ public class LeveledManifest
             // basically screwed, since we expect all or most L0 sstables to overlap with each L1 sstable.
             // So if an L1 sstable is suspect we can't do much besides try anyway and hope for the best.
             Set<SSTableReader> candidates = new HashSet<>();
+            long candidatesTotalSize = 0L;
             Set<SSTableReader> remaining = new HashSet<>();
             Iterables.addAll(remaining, Iterables.filter(getLevel(0), Predicates.not(suspectP)));
             for (SSTableReader sstable : ageSortedSSTables(remaining))
@@ -626,11 +637,14 @@ public class LeveledManifest
                 for (SSTableReader newCandidate : overlappedL0)
                 {
                     if (firstCompactingKey == null || lastCompactingKey == null || overlapping(firstCompactingKey.getToken(), lastCompactingKey.getToken(), Arrays.asList(newCandidate)).size() == 0)
+                    {
                         candidates.add(newCandidate);
+                        candidatesTotalSize += newCandidate.onDiskLength();
+                    }
                     remaining.remove(newCandidate);
                 }
 
-                if (candidates.size() > MAX_COMPACTING_L0)
+                if (candidates.size() > MAX_COMPACTING_L0 || (LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 && candidatesTotalSize > MAX_COMPACTING_SIZE_IN_L0))
                 {
                     // limit to only the MAX_COMPACTING_L0 oldest candidates
                     candidates = new HashSet<>(ageSortedSSTables(candidates).subList(0, MAX_COMPACTING_L0));
