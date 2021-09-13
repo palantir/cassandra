@@ -21,6 +21,7 @@ package com.palantir.cassandra.cvim;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.net.UnknownHostException;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -79,14 +80,21 @@ public class CrossVpcIpMappingHandshaker
         }
     }
 
-    public InetAddress maybeSwapPrivateForPublicAddress(InetAddress endpoint) throws UnknownHostException
+    public InetAddress maybeSwapAddress(InetAddress endpoint)
     {
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
         if (privateIpHostnameMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled())
         {
             InetAddressHostname hostname = privateIpHostnameMappings.get(proposedAddress);
             logger.trace("Performing DNS lookup for host {}", hostname);
-            InetAddress resolved = InetAddress.getByName(hostname.toString());
+            InetAddress resolved;
+            try {
+                resolved = InetAddress.getByName(hostname.toString());
+            } catch (UnknownHostException e)
+            {
+                logger.error("Cross VPC mapping contains unresolvable hostname for endpoint {} (unresolved: {})", endpoint, hostname);
+                return endpoint;
+            }
             if (!resolved.equals(endpoint))
             {
                 logger.trace("DNS-resolved address different than provided endpoint. Swapping. provided: {} resolved: {}", endpoint, resolved);
@@ -101,7 +109,13 @@ public class CrossVpcIpMappingHandshaker
             if (!result.equals(proposedAddress))
             {
                 logger.trace("Swapped address {} for {}", endpoint, result);
-                return InetAddress.getByName(result.toString());
+                try
+                {
+                    return InetAddress.getByName(result.toString());
+                } catch (UnknownHostException e)
+                {
+                    logger.error("Failed to resolve host for externally-mapped IP {}->{}. Ensure the address mapping does not contain hostnames", endpoint, result);
+                }
             }
         }
         return endpoint;
@@ -135,6 +149,7 @@ public class CrossVpcIpMappingHandshaker
             logger.error("Caught exception trying to trigger CrossVpcIpMapping handshake with seeds", e);
         }
     }
+
     @VisibleForTesting
     synchronized void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
@@ -207,5 +222,24 @@ public class CrossVpcIpMappingHandshaker
             logger.warn("Stopping CrossVpcIpMappingTask at interval after operator request");
             scheduledCVIMTask.cancel(false);
         }
+    }
+
+    @VisibleForTesting
+    Map<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
+    {
+        return this.privatePublicIpMappings;
+    }
+
+    @VisibleForTesting
+    Map<InetAddressIp, InetAddressHostname> getCrossVpcIpHostnameMapping()
+    {
+        return this.privateIpHostnameMappings;
+    }
+
+    @VisibleForTesting
+    void clearMappings()
+    {
+        this.privateIpHostnameMappings.clear();
+        this.privatePublicIpMappings.clear();
     }
 }
