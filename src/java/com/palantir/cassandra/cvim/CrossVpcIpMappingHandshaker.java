@@ -19,10 +19,10 @@
 package com.palantir.cassandra.cvim;
 
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -48,7 +48,7 @@ public class CrossVpcIpMappingHandshaker
     private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor(
     "CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledCVIMTask;
-    public final static int intervalInMillis = 30000;
+    public final static Duration interval = Duration.ofSeconds(1);
 
     private CrossVpcIpMappingHandshaker() {}
 
@@ -57,7 +57,15 @@ public class CrossVpcIpMappingHandshaker
         InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
         logger.trace("Triggering handshakes from {}/{} to {}", selfName, selfIp, targets);
-        targets.forEach(target -> triggerHandshake(selfName, selfIp, target));
+        targets.forEach(target -> {
+            try
+            {
+                triggerHandshake(selfName, selfIp, target);
+            } catch (Exception e)
+            {
+                logger.error("Caught exception trying to trigger handshake from {}/{} to {}", selfName, selfIp, target);
+            }
+        });
     }
 
     @VisibleForTesting
@@ -83,19 +91,26 @@ public class CrossVpcIpMappingHandshaker
         if (isEnabled())
         {
             logger.info("Cross VPC IP Swapping already enabled and scheduled. Ignoring extra start() call.");
+            return;
         }
         logger.info("Started running CrossVpcIpMappingTask at interval of {} ms",
-                     CrossVpcIpMappingHandshaker.intervalInMillis);
+                     CrossVpcIpMappingHandshaker.interval);
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
-            // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
-            // who we currently are going to handshake with like the Gossiper does
-            Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
-                                                       .stream()
-                                                       .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
-                                                       .collect(Collectors.toSet());
+            try
+            {
+                // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
+                // who we currently are going to handshake with like the Gossiper does
+                Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
+                                                           .stream()
+                                                           .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
+                                                           .collect(Collectors.toSet());
 
-            CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(seeds);
-        }, 0L, CrossVpcIpMappingHandshaker.intervalInMillis, TimeUnit.MILLISECONDS);
+                CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(seeds);
+            } catch (Exception e)
+            {
+                logger.error("Caught exception trying to run scheduled CrossVpcIpMapping handshake task", e);
+            }
+        }, 0L, CrossVpcIpMappingHandshaker.interval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     public boolean isEnabled()
