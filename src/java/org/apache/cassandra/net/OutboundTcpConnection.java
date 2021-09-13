@@ -497,6 +497,7 @@ public class OutboundTcpConnection extends Thread
                     }
                 }
 
+                logger.trace("Successfully connected to {}", poolReference.endPoint());
                 return true;
             }
             catch (SSLHandshakeException e)
