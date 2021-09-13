@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.io.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -366,6 +367,9 @@ public class LeveledManifest
         if (getLevel(0).isEmpty())
             return null;
         Collection<SSTableReader> candidates = getCandidatesFor(0);
+        logger.trace("Triggering non-STCS compaction in L0 of size {}.",
+                     FileUtils.stringifyFileSize(candidates.stream().mapToLong(SSTableReader::onDiskLength).sum()));
+
         if (candidates.isEmpty())
         {
             // Since we don't have any other compactions to do, see if there is a STCS compaction to perform in L0; if
@@ -383,7 +387,8 @@ public class LeveledManifest
             List<SSTableReader> mostInteresting = getSSTablesForSTCS(getLevel(0));
             if (!mostInteresting.isEmpty())
             {
-                logger.debug("L0 is too far behind, performing size-tiering there first");
+                logger.debug("L0 is too far behind, performing size-tiering compaction of size {} there first",
+                             FileUtils.stringifyFileSize((mostInteresting.stream().mapToLong(SSTableReader::onDiskLength).sum())));
                 return new CompactionCandidate(mostInteresting, 0, Long.MAX_VALUE);
             }
         }
@@ -629,13 +634,20 @@ public class LeveledManifest
             {
                 if (candidates.contains(sstable))
                     continue;
-
                 Sets.SetView<SSTableReader> overlappedL0 = Sets.union(Collections.singleton(sstable), overlapping(sstable, remaining));
                 if (!Sets.intersection(overlappedL0, compactingL0).isEmpty())
                     continue;
-
                 for (SSTableReader newCandidate : overlappedL0)
                 {
+                    // skip this sstable if it will push the current compaction over the expected limit.
+                    if (LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 && (candidatesTotalSize + newCandidate.onDiskLength()) > MAX_COMPACTING_SIZE_IN_L0) {
+                        logger.trace("Skipping sstable {} with size {} as it's {} bytes over max allowed of {}.",
+                                     newCandidate.getFilename(),
+                                     FileUtils.stringifyFileSize(newCandidate.onDiskLength()),
+                                     FileUtils.stringifyFileSize((candidatesTotalSize + newCandidate.onDiskLength()) - MAX_COMPACTING_SIZE_IN_L0),
+                                     FileUtils.stringifyFileSize(MAX_COMPACTING_SIZE_IN_L0));
+                        continue;
+                    }
                     if (firstCompactingKey == null || lastCompactingKey == null || overlapping(firstCompactingKey.getToken(), lastCompactingKey.getToken(), Arrays.asList(newCandidate)).size() == 0)
                     {
                         candidates.add(newCandidate);
@@ -644,7 +656,7 @@ public class LeveledManifest
                     remaining.remove(newCandidate);
                 }
 
-                if (candidates.size() > MAX_COMPACTING_L0 || (LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 && candidatesTotalSize > MAX_COMPACTING_SIZE_IN_L0))
+                if (candidates.size() > MAX_COMPACTING_L0)
                 {
                     // limit to only the MAX_COMPACTING_L0 oldest candidates
                     candidates = new HashSet<>(ageSortedSSTables(candidates).subList(0, MAX_COMPACTING_L0));
