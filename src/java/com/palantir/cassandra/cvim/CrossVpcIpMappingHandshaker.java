@@ -52,11 +52,29 @@ public class CrossVpcIpMappingHandshaker
 
     private CrossVpcIpMappingHandshaker() {}
 
-    public static void triggerHandshakeFromSelf(Set<InetAddress> targets)
+    public void triggerHandshakeWithSeeds()
     {
+        try
+        {
+            // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
+            // who we currently are going to handshake with like the Gossiper does
+            Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
+                                                       .stream()
+                                                       .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
+                                                       .collect(Collectors.toSet());
+
+            triggerHandshakeFromSelf(seeds);
+        } catch (Exception e)
+        {
+            logger.error("Caught exception trying to trigger CrossVpcIpMapping handshake with seeds", e);
+        }
+    }
+
+    public void triggerHandshakeFromSelf(Set<InetAddress> targets)
+    {
+        logger.warn("here");
         InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
-        logger.trace("Triggering handshakes from {}/{} to {}", selfName, selfIp, targets);
         targets.forEach(target -> {
             try
             {
@@ -69,8 +87,13 @@ public class CrossVpcIpMappingHandshaker
     }
 
     @VisibleForTesting
-    static void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
+    void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
     {
+        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled())
+        {
+            return;
+        }
+        logger.trace("Triggering cross VPC IP swapping handshake from {}/{} to {}", sourceName, sourceIp, target);
         CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName,
                                                             sourceIp,
                                                             new InetAddressHostname(target.getHostName()),
@@ -85,7 +108,8 @@ public class CrossVpcIpMappingHandshaker
     public void start()
     {
         if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled()) {
-            logger.info("Cross VPC IP Swapping is disabled. Not scheduling handshake task.");
+            logger.warn("Cross VPC IP Swapping is disabled. Not scheduling handshake task. Set " +
+                        "cross_vpc_ip_swapping_enabled=true if desired");
             return;
         }
         if (isEnabled())
@@ -93,19 +117,12 @@ public class CrossVpcIpMappingHandshaker
             logger.info("Cross VPC IP Swapping already enabled and scheduled. Ignoring extra start() call.");
             return;
         }
-        logger.info("Started running CrossVpcIpMappingTask at interval of {} ms",
+        logger.info("Started running CrossVpcIpMappingTask at interval of {}",
                      CrossVpcIpMappingHandshaker.interval);
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             try
             {
-                // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
-                // who we currently are going to handshake with like the Gossiper does
-                Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
-                                                           .stream()
-                                                           .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
-                                                           .collect(Collectors.toSet());
-
-                CrossVpcIpMappingHandshaker.triggerHandshakeFromSelf(seeds);
+                triggerHandshakeWithSeeds();
             } catch (Exception e)
             {
                 logger.error("Caught exception trying to run scheduled CrossVpcIpMapping handshake task", e);
@@ -122,8 +139,8 @@ public class CrossVpcIpMappingHandshaker
     {
         if (scheduledCVIMTask != null)
         {
+            logger.warn("Stopping CrossVpcIpMappingTask at interval after operator request");
             scheduledCVIMTask.cancel(false);
-            logger.trace("Stopped running CrossVpcIpMappingTask at interval");
         }
     }
 }

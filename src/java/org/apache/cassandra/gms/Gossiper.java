@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 
+import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.utils.ExecutorUtils;
 import org.apache.cassandra.utils.MBeanWrapper;
 import org.apache.cassandra.utils.Pair;
@@ -1288,6 +1289,10 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public void start(int generationNbr, Map<ApplicationState, VersionedValue> preloadLocalStates)
     {
+        if (!CrossVpcIpMappingHandshaker.instance.isEnabled())
+        {
+            CrossVpcIpMappingHandshaker.instance.start();
+        }
         buildSeedsList();
         /* initialize the heartbeat state for this localEndpoint */
         maybeInitializeLocalState(generationNbr);
@@ -1325,6 +1330,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public synchronized Map<InetAddress, EndpointState> doShadowRound()
     {
+        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
         buildSeedsList();
         // it may be that the local address is the only entry in the seed
         // list in which case, attempting a shadow round is pointless
@@ -1472,6 +1478,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     public void stop()
     {
+        CrossVpcIpMappingHandshaker.instance.stop();
         EndpointState mystate = endpointStateMap.get(FBUtilities.getBroadcastAddress());
         if (mystate != null && !isSilentShutdownState(mystate) && StorageService.instance.isJoined())
         {

@@ -48,7 +48,6 @@ import ch.qos.logback.classic.jmx.JMXConfiguratorMBean;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAckVerbHandler;
-import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSynVerbHandler;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
@@ -431,10 +430,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (daemon == null)
         {
             throw new IllegalStateException("No configured daemon");
-        }
-        if (CrossVpcIpMappingHandshaker.instance.isEnabled())
-        {
-            CrossVpcIpMappingHandshaker.instance.stop();
         }
         if (daemon.nativeServer != null)
             daemon.nativeServer.stop();

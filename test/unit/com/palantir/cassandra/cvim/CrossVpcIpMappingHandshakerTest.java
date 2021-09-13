@@ -72,7 +72,7 @@ public class CrossVpcIpMappingHandshakerTest
     public void triggerHandshakeFromSelf_sendsSyn() throws UnknownHostException
     {
         InetAddress target = InetAddress.getByName("localhost");
-        CrossVpcIpMappingHandshaker.triggerHandshake(new InetAddressHostname("source"),
+        CrossVpcIpMappingHandshaker.instance.triggerHandshake(new InetAddressHostname("source"),
                                                      new InetAddressIp("10.0.0.1"),
                                                      target);
         Map<String, Long> completed = MessagingService.instance().getSmallMessageCompletedTasks();
