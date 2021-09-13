@@ -29,6 +29,8 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class CrossVpcIpMappingHandshakerTest
 {
@@ -36,7 +38,111 @@ public class CrossVpcIpMappingHandshakerTest
     public void before()
     {
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         CrossVpcIpMappingHandshaker.instance.stop();
+        CrossVpcIpMappingHandshaker.instance.clearMappings();
+    }
+
+    @Test
+    public void maybeSwapAddress_swapsHostnameWhenEnabled() throws UnknownHostException
+    {
+        InetAddress real = InetAddress.getByName("20.0.0.1");
+        mockMapping("localhost", "20.0.0.1", "10.0.0.1", false, true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(real);
+        assertThat(real.getHostName()).isEqualTo("20.0.0.1");
+        assertThat(result.getHostName()).isEqualTo("localhost");
+    }
+
+    @Test
+    public void maybeSwapAddress_noopsWhenHostnameUnresolvable() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("localhost");
+        mockMapping("unresolvable", "127.0.0.1", "10.0.0.1", false, true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(result).isEqualTo(input);
+    }
+
+    @Test
+    public void maybeSwapAddress_swapsIpWhenEnabled() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("20.0.0.1");
+        mockMapping("localhost", "20.0.0.1", "10.0.0.1", true, false);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(input.getHostAddress()).isEqualTo("20.0.0.1");
+        assertThat(result.getHostAddress()).isEqualTo("10.0.0.1");
+    }
+
+    @Test
+    public void maybeSwapAddress_swapsHostnameWhenBothEnabled() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("20.0.0.1");
+        mockMapping("localhost", "20.0.0.1", "10.0.0.1", true, true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(input.getHostName()).isEqualTo("20.0.0.1");
+        assertThat(result.getHostName()).isEqualTo("localhost");
+    }
+
+    @Test
+    public void maybeSwapAddress_onlyTriesHostnameWhenBothEnabled() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("20.0.0.1");
+        mockMapping("unresolvable", "20.0.0.1", "10.0.0.1", true, true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(input.getHostName()).isEqualTo("20.0.0.1");
+        // Would be 10.0.0.1 if we fell back to IP swapping if hostname failed
+        assertThat(result.getHostName()).isEqualTo("20.0.0.1");
+    }
+
+    @Test
+    public void maybeSwapAddress_noopsWhenBothDisabled() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("20.0.0.1");
+        mockMapping("localhost", "20.0.0.1", "10.0.0.1", false, false);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(input).isEqualTo(result);
+    }
+
+    @Test
+    public void maybeSwapAddress_noopsOnIpResolutionFailure() throws UnknownHostException
+    {
+        InetAddressIp causeFail = mock(InetAddressIp.class);
+        when(causeFail.toString()).thenReturn("ip-to-cause-exception");
+        InetAddressHostname name = new InetAddressHostname("localhost");
+        InetAddressIp internal = new InetAddressIp("127.0.0.1");
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, causeFail);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+
+        InetAddress input = InetAddress.getByName("localhost");
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+
+        assertThat(result).isEqualTo(input);
+    }
+
+    @Test
+    public void updateCrossVpcMappings_updatesPrivatePublicIp() throws UnknownHostException
+    {
+        InetAddressHostname name = new InetAddressHostname("host");
+        InetAddressIp internal = new InetAddressIp("10.0.0.1");
+        InetAddressIp external = new InetAddressIp("20.0.0.1");
+        Map<InetAddressIp, InetAddressIp> mapping = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpMapping();
+        assertThat(mapping).isEmpty();
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        assertThat(mapping).hasSize(1);
+        assertThat(mapping).containsEntry(internal, external);
+    }
+
+    @Test
+    public void updateCrossVpcMappings_updatesPrivateIpHostname()
+    {
+        InetAddressHostname name = new InetAddressHostname("host");
+        InetAddressIp internal = new InetAddressIp("10.0.0.1");
+        InetAddressIp external = new InetAddressIp("20.0.0.1");
+        Map<InetAddressIp, InetAddressHostname> mapping = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpHostnameMapping();
+        assertThat(mapping).isEmpty();
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        assertThat(mapping).hasSize(1);
+        assertThat(mapping).containsEntry(internal, name);
     }
 
     @Test
@@ -79,4 +185,16 @@ public class CrossVpcIpMappingHandshakerTest
         assertThat(completed).containsKey(target.getHostAddress());
         assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
     }
+
+    private void mockMapping(String hostname, String internalIp, String externalIp, boolean ipSwap, boolean hostSwap) throws UnknownHostException
+    {
+        InetAddressHostname name = new InetAddressHostname(hostname);
+        InetAddressIp internal = new InetAddressIp(internalIp);
+        InetAddressIp external = new InetAddressIp(externalIp);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        // Hostname mapping takes precedence
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(hostSwap);
+        DatabaseDescriptor.setCrossVpcIpSwapping(ipSwap);
+    }
+
 }
