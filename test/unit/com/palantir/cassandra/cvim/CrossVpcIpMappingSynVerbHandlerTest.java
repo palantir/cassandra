@@ -25,8 +25,10 @@ import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
+import org.assertj.core.api.Assertions;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -69,5 +71,31 @@ public class CrossVpcIpMappingSynVerbHandlerTest
         MessagingService.instance().receive(messageIn, 0, 0, false);
         // Potential race condition since MessageDeliveryTask is run in another executor
         verify(handler, times(1)).doVerb(eq(messageIn), anyInt());
+    }
+
+    @Test
+    public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
+    {
+        InetAddress remote = InetAddress.getByName("127.0.0.2");
+        InetAddressHostname sourceName = new InetAddressHostname("localhost");
+        InetAddressIp sourceInternalIp = new InetAddressIp("5.5.5.5");
+        InetAddressHostname targetName = new InetAddressHostname("target");
+        InetAddressIp targetExternalIp = new InetAddressIp("6.6.6.6");
+        InetAddress input = InetAddress.getByName(sourceInternalIp.toString());
+        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
+
+        MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(remote,
+                                                                     syn,
+                                                                     Collections.emptyMap(),
+                                                                     MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
+                                                                     MessagingService.current_version);
+
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        Assertions.assertThat(result.getHostAddress()).isNotEqualTo(sourceInternalIp.toString());
+        handler.doVerb(messageIn, 0);
+        result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        Assertions.assertThat(result.getHostAddress()).isEqualTo("127.0.0.1");
     }
 }
