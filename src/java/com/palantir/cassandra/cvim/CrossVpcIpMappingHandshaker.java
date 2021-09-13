@@ -50,14 +50,10 @@ public class CrossVpcIpMappingHandshaker
     private volatile ScheduledFuture<?> scheduledCVIMTask;
     public final static int intervalInMillis = 30000;
 
-    @VisibleForTesting
-    final AtomicLong numTasks = new AtomicLong();
-
     private CrossVpcIpMappingHandshaker() {}
 
     public static void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
-        instance.numTasks.getAndIncrement();
         InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
         logger.trace("Triggering handshakes from {}/{} to {}", selfName, selfIp, targets);
