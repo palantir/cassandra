@@ -19,8 +19,12 @@
 package org.apache.cassandra.security;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import javax.net.ssl.SSLServerSocket;
 
@@ -28,6 +32,10 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
+import com.palantir.cassandra.cvim.InetAddressHostname;
+import com.palantir.cassandra.cvim.InetAddressIp;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
 import org.apache.cassandra.utils.FBUtilities;
@@ -72,4 +80,29 @@ public class SSLFactoryTest
         }
     }
 
+    @Test
+    public void getSocket_invokesCrossVpcMaybeSwapAddress_twoEndpoints() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("10.0.0.1");
+        InetAddressHostname name = new InetAddressHostname("localhost");
+        InetAddressIp internal = new InetAddressIp(input.getHostAddress());
+        InetAddressIp external = new InetAddressIp("127.0.0.1");
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        // TODO: finish once SNI PR is merged
+    }
+
+    @Test
+    public void getSocket_invokesCrossVpcMaybeSwapAddress_oneEndpoint() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName("10.0.0.1");
+        InetAddressHostname name = new InetAddressHostname("localhost");
+        InetAddressIp internal = new InetAddressIp(input.getHostAddress());
+        InetAddressIp external = new InetAddressIp("127.0.0.1");
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        // TODO: finish once SNI PR is merged
+    }
 }
