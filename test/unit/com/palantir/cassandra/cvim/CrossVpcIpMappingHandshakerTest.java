@@ -179,14 +179,18 @@ public class CrossVpcIpMappingHandshakerTest
     {
         InetAddress target = InetAddress.getByName("localhost");
         CrossVpcIpMappingHandshaker.instance.triggerHandshake(new InetAddressHostname("source"),
-                                                     new InetAddressIp("10.0.0.1"),
-                                                     target);
+                                                              new InetAddressIp("10.0.0.1"),
+                                                              target);
         Map<String, Long> completed = MessagingService.instance().getSmallMessageCompletedTasks();
         assertThat(completed).containsKey(target.getHostAddress());
         assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
     }
 
-    private void mockMapping(String hostname, String internalIp, String externalIp, boolean ipSwap, boolean hostSwap) throws UnknownHostException
+    private void mockMapping(String hostname,
+                             String internalIp,
+                             String externalIp,
+                             boolean ipSwap,
+                             boolean hostSwap) throws UnknownHostException
     {
         InetAddressHostname name = new InetAddressHostname(hostname);
         InetAddressIp internal = new InetAddressIp(internalIp);
@@ -196,5 +200,4 @@ public class CrossVpcIpMappingHandshakerTest
         DatabaseDescriptor.setCrossVpcHostnameSwapping(hostSwap);
         DatabaseDescriptor.setCrossVpcIpSwapping(ipSwap);
     }
-
 }
