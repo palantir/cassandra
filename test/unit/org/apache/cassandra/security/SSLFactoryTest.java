@@ -43,11 +43,18 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.utils.FBUtilities;
 
+import org.junit.AfterClass;
 import org.junit.Test;
 
 public class SSLFactoryTest
 {
     private static final int PORT = 55123;
+
+    @AfterClass
+    public static void after() {
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+    }
 
     @Test
     public void testFilterCipherSuites()
@@ -79,24 +86,25 @@ public class SSLFactoryTest
     @Test
     public void getSocket_invokesCrossVpcMaybeSwapAddress_twoEndpoints() throws IOException
     {
-        InetAddress localhost = InetAddress.getLocalHost();
-        InetAddress input = InetAddress.getByName("10.0.0.1");
-        assertThat(input.getHostName()).isEqualTo("10.0.0.1");
+        InetAddress localhost = InetAddress.getByName("localhost");
+        InetAddress addressToReplace = InetAddress.getByName("10.0.0.1");
+        assertThat("127.0.0.1").isNotEqualTo(addressToReplace.getHostAddress());
+        assertThat("localhost").isNotEqualTo(addressToReplace.getHostName());
 
-        InetAddressHostname name = new InetAddressHostname("localhost");
-        InetAddressIp internal = new InetAddressIp(input.getHostAddress());
-        // Force this to rely on swapping the hostname, since mapping the IP to 127.0.0.1 will automatically resolve
-        // the hostname
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, internal);
+        InetAddressHostname name = new InetAddressHostname(localhost.getHostName());
+        InetAddressIp internal = new InetAddressIp(addressToReplace.getHostAddress());
+        InetAddressIp external = new InetAddressIp(localhost.getHostAddress());
+        // Swap hostname from whatever 10.0.0.1 resolves to with "localhost"
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
 
         try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
         {
             SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(),
-                                                    input,
+                                                    addressToReplace,
                                                     PORT,
-                                                    InetAddress.getByName("0.0.0.0"),
+                                                    localhost,
                                                     PORT + 1);
             List<SNIServerName> snis = client.getSSLParameters().getServerNames();
             SNIHostName expected = new SNIHostName("localhost");
@@ -109,21 +117,22 @@ public class SSLFactoryTest
     @Test
     public void getSocket_invokesCrossVpcMaybeSwapAddress_oneEndpoint() throws IOException
     {
-        InetAddress localhost = InetAddress.getLocalHost();
-        InetAddress input = InetAddress.getByName("10.0.0.1");
-        assertThat(input.getHostName()).isEqualTo("10.0.0.1");
+        InetAddress localhost = InetAddress.getByName("localhost");
+        InetAddress addressToReplace = InetAddress.getByName("10.0.0.1");
+        assertThat("127.0.0.1").isNotEqualTo(addressToReplace.getHostAddress());
+        assertThat("localhost").isNotEqualTo(addressToReplace.getHostName());
 
-        InetAddressHostname name = new InetAddressHostname("localhost");
-        InetAddressIp internal = new InetAddressIp(input.getHostAddress());
-        // Force this to rely on swapping the hostname, since mapping the IP to 127.0.0.1 will automatically resolve
-        // the hostname
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, internal);
+        InetAddressHostname name = new InetAddressHostname(localhost.getHostName());
+        InetAddressIp internal = new InetAddressIp(addressToReplace.getHostAddress());
+        InetAddressIp external = new InetAddressIp(localhost.getHostAddress());
+        // Swap hostname from whatever 10.0.0.1 resolves to with "localhost"
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
 
         try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
         {
-            SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), input, PORT);
+            SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), addressToReplace, PORT);
             List<SNIServerName> snis = client.getSSLParameters().getServerNames();
             SNIHostName expected = new SNIHostName("localhost");
             assertThat(snis).containsOnly(expected);

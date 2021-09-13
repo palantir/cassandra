@@ -18,15 +18,19 @@
 
 package com.palantir.cassandra.cvim;
 
+import java.awt.image.DataBuffer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
+
+import javax.xml.crypto.Data;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
+import org.hsqldb.Database;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
@@ -37,7 +41,7 @@ public class CrossVpcIpMappingHandshakerTest
     @Before
     public void before()
     {
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         CrossVpcIpMappingHandshaker.instance.stop();
         CrossVpcIpMappingHandshaker.instance.clearMappings();
@@ -148,6 +152,7 @@ public class CrossVpcIpMappingHandshakerTest
     @Test
     public void start_isEnabledTrueWhenConfigEnabled()
     {
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
         CrossVpcIpMappingHandshaker.instance.start();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
     }
@@ -156,6 +161,7 @@ public class CrossVpcIpMappingHandshakerTest
     public void start_isEnabledFalseWhenConfigDisabled()
     {
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         CrossVpcIpMappingHandshaker.instance.start();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
     }
@@ -178,6 +184,7 @@ public class CrossVpcIpMappingHandshakerTest
     public void triggerHandshakeFromSelf_sendsSyn() throws UnknownHostException
     {
         InetAddress target = InetAddress.getByName("localhost");
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
         CrossVpcIpMappingHandshaker.instance.triggerHandshake(new InetAddressHostname("source"),
                                                               new InetAddressIp("10.0.0.1"),
                                                               target);

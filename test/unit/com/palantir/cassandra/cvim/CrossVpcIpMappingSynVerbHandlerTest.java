@@ -93,7 +93,7 @@ public class CrossVpcIpMappingSynVerbHandlerTest
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
         InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
-        Assertions.assertThat(result.getHostAddress()).isNotEqualTo(sourceInternalIp.toString());
+        Assertions.assertThat(result.getHostAddress()).isNotEqualTo("127.0.0.1");
         handler.doVerb(messageIn, 0);
         result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
         Assertions.assertThat(result.getHostAddress()).isEqualTo("127.0.0.1");

@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -84,6 +85,12 @@ public class StorageServiceServerTest
         StorageService.instance.setOperationMode(StorageService.Mode.STARTING);
     }
 
+    @After
+    public void after() {
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+    }
+
     @Test
     public void testRegularMode() throws ConfigurationException
     {
@@ -116,15 +123,14 @@ public class StorageServiceServerTest
 
     @Test
     public void disableNode_stopsCrossVpcHandshake() {
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
-        SchemaLoader.mkdirs();
-        SchemaLoader.cleanup();
         StorageService.instance.initServer(0);
         CassandraDaemon daemon = mock(CassandraDaemon.class);
         CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
         daemon.thriftServer = server;
         daemon.nativeServer = server;
         StorageService.instance.registerDaemon(daemon);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        CrossVpcIpMappingHandshaker.instance.start();
         StorageService.instance.unsafeEnableNode();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
         StorageService.instance.disableNode();
@@ -152,8 +158,6 @@ public class StorageServiceServerTest
     @Test
     public void enableNode_startsCrossVpcHandshake() {
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
-        SchemaLoader.mkdirs();
-        SchemaLoader.cleanup();
         StorageService.instance.initServer(0);
         CassandraDaemon daemon = mock(CassandraDaemon.class);
         CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
@@ -165,6 +169,7 @@ public class StorageServiceServerTest
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
         StorageService.instance.enableNode();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
+        CrossVpcIpMappingHandshaker.instance.stop();
     }
 
     @Test

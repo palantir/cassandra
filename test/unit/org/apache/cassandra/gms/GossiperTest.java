@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -59,6 +61,14 @@ public class GossiperTest
     {
         tmd.clearUnsafe();
     };
+
+    @After
+    public void after()
+    {
+        Gossiper.instance.stop();
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+    }
 
     @Test
     public void testLargeGenerationJump() throws UnknownHostException, InterruptedException
