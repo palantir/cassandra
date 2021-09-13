@@ -30,6 +30,8 @@ import java.util.Enumeration;
 import java.util.List;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
@@ -40,10 +42,12 @@ import javax.net.ssl.TrustManagerFactory;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -55,7 +59,15 @@ import com.google.common.collect.Sets;
 public final class SSLFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
-    public static final String[] ACCEPTED_PROTOCOLS = new String[] {"SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
+
+    // Clients will send SSLv2Hello `Client Hello` messages during the SSL/TLS handshake to initiate SSL/TLS version
+    // negotiation with the server. We want to get rid of SSLv2Hello because it does not support SNI headers, but
+    // removing support entirely causes a breaking change while upgrading (the upgraded node will reject the
+    // initial SSLv2Hello message from the non-upgraded nodes, failing to connect and causing downtime). Consequently
+    // we stop only clients from sending SSLv2Hello messages (and may later stop servers from accepting them as well).
+    public static final String[] ACCEPTED_INCOMING_PROTOCOLS = new String[]{ "SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
+    public static final String[] ACCEPTED_OUTGOING_PROTOCOLS = new String[]{ "TLSv1", "TLSv1.1", "TLSv1.2"};
+
     private static boolean checkedExpiry = false;
 
     public static SSLServerSocket getServerSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
@@ -74,7 +86,7 @@ public final class SSLFactory
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort);
-        prepareSocket(socket, options);
+        prepareSocket(socket, options, mappedAddress);
         return socket;
     }
 
@@ -84,11 +96,11 @@ public final class SSLFactory
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port);
-        prepareSocket(socket, options);
+        prepareSocket(socket, options, mappedAddress);
         return socket;
     }
 
-    /** Just create a socket */
+    /** Just create a socket. Note that no SNI headeers are added. */
     public static SSLSocket getSocket(EncryptionOptions options) throws IOException
     {
         SSLContext ctx = createSSLContext(options, true);
@@ -105,6 +117,7 @@ public final class SSLFactory
         SSLContext ctx;
         try
         {
+            logger.trace("Creating socket with protocol {}", options.protocol);
             ctx = SSLContext.getInstance(options.protocol);
             TrustManager[] trustManagers = null;
 
@@ -139,7 +152,6 @@ public final class SSLFactory
             kmf.init(ks, options.keystore_password.toCharArray());
 
             ctx.init(kmf.getKeyManagers(), trustManagers, null);
-
         }
         catch (Exception e)
         {
@@ -168,6 +180,18 @@ public final class SSLFactory
         return ret;
     }
 
+    private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters)
+    {
+        logger.trace(
+            "Adding SNI header to socket if hostname present for {}/{}", addr.getHostName(), addr.getHostAddress());
+        if (addr.getHostName() != null)
+        {
+            SNIServerName name = new SNIHostName(addr.getHostName());
+            List<SNIServerName> sniHostNames = ImmutableList.of(name);
+            sslParameters.setServerNames(sniHostNames);
+        }
+    }
+
     /** Sets relevant socket options specified in encryption settings */
     private static void prepareSocket(SSLServerSocket serverSocket, EncryptionOptions options)
     {
@@ -180,7 +204,7 @@ public final class SSLFactory
         }
         serverSocket.setEnabledCipherSuites(suites);
         serverSocket.setNeedClientAuth(options.require_client_auth);
-        serverSocket.setEnabledProtocols(ACCEPTED_PROTOCOLS);
+        serverSocket.setEnabledProtocols(ACCEPTED_INCOMING_PROTOCOLS);
     }
 
     /** Sets relevant socket options specified in encryption settings */
@@ -194,6 +218,21 @@ public final class SSLFactory
             socket.setSSLParameters(sslParameters);
         }
         socket.setEnabledCipherSuites(suites);
-        socket.setEnabledProtocols(ACCEPTED_PROTOCOLS);
+        socket.setEnabledProtocols(ACCEPTED_OUTGOING_PROTOCOLS);
+    }
+
+    /**
+     * Sets relevant socket options specified in encryption settings. May add SNI headers to the socket's SSLParameters
+     * if the given endpoint includes a hostname.
+     */
+    private static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
+    {
+        prepareSocket(socket, options);
+        if (options.require_endpoint_verification)
+        {
+            SSLParameters sslParameters = socket.getSSLParameters();
+            maybeAddSni(endpoint, sslParameters);
+            socket.setSSLParameters(sslParameters);
+        }
     }
 }

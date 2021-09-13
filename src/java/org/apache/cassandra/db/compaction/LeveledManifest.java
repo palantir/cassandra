@@ -19,16 +19,18 @@ package org.apache.cassandra.db.compaction;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.io.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,18 @@ import org.apache.cassandra.utils.Pair;
 public class LeveledManifest
 {
     private static final Logger logger = LoggerFactory.getLogger(LeveledManifest.class);
+
     private static final boolean USE_STCS_ALWAYS_IN_L0 = Boolean.getBoolean("palantir_cassandra.use_stcs_always_in_l0");
+
+    private static final boolean LIMIT_MAX_SSTABLE_SIZE_IN_L0 = Boolean.getBoolean("palantir_cassandra.limit_max_sstable_size_in_l0");
+    private static final long MAX_SSTABLE_SIZE_IN_L0 = Long.getLong("palantir_cassandra.max_sstable_size_in_l0_in_gb", 100L) * 1024 * 1024 * 1024;
+
+    private static final boolean LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 = Boolean.getBoolean("palantir_cassandra.limit_total_compaction_candidate_size_in_l0");
+    /**
+     * Palantir: limit the combined size of L0 sstables we do at once, to prevent us from creating
+     * giant sstables in specific scenarios.
+     */
+    private static final long MAX_COMPACTING_SIZE_IN_L0 = Long.getLong("palantir_cassandra.max_l0_total_compaction_candidate_size_in_gb", 10) * 1024L * 1024L * 1024L;
 
     /**
      * limit the number of L0 sstables we do at once, because compaction bloom filter creation
@@ -52,6 +65,7 @@ public class LeveledManifest
      * or even OOMing when compacting highly overlapping sstables
      */
     private static final int MAX_COMPACTING_L0 = 32;
+
     /**
      * If we go this many rounds without compacting
      * in the highest level, we start bringing in sstables from
@@ -353,6 +367,9 @@ public class LeveledManifest
         if (getLevel(0).isEmpty())
             return null;
         Collection<SSTableReader> candidates = getCandidatesFor(0);
+        logger.trace("Triggering non-STCS compaction in L0 of size {}.",
+                     FileUtils.stringifyFileSize(candidates.stream().mapToLong(SSTableReader::onDiskLength).sum()));
+
         if (candidates.isEmpty())
         {
             // Since we don't have any other compactions to do, see if there is a STCS compaction to perform in L0; if
@@ -370,7 +387,8 @@ public class LeveledManifest
             List<SSTableReader> mostInteresting = getSSTablesForSTCS(getLevel(0));
             if (!mostInteresting.isEmpty())
             {
-                logger.debug("L0 is too far behind, performing size-tiering there first");
+                logger.debug("L0 is too far behind, performing size-tiering compaction of size {} there first",
+                             FileUtils.stringifyFileSize((mostInteresting.stream().mapToLong(SSTableReader::onDiskLength).sum())));
                 return new CompactionCandidate(mostInteresting, 0, Long.MAX_VALUE);
             }
         }
@@ -382,7 +400,20 @@ public class LeveledManifest
     {
         Iterable<SSTableReader> candidates = cfs.getTracker().getUncompacting(sstables);
         List<Pair<SSTableReader,Long>> pairs = SizeTieredCompactionStrategy.createSSTableAndLengthPairs(AbstractCompactionStrategy.filterSuspectSSTables(candidates));
-        List<List<SSTableReader>> buckets = SizeTieredCompactionStrategy.getBuckets(pairs,
+        // if LIMIT_MAX_SSTABLE_SIZE_IN_L0 is enabled - evict tables that are less than MAX_SSTABLE_SIZE_IN_L0_IN_G (in gigabytes)
+        List<Pair<SSTableReader, Long>> filteredPairs = LIMIT_MAX_SSTABLE_SIZE_IN_L0
+                                                        ? pairs.stream()
+                                                               .peek(pair -> {
+                                                                   if (pair.right > MAX_SSTABLE_SIZE_IN_L0) {
+                                                                       logger.trace("Excluding sstable {} because size {} is greater than max allowed in L0",
+                                                                                    pair.left.getFilename(), pair.right);
+                                                                   }
+                                                               })
+                                                               .filter(p -> p.right <= MAX_SSTABLE_SIZE_IN_L0)
+                                                               .collect(Collectors.toList())
+                                                        : pairs;
+
+        List<List<SSTableReader>> buckets = SizeTieredCompactionStrategy.getBuckets(filteredPairs,
                                                                                     options.bucketHigh,
                                                                                     options.bucketLow,
                                                                                     minSsTableSize);
@@ -596,21 +627,32 @@ public class LeveledManifest
             // basically screwed, since we expect all or most L0 sstables to overlap with each L1 sstable.
             // So if an L1 sstable is suspect we can't do much besides try anyway and hope for the best.
             Set<SSTableReader> candidates = new HashSet<>();
+            long candidatesTotalSize = 0L;
             Set<SSTableReader> remaining = new HashSet<>();
             Iterables.addAll(remaining, Iterables.filter(getLevel(0), Predicates.not(suspectP)));
             for (SSTableReader sstable : ageSortedSSTables(remaining))
             {
                 if (candidates.contains(sstable))
                     continue;
-
                 Sets.SetView<SSTableReader> overlappedL0 = Sets.union(Collections.singleton(sstable), overlapping(sstable, remaining));
                 if (!Sets.intersection(overlappedL0, compactingL0).isEmpty())
                     continue;
-
                 for (SSTableReader newCandidate : overlappedL0)
                 {
+                    // skip this sstable if it will push the current compaction over the expected limit.
+                    if (LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 && (candidatesTotalSize + newCandidate.onDiskLength()) > MAX_COMPACTING_SIZE_IN_L0) {
+                        logger.trace("Skipping sstable {} with size {} as it's {} bytes over max allowed of {}.",
+                                     newCandidate.getFilename(),
+                                     FileUtils.stringifyFileSize(newCandidate.onDiskLength()),
+                                     FileUtils.stringifyFileSize((candidatesTotalSize + newCandidate.onDiskLength()) - MAX_COMPACTING_SIZE_IN_L0),
+                                     FileUtils.stringifyFileSize(MAX_COMPACTING_SIZE_IN_L0));
+                        continue;
+                    }
                     if (firstCompactingKey == null || lastCompactingKey == null || overlapping(firstCompactingKey.getToken(), lastCompactingKey.getToken(), Arrays.asList(newCandidate)).size() == 0)
+                    {
                         candidates.add(newCandidate);
+                        candidatesTotalSize += newCandidate.onDiskLength();
+                    }
                     remaining.remove(newCandidate);
                 }
 

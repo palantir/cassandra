@@ -996,9 +996,12 @@ public final class MessagingService implements MessagingServiceMBean
                 try
                 {
                     socket = server.accept();
+                    InetAddress remote = socket.getInetAddress();
+                    logger.trace("Attempting to accept incoming connection from {}", remote);
+
                     if (!authenticate(socket))
                     {
-                        logger.trace("remote failed to authenticate");
+                        logger.trace("remote {} failed to authenticate", remote);
                         socket.close();
                         continue;
                     }
@@ -1019,6 +1022,7 @@ public final class MessagingService implements MessagingServiceMBean
                                   : new IncomingTcpConnection(version, MessagingService.getBits(header, 2, 1) == 1, socket, connections);
                     thread.start();
                     connections.add((Closeable) thread);
+                    logger.trace("Successfully accepted incoming connection from {}", remote);
                 }
                 catch (AsynchronousCloseException e)
                 {
