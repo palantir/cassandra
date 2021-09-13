@@ -51,10 +51,9 @@ public class CrossVpcIpMappingHandshaker
     private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor(
                                                                                 "CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledCVIMTask;
-    public final static Duration interval = Duration.ofSeconds(1);
+    public final static Duration scheduledInterval = Duration.ofSeconds(1);
+    public final static Duration minHandshakeInterval = Duration.ofMillis(25);
     private static volatile long lastTriggeredHandshakeMillis;
-    public final static int minIntervalMillis = 1000;
-    public final static int scheduledIntervalMillis = 30000;
     private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
     private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> privateIpHostnameMappings;
 
@@ -85,56 +84,64 @@ public class CrossVpcIpMappingHandshaker
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
         if (privateIpHostnameMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled())
         {
-            InetAddressHostname hostname = privateIpHostnameMappings.get(proposedAddress);
-            logger.trace("Performing DNS lookup for host {}", hostname);
-            InetAddress resolved;
-            try {
-                resolved = InetAddress.getByName(hostname.toString());
-            } catch (UnknownHostException e)
-            {
-                logger.error("Cross VPC mapping contains unresolvable hostname for endpoint {} (unresolved: {})", endpoint, hostname);
-                return endpoint;
-            }
-            if (!resolved.equals(endpoint))
-            {
-                logger.trace("DNS-resolved address different than provided endpoint. Swapping. provided: {} resolved: {}", endpoint, resolved);
-                return resolved;
-            }
-            return endpoint;
+            return maybeSwapHostname(endpoint);
         }
 
         if (privatePublicIpMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcIpSwappingEnabled())
         {
-            InetAddressIp result = privatePublicIpMappings.get(proposedAddress);
-            if (!result.equals(proposedAddress))
+            return maybeSwapIp(endpoint);
+        }
+        return endpoint;
+    }
+
+    private InetAddress maybeSwapHostname(InetAddress endpoint)
+    {
+        InetAddressHostname hostname = privateIpHostnameMappings.get(new InetAddressIp(endpoint.getHostAddress()));
+        logger.trace("Performing DNS lookup for host {}", hostname);
+        InetAddress resolved;
+        try {
+            resolved = InetAddress.getByName(hostname.toString());
+        } catch (UnknownHostException e)
+        {
+            logger.error("Cross VPC mapping contains unresolvable hostname for endpoint {} (unresolved: {})", endpoint, hostname);
+            return endpoint;
+        }
+        if (!resolved.equals(endpoint))
+        {
+            logger.trace("DNS-resolved address different than provided endpoint. Swapping. provided: {} resolved: {}", endpoint, resolved);
+            return resolved;
+        }
+        return endpoint;
+    }
+
+    private InetAddress maybeSwapIp(InetAddress endpoint)
+    {
+        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
+        InetAddressIp result = privatePublicIpMappings.get(proposedAddress);
+        if (!result.equals(proposedAddress))
+        {
+            logger.trace("Swapped address {} for {}", endpoint, result);
+            try
             {
-                logger.trace("Swapped address {} for {}", endpoint, result);
-                try
-                {
-                    return InetAddress.getByName(result.toString());
-                } catch (UnknownHostException e)
-                {
-                    logger.error("Failed to resolve host for externally-mapped IP {}->{}. Ensure the address mapping does not contain hostnames", endpoint, result);
-                }
+                return InetAddress.getByName(result.toString());
+            }
+            catch (UnknownHostException e)
+            {
+                logger.error("Failed to resolve host for externally-mapped IP {}->{}. Ensure the address mapping does not contain hostnames", endpoint, result);
             }
         }
         return endpoint;
     }
 
-    void triggerHandshakeWithSeeds()
+    public void triggerHandshakeWithSeeds()
     {
         try
         {
-            if (System.currentTimeMillis() - lastTriggeredHandshakeMillis > minIntervalMillis)
-            {
-                logger.trace("Executing requested handshake");
-                triggerHandshakeWithSeeds();
-            }
-            else
+            if (System.currentTimeMillis() - lastTriggeredHandshakeMillis < minHandshakeInterval.toMillis())
             {
                 logger.trace("Ignoring handshake request as last handshake is too recent");
+                return;
             }
-            lastTriggeredHandshakeMillis = System.currentTimeMillis();
             // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
             // who we currently are going to handshake with like the Gossiper does
             Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
@@ -153,6 +160,7 @@ public class CrossVpcIpMappingHandshaker
     @VisibleForTesting
     synchronized void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
+        lastTriggeredHandshakeMillis = System.currentTimeMillis();
         InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
         targets.forEach(target -> {
@@ -187,9 +195,9 @@ public class CrossVpcIpMappingHandshaker
 
     public void start()
     {
-        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled()) {
+        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled() && DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled()) {
             logger.warn("Cross VPC IP Swapping is disabled. Not scheduling handshake task. Set " +
-                        "cross_vpc_ip_swapping_enabled=true if desired");
+                        "cross_vpc_ip_swapping_enabled=true or cross_vpc_hostname_swapping_enabled=true if desired");
             return;
         }
         if (isEnabled())
@@ -198,7 +206,7 @@ public class CrossVpcIpMappingHandshaker
             return;
         }
         logger.info("Started running CrossVpcIpMappingTask at interval of {}",
-                     CrossVpcIpMappingHandshaker.interval);
+                     CrossVpcIpMappingHandshaker.scheduledInterval);
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             try
             {
@@ -207,7 +215,7 @@ public class CrossVpcIpMappingHandshaker
             {
                 logger.error("Caught exception trying to run scheduled CrossVpcIpMapping handshake task", e);
             }
-        }, 0L, CrossVpcIpMappingHandshaker.interval.toMillis(), TimeUnit.MILLISECONDS);
+        }, 0L, CrossVpcIpMappingHandshaker.scheduledInterval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     public boolean isEnabled()
