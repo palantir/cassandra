@@ -150,8 +150,7 @@ public class CrossVpcIpMappingHandshaker
                                                        .collect(Collectors.toSet());
 
             triggerHandshakeFromSelf(seeds);
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             logger.error("Caught exception trying to trigger CrossVpcIpMapping handshake with seeds", e);
         }
@@ -195,7 +194,7 @@ public class CrossVpcIpMappingHandshaker
 
     public void start()
     {
-        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled() && DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled()) {
+        if (!(DatabaseDescriptor.isCrossVpcIpSwappingEnabled() || DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled())) {
             logger.warn("Cross VPC IP Swapping is disabled. Not scheduling handshake task. Set " +
                         "cross_vpc_ip_swapping_enabled=true or cross_vpc_hostname_swapping_enabled=true if desired");
             return;
