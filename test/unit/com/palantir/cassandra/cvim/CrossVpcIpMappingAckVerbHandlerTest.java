@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
 
@@ -61,5 +62,28 @@ public class CrossVpcIpMappingAckVerbHandlerTest
         MessagingService.instance().receive(messageIn, 0, 0, false);
         // Potential race condition since MessageDeliveryTask is run in another executor
         verify(handler, times(1)).doVerb(eq(messageIn), anyInt());
+    }
+
+    @Test
+    public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
+    {
+        InetAddress remote = InetAddress.getByName("127.0.0.2");
+        InetAddressHostname targetName = new InetAddressHostname("target");
+        InetAddressIp targetExternalIp = new InetAddressIp("2.2.2.2");
+        InetAddressIp targetInternalIp = new InetAddressIp("127.0.0.1");
+        InetAddress input = InetAddress.getByName(targetInternalIp.toString());
+        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
+        MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(remote,
+                                                                     ack,
+                                                                     Collections.emptyMap(),
+                                                                     MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
+                                                                     MessagingService.current_version);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(result.getHostAddress()).isNotEqualTo(targetExternalIp.toString());
+        handler.doVerb(messageIn, 0);
+        result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        assertThat(result.getHostAddress()).isEqualTo(targetExternalIp.toString());
     }
 }
