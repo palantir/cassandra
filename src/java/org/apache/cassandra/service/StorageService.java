@@ -1787,7 +1787,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public String getLocalHostId()
     {
-        return getTokenMetadata().getHostId(FBUtilities.getBroadcastAddress()).toString();
+        UUID id = getTokenMetadata().getHostId(FBUtilities.getBroadcastAddress());
+        return id == null ? null : id.toString();
     }
 
     public Map<String, String> getHostIdMap()
