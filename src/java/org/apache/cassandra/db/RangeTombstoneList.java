@@ -30,12 +30,17 @@ import com.google.common.collect.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Meter;
 import org.apache.cassandra.cache.IMeasurableMemory;
 import org.apache.cassandra.db.composites.CType;
 import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.metrics.CassandraMetricsRegistry;
+import org.apache.cassandra.metrics.ColumnFamilyMetrics;
+import org.apache.cassandra.metrics.DefaultNameFactory;
+import org.apache.cassandra.metrics.MetricNameFactory;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ObjectSizes;
 import org.apache.cassandra.utils.memory.AbstractAllocator;
@@ -61,6 +66,9 @@ public class RangeTombstoneList implements Iterable<RangeTombstone>, IMeasurable
     private static final Logger logger = LoggerFactory.getLogger(RangeTombstoneList.class);
 
     private static long EMPTY_SIZE = ObjectSizes.measure(new RangeTombstoneList(null, 0));
+
+    private static final MetricNameFactory names = new DefaultNameFactory("RangeTombstoneList");
+    private static final Meter copyMeter = CassandraMetricsRegistry.Metrics.meter(names.createMetricName("Copies"));
 
     private final Comparator<Composite> comparator;
 
@@ -108,6 +116,7 @@ public class RangeTombstoneList implements Iterable<RangeTombstone>, IMeasurable
 
     public RangeTombstoneList copy()
     {
+        copyMeter.mark(size);
         return new RangeTombstoneList(comparator,
                                       Arrays.copyOf(starts, size),
                                       Arrays.copyOf(ends, size),
@@ -118,6 +127,7 @@ public class RangeTombstoneList implements Iterable<RangeTombstone>, IMeasurable
 
     public RangeTombstoneList copy(AbstractAllocator allocator)
     {
+        copyMeter.mark(size);
         RangeTombstoneList copy =  new RangeTombstoneList(comparator,
                                       new Composite[size],
                                       new Composite[size],
