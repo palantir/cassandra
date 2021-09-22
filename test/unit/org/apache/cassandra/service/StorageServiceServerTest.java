@@ -87,6 +87,7 @@ public class StorageServiceServerTest
 
     @After
     public void after() {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
     }
@@ -129,7 +130,7 @@ public class StorageServiceServerTest
         daemon.thriftServer = server;
         daemon.nativeServer = server;
         StorageService.instance.registerDaemon(daemon);
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.start();
         StorageService.instance.unsafeEnableNode();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
@@ -157,7 +158,7 @@ public class StorageServiceServerTest
 
     @Test
     public void enableNode_startsCrossVpcHandshake() {
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         StorageService.instance.initServer(0);
         CassandraDaemon daemon = mock(CassandraDaemon.class);
         CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);

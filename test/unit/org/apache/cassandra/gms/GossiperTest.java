@@ -66,6 +66,7 @@ public class GossiperTest
     public void after()
     {
         Gossiper.instance.stop();
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
     }
@@ -106,7 +107,7 @@ public class GossiperTest
     @Test
     public void start_startsCrossVpcHandshake()
     {
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.stop();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
         Gossiper.instance.start(0);
@@ -116,7 +117,7 @@ public class GossiperTest
     @Test
     public void doShadowRound_doesNotEnableHandshaker()
     {
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.stop();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
         Gossiper.instance.doShadowRound();
@@ -126,7 +127,7 @@ public class GossiperTest
     @Test
     public void stop_stopsCrossVpcHandshake()
     {
-        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.start();
         assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
         Gossiper.instance.stop();

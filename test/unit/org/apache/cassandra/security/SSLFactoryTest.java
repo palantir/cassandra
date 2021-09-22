@@ -43,6 +43,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.utils.FBUtilities;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -50,20 +51,34 @@ public class SSLFactoryTest
 {
     private static final int PORT = 55123;
 
-    @AfterClass
-    public static void after() {
+    @After
+    public void after() {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
+        DatabaseDescriptor.setCrossVpcSniSubstitution(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
     }
 
     @Test
-    public void connectWithTimeout_interrupts() throws IOException
+    public void maybeConnectWithTimeout_interruptsWhenCrossVpcCommEnabled()
     {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         Callable<SSLSocket> callable = () -> {
-            Thread.sleep(10000);
+            Thread.sleep(50);
             return null;
         };
-        assertThatThrownBy(() -> SSLFactory.maybeConnectWithTimeout(callable, 100)).isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> SSLFactory.maybeConnectWithTimeout(callable, 1)).isInstanceOf(IOException.class);
+    }
+
+    @Test
+    public void maybeConnectWithTimeout_doesNotInterruptWhenCrossVpcCommDisabled() throws IOException
+    {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
+        Callable<SSLSocket> callable = () -> {
+            Thread.sleep(50);
+            return null;
+        };
+        SSLFactory.maybeConnectWithTimeout(callable, 1);
     }
 
     @Test
@@ -105,6 +120,7 @@ public class SSLFactoryTest
         InetAddressIp internal = new InetAddressIp(addressToReplace.getHostAddress());
         InetAddressIp external = new InetAddressIp(localhost.getHostAddress());
         // Swap hostname from whatever 10.0.0.1 resolves to with "localhost"
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
@@ -136,6 +152,7 @@ public class SSLFactoryTest
         InetAddressIp internal = new InetAddressIp(addressToReplace.getHostAddress());
         InetAddressIp external = new InetAddressIp(localhost.getHostAddress());
         // Swap hostname from whatever 10.0.0.1 resolves to with "localhost"
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
@@ -174,6 +191,60 @@ public class SSLFactoryTest
         {
             SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), endpoint, PORT);
             assertThat(client.getSSLParameters().getServerNames()).isNotEmpty();
+            server.close();
+            client.close();
+        }
+    }
+
+    @Test
+    public void prepareSocket_swapsSniHeader_whenCrossVpcSniSubstitutionEnabled() throws IOException
+    {
+        InetAddress localhost = InetAddress.getByName("localhost");
+        InetAddressHostname name = new InetAddressHostname("test-name");
+        InetAddressIp internal = new InetAddressIp(localhost.getHostAddress());
+        InetAddressIp external = new InetAddressIp("10.0.0.1");
+
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        DatabaseDescriptor.setCrossVpcSniSubstitution(true);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+
+        try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
+        {
+            SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), localhost, PORT);
+            List<SNIServerName> snis = client.getSSLParameters().getServerNames();
+            // Only SNI header updated, nothing else
+            assertThat(client.getInetAddress()).isEqualTo(localhost);
+            SNIHostName expected = new SNIHostName("test-name");
+            assertThat(snis).containsOnly(expected);
+            server.close();
+            client.close();
+        }
+    }
+
+    @Test
+    public void prepareSocket_doesNotSwapSniHeader_whenCrossVpcSniSubstitutionEnabled() throws IOException
+    {
+        InetAddress localhost = InetAddress.getByName("localhost");
+        InetAddressHostname name = new InetAddressHostname("test-name");
+        InetAddressIp internal = new InetAddressIp(localhost.getHostAddress());
+        InetAddressIp external = new InetAddressIp("10.0.0.1");
+
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        DatabaseDescriptor.setCrossVpcSniSubstitution(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+
+        try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
+        {
+            SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), localhost, PORT);
+            List<SNIServerName> snis = client.getSSLParameters().getServerNames();
+            // No SNI header swap
+            assertThat(client.getInetAddress()).isEqualTo(localhost);
+            SNIHostName expected = new SNIHostName("localhost");
+            assertThat(snis).containsOnly(expected);
             server.close();
             client.close();
         }

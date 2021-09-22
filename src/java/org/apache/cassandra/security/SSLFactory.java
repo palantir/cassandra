@@ -271,7 +271,8 @@ public final class SSLFactory
      * Sets relevant socket options specified in encryption settings. May add SNI headers to the socket's SSLParameters
      * if the given endpoint includes a hostname.
      */
-    private static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
+    @VisibleForTesting
+    static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
     {
         prepareSocket(socket, options);
         if (options.require_endpoint_verification)
