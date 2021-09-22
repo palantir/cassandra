@@ -56,14 +56,14 @@ public class CrossVpcIpMappingHandshaker
     private volatile ScheduledFuture<?> scheduledCVIMTask;
     public final static Duration scheduledInterval = Duration.ofSeconds(1);
     public final static Duration minHandshakeInterval = Duration.ofMillis(25);
-    private static volatile long lastTriggeredHandshakeMillis;
+    private static volatile long lastTriggeredHandshakeMillis = 0;
     private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
-    private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> privateIpHostnameMappings;
+    private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> ipHostnameMappings;
 
     private CrossVpcIpMappingHandshaker()
     {
         this.privatePublicIpMappings = new ConcurrentHashMap<>();
-        this.privateIpHostnameMappings = new ConcurrentHashMap<>();
+        this.ipHostnameMappings = new ConcurrentHashMap<>();
     }
 
     public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp, InetAddressIp externalIp)
@@ -79,11 +79,17 @@ public class CrossVpcIpMappingHandshaker
                          host, internalIp, oldExternalIp, externalIp);
         }
 
-        InetAddressHostname old = this.privateIpHostnameMappings.get(internalIp);
+        InetAddressHostname old = this.ipHostnameMappings.get(internalIp);
         if (!host.equals(old))
         {
-            this.privateIpHostnameMappings.put(internalIp, host);
+            this.ipHostnameMappings.put(internalIp, host);
             logger.trace("Updated private IP/hostname mapping from {}->{} to {}", internalIp, old, host);
+        }
+        old = this.ipHostnameMappings.get(externalIp);
+        if (!host.equals(old))
+        {
+            this.ipHostnameMappings.put(externalIp, host);
+            logger.trace("Updated public IP/hostname mapping from {}->{} to {}", externalIp, old, host);
         }
     }
 
@@ -98,7 +104,7 @@ public class CrossVpcIpMappingHandshaker
             return endpoint;
         }
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && privateIpHostnameMappings.containsKey(proposedAddress)) {
+        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && ipHostnameMappings.containsKey(proposedAddress)) {
             return maybeSwapHostname(endpoint);
         }
         if (DatabaseDescriptor.isCrossVpcIpSwappingEnabled() && privatePublicIpMappings.containsKey(proposedAddress)) {
@@ -109,7 +115,7 @@ public class CrossVpcIpMappingHandshaker
 
     private InetAddress maybeSwapHostname(InetAddress endpoint)
     {
-        InetAddressHostname hostname = privateIpHostnameMappings.get(new InetAddressIp(endpoint.getHostAddress()));
+        InetAddressHostname hostname = ipHostnameMappings.get(new InetAddressIp(endpoint.getHostAddress()));
         logger.trace("Performing DNS lookup for host {}", hostname);
         InetAddress resolved;
         try
@@ -154,7 +160,7 @@ public class CrossVpcIpMappingHandshaker
 
     /**
      * Checks cross-vpc mapping to return an associated hostname with the given endpoint if present. Use this method
-     * if you don't want to invoke DNS like {@link #maybeSwapHostname(InetAddress)} within
+     * if you don't want to invoke reverse-DNS like {@link #maybeSwapHostname(InetAddress)} within
      * {@link #maybeSwapAddress(InetAddress)} does. Additionally note that this method does not _swap_ hostnames, only
      * provides the hostname associated with a given endpoint if it is present in the cross-vpc mapping.
      */
@@ -164,7 +170,7 @@ public class CrossVpcIpMappingHandshaker
             return Optional.empty();
         }
         InetAddressIp ip = new InetAddressIp(endpoint.getHostAddress());
-        return Optional.ofNullable(privateIpHostnameMappings.get(ip));
+        return Optional.ofNullable(ipHostnameMappings.get(ip));
     }
 
     public void triggerHandshakeWithSeeds()
@@ -272,6 +278,12 @@ public class CrossVpcIpMappingHandshaker
     }
 
     @VisibleForTesting
+    long getLastTriggeredHandshakeMillis()
+    {
+        return lastTriggeredHandshakeMillis;
+    }
+
+    @VisibleForTesting
     Map<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
     {
         return this.privatePublicIpMappings;
@@ -280,13 +292,13 @@ public class CrossVpcIpMappingHandshaker
     @VisibleForTesting
     Map<InetAddressIp, InetAddressHostname> getCrossVpcIpHostnameMapping()
     {
-        return this.privateIpHostnameMappings;
+        return this.ipHostnameMappings;
     }
 
     @VisibleForTesting
     void clearMappings()
     {
-        this.privateIpHostnameMappings.clear();
+        this.ipHostnameMappings.clear();
         this.privatePublicIpMappings.clear();
     }
 }

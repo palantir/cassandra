@@ -18,19 +18,15 @@
 
 package com.palantir.cassandra.cvim;
 
-import java.awt.image.DataBuffer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
-
-import javax.xml.crypto.Data;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
-import org.hsqldb.Database;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
@@ -157,8 +153,22 @@ public class CrossVpcIpMappingHandshakerTest
         assertThat(mapping).isEmpty();
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
-        assertThat(mapping).hasSize(1);
+        assertThat(mapping).hasSize(2);
         assertThat(mapping).containsEntry(internal, name);
+    }
+
+    @Test
+    public void updateCrossVpcMappings_updatesPublicIpHostname()
+    {
+        InetAddressHostname name = new InetAddressHostname("host");
+        InetAddressIp internal = new InetAddressIp("10.0.0.1");
+        InetAddressIp external = new InetAddressIp("20.0.0.1");
+        Map<InetAddressIp, InetAddressHostname> mapping = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpHostnameMapping();
+        assertThat(mapping).isEmpty();
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        assertThat(mapping).hasSize(2);
+        assertThat(mapping).containsEntry(external, name);
     }
 
     @Test
@@ -169,10 +179,9 @@ public class CrossVpcIpMappingHandshakerTest
         InetAddressIp external = new InetAddressIp("20.0.0.1");
         Map<InetAddressIp, InetAddressHostname> mapping = CrossVpcIpMappingHandshaker.instance.getCrossVpcIpHostnameMapping();
         assertThat(mapping).isEmpty();
-        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
-        assertThat(mapping).hasSize(1);
-        assertThat(mapping).containsEntry(internal, name);
+        assertThat(mapping).isEmpty();
     }
 
     @Test
@@ -223,7 +232,13 @@ public class CrossVpcIpMappingHandshakerTest
     @Test
     public void triggerHandshakeFromSeeds_onlyActsOnOneRequestPerInterval()
     {
-
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        long first = System.currentTimeMillis();
+        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
+        long second = System.currentTimeMillis();
+        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
+        assertThat(CrossVpcIpMappingHandshaker.instance.getLastTriggeredHandshakeMillis()).isGreaterThan(first);
+        assertThat(CrossVpcIpMappingHandshaker.instance.getLastTriggeredHandshakeMillis()).isLessThan(second);
     }
 
     private void mockMapping(String hostname,
