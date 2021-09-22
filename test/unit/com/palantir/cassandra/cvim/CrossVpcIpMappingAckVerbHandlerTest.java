@@ -78,6 +78,7 @@ public class CrossVpcIpMappingAckVerbHandlerTest
                                                                      Collections.emptyMap(),
                                                                      MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
                                                                      MessagingService.current_version);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
         InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
