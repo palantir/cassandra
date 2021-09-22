@@ -43,7 +43,9 @@ import org.apache.cassandra.utils.FBUtilities;
 /**
  * Similar to {@link org.apache.cassandra.gms.Gossiper}, this class is responsible for sending
  * {@link CrossVpcIpMappingSyn} messages to seed nodes and managing the internal/external node IP
- * mapping for cross-vpc connections.
+ * mapping for cross-vpc connections. If {@link DatabaseDescriptor#isCrossVpcInternodeCommunicationEnabled()} is false,
+ * we will not trigger any handshakes or update this node's mappings in response to other CrossVpcIpMapping requests.
+ * However, this node's CrossVpc verb handlers will still respond to requests with appropriate information.
  */
 public class CrossVpcIpMappingHandshaker
 {
@@ -66,6 +68,9 @@ public class CrossVpcIpMappingHandshaker
 
     public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp, InetAddressIp externalIp)
     {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return;
+        }
         InetAddressIp oldExternalIp = this.privatePublicIpMappings.get(internalIp);
         if (!externalIp.equals(oldExternalIp))
         {
@@ -163,8 +168,10 @@ public class CrossVpcIpMappingHandshaker
 
     public void triggerHandshakeWithSeeds()
     {
-        try
-        {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return;
+        }
+        try {
             if (System.currentTimeMillis() - lastTriggeredHandshakeMillis < minHandshakeInterval.toMillis())
             {
                 logger.trace("Ignoring handshake request as last handshake is too recent");
@@ -224,10 +231,10 @@ public class CrossVpcIpMappingHandshaker
 
     public void start()
     {
-        if (!(DatabaseDescriptor.isCrossVpcIpSwappingEnabled() || DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled()))
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
         {
-            logger.warn("Cross VPC IP Swapping is disabled. Not scheduling handshake task. Set " +
-                        "cross_vpc_ip_swapping_enabled=true or cross_vpc_hostname_swapping_enabled=true if desired");
+            logger.warn("Cross VPC internode communication is disabled. Not scheduling handshake task. Set " +
+                        "cross_vpc_internode_communication_enabled=true if desired");
             return;
         }
         if (isEnabled())
