@@ -1321,6 +1321,16 @@ public class DatabaseDescriptor
         return conf.listen_on_broadcast_address;
     }
 
+    public static Boolean isCrossVpcInternodeCommunicationEnabled()
+    {
+        return conf.cross_vpc_internode_communication_enabled;
+    }
+
+    public static void setCrossVpcInternodeCommunication(boolean setting)
+    {
+        conf.cross_vpc_internode_communication_enabled = setting;
+    }
+
     public static Boolean isCrossVpcIpSwappingEnabled()
     {
         return conf.cross_vpc_ip_swapping_enabled;
@@ -1339,6 +1349,16 @@ public class DatabaseDescriptor
     public static void setCrossVpcHostnameSwapping(boolean setting)
     {
         conf.cross_vpc_hostname_swapping_enabled = setting;
+    }
+
+    public static Boolean isCrossVpcSniSubstitutionEnabled()
+    {
+        return conf.cross_vpc_sni_substitution_enabled;
+    }
+
+    public static void setCrossVpcSniSubstitution(boolean setting)
+    {
+        conf.cross_vpc_sni_substitution_enabled = setting;
     }
 
     public static IInternodeAuthenticator getInternodeAuthenticator()
