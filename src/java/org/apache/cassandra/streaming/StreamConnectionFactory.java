@@ -26,5 +26,5 @@ import java.net.Socket;
  */
 public interface StreamConnectionFactory
 {
-    Socket createConnection(InetAddress peer) throws IOException;
+    Socket createConnection(InetAddress peer) throws Exception;
 }

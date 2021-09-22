@@ -30,10 +30,13 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -45,6 +48,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import ch.qos.logback.core.net.ssl.SSL;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import com.palantir.cassandra.cvim.InetAddressHostname;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -90,7 +94,7 @@ public final class SSLFactory
     }
 
     /** Create a socket and connect */
-    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException
+    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port, InetAddress localAddress, int localPort) throws Exception
     {
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
@@ -101,32 +105,8 @@ public final class SSLFactory
         return socket;
     }
 
-    @VisibleForTesting
-    static SSLSocket maybeConnectWithTimeout(Callable<SSLSocket> callable, long timeout) throws IOException
-    {
-        try {
-            if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
-                return callable.call();
-            }
-        }
-        catch (Exception e) {
-            // TODO: Don't just wrap this in an IOException
-            throw new IOException(e);
-        }
-
-        try {
-            // Executor allows the Future to actually interrupt the Socket creation call
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            Future<SSLSocket> socket = executor.submit(callable);
-            return socket.get(timeout, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            // TODO: Don't just wrap this in an IOException
-            throw new IOException(String.format("Failed to connect after %d millis", timeout), e);
-        }
-    }
-
     /** Create a socket and connect, using any local address */
-    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
+    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port) throws Exception
     {
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
@@ -215,6 +195,22 @@ public final class SSLFactory
             logger.warn("Filtering out {} as it isn't supported by the socket", Iterables.toString(missing));
         }
         return ret;
+    }
+
+    @VisibleForTesting
+    static SSLSocket maybeConnectWithTimeout(Callable<SSLSocket> callable, long timeout) throws Exception
+    {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return callable.call();
+        }
+        try {
+            // Executor allows the Future to actually interrupt the Socket creation call
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Future<SSLSocket> socket = executor.submit(callable);
+            return socket.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(String.format("Failed to create socket after %d millis", timeout), e);
+        }
     }
 
     private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters)

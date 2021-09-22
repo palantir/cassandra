@@ -22,7 +22,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -44,7 +43,6 @@ import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.utils.FBUtilities;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Test;
 
 public class SSLFactoryTest
@@ -67,11 +65,11 @@ public class SSLFactoryTest
             Thread.sleep(50);
             return null;
         };
-        assertThatThrownBy(() -> SSLFactory.maybeConnectWithTimeout(callable, 1)).isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> SSLFactory.maybeConnectWithTimeout(callable, 1)).hasMessageContaining("Failed to create socket after ");
     }
 
     @Test
-    public void maybeConnectWithTimeout_doesNotInterruptWhenCrossVpcCommDisabled() throws IOException
+    public void maybeConnectWithTimeout_doesNotInterruptWhenCrossVpcCommDisabled() throws Exception
     {
         DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
         Callable<SSLSocket> callable = () -> {
@@ -93,7 +91,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void testServerSocketCiphers() throws IOException
+    public void testServerSocketCiphers() throws Exception
     {
         EncryptionOptions options = getServerEncryptionOptions();
 
@@ -109,7 +107,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void getSocket_invokesCrossVpcMaybeSwapAddress_twoEndpoints() throws IOException
+    public void getSocket_invokesCrossVpcMaybeSwapAddress_twoEndpoints() throws Exception
     {
         InetAddress localhost = InetAddress.getByName("localhost");
         InetAddress addressToReplace = InetAddress.getByName("10.0.0.1");
@@ -141,7 +139,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void getSocket_invokesCrossVpcMaybeSwapAddress_oneEndpoint() throws IOException
+    public void getSocket_invokesCrossVpcMaybeSwapAddress_oneEndpoint() throws Exception
     {
         InetAddress localhost = InetAddress.getByName("localhost");
         InetAddress addressToReplace = InetAddress.getByName("10.0.0.1");
@@ -169,7 +167,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void getSocket_sniHeadersIfHostnamePresent_oneEndpoint() throws IOException
+    public void getSocket_sniHeadersIfHostnamePresent_oneEndpoint() throws Exception
     {
         InetAddress endpoint = FBUtilities.getLocalAddress();
         assertThat(endpoint.getHostName()).isNotNull();
@@ -183,7 +181,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void getSocket_noSniHeadersIfHostnameAbsent_oneEndpoint() throws IOException
+    public void getSocket_noSniHeadersIfHostnameAbsent_oneEndpoint() throws Exception
     {
         InetAddress endpoint = FBUtilities.getLocalAddress();
         assertThat(endpoint.getHostName()).isNotNull();
@@ -197,7 +195,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void prepareSocket_swapsSniHeader_whenCrossVpcSniSubstitutionEnabled() throws IOException
+    public void prepareSocket_swapsSniHeader_whenCrossVpcSniSubstitutionEnabled() throws Exception
     {
         InetAddress localhost = InetAddress.getByName("localhost");
         InetAddressHostname name = new InetAddressHostname("test-name");
@@ -224,7 +222,7 @@ public class SSLFactoryTest
     }
 
     @Test
-    public void prepareSocket_doesNotSwapSniHeader_whenCrossVpcSniSubstitutionEnabled() throws IOException
+    public void prepareSocket_doesNotSwapSniHeader_whenCrossVpcSniSubstitutionEnabled() throws Exception
     {
         InetAddress localhost = InetAddress.getByName("localhost");
         InetAddressHostname name = new InetAddressHostname("test-name");

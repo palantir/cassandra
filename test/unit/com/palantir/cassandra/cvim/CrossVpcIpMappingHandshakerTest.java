@@ -220,6 +220,12 @@ public class CrossVpcIpMappingHandshakerTest
         assertThat(completed.get(target.getHostAddress())).isGreaterThanOrEqualTo(0L);
     }
 
+    @Test
+    public void triggerHandshakeFromSeeds_onlyActsOnOneRequestPerInterval()
+    {
+
+    }
+
     private void mockMapping(String hostname,
                              String internalIp,
                              String externalIp,

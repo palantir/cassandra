@@ -42,7 +42,7 @@ public class DefaultConnectionFactory implements StreamConnectionFactory
      *
      * @throws IOException when connection failed.
      */
-    public Socket createConnection(InetAddress peer) throws IOException
+    public Socket createConnection(InetAddress peer) throws Exception
     {
         int attempts = 0;
         while (true)

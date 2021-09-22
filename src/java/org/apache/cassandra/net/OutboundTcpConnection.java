@@ -508,7 +508,7 @@ public class OutboundTcpConnection extends Thread
                 // SSL errors won't be recoverable within timeout period so we'll just abort
                 return false;
             }
-            catch (IOException e)
+            catch (Exception e)
             {
                 socket = null;
                 if (logger.isTraceEnabled())
