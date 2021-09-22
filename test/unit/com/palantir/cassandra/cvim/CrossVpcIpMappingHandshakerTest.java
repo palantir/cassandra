@@ -230,11 +230,12 @@ public class CrossVpcIpMappingHandshakerTest
     }
 
     @Test
-    public void triggerHandshakeFromSeeds_onlyActsOnOneRequestPerInterval()
+    public void triggerHandshakeFromSeeds_onlyActsOnOneRequestPerInterval() throws InterruptedException
     {
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         long first = System.currentTimeMillis();
         CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
+        Thread.sleep(1);
         long second = System.currentTimeMillis();
         CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
         assertThat(CrossVpcIpMappingHandshaker.instance.getLastTriggeredHandshakeMillis()).isGreaterThan(first);

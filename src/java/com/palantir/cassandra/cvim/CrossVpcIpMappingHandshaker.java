@@ -55,7 +55,7 @@ public class CrossVpcIpMappingHandshaker
     "CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledCVIMTask;
     public final static Duration scheduledInterval = Duration.ofSeconds(1);
-    public final static Duration minHandshakeInterval = Duration.ofMillis(25);
+    public final static Duration minHandshakeInterval = Duration.ofMillis(500);
     private static volatile long lastTriggeredHandshakeMillis = 0;
     private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
     private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> ipHostnameMappings;
