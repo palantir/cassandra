@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.time.Duration;
 import java.net.UnknownHostException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -81,16 +82,21 @@ public class CrossVpcIpMappingHandshaker
         }
     }
 
+    /**
+     * Depending on which cross-vpc flags are enabled/disabled, will check the cross-vpc mappings and either swap the
+     * given endpoint with an endpoint derived from a public IP, or DNS using a hostname. If no mappings are found will
+     * return the original endpoint.
+     */
     public InetAddress maybeSwapAddress(InetAddress endpoint)
     {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return endpoint;
+        }
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        if (privateIpHostnameMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled())
-        {
+        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && privateIpHostnameMappings.containsKey(proposedAddress)) {
             return maybeSwapHostname(endpoint);
         }
-
-        if (privatePublicIpMappings.containsKey(proposedAddress) && DatabaseDescriptor.isCrossVpcIpSwappingEnabled())
-        {
+        if (DatabaseDescriptor.isCrossVpcIpSwappingEnabled() && privatePublicIpMappings.containsKey(proposedAddress)) {
             return maybeSwapIp(endpoint);
         }
         return endpoint;
@@ -138,6 +144,21 @@ public class CrossVpcIpMappingHandshaker
             }
         }
         return endpoint;
+    }
+
+    /**
+     * Checks cross-vpc mapping to return an associated hostname with the given endpoint if present. Use this method
+     * if you don't want to invoke DNS like {@link #maybeSwapHostname(InetAddress)} within
+     * {@link #maybeSwapAddress(InetAddress)} does. Additionally note that this method does not _swap_ hostnames, only
+     * provides the hostname associated with a given endpoint if it is present in the cross-vpc mapping.
+     */
+    public Optional<InetAddressHostname> getAssociatedHostname(InetAddress endpoint)
+    {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return Optional.empty();
+        }
+        InetAddressIp ip = new InetAddressIp(endpoint.getHostAddress());
+        return Optional.ofNullable(privateIpHostnameMappings.get(ip));
     }
 
     public void triggerHandshakeWithSeeds()

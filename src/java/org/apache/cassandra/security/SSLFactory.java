@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,6 +46,8 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
+import com.palantir.cassandra.cvim.InetAddressHostname;
+import org.antlr.analysis.SemanticContext;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
@@ -102,6 +105,7 @@ public final class SSLFactory
     @VisibleForTesting
     static SSLSocket connectWithTimeout(Callable<SSLSocket> callable, long timeout) throws IOException
     {
+        // Executor allows the Future to actually interrupt the Socket creation call
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future<SSLSocket> socket = executor.submit(callable);
         try {
@@ -205,12 +209,21 @@ public final class SSLFactory
 
     private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters)
     {
-        logger.trace(
-            "Adding SNI header to socket if hostname present for {}/{}", addr.getHostName(), addr.getHostAddress());
-        if (addr.getHostName() != null)
+        String providedName = addr.getHostName();
+        Optional<InetAddressHostname> maybeName = Optional.empty();
+        if (DatabaseDescriptor.isCrossVpcSniSubstitutionEnabled())
         {
-            SNIServerName name = new SNIHostName(addr.getHostName());
-            List<SNIServerName> sniHostNames = ImmutableList.of(name);
+            maybeName = CrossVpcIpMappingHandshaker.instance.getAssociatedHostname(addr);
+            maybeName.map(InetAddressHostname::toString).filter(swap -> !swap.equals(providedName)).ifPresent(name -> logger.trace("Providing new hostname for SNI header {}->{}", addr, name));
+        }
+        String name = maybeName.map(InetAddressHostname::toString).orElse(providedName);
+
+        logger.trace(
+            "Adding SNI header to socket if hostname present for {}/{}", name, addr.getHostAddress());
+        if (name != null)
+        {
+            SNIServerName sniName = new SNIHostName(name);
+            List<SNIServerName> sniHostNames = ImmutableList.of(sniName);
             sslParameters.setServerNames(sniHostNames);
         }
     }
