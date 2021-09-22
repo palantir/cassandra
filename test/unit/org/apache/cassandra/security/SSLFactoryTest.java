@@ -63,7 +63,7 @@ public class SSLFactoryTest
             Thread.sleep(10000);
             return null;
         };
-        assertThatThrownBy(() -> SSLFactory.connectWithTimeout(callable, 100)).isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> SSLFactory.maybeConnectWithTimeout(callable, 100)).isInstanceOf(IOException.class);
     }
 
     @Test
