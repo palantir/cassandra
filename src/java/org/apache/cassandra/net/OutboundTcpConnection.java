@@ -139,9 +139,9 @@ public class OutboundTcpConnection extends Thread
     private volatile int currentMsgBufferCount = 0;
     private int targetVersion = MessagingService.current_version;
 
-    public OutboundTcpConnection(OutboundTcpConnectionPool pool)
+    public OutboundTcpConnection(OutboundTcpConnectionPool pool, String taskSuffix)
     {
-        super("MessagingService-Outgoing-" + pool.endPoint());
+        super("MessagingService-Outgoing-" + pool.endPoint() + "-" + taskSuffix);
         this.poolReference = pool;
         cs = newCoalescingStrategy(pool.endPoint().getHostAddress());
     }
@@ -385,15 +385,6 @@ public class OutboundTcpConnection extends Thread
         }
     }
 
-    private boolean isConnectionEstablished(Socket socket, long timeout) throws IOException
-    {
-        logger.trace("Is connected? {} - pool: {} - socket: {}", socket.isConnected(), this.poolReference.endPoint(), socket.getInetAddress());
-        int intTimeout = (int) Math.min(Integer.MAX_VALUE, timeout);
-        boolean isReachable = socket.getInetAddress().isReachable((int) Math.min(Integer.MAX_VALUE, timeout));
-        logger.trace("Is reachable w/ timeout of {}: {}", intTimeout, isReachable);
-        return isReachable;
-    }
-
     @SuppressWarnings("resource")
     private boolean connect()
     {
@@ -408,13 +399,6 @@ public class OutboundTcpConnection extends Thread
             try
             {
                 socket = poolReference.newSocket();
-                if (!isConnectionEstablished(socket, timeout) && DatabaseDescriptor.isCrossVpcIpSwappingEnabled()) {
-                    logger.trace("Failed to connect to socket and VPC swapping is enabled. " +
-                                 "Possible that mapping was not updated on socket creation. Closing socket and trying again {}",
-                                 this.poolReference.endPoint());
-                    disconnect();
-                    continue;
-                }
                 socket.setKeepAlive(true);
                 if (isLocalDC(poolReference.endPoint()))
                 {

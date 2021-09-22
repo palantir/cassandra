@@ -28,6 +28,11 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -40,12 +45,14 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -85,9 +92,23 @@ public final class SSLFactory
     {
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
-        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort);
+        SSLSocket socket;
+        long timeout = DatabaseDescriptor.getRpcTimeout()/3;
+        socket = connectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort), timeout);
         prepareSocket(socket, options, mappedAddress);
         return socket;
+    }
+
+    @VisibleForTesting
+    static SSLSocket connectWithTimeout(Callable<SSLSocket> callable, long timeout) throws IOException
+    {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<SSLSocket> socket = executor.submit(callable);
+        try {
+            return socket.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            throw new IOException(String.format("Failed to connect after %d millis", timeout), e);
+        }
     }
 
     /** Create a socket and connect, using any local address */
@@ -95,7 +116,9 @@ public final class SSLFactory
     {
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
-        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port);
+        SSLSocket socket;
+        long timeout = DatabaseDescriptor.getRpcTimeout()/3;
+        socket = connectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port), timeout);
         prepareSocket(socket, options, mappedAddress);
         return socket;
     }

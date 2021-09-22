@@ -18,14 +18,14 @@
 */
 package org.apache.cassandra.security;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
@@ -54,6 +54,16 @@ public class SSLFactoryTest
     public static void after() {
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
+    }
+
+    @Test
+    public void connectWithTimeout_interrupts() throws IOException
+    {
+        Callable<SSLSocket> callable = () -> {
+            Thread.sleep(10000);
+            return null;
+        };
+        assertThatThrownBy(() -> SSLFactory.connectWithTimeout(callable, 100)).isInstanceOf(IOException.class);
     }
 
     @Test

@@ -944,8 +944,10 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     private void markAlive(final InetAddress addr, final EndpointState localState)
     {
-        if (MessagingService.instance().getVersion(addr) < MessagingService.VERSION_20)
+        int version = MessagingService.instance().getVersion(addr);
+        if (version < MessagingService.VERSION_20)
         {
+            logger.trace("Marking as alive b/c version {} < {}. {}", version, MessagingService.VERSION_20, addr);
             realMarkAlive(addr, localState);
             return;
         }
@@ -963,6 +965,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
             public void response(MessageIn msg)
             {
+                logger.trace("marking alive via echo handler {}", addr);
                 realMarkAlive(addr, localState);
             }
         };
