@@ -133,19 +133,20 @@ public class CrossVpcIpMappingHandshaker
 
     private InetAddress maybeSwapIp(InetAddress endpoint)
     {
-        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        InetAddressIp result = privatePublicIpMappings.get(proposedAddress);
-        if (!result.equals(proposedAddress))
+        InetAddressIp proposedIp = new InetAddressIp(endpoint.getHostAddress());
+        InetAddressIp mappedIp = privatePublicIpMappings.get(proposedIp);
+        if (!mappedIp.equals(proposedIp))
         {
-            logger.trace("Swapped address {} for {}", endpoint, result);
             try
             {
-                return InetAddress.getByName(result.toString());
+                InetAddress result = InetAddress.getByName(mappedIp.toString());
+                logger.trace("Swapped address {} for {} via private-public IP mapping", endpoint, result);
+                return result;
             }
             catch (UnknownHostException e)
             {
                 logger.error("Failed to resolve host for externally-mapped IP {}->{}. " +
-                             "Ensure the address mapping does not contain hostnames", endpoint, result);
+                             "Ensure the address mapping does not contain hostnames", endpoint, mappedIp);
             }
         }
         return endpoint;
