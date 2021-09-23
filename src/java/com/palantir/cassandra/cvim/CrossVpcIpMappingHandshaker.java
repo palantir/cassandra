@@ -284,6 +284,12 @@ public class CrossVpcIpMappingHandshaker
     }
 
     @VisibleForTesting
+    void setLastTriggeredHandshakeMillis(long millis)
+    {
+        lastTriggeredHandshakeMillis = millis;
+    }
+
+    @VisibleForTesting
     Map<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
     {
         return this.privatePublicIpMappings;

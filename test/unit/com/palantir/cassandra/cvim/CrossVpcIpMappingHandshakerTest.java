@@ -42,6 +42,7 @@ public class CrossVpcIpMappingHandshakerTest
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         CrossVpcIpMappingHandshaker.instance.stop();
         CrossVpcIpMappingHandshaker.instance.clearMappings();
+        CrossVpcIpMappingHandshaker.instance.setLastTriggeredHandshakeMillis(0);
     }
 
     @Test
