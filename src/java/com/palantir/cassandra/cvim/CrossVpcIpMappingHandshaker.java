@@ -220,7 +220,7 @@ public class CrossVpcIpMappingHandshaker
     @VisibleForTesting
     void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
     {
-        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled())
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
         {
             return;
         }
