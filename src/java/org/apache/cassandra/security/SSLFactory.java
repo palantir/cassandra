@@ -271,11 +271,8 @@ public final class SSLFactory
     static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
     {
         prepareSocket(socket, options);
-        if (options.require_endpoint_verification)
-        {
-            SSLParameters sslParameters = socket.getSSLParameters();
-            maybeAddSni(endpoint, sslParameters);
-            socket.setSSLParameters(sslParameters);
-        }
+        SSLParameters sslParameters = socket.getSSLParameters();
+        maybeAddSni(endpoint, sslParameters);
+        socket.setSSLParameters(sslParameters);
     }
 }
