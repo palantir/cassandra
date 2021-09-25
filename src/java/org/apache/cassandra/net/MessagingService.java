@@ -40,7 +40,6 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.concurrent.ExecutorLocal;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -149,9 +148,9 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.COUNTER_MUTATION, Stage.COUNTER_MUTATION);
         put(Verb.READ_REPAIR, Stage.MUTATION);
         put(Verb.TRUNCATE, Stage.MUTATION);
-        put(Verb.PAXOS_PREPARE, Stage.MUTATION);
-        put(Verb.PAXOS_PROPOSE, Stage.MUTATION);
-        put(Verb.PAXOS_COMMIT, Stage.MUTATION);
+        put(Verb.PAXOS_PREPARE, Stage.PAXOS);
+        put(Verb.PAXOS_PROPOSE, Stage.PAXOS);
+        put(Verb.PAXOS_COMMIT, Stage.PAXOS);
 
         put(Verb.READ, Stage.READ);
         put(Verb.RANGE_SLICE, Stage.READ);
