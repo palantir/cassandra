@@ -128,12 +128,14 @@ public class Config
     public String internode_authenticator;
     // Dictates whether any cross-vpc behavior will be allowed
     public Boolean cross_vpc_internode_communication_enabled = false;
-    // Swap internal IP for public IP - circumvents DNS for internode connections
+    // Swap internal IP for public IP - attempts to circumvent DNS for internode connections
     public Boolean cross_vpc_ip_swapping_enabled = false;
-    // Swap internal IP for hostname. Uses DNS and resilient to proxy IP changes. Takes priority over IP swapping
+    // Swap internal IP for hostname. Uses DNS to be resilient to proxy IP changes. Takes priority over IP swapping
     public Boolean cross_vpc_hostname_swapping_enabled = false;
-    // Include hostname in an SNI header for outbound requests. Does not use DNS
+    // Inserts hostname (if not already present) in an SNI header for outbound requests.
     public Boolean cross_vpc_sni_substitution_enabled = false;
+    // Max amount of time a socket will attempt to connect to remote before terminating
+    public Long cross_vpc_connect_timeout_in_ms = 3000L;
 
     /* intentionally left set to true, despite being set to false in stock 2.2 cassandra.yaml
        we don't want to surprise Thrift users who have the setting blank in the yaml during 2.1->2.2 upgrade */

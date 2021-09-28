@@ -47,6 +47,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.crypto.Data;
 
 import ch.qos.logback.core.net.ssl.SSL;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
@@ -98,9 +99,7 @@ public final class SSLFactory
     {
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
-        SSLSocket socket;
-        long timeout = DatabaseDescriptor.getRpcTimeout()/3;
-        socket = maybeConnectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort), timeout);
+        SSLSocket socket = maybeConnectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort));
         prepareSocket(socket, options, mappedAddress);
         return socket;
     }
@@ -110,9 +109,7 @@ public final class SSLFactory
     {
         SSLContext ctx = createSSLContext(options, true);
         InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
-        SSLSocket socket;
-        long timeout = DatabaseDescriptor.getRpcTimeout()/3;
-        socket = maybeConnectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port), timeout);
+        SSLSocket socket = maybeConnectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port));
         prepareSocket(socket, options, mappedAddress);
         return socket;
     }
@@ -195,6 +192,11 @@ public final class SSLFactory
             logger.warn("Filtering out {} as it isn't supported by the socket", Iterables.toString(missing));
         }
         return ret;
+    }
+
+    private static SSLSocket maybeConnectWithTimeout(Callable<SSLSocket> callable) throws Exception
+    {
+        return maybeConnectWithTimeout(callable, DatabaseDescriptor.getCrossVpcConnectTimeoutMs());
     }
 
     @VisibleForTesting

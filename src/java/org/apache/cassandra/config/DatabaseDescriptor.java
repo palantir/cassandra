@@ -1361,6 +1361,16 @@ public class DatabaseDescriptor
         conf.cross_vpc_sni_substitution_enabled = setting;
     }
 
+    public static Long getCrossVpcConnectTimeoutMs()
+    {
+        return conf.cross_vpc_connect_timeout_in_ms;
+    }
+
+    public static void setCrossVpcConnectTimeoutMs(long timeout)
+    {
+        conf.cross_vpc_connect_timeout_in_ms = timeout;
+    }
+
     public static IInternodeAuthenticator getInternodeAuthenticator()
     {
         return internodeAuthenticator;
