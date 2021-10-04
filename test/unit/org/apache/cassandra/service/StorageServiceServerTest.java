@@ -728,4 +728,11 @@ public class StorageServiceServerTest
         assertThatThrownBy(() -> StorageService.instance.joinRing(ImmutableList.of("0x00")))
         .isInstanceOf(IOException.class);
     }
+
+    @Test
+    public void getLocalHostId_handlesWhenNoEndpointPresent() {
+        TokenMetadata tmd = new TokenMetadata();
+        StorageService.instance.setTokenMetadataUnsafe(tmd);
+        assertThat(StorageService.instance.getLocalHostId()).isNull();
+    }
 }
