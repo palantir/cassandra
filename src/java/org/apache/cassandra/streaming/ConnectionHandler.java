@@ -78,7 +78,7 @@ public class ConnectionHandler
      * @throws IOException
      */
     @SuppressWarnings("resource")
-    public void initiate() throws IOException
+    public void initiate() throws Exception
     {
         logger.debug("[Stream #{}] Sending stream init for incoming stream", session.planId());
         Socket incomingSocket = session.createConnection();

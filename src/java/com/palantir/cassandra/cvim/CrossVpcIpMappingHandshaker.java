@@ -20,7 +20,11 @@ package com.palantir.cassandra.cvim;
 
 import java.net.InetAddress;
 import java.time.Duration;
+import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -39,7 +43,9 @@ import org.apache.cassandra.utils.FBUtilities;
 /**
  * Similar to {@link org.apache.cassandra.gms.Gossiper}, this class is responsible for sending
  * {@link CrossVpcIpMappingSyn} messages to seed nodes and managing the internal/external node IP
- * mapping for cross-vpc connections.
+ * mapping for cross-vpc connections. If {@link DatabaseDescriptor#isCrossVpcInternodeCommunicationEnabled()} is false,
+ * we will not trigger any handshakes or update this node's mappings in response to other CrossVpcIpMapping requests.
+ * However, this node's CrossVpc verb handlers will still respond to requests with appropriate information.
  */
 public class CrossVpcIpMappingHandshaker
 {
@@ -48,14 +54,136 @@ public class CrossVpcIpMappingHandshaker
     private static final DebuggableScheduledThreadPoolExecutor executor = new DebuggableScheduledThreadPoolExecutor(
     "CrossVpcIpMappingTasks");
     private volatile ScheduledFuture<?> scheduledCVIMTask;
-    public final static Duration interval = Duration.ofSeconds(1);
+    public final static Duration scheduledInterval = Duration.ofSeconds(1);
+    public final static Duration minHandshakeInterval = Duration.ofMillis(500);
+    private static volatile long lastTriggeredHandshakeMillis = 0;
+    private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
+    private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> ipHostnameMappings;
 
-    private CrossVpcIpMappingHandshaker() {}
+    private CrossVpcIpMappingHandshaker()
+    {
+        this.privatePublicIpMappings = new ConcurrentHashMap<>();
+        this.ipHostnameMappings = new ConcurrentHashMap<>();
+    }
+
+    public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp, InetAddressIp externalIp)
+    {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return;
+        }
+        InetAddressIp oldExternalIp = this.privatePublicIpMappings.get(internalIp);
+        if (!externalIp.equals(oldExternalIp))
+        {
+            this.privatePublicIpMappings.put(internalIp, externalIp);
+            logger.trace("Updated private/public IP mapping for {} from {}->{} to {}",
+                         host, internalIp, oldExternalIp, externalIp);
+        }
+
+        InetAddressHostname old = this.ipHostnameMappings.get(internalIp);
+        if (!host.equals(old))
+        {
+            this.ipHostnameMappings.put(internalIp, host);
+            logger.trace("Updated private IP/hostname mapping from {}->{} to {}", internalIp, old, host);
+        }
+        old = this.ipHostnameMappings.get(externalIp);
+        if (!host.equals(old))
+        {
+            this.ipHostnameMappings.put(externalIp, host);
+            logger.trace("Updated public IP/hostname mapping from {}->{} to {}", externalIp, old, host);
+        }
+    }
+
+    /**
+     * Depending on which cross-vpc flags are enabled/disabled, will check the cross-vpc mappings and either swap the
+     * given endpoint with an endpoint derived from a public IP, or DNS using a hostname. If no mappings are found will
+     * return the original endpoint.
+     */
+    public InetAddress maybeSwapAddress(InetAddress endpoint)
+    {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return endpoint;
+        }
+        InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
+        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && ipHostnameMappings.containsKey(proposedAddress)) {
+            return maybeSwapHostname(endpoint);
+        }
+        if (DatabaseDescriptor.isCrossVpcIpSwappingEnabled() && privatePublicIpMappings.containsKey(proposedAddress)) {
+            return maybeSwapIp(endpoint);
+        }
+        return endpoint;
+    }
+
+    private InetAddress maybeSwapHostname(InetAddress endpoint)
+    {
+        InetAddressHostname hostname = ipHostnameMappings.get(new InetAddressIp(endpoint.getHostAddress()));
+        logger.trace("Performing DNS lookup for host {}", hostname);
+        InetAddress resolved;
+        try
+        {
+            resolved = InetAddress.getByName(hostname.toString());
+        }
+        catch (UnknownHostException e)
+        {
+            logger.error("Cross VPC mapping contains unresolvable hostname for endpoint {} (unresolved: {})",
+                         endpoint, hostname);
+            return endpoint;
+        }
+        if (!resolved.equals(endpoint))
+        {
+            logger.trace("DNS-resolved address different than provided endpoint. Swapping. provided: {} resolved: {}",
+                         endpoint, resolved);
+            return resolved;
+        }
+        return endpoint;
+    }
+
+    private InetAddress maybeSwapIp(InetAddress endpoint)
+    {
+        InetAddressIp proposedIp = new InetAddressIp(endpoint.getHostAddress());
+        InetAddressIp mappedIp = privatePublicIpMappings.get(proposedIp);
+        if (!mappedIp.equals(proposedIp))
+        {
+            try
+            {
+                InetAddress result = InetAddress.getByName(mappedIp.toString());
+                logger.trace("Swapped address {} for {} via private-public IP mapping", endpoint, result);
+                return result;
+            }
+            catch (UnknownHostException e)
+            {
+                logger.error("Failed to resolve host for externally-mapped IP {}->{}. " +
+                             "Ensure the address mapping does not contain hostnames", endpoint, mappedIp);
+            }
+        }
+        return endpoint;
+    }
+
+    /**
+     * Checks cross-vpc mapping to return an associated hostname with the given endpoint if present. Use this method
+     * if you don't want to invoke reverse-DNS like {@link #maybeSwapHostname(InetAddress)} within
+     * {@link #maybeSwapAddress(InetAddress)} does. Additionally note that this method does not _swap_ hostnames, only
+     * provides the hostname associated with a given endpoint if it is present in the cross-vpc mapping.
+     */
+    public Optional<InetAddressHostname> getAssociatedHostname(InetAddress endpoint)
+    {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return Optional.empty();
+        }
+        InetAddressIp ip = new InetAddressIp(endpoint.getHostAddress());
+        return Optional.ofNullable(ipHostnameMappings.get(ip));
+    }
 
     public void triggerHandshakeWithSeeds()
     {
-        try
-        {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return;
+        }
+        try {
+            if (System.currentTimeMillis() - lastTriggeredHandshakeMillis < minHandshakeInterval.toMillis())
+            {
+                logger.trace("Ignoring handshake request as last handshake is too recent");
+                return;
+            }
             // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
             // who we currently are going to handshake with like the Gossiper does
             Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
@@ -64,22 +192,25 @@ public class CrossVpcIpMappingHandshaker
                                                        .collect(Collectors.toSet());
 
             triggerHandshakeFromSelf(seeds);
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             logger.error("Caught exception trying to trigger CrossVpcIpMapping handshake with seeds", e);
         }
     }
 
-    public void triggerHandshakeFromSelf(Set<InetAddress> targets)
+    @VisibleForTesting
+    synchronized void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
-        logger.warn("here");
+        lastTriggeredHandshakeMillis = System.currentTimeMillis();
         InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
         targets.forEach(target -> {
             try
             {
                 triggerHandshake(selfName, selfIp, target);
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 logger.error("Caught exception trying to trigger handshake from {}/{} to {}", selfName, selfIp, target);
             }
@@ -89,7 +220,7 @@ public class CrossVpcIpMappingHandshaker
     @VisibleForTesting
     void triggerHandshake(InetAddressHostname sourceName, InetAddressIp sourceIp, InetAddress target)
     {
-        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled())
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
         {
             return;
         }
@@ -107,9 +238,10 @@ public class CrossVpcIpMappingHandshaker
 
     public void start()
     {
-        if (!DatabaseDescriptor.isCrossVpcIpSwappingEnabled()) {
-            logger.warn("Cross VPC IP Swapping is disabled. Not scheduling handshake task. Set " +
-                        "cross_vpc_ip_swapping_enabled=true if desired");
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
+        {
+            logger.warn("Cross VPC internode communication is disabled. Not scheduling handshake task. Set " +
+                        "cross_vpc_internode_communication_enabled=true if desired");
             return;
         }
         if (isEnabled())
@@ -118,16 +250,17 @@ public class CrossVpcIpMappingHandshaker
             return;
         }
         logger.info("Started running CrossVpcIpMappingTask at interval of {}",
-                     CrossVpcIpMappingHandshaker.interval);
+                    CrossVpcIpMappingHandshaker.scheduledInterval);
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             try
             {
                 triggerHandshakeWithSeeds();
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 logger.error("Caught exception trying to run scheduled CrossVpcIpMapping handshake task", e);
             }
-        }, 0L, CrossVpcIpMappingHandshaker.interval.toMillis(), TimeUnit.MILLISECONDS);
+        }, 0L, CrossVpcIpMappingHandshaker.scheduledInterval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     public boolean isEnabled()
@@ -142,5 +275,36 @@ public class CrossVpcIpMappingHandshaker
             logger.warn("Stopping CrossVpcIpMappingTask at interval after operator request");
             scheduledCVIMTask.cancel(false);
         }
+    }
+
+    @VisibleForTesting
+    long getLastTriggeredHandshakeMillis()
+    {
+        return lastTriggeredHandshakeMillis;
+    }
+
+    @VisibleForTesting
+    void setLastTriggeredHandshakeMillis(long millis)
+    {
+        lastTriggeredHandshakeMillis = millis;
+    }
+
+    @VisibleForTesting
+    Map<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
+    {
+        return this.privatePublicIpMappings;
+    }
+
+    @VisibleForTesting
+    Map<InetAddressIp, InetAddressHostname> getCrossVpcIpHostnameMapping()
+    {
+        return this.ipHostnameMappings;
+    }
+
+    @VisibleForTesting
+    void clearMappings()
+    {
+        this.ipHostnameMappings.clear();
+        this.privatePublicIpMappings.clear();
     }
 }

@@ -25,8 +25,10 @@ import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
+import org.assertj.core.api.Assertions;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,6 +37,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -42,32 +46,65 @@ import static org.mockito.Mockito.verify;
 public class CrossVpcIpMappingSynVerbHandlerTest
 {
     private final CrossVpcIpMappingSynVerbHandler handler = spy(new CrossVpcIpMappingSynVerbHandler());
+    private final InetAddress remote = InetAddress.getByName("127.0.0.2");
+    private final InetAddressHostname sourceName = new InetAddressHostname("localhost");
+    private final InetAddressIp sourceInternalIp = new InetAddressIp("5.5.5.5");
+    private final InetAddressHostname targetName = new InetAddressHostname("target");
+    private final InetAddressIp targetExternalIp = new InetAddressIp("6.6.6.6");
+    private final CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
+    private final MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(remote,
+                                                                 syn,
+                                                                 Collections.emptyMap(),
+                                                                 MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
+                                                                 MessagingService.current_version);
+
+    public CrossVpcIpMappingSynVerbHandlerTest() throws UnknownHostException {}
 
     @Before
     public void before() throws UnknownHostException
     {
+        CrossVpcIpMappingHandshaker.instance.clearMappings();
+        reset(handler);
         doNothing().when(handler).reply(any(), any());
     }
 
     @Test
     public void doVerb_invokedByMessagingService() throws UnknownHostException
     {
-        InetAddress remote = InetAddress.getByName("127.0.0.2");
-        InetAddressHostname sourceName = new InetAddressHostname("localhost");
-        InetAddressIp sourceInternalIp = new InetAddressIp("1.0.0.0");
-        InetAddressHostname targetName = new InetAddressHostname("target");
-        InetAddressIp targetExternalIp = new InetAddressIp("2.0.0.0");
-        CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName, sourceInternalIp, targetName, targetExternalIp);
-
-        MessageIn<CrossVpcIpMappingSyn> messageIn = MessageIn.create(remote,
-                                                                     syn,
-                                                                     Collections.emptyMap(),
-                                                                     MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN,
-                                                                     MessagingService.current_version);
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, handler);
         MessagingService.instance().receive(messageIn, 0, 0, false);
         // Potential race condition since MessageDeliveryTask is run in another executor
         verify(handler, times(1)).doVerb(eq(messageIn), anyInt());
+    }
+
+    @Test
+    public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
+    {
+        InetAddress input = InetAddress.getByName(sourceInternalIp.toString());
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(true);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        Assertions.assertThat(result.getHostAddress()).isNotEqualTo("127.0.0.1");
+        handler.doVerb(messageIn, 0);
+        result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        Assertions.assertThat(result.getHostAddress()).isEqualTo("127.0.0.1");
+    }
+
+    @Test
+    public void doVerb_sendsAckToSourceInternalIp() throws UnknownHostException
+    {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        handler.doVerb(messageIn, 0);
+        verify(handler).reply(any(), eq(sourceInternalIp));
+    }
+
+    @Test
+    public void doVerb_doesNotReplyWhenCrossVpcComm_disabled() throws UnknownHostException
+    {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
+        handler.doVerb(messageIn, 0);
+        verify(handler, never()).reply(any(), any());
     }
 }

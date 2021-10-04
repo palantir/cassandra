@@ -1010,7 +1010,21 @@ public final class MessagingService implements MessagingServiceMBean
                     socket.setSoTimeout(2 * OutboundTcpConnection.WAIT_FOR_VERSION_MAX_TIME);
                     // determine the connection type to decide whether to buffer
                     DataInputStream in = new DataInputStream(socket.getInputStream());
-                    MessagingService.validateMagic(in.readInt());
+                    try
+                    {
+                        MessagingService.validateMagic(in.readInt());
+                    }
+                    catch (Exception e)
+                    {
+                        if (e.getCause() instanceof EOFException)
+                        {
+                            // Reduce noise from cross-VPC networking healthchecks disconnecting immediately
+                            logger.trace("Remote closed the input stream {}", remote);
+                            FileUtils.closeQuietly(socket);
+                            continue;
+                        }
+                        throw e;
+                    }
                     int header = in.readInt();
                     boolean isStream = MessagingService.getBits(header, 3, 1) == 1;
                     int version = MessagingService.getBits(header, 15, 8);

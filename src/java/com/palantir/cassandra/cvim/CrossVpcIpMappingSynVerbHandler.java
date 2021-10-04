@@ -27,10 +27,12 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.security.SSLFactory;
 import org.apache.cassandra.utils.FBUtilities;
 
 public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpMappingSyn>
@@ -52,6 +54,20 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
 
         InetAddressIp targetInternalIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
 
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
+        {
+            logger.trace("Ignoring new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {} -> {} " +
+                         "because cross_vpc_internode_communication_enabled=false",
+                         message.from,
+                         synMessage.getSourceHostname(),
+                         sourceInternalIp,
+                         sourceExternalIp,
+                         targetInternalIp,
+                         targetExternalIp);
+            return;
+        }
+
+
         logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {} -> {}",
                      message.from,
                      synMessage.getSourceHostname(),
@@ -60,17 +76,25 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
                      targetInternalIp,
                      targetExternalIp);
 
+
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(sourceName, sourceInternalIp, sourceExternalIp);
+
         CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
         MessageOut<CrossVpcIpMappingAck> ackMessage = new MessageOut<>(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
                                                                        ack,
                                                                        CrossVpcIpMappingAck.serializer);
-        logger.trace("Sending CrossVpcIpMappingAck to {}", sourceExternalIp);
-        reply(ackMessage, sourceExternalIp);
+
+        logger.trace("Sending CrossVpcIpMappingAck to {}/{}", sourceInternalIp, sourceName);
+        reply(ackMessage, sourceInternalIp);
     }
 
+    /**
+     * Send to sourceInternal because {@link CrossVpcIpMappingHandshaker} should now contain the mapping with which
+     * {@link SSLFactory} will use to swap out the internal IP for public.
+     */
     @VisibleForTesting
-    void reply(MessageOut<CrossVpcIpMappingAck> ackMessage, InetAddressIp sourceExternal) throws UnknownHostException
+    void reply(MessageOut<CrossVpcIpMappingAck> ackMessage, InetAddressIp sourceInternal) throws UnknownHostException
     {
-        MessagingService.instance().sendOneWay(ackMessage, InetAddress.getByName(sourceExternal.toString()));
+        MessagingService.instance().sendOneWay(ackMessage, InetAddress.getByName(sourceInternal.toString()));
     }
 }

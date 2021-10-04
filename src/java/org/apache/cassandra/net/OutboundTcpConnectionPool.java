@@ -56,9 +56,9 @@ public class OutboundTcpConnectionPool
         resetEndpoint = SystemKeyspace.getPreferredIP(remoteEp);
         started = new CountDownLatch(1);
 
-        smallMessages = new OutboundTcpConnection(this);
-        largeMessages = new OutboundTcpConnection(this);
-        gossipMessages = new OutboundTcpConnection(this);
+        smallMessages = new OutboundTcpConnection(this, "Small");
+        largeMessages = new OutboundTcpConnection(this, "Large");
+        gossipMessages = new OutboundTcpConnection(this, "Gossip");
     }
 
     /**
@@ -117,14 +117,14 @@ public class OutboundTcpConnectionPool
         metrics.timeouts.mark();
     }
 
-    public Socket newSocket() throws IOException
+    public Socket newSocket() throws Exception
     {
         return newSocket(endPoint());
     }
 
     // Closing the socket will close the underlying channel.
     @SuppressWarnings("resource")
-    public static Socket newSocket(InetAddress endpoint) throws IOException
+    public static Socket newSocket(InetAddress endpoint) throws Exception
     {
         // zero means 'bind on any available port.'
         if (isEncryptedChannel(endpoint))
