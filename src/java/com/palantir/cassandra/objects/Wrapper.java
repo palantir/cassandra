@@ -15,16 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.cassandra.streaming;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
+package com.palantir.cassandra.objects;
 
-/**
- * Interface that creates connection used by streaming.
- */
-public interface StreamConnectionFactory
+import java.util.Objects;
+
+public abstract class Wrapper<T>
 {
-    Socket createConnection(InetAddress peer) throws Exception;
+    final T value;
+
+    public Wrapper(T value)
+    {
+        this.value = value;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (!(o instanceof Wrapper)) return false;
+
+        Wrapper<?> other = (Wrapper<?>) o;
+        return this.value.equals(other.value);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hashCode(value);
+    }
+
+    @Override
+    public String toString()
+    {
+        return this.value.toString();
+    }
 }

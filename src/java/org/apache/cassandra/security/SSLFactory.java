@@ -28,6 +28,15 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -38,13 +47,19 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.crypto.Data;
 
+import ch.qos.logback.core.net.ssl.SSL;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
+import com.palantir.cassandra.cvim.InetAddressHostname;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -80,20 +95,22 @@ public final class SSLFactory
     }
 
     /** Create a socket and connect */
-    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException
+    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port, InetAddress localAddress, int localPort) throws Exception
     {
         SSLContext ctx = createSSLContext(options, true);
-        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(address, port, localAddress, localPort);
-        prepareSocket(socket, options, address);
+        InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
+        SSLSocket socket = maybeConnectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port, localAddress, localPort));
+        prepareSocket(socket, options, mappedAddress);
         return socket;
     }
 
     /** Create a socket and connect, using any local address */
-    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
+    public static SSLSocket getSocket(EncryptionOptions options, InetAddress address, int port) throws Exception
     {
         SSLContext ctx = createSSLContext(options, true);
-        SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket(address, port);
-        prepareSocket(socket, options, address);
+        InetAddress mappedAddress = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(address);
+        SSLSocket socket = maybeConnectWithTimeout(() -> (SSLSocket) ctx.getSocketFactory().createSocket(mappedAddress, port));
+        prepareSocket(socket, options, mappedAddress);
         return socket;
     }
 
@@ -177,14 +194,44 @@ public final class SSLFactory
         return ret;
     }
 
+    private static SSLSocket maybeConnectWithTimeout(Callable<SSLSocket> callable) throws Exception
+    {
+        return maybeConnectWithTimeout(callable, DatabaseDescriptor.getCrossVpcConnectTimeoutMs());
+    }
+
+    @VisibleForTesting
+    static SSLSocket maybeConnectWithTimeout(Callable<SSLSocket> callable, long timeout) throws Exception
+    {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+            return callable.call();
+        }
+        try {
+            // Executor allows the Future to actually interrupt the Socket creation call
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Future<SSLSocket> socket = executor.submit(callable);
+            return socket.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(String.format("Failed to create socket after %d millis", timeout), e);
+        }
+    }
+
     private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters)
     {
-        logger.trace(
-            "Adding SNI header to socket if hostname present for {}/{}", addr.getHostName(), addr.getHostAddress());
-        if (addr.getHostName() != null)
+        String providedName = addr.getHostName();
+        Optional<InetAddressHostname> maybeName = Optional.empty();
+        if (DatabaseDescriptor.isCrossVpcSniSubstitutionEnabled())
         {
-            SNIServerName name = new SNIHostName(addr.getHostName());
-            List<SNIServerName> sniHostNames = ImmutableList.of(name);
+            maybeName = CrossVpcIpMappingHandshaker.instance.getAssociatedHostname(addr);
+            maybeName.map(InetAddressHostname::toString).filter(swap -> !swap.equals(providedName)).ifPresent(name -> logger.trace("Providing new hostname for SNI header {}->{}", addr, name));
+        }
+        String name = maybeName.map(InetAddressHostname::toString).orElse(providedName);
+
+        logger.trace(
+            "Adding SNI header to socket if hostname present for {}/{}", name, addr.getHostAddress());
+        if (name != null)
+        {
+            SNIServerName sniName = new SNIHostName(name);
+            List<SNIServerName> sniHostNames = ImmutableList.of(sniName);
             sslParameters.setServerNames(sniHostNames);
         }
     }
@@ -222,14 +269,12 @@ public final class SSLFactory
      * Sets relevant socket options specified in encryption settings. May add SNI headers to the socket's SSLParameters
      * if the given endpoint includes a hostname.
      */
-    private static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
+    @VisibleForTesting
+    static void prepareSocket(SSLSocket socket, EncryptionOptions options, InetAddress endpoint)
     {
         prepareSocket(socket, options);
-        if (options.require_endpoint_verification)
-        {
-            SSLParameters sslParameters = socket.getSSLParameters();
-            maybeAddSni(endpoint, sslParameters);
-            socket.setSSLParameters(sslParameters);
-        }
+        SSLParameters sslParameters = socket.getSSLParameters();
+        maybeAddSni(endpoint, sslParameters);
+        socket.setSSLParameters(sslParameters);
     }
 }

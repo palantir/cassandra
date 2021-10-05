@@ -28,19 +28,18 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import org.apache.cassandra.SchemaLoader;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.service.StorageService;
 
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 
 public class GossiperTest
@@ -62,6 +61,15 @@ public class GossiperTest
     {
         tmd.clearUnsafe();
     };
+
+    @After
+    public void after()
+    {
+        Gossiper.instance.stop();
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
+    }
 
     @Test
     public void testLargeGenerationJump() throws UnknownHostException, InterruptedException
@@ -94,5 +102,36 @@ public class GossiperTest
 
         //The generation should not have been updated because it is over Gossiper.MAX_GENERATION_DIFFERENCE in the future
         assertEquals(proposedRemoteHeartBeat.getGeneration(), actualRemoteHeartBeat.getGeneration());
+    }
+
+    @Test
+    public void start_startsCrossVpcHandshake()
+    {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        CrossVpcIpMappingHandshaker.instance.stop();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+        Gossiper.instance.start(0);
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
+    }
+
+    @Test
+    public void doShadowRound_doesNotEnableHandshaker()
+    {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        CrossVpcIpMappingHandshaker.instance.stop();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+        Gossiper.instance.doShadowRound();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+    }
+
+    @Test
+    public void stop_stopsCrossVpcHandshake()
+    {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        CrossVpcIpMappingHandshaker.instance.start();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
+        Gossiper.instance.stop();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+
     }
 }

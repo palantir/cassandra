@@ -40,7 +40,8 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.concurrent.ExecutorLocal;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
+import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -136,6 +137,9 @@ public final class MessagingService implements MessagingServiceMBean
         PAXOS_PROPOSE,
         PAXOS_COMMIT,
         PAGED_RANGE,
+        // use to map internal/external IPs across VPCs for internode communication
+        CROSS_VPC_IP_MAPPING_SYN,
+        CROSS_VPC_IP_MAPPING_ACK,
         // remember to add new verbs at the end, since we serialize by ordinal
         UNUSED_1,
         UNUSED_2,
@@ -184,6 +188,9 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.SNAPSHOT, Stage.MISC);
         put(Verb.ECHO, Stage.GOSSIP);
 
+        put(Verb.CROSS_VPC_IP_MAPPING_SYN, Stage.CROSS_VPC_IP_MAPPING);
+        put(Verb.CROSS_VPC_IP_MAPPING_ACK, Stage.CROSS_VPC_IP_MAPPING);
+
         put(Verb.UNUSED_1, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_2, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_3, Stage.INTERNAL_RESPONSE);
@@ -222,6 +229,8 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.PAXOS_PREPARE, Commit.serializer);
         put(Verb.PAXOS_PROPOSE, Commit.serializer);
         put(Verb.PAXOS_COMMIT, Commit.serializer);
+        put(Verb.CROSS_VPC_IP_MAPPING_ACK, CrossVpcIpMappingAck.serializer);
+        put(Verb.CROSS_VPC_IP_MAPPING_SYN, CrossVpcIpMappingSyn.serializer);
     }};
 
     /**
@@ -1001,7 +1010,21 @@ public final class MessagingService implements MessagingServiceMBean
                     socket.setSoTimeout(2 * OutboundTcpConnection.WAIT_FOR_VERSION_MAX_TIME);
                     // determine the connection type to decide whether to buffer
                     DataInputStream in = new DataInputStream(socket.getInputStream());
-                    MessagingService.validateMagic(in.readInt());
+                    try
+                    {
+                        MessagingService.validateMagic(in.readInt());
+                    }
+                    catch (Exception e)
+                    {
+                        if (e.getCause() instanceof EOFException)
+                        {
+                            // Reduce noise from cross-VPC networking healthchecks disconnecting immediately
+                            logger.trace("Remote closed the input stream {}", remote);
+                            FileUtils.closeQuietly(socket);
+                            continue;
+                        }
+                        throw e;
+                    }
                     int header = in.readInt();
                     boolean isStream = MessagingService.getBits(header, 3, 1) == 1;
                     int version = MessagingService.getBits(header, 15, 8);

@@ -244,7 +244,7 @@ public class StreamSession implements IEndpointStateChangeSubscriber
         }
     }
 
-    public Socket createConnection() throws IOException
+    public Socket createConnection() throws Exception
     {
         assert factory != null;
         return factory.createConnection(connecting);

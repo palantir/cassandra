@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.Checksum;
 
 import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLSocket;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,9 +139,9 @@ public class OutboundTcpConnection extends Thread
     private volatile int currentMsgBufferCount = 0;
     private int targetVersion = MessagingService.current_version;
 
-    public OutboundTcpConnection(OutboundTcpConnectionPool pool)
+    public OutboundTcpConnection(OutboundTcpConnectionPool pool, String taskSuffix)
     {
-        super("MessagingService-Outgoing-" + pool.endPoint());
+        super("MessagingService-Outgoing-" + pool.endPoint() + "-" + taskSuffix);
         this.poolReference = pool;
         cs = newCoalescingStrategy(pool.endPoint().getHostAddress());
     }
@@ -507,7 +508,7 @@ public class OutboundTcpConnection extends Thread
                 // SSL errors won't be recoverable within timeout period so we'll just abort
                 return false;
             }
-            catch (IOException e)
+            catch (Exception e)
             {
                 socket = null;
                 if (logger.isTraceEnabled())

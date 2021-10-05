@@ -1321,6 +1321,56 @@ public class DatabaseDescriptor
         return conf.listen_on_broadcast_address;
     }
 
+    public static Boolean isCrossVpcInternodeCommunicationEnabled()
+    {
+        return conf.cross_vpc_internode_communication_enabled;
+    }
+
+    public static void setCrossVpcInternodeCommunication(boolean setting)
+    {
+        conf.cross_vpc_internode_communication_enabled = setting;
+    }
+
+    public static Boolean isCrossVpcIpSwappingEnabled()
+    {
+        return conf.cross_vpc_ip_swapping_enabled;
+    }
+
+    public static void setCrossVpcIpSwapping(boolean setting)
+    {
+        conf.cross_vpc_ip_swapping_enabled = setting;
+    }
+
+    public static Boolean isCrossVpcHostnameSwappingEnabled()
+    {
+        return conf.cross_vpc_hostname_swapping_enabled;
+    }
+
+    public static void setCrossVpcHostnameSwapping(boolean setting)
+    {
+        conf.cross_vpc_hostname_swapping_enabled = setting;
+    }
+
+    public static Boolean isCrossVpcSniSubstitutionEnabled()
+    {
+        return conf.cross_vpc_sni_substitution_enabled;
+    }
+
+    public static void setCrossVpcSniSubstitution(boolean setting)
+    {
+        conf.cross_vpc_sni_substitution_enabled = setting;
+    }
+
+    public static Long getCrossVpcConnectTimeoutMs()
+    {
+        return conf.cross_vpc_connect_timeout_in_ms;
+    }
+
+    public static void setCrossVpcConnectTimeoutMs(long timeout)
+    {
+        conf.cross_vpc_connect_timeout_in_ms = timeout;
+    }
+
     public static IInternodeAuthenticator getInternodeAuthenticator()
     {
         return internodeAuthenticator;

@@ -43,7 +43,7 @@ public class BulkLoadConnectionFactory implements StreamConnectionFactory
         this.outboundBindAny = outboundBindAny;
     }
 
-    public Socket createConnection(InetAddress peer) throws IOException
+    public Socket createConnection(InetAddress peer) throws Exception
     {
         // Connect to secure port for all peers if ServerEncryptionOptions is configured other than 'none'
         // When 'all', 'dc' and 'rack', server nodes always have SSL port open, and since thin client like sstableloader

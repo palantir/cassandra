@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.cassandra.streaming;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
+package com.palantir.cassandra.cvim;
 
-/**
- * Interface that creates connection used by streaming.
- */
-public interface StreamConnectionFactory
+import com.palantir.cassandra.objects.Wrapper;
+
+public class InetAddressHostname extends Wrapper<String>
 {
-    Socket createConnection(InetAddress peer) throws Exception;
+    public InetAddressHostname(String hostname)
+    {
+        super(hostname);
+    }
 }

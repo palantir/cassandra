@@ -32,11 +32,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -58,7 +60,6 @@ import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
-import org.apache.hadoop.hdfs.server.common.StorageInfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -66,8 +67,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class StorageServiceServerTest
@@ -84,6 +83,13 @@ public class StorageServiceServerTest
     @Before
     public void setStartMode() {
         StorageService.instance.setOperationMode(StorageService.Mode.STARTING);
+    }
+
+    @After
+    public void after() {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcIpSwapping(false);
     }
 
     @Test
@@ -117,6 +123,22 @@ public class StorageServiceServerTest
     }
 
     @Test
+    public void disableNode_stopsCrossVpcHandshake() {
+        StorageService.instance.initServer(0);
+        CassandraDaemon daemon = mock(CassandraDaemon.class);
+        CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
+        daemon.thriftServer = server;
+        daemon.nativeServer = server;
+        StorageService.instance.registerDaemon(daemon);
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        CrossVpcIpMappingHandshaker.instance.start();
+        StorageService.instance.unsafeEnableNode();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
+        StorageService.instance.disableNode();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+    }
+
+    @Test
     public void enableNode_canOnlyEnableWhenDisabled() {
         StorageService.instance.initServer(0);
         CassandraDaemon daemon = mock(CassandraDaemon.class);
@@ -132,6 +154,23 @@ public class StorageServiceServerTest
             StorageService.instance.enableNode();
             assertThat(StorageService.instance.getOperationMode()).isEqualTo(mode.toString());
         }
+    }
+
+    @Test
+    public void enableNode_startsCrossVpcHandshake() {
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        StorageService.instance.initServer(0);
+        CassandraDaemon daemon = mock(CassandraDaemon.class);
+        CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
+        daemon.thriftServer = server;
+        daemon.nativeServer = server;
+        StorageService.instance.registerDaemon(daemon);
+        StorageService.instance.disableNode();
+        CrossVpcIpMappingHandshaker.instance.stop();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+        StorageService.instance.enableNode();
+        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
+        CrossVpcIpMappingHandshaker.instance.stop();
     }
 
     @Test

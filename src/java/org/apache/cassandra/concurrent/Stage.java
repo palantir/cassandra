@@ -35,7 +35,8 @@ public enum Stage
     MISC,
     TRACING,
     INTERNAL_RESPONSE,
-    READ_REPAIR;
+    READ_REPAIR,
+    CROSS_VPC_IP_MAPPING;
 
     public static Iterable<Stage> jmxEnabledStages()
     {
@@ -54,6 +55,7 @@ public enum Stage
         {
             case ANTI_ENTROPY:
             case GOSSIP:
+            case CROSS_VPC_IP_MAPPING:
             case MIGRATION:
             case MISC:
             case TRACING:

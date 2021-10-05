@@ -15,16 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.cassandra.streaming;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
+package com.palantir.cassandra.cvim;
 
-/**
- * Interface that creates connection used by streaming.
- */
-public interface StreamConnectionFactory
+import com.palantir.cassandra.objects.Wrapper;
+import sun.net.util.IPAddressUtil;
+
+public class InetAddressIp extends Wrapper<String>
 {
-    Socket createConnection(InetAddress peer) throws Exception;
+    public InetAddressIp(String ipAddress)
+    {
+        super(ipAddress);
+        if (!(IPAddressUtil.isIPv4LiteralAddress(ipAddress) || IPAddressUtil.isIPv6LiteralAddress(ipAddress)))
+        {
+            throw new IllegalArgumentException("Provided IP address is not valid IPv4 or IPv6 format: " + ipAddress);
+        }
+    }
 }
