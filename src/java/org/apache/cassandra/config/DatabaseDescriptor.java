@@ -316,10 +316,6 @@ public class DatabaseDescriptor
         }
         else
         {
-            if (conf.commitlog_sync_batch_window_in_ms == null)
-            {
-                throw new ConfigurationException("Missing value for commitlog_sync_batch_window_in_ms: Double expected.", false);
-            }
             if (conf.commitlog_sync_period_in_ms == null)
             {
                 throw new ConfigurationException("Missing value for commitlog_sync_period_in_ms: Integer expected", false);
