@@ -582,6 +582,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public void rebuild(String sourceDc);
 
+    /**
+     * Same as {@link #rebuild(String)}, but only for specified keyspace.
+     *
+     * @param sourceDc Name of DC from which to select sources for streaming or null to pick any node
+     * @param keyspace Name of the keyspace which to rebuild or null to rebuild all keyspaces.
+     */
+    public void rebuild(String sourceDc, String keyspace);
+
     /** Starts a bulk load and blocks until it completes. */
     public void bulkLoad(String directory);
 

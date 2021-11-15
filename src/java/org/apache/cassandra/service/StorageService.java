@@ -1219,13 +1219,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void rebuild(String sourceDc)
     {
+        rebuild(sourceDc, null);
+    }
+
+    public void rebuild(String sourceDc, String keyspace)
+    {
         // check on going rebuild
         if (!isRebuilding.compareAndSet(false, true))
         {
             throw new IllegalStateException("Node is still rebuilding. Check nodetool netstats.");
         }
 
-        logger.info("rebuild from dc: {}", sourceDc == null ? "(any dc)" : sourceDc);
+        logger.info("Rebuild from DC: {}, {}, (All tokens)", sourceDc == null ? "(Any DC)" : sourceDc,
+                    keyspace == null ? "(All keyspaces)" : keyspace);
 
         try
         {
@@ -1240,8 +1246,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             if (sourceDc != null)
                 streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
 
-            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
-                streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
+
+            if (keyspace == null)
+            {
+                for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+                    streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
+            }
+            else
+            {
+                streamer.addRanges(keyspace, getLocalRanges(keyspace));
+            }
 
             StreamResultFuture resultFuture = streamer.fetchAsync();
             // wait for result

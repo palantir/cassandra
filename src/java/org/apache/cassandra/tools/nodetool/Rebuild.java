@@ -20,6 +20,7 @@ package org.apache.cassandra.tools.nodetool;
 import io.airlift.command.Arguments;
 import io.airlift.command.Command;
 
+import io.airlift.command.Option;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
@@ -29,9 +30,14 @@ public class Rebuild extends NodeToolCmd
     @Arguments(usage = "<src-dc-name>", description = "Name of DC from which to select sources for streaming. By default, pick any DC")
     private String sourceDataCenterName = null;
 
+    @Option(title = "specific_keyspace",
+    name = {"-ks", "--keyspace"},
+    description = "Use -ks to rebuild specific keyspace.")
+    private String keyspace = null;
+
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.rebuild(sourceDataCenterName);
+        probe.rebuild(sourceDataCenterName, keyspace);
     }
 }
