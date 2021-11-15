@@ -27,6 +27,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.MatchResult;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
@@ -1219,13 +1221,26 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void rebuild(String sourceDc)
     {
+        rebuild(sourceDc, null, null);
+    }
+
+    public void rebuild(String sourceDc, String keyspace, String tokens)
+    {
         // check on going rebuild
         if (!isRebuilding.compareAndSet(false, true))
         {
             throw new IllegalStateException("Node is still rebuilding. Check nodetool netstats.");
         }
 
-        logger.info("rebuild from dc: {}", sourceDc == null ? "(any dc)" : sourceDc);
+        // check the arguments
+        if (keyspace == null && tokens != null)
+        {
+            throw new IllegalArgumentException("Cannot specify tokens without keyspace.");
+        }
+
+        logger.info("rebuild from dc: {}, {}, {}", sourceDc == null ? "(any dc)" : sourceDc,
+                    keyspace == null ? "(All keyspaces)" : keyspace,
+                    tokens == null ? "(All tokens)" : tokens);
 
         try
         {
@@ -1240,8 +1255,37 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             if (sourceDc != null)
                 streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
 
-            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
-                streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
+
+            if (keyspace == null)
+            {
+                for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+                    streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
+            }
+            else if (tokens == null)
+            {
+                streamer.addRanges(keyspace, getLocalRanges(keyspace));
+            }
+            else
+            {
+                Token.TokenFactory factory = getPartitioner().getTokenFactory();
+                List<Range<Token>> ranges = new ArrayList<>();
+                Pattern rangePattern = Pattern.compile("\\(\\s*(\\w+)\\s*,\\s*(\\w+)\\s*\\]");
+                try (Scanner tokenScanner = new Scanner(tokens))
+                {
+                    while (tokenScanner.findInLine(rangePattern) != null)
+                    {
+                        MatchResult range = tokenScanner.match();
+                        Token startToken = factory.fromString(range.group(1));
+                        Token endToken = factory.fromString(range.group(2));
+                        logger.info(String.format("adding range: (%s,%s]", startToken, endToken));
+                        ranges.add(new Range<>(startToken, endToken));
+                    }
+                    if (tokenScanner.hasNext())
+                        throw new IllegalArgumentException("Unexpected string: " + tokenScanner.next());
+                }
+                streamer.addRanges(keyspace, ranges);
+            }
+
 
             StreamResultFuture resultFuture = streamer.fetchAsync();
             // wait for result
