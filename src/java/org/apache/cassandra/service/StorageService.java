@@ -1221,10 +1221,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void rebuild(String sourceDc)
     {
-        rebuild(sourceDc, null, null);
+        rebuild(sourceDc, null);
     }
 
-    public void rebuild(String sourceDc, String keyspace, String tokens)
+    public void rebuild(String sourceDc, String keyspace)
     {
         // check on going rebuild
         if (!isRebuilding.compareAndSet(false, true))
@@ -1232,15 +1232,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             throw new IllegalStateException("Node is still rebuilding. Check nodetool netstats.");
         }
 
-        // check the arguments
-        if (keyspace == null && tokens != null)
-        {
-            throw new IllegalArgumentException("Cannot specify tokens without keyspace.");
-        }
-
-        logger.info("rebuild from dc: {}, {}, {}", sourceDc == null ? "(any dc)" : sourceDc,
-                    keyspace == null ? "(All keyspaces)" : keyspace,
-                    tokens == null ? "(All tokens)" : tokens);
+        logger.info("Rebuild from DC: {}, {}, (All tokens)", sourceDc == null ? "(Any DC)" : sourceDc,
+                    keyspace == null ? "(All keyspaces)" : keyspace);
 
         try
         {
@@ -1261,31 +1254,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
                     streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
             }
-            else if (tokens == null)
+            else
             {
                 streamer.addRanges(keyspace, getLocalRanges(keyspace));
             }
-            else
-            {
-                Token.TokenFactory factory = getPartitioner().getTokenFactory();
-                List<Range<Token>> ranges = new ArrayList<>();
-                Pattern rangePattern = Pattern.compile("\\(\\s*(-?\\w+)\\s*,\\s*(-?\\w+)\\s*\\]");
-                try (Scanner tokenScanner = new Scanner(tokens))
-                {
-                    while (tokenScanner.findInLine(rangePattern) != null)
-                    {
-                        MatchResult range = tokenScanner.match();
-                        Token startToken = factory.fromString(range.group(1));
-                        Token endToken = factory.fromString(range.group(2));
-                        logger.info(String.format("adding range: (%s,%s]", startToken, endToken));
-                        ranges.add(new Range<>(startToken, endToken));
-                    }
-                    if (tokenScanner.hasNext())
-                        throw new IllegalArgumentException("Unexpected string: " + tokenScanner.next());
-                }
-                streamer.addRanges(keyspace, ranges);
-            }
-
 
             StreamResultFuture resultFuture = streamer.fetchAsync();
             // wait for result

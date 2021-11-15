@@ -35,20 +35,9 @@ public class Rebuild extends NodeToolCmd
     description = "Use -ks to rebuild specific keyspace.")
     private String keyspace = null;
 
-    @Option(title = "specific_tokens",
-    name = {"-ts", "--tokens"},
-    description = "Use -ts to rebuild specific token ranges, in the format of \"(start_token_1,end_token_1],(start_token_2,end_token_2],...(start_token_n,end_token_n]\".")
-    private String tokens = null;
-
     @Override
     public void execute(NodeProbe probe)
     {
-        // check the arguments
-        if (keyspace == null && tokens != null)
-        {
-            throw new IllegalArgumentException("Cannot specify tokens without keyspace.");
-        }
-
-        probe.rebuild(sourceDataCenterName, keyspace, tokens);
+        probe.rebuild(sourceDataCenterName, keyspace);
     }
 }
