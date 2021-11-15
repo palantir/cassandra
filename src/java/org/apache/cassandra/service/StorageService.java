@@ -1269,7 +1269,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             {
                 Token.TokenFactory factory = getPartitioner().getTokenFactory();
                 List<Range<Token>> ranges = new ArrayList<>();
-                Pattern rangePattern = Pattern.compile("\\(\\s*(\\w+)\\s*,\\s*(\\w+)\\s*\\]");
+                Pattern rangePattern = Pattern.compile("\\(\\s*(-?\\w+)\\s*,\\s*(-?\\w+)\\s*\\]");
                 try (Scanner tokenScanner = new Scanner(tokens))
                 {
                     while (tokenScanner.findInLine(rangePattern) != null)
