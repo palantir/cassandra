@@ -113,6 +113,7 @@ public class NodeTool
                 ResumeHandoff.class,
                 ProxyHistograms.class,
                 Rebuild.class,
+                GetKeyspacesWithAllRangesAvailable.class,
                 Refresh.class,
                 RemoveNode.class,
                 Assassinate.class,
