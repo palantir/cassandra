@@ -358,12 +358,7 @@ public class RangeStreamer
             InetAddress preferred = SystemKeyspace.getPreferredIP(source);
             Collection<Range<Token>> ranges = entry.getValue().getValue();
 
-            // filter out already streamed ranges
-            Set<Range<Token>> availableRanges = stateStore.getAvailableRanges(keyspace, StorageService.getPartitioner());
-            if (ranges.removeAll(availableRanges))
-            {
-                logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", availableRanges);
-            }
+            removeAvailableRanges(entry, true);
 
             if (logger.isTraceEnabled())
                 logger.trace("{}ing from {} ranges {}", description, source, StringUtils.join(ranges, ", "));
@@ -372,5 +367,31 @@ public class RangeStreamer
         }
 
         return streamPlan.execute();
+    }
+
+    public boolean areAllRangesPresent()
+    {
+        boolean allPresent = true;
+        for (Map.Entry<String, Map.Entry<InetAddress, Collection<Range<Token>>>> entry : toFetch.entries())
+        {
+            removeAvailableRanges(entry, false);
+            Collection<Range<Token>> ranges = entry.getValue().getValue();
+            allPresent &= ranges.isEmpty();
+        }
+        return allPresent;
+    }
+
+    @VisibleForTesting
+    void removeAvailableRanges(Map.Entry<String, Map.Entry<InetAddress, Collection<Range<Token>>>> entry, boolean log)
+    {
+        String keyspace = entry.getKey();
+        Collection<Range<Token>> ranges = entry.getValue().getValue();
+
+        // filter out already streamed ranges
+        Set<Range<Token>> availableRanges = stateStore.getAvailableRanges(keyspace, StorageService.getPartitioner());
+        if (ranges.removeAll(availableRanges) && log)
+        {
+            logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", availableRanges);
+        }
     }
 }
