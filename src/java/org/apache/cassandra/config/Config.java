@@ -191,6 +191,8 @@ public class Config
 
     public String saved_caches_directory;
 
+    public String lock_keyspaces_directory;
+
     // Commit Log
     public String commitlog_directory;
     public Integer commitlog_total_space_in_mb;

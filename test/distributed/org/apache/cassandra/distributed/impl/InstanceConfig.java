@@ -71,7 +71,8 @@ public class InstanceConfig implements IInstanceConfig
                            String commitlog_directory,
 //                           String hints_directory,
 //                           String cdc_directory,
-                           String initial_token)
+                           String initial_token,
+                           String lock_keyspaces_directory)
     {
         this.num = num;
         this.networkTopology = networkTopology;
@@ -86,6 +87,7 @@ public class InstanceConfig implements IInstanceConfig
                 .set("commitlog_directory", commitlog_directory)
 //                .set("hints_directory", hints_directory)
 //                .set("cdc_directory", cdc_directory)
+                .set("lock_keyspaces_directory", lock_keyspaces_directory)
                 .set("initial_token", initial_token)
                 .set("partitioner", "org.apache.cassandra.dht.Murmur3Partitioner")
                 .set("start_native_transport", true)
@@ -275,7 +277,8 @@ public class InstanceConfig implements IInstanceConfig
                                   String.format("%s/node%d/commitlog", root, nodeNum),
 //                                  String.format("%s/node%d/hints", root, nodeNum),
 //                                  String.format("%s/node%d/cdc", root, nodeNum),
-                                  token);
+                                  token,
+                                  String.format("%s/node%d/lock_keyspaces", root, nodeNum));
     }
 
     public InstanceConfig forVersion(Versions.Major major)
