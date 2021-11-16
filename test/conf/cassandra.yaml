@@ -16,6 +16,7 @@ start_native_transport: true
 native_transport_port: 9042
 column_index_size_in_kb: 4
 saved_caches_directory: build/test/cassandra/saved_caches
+lock_keyspaces_directory: build/test/cassandra/lock-keyspaces
 data_file_directories:
     - build/test/cassandra/data
 disk_access_mode: mmap
