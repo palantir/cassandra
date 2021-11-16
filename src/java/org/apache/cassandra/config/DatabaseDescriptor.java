@@ -853,10 +853,10 @@ public class DatabaseDescriptor
 
             FileUtils.createDirectory(conf.saved_caches_directory);
 
-            if (conf.lock_keyspaces_directory == null)
-                throw new ConfigurationException("lock_keyspaces_directory must be specified", false);
+            if (conf.persistent_settings_directory == null)
+                throw new ConfigurationException("persistent_settings_directory must be specified", false);
 
-            FileUtils.createDirectory(conf.lock_keyspaces_directory);
+            FileUtils.createDirectory(conf.persistent_settings_directory);
         }
         catch (ConfigurationException e)
         {
@@ -1307,7 +1307,7 @@ public class DatabaseDescriptor
     }
 
     public static String getLockKeyspacesDirectory() {
-        return conf.lock_keyspaces_directory;
+        return conf.persistent_settings_directory;
     }
 
     public static Set<InetAddress> getSeeds()
