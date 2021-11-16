@@ -34,8 +34,8 @@ public class LockKeyspaceUtilsTest
     {
         LockKeyspaceUtils.lockKeyspaceCreation();
         assertThatThrownBy(LockKeyspaceUtils::validateKeyspaceCreationUnlocked)
-        .isInstanceOf(InvalidRequestException.class)
-        .hasMessage("keyspace creation is disabled");
+            .isInstanceOf(InvalidRequestException.class)
+            .hasMessage("keyspace creation is disabled");
     }
 
     @Test
