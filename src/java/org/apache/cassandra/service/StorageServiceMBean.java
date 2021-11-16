@@ -590,6 +590,16 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public void rebuild(String sourceDc, String keyspace);
 
+    /**
+     * To be used after issuing a rebuild to verify whether all relevant data has been successfully streamed to this
+     * node from the source datacenter.
+     *
+     * @param sourceDc Name of DC from which to select sources for ranges or null to pick any node
+     * @return the names of keyspaces for which this node holds all ranges from the source DC. Note that this does not
+     * include system keyspaces or keyspaces that do not have follow NetworkTopologyStrategy
+     */
+    public Set<String> getKeyspacesWithAllRangesAvailable(String sourceDc);
+
     /** Starts a bulk load and blocks until it completes. */
     public void bulkLoad(String directory);
 

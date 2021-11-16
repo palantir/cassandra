@@ -1235,28 +1235,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         try
         {
-            RangeStreamer streamer = new RangeStreamer(tokenMetadata,
-                                                       null,
-                                                       FBUtilities.getBroadcastAddress(),
-                                                       "Rebuild",
-                                                       !replacing && useStrictConsistency,
-                                                       DatabaseDescriptor.getEndpointSnitch(),
-                                                       streamStateStore);
-            streamer.addSourceFilter(new RangeStreamer.FailureDetectorSourceFilter(FailureDetector.instance));
-            if (sourceDc != null)
-                streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
-
-
-            if (keyspace == null)
-            {
-                for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
-                    streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
-            }
-            else
-            {
-                streamer.addRanges(keyspace, getLocalRanges(keyspace));
-            }
-
+            RangeStreamer streamer = getRebuildStreamer(sourceDc, keyspace);
             StreamResultFuture resultFuture = streamer.fetchAsync();
             // wait for result
             resultFuture.get();
@@ -1276,6 +1255,67 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // rebuild is done (successfully or not)
             isRebuilding.set(false);
         }
+    }
+
+    public Set<String> getKeyspacesWithAllRangesAvailable(String sourceDc)
+    {
+        Set<String> keyspaces = Schema.instance.getNonSystemKeyspaces().stream()
+                                               .filter(keyspace -> {
+                                                   Class<? extends AbstractReplicationStrategy> strategyClass =
+                                                   Schema.instance.getKSMetaData(keyspace).strategyClass;
+                                                   return strategyClass.equals(NetworkTopologyStrategy.class)
+                                                          || strategyClass.equals(OldNetworkTopologyStrategy.class);
+                                               })
+                                               .collect(Collectors.toSet());
+
+        Set<String> unavailable = keyspaces.stream()
+                                           .filter(keyspace -> !verifyAllRangesAvailable(sourceDc, keyspace))
+                                           .collect(Collectors.toSet());
+        if (!unavailable.isEmpty())
+            logger.warn("Verified keyspaces are missing ranges (from source DC: {}): {}", sourceDc, unavailable);
+        return keyspaces.stream()
+                        .filter(keyspace -> !unavailable.contains(keyspace))
+                        .collect(Collectors.toSet());
+    }
+
+    private boolean verifyAllRangesAvailable(String sourceDc, String keyspace)
+    {
+        try
+        {
+            RangeStreamer rebuildStreamer = getRebuildStreamer(sourceDc, keyspace);
+            return rebuildStreamer.areAllRangesPresent();
+        }
+        catch (Exception e)
+        {
+            logger.error("Failed to verify all ranges from source DC {} for keyspace {} were available on this node. " +
+                         "Defaulting to false for safety", sourceDc, keyspace, e);
+            return false;
+        }
+    }
+
+    private RangeStreamer getRebuildStreamer(String sourceDc, String keyspace)
+    {
+        RangeStreamer streamer = new RangeStreamer(tokenMetadata,
+                                                   null,
+                                                   FBUtilities.getBroadcastAddress(),
+                                                   "Rebuild",
+                                                   !replacing && useStrictConsistency,
+                                                   DatabaseDescriptor.getEndpointSnitch(),
+                                                   streamStateStore);
+        streamer.addSourceFilter(new RangeStreamer.FailureDetectorSourceFilter(FailureDetector.instance));
+        if (sourceDc != null)
+            streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
+
+        if (keyspace == null)
+        {
+            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+                streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
+        }
+        else
+        {
+            streamer.addRanges(keyspace, getLocalRanges(keyspace));
+        }
+        return streamer;
     }
 
     public void setStreamThroughputMbPerSec(int value)
