@@ -848,6 +848,11 @@ public class DatabaseDescriptor
                 throw new ConfigurationException("saved_caches_directory must be specified", false);
 
             FileUtils.createDirectory(conf.saved_caches_directory);
+
+            if (conf.persistent_settings_directory == null)
+                throw new ConfigurationException("persistent_settings_directory must be specified", false);
+
+            FileUtils.createDirectory(conf.persistent_settings_directory);
         }
         catch (ConfigurationException e)
         {
@@ -1295,6 +1300,10 @@ public class DatabaseDescriptor
     public static String getSavedCachesLocation()
     {
         return conf.saved_caches_directory;
+    }
+
+    public static String getLockKeyspacesDirectory() {
+        return conf.persistent_settings_directory;
     }
 
     public static Set<InetAddress> getSeeds()

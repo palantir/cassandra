@@ -49,6 +49,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAckVerbHandler;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSynVerbHandler;
+import com.palantir.cassandra.utils.LockKeyspaceUtils;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -4863,6 +4864,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         } else {
             logger.warn("Not enabling node as in mode {}; should be DISABLED", operationMode);
         }
+    }
+
+    @Override
+    public void disableKeyspaceCreation() throws IOException {
+        LockKeyspaceUtils.lockKeyspaceCreation();
+    }
+
+    @Override
+    public void enableKeyspaceCreation() {
+        LockKeyspaceUtils.unlockKeyspaceCreation();
     }
 
     public boolean isNodeDisabled() {

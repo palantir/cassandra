@@ -795,4 +795,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Re-enables the node (NO-OP if already enabled), starts gossip up first
      */
     public void enableNode();
+
+    /**
+     * Disable keyspace creation for Thrift connections.
+     */
+    public void disableKeyspaceCreation() throws IOException;
+
+    /**
+     * Enable keyspace creation for Thrift connections.
+     */
+    public void enableKeyspaceCreation();
 }

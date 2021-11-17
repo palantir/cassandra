@@ -38,6 +38,7 @@ import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.utils.LockKeyspaceUtils;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -1791,6 +1792,7 @@ public class CassandraServer implements Cassandra.Iface
 
         try
         {
+            LockKeyspaceUtils.validateKeyspaceCreationUnlocked();
             ThriftValidation.validateKeyspaceNotSystem(ks_def.name);
             state().hasKeyspaceAccess(ks_def.name, Permission.CREATE);
             ThriftValidation.validateKeyspaceNotYetExisting(ks_def.name);
