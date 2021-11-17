@@ -596,7 +596,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      *
      * @param sourceDc Name of DC from which to select sources for ranges or null to pick any node
      * @return the names of keyspaces for which this node holds all ranges from the source DC. Note that this does not
-     * include system keyspaces or keyspaces that do not have follow NetworkTopologyStrategy
+     * include system keyspaces or keyspaces that do not follow NetworkTopologyStrategy
      */
     public Set<String> getKeyspacesWithAllRangesAvailable(String sourceDc);
 
