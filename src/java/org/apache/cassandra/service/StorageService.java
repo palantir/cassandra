@@ -4876,6 +4876,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         LockKeyspaceUtils.unlockKeyspaceCreation();
     }
 
+    @Override
+    public boolean isKeyspaceCreationEnabled() {
+        return LockKeyspaceUtils.isKeyspaceCreationLocked();
+    }
+
     public boolean isNodeDisabled() {
         return instance.areAllTransportsStopped() && isAutoCompactionDisabled();
     }

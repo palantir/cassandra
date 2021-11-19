@@ -49,8 +49,12 @@ public class LockKeyspaceUtils
         lockFile.delete();
     }
 
+    public static synchronized boolean isKeyspaceCreationLocked() {
+        return getCreateLockFile().exists();
+    }
+
     public static synchronized void validateKeyspaceCreationUnlocked() {
-        if (getCreateLockFile().exists())
+        if (isKeyspaceCreationLocked())
             throw new org.apache.cassandra.exceptions.InvalidRequestException("keyspace creation is disabled");
     }
 
