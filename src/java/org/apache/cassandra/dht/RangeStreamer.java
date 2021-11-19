@@ -392,11 +392,11 @@ public class RangeStreamer
         Set<Range<Token>> unavailableRanges = ranges.stream()
                                                     .filter(range -> !availableRanges.contains(range))
                                                     .collect(Collectors.toSet());
+        entry.getValue().getValue().removeAll(availableRanges);
         if (!availableRanges.equals(unavailableRanges) && log)
         {
             logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", availableRanges);
         }
-        entry.getValue().setValue(ranges);
         return unavailableRanges;
     }
 }
