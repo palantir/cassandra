@@ -19,16 +19,19 @@ package org.apache.cassandra.dht;
 
 import java.net.InetAddress;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.antlr.analysis.SemanticContext;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.gms.EndpointState;
@@ -356,14 +359,7 @@ public class RangeStreamer
             String keyspace = entry.getKey();
             InetAddress source = entry.getValue().getKey();
             InetAddress preferred = SystemKeyspace.getPreferredIP(source);
-            Collection<Range<Token>> ranges = entry.getValue().getValue();
-
-            // filter out already streamed ranges
-            Set<Range<Token>> availableRanges = stateStore.getAvailableRanges(keyspace, StorageService.getPartitioner());
-            if (ranges.removeAll(availableRanges))
-            {
-                logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", availableRanges);
-            }
+            Collection<Range<Token>> ranges = removeAvailableRanges(entry, true);
 
             if (logger.isTraceEnabled())
                 logger.trace("{}ing from {} ranges {}", description, source, StringUtils.join(ranges, ", "));
@@ -372,5 +368,35 @@ public class RangeStreamer
         }
 
         return streamPlan.execute();
+    }
+
+    public boolean areAllRangesPresent()
+    {
+        boolean allPresent = true;
+        for (Map.Entry<String, Map.Entry<InetAddress, Collection<Range<Token>>>> entry : toFetch.entries())
+        {
+            Collection<Range<Token>> ranges = removeAvailableRanges(entry, false);
+            allPresent &= ranges.isEmpty();
+        }
+        return allPresent;
+    }
+
+    @VisibleForTesting
+    Set<Range<Token>> removeAvailableRanges(Map.Entry<String, Map.Entry<InetAddress, Collection<Range<Token>>>> entry, boolean log)
+    {
+        String keyspace = entry.getKey();
+        Collection<Range<Token>> ranges = ImmutableSet.copyOf(entry.getValue().getValue());
+
+        // filter out already streamed ranges
+        Set<Range<Token>> availableRanges = stateStore.getAvailableRanges(keyspace, StorageService.getPartitioner());
+        Set<Range<Token>> unavailableRanges = ranges.stream()
+                                                    .filter(range -> !availableRanges.contains(range))
+                                                    .collect(Collectors.toSet());
+        entry.getValue().getValue().removeAll(availableRanges);
+        if (!availableRanges.equals(unavailableRanges) && log)
+        {
+            logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", availableRanges);
+        }
+        return unavailableRanges;
     }
 }

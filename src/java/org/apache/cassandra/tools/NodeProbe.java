@@ -1095,6 +1095,11 @@ public class NodeProbe implements AutoCloseable
         ssProxy.rebuild(sourceDc, keyspace);
     }
 
+    public Set<String> getKeyspacesWithAllRangesAvailable(String sourceDc)
+    {
+        return ssProxy.getKeyspacesWithAllRangesAvailable(sourceDc);
+    }
+
     public List<String> sampleKeyRange()
     {
         return ssProxy.sampleKeyRange();
