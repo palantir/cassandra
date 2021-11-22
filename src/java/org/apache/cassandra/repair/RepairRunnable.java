@@ -329,7 +329,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
             {
                 String duration = DurationFormatUtils.formatDurationWords(System.currentTimeMillis() - startTime,
                                                                           true, true);
-                String message = String.format("Repair command #%d finished in %s for keyspace", cmd, duration, keyspace);
+                String message = String.format("Repair command #%d finished in %s for keyspace %s", cmd, duration, keyspace);
                 fireProgressEvent(tag, new ProgressEvent(ProgressEventType.COMPLETE, progress.get(), totalProgress, message));
                 logger.info(message);
                 if (options.isTraced() && traceState != null)
