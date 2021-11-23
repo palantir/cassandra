@@ -815,4 +815,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Enable keyspace creation for Thrift connections.
      */
     public void enableKeyspaceCreation();
+
+    /**
+     * Returns true if keyspace creation is enabled.
+     */
+    public boolean isKeyspaceCreationEnabled();
 }
