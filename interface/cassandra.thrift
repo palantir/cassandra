@@ -308,6 +308,12 @@ struct SlicePredicate {
     2: optional SliceRange   slice_range,
 }
 
+struct ProposedColumnUpdate {
+    1: optional binary expected_column_name,
+    2: optional binary expected_column_value,
+    3: optional binary proposed_column_value,
+}
+
 enum IndexOperator {
     EQ,
     GTE,
@@ -755,6 +761,20 @@ service Cassandra {
                 5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
                 6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
+   * Atomic compare and set, evaluated at columnar granularity (as opposed to key granularity).
+   *
+   * This method behaves similar to cas(), however it operates with columnar granularity. This differs from cas(), in
+   * that a standard cas() will fail if there are any other columns present in the database for that key (while this
+   * will succeed as long as the columns specified in the expected updates have their expected values).
+   */
+  CASResult cell_cas(1:required binary key,
+                     2:required string column_family,
+                     3:list<ProposedColumnUpdate> column_updates,
+                     4:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
+                     5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
    * Atomic put unless exists.
