@@ -201,7 +201,6 @@ public class TokenRange implements org.apache.thrift.TBase<TokenRange, TokenRang
     return new TokenRange(this);
   }
 
-  @Override
   public void clear() {
     this.start_token = null;
     this.end_token = null;
@@ -698,7 +697,7 @@ public class TokenRange implements org.apache.thrift.TBase<TokenRange, TokenRang
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -706,7 +705,7 @@ public class TokenRange implements org.apache.thrift.TBase<TokenRange, TokenRang
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

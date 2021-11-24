@@ -156,7 +156,6 @@ public class ColumnParent implements org.apache.thrift.TBase<ColumnParent, Colum
     return new ColumnParent(this);
   }
 
-  @Override
   public void clear() {
     this.column_family = null;
     this.super_column = null;
@@ -400,7 +399,7 @@ public class ColumnParent implements org.apache.thrift.TBase<ColumnParent, Colum
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -408,7 +407,7 @@ public class ColumnParent implements org.apache.thrift.TBase<ColumnParent, Colum
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

@@ -181,7 +181,6 @@ public class CqlMetadata implements org.apache.thrift.TBase<CqlMetadata, CqlMeta
     return new CqlMetadata(this);
   }
 
-  @Override
   public void clear() {
     this.name_types = null;
     this.value_types = null;
@@ -584,7 +583,7 @@ public class CqlMetadata implements org.apache.thrift.TBase<CqlMetadata, CqlMeta
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -592,7 +591,7 @@ public class CqlMetadata implements org.apache.thrift.TBase<CqlMetadata, CqlMeta
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

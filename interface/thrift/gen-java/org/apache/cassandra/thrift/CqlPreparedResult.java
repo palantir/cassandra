@@ -178,7 +178,6 @@ public class CqlPreparedResult implements org.apache.thrift.TBase<CqlPreparedRes
     return new CqlPreparedResult(this);
   }
 
-  @Override
   public void clear() {
     setItemIdIsSet(false);
     this.itemId = 0;
@@ -575,7 +574,7 @@ public class CqlPreparedResult implements org.apache.thrift.TBase<CqlPreparedRes
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -585,7 +584,7 @@ public class CqlPreparedResult implements org.apache.thrift.TBase<CqlPreparedRes
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

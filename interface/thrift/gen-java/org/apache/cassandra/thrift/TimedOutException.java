@@ -183,7 +183,6 @@ public class TimedOutException extends TException implements org.apache.thrift.T
     return new TimedOutException(this);
   }
 
-  @Override
   public void clear() {
     setAcknowledged_byIsSet(false);
     this.acknowledged_by = 0;
@@ -504,7 +503,7 @@ public class TimedOutException extends TException implements org.apache.thrift.T
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -514,7 +513,7 @@ public class TimedOutException extends TException implements org.apache.thrift.T
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

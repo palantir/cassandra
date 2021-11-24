@@ -124,7 +124,6 @@ public class NotFoundException extends TException implements org.apache.thrift.T
     return new NotFoundException(this);
   }
 
-  @Override
   public void clear() {
   }
 
@@ -214,7 +213,7 @@ public class NotFoundException extends TException implements org.apache.thrift.T
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -222,7 +221,7 @@ public class NotFoundException extends TException implements org.apache.thrift.T
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

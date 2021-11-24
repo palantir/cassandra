@@ -153,7 +153,6 @@ public class CounterColumn implements org.apache.thrift.TBase<CounterColumn, Cou
     return new CounterColumn(this);
   }
 
-  @Override
   public void clear() {
     this.name = null;
     setValueIsSet(false);
@@ -392,7 +391,7 @@ public class CounterColumn implements org.apache.thrift.TBase<CounterColumn, Cou
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -402,7 +401,7 @@ public class CounterColumn implements org.apache.thrift.TBase<CounterColumn, Cou
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

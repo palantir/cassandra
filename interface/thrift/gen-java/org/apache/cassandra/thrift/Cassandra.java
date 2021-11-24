@@ -8267,7 +8267,6 @@ public class Cassandra {
       return new login_args(this);
     }
 
-    @Override
     public void clear() {
       this.auth_request = null;
     }
@@ -8432,7 +8431,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -8440,7 +8439,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -8638,7 +8637,6 @@ public class Cassandra {
       return new login_result(this);
     }
 
-    @Override
     public void clear() {
       this.authnx = null;
       this.authzx = null;
@@ -8867,7 +8865,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -8875,7 +8873,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -9096,7 +9094,6 @@ public class Cassandra {
       return new set_keyspace_args(this);
     }
 
-    @Override
     public void clear() {
       this.keyspace = null;
     }
@@ -9258,7 +9255,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -9266,7 +9263,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -9450,7 +9447,6 @@ public class Cassandra {
       return new set_keyspace_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
     }
@@ -9609,7 +9605,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -9617,7 +9613,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -9847,7 +9843,6 @@ public class Cassandra {
       return new get_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_path = null;
@@ -10177,7 +10172,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -10185,7 +10180,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -10451,7 +10446,6 @@ public class Cassandra {
       return new get_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -10893,7 +10887,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -10901,7 +10895,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -11243,7 +11237,6 @@ public class Cassandra {
       return new get_slice_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_parent = null;
@@ -11649,7 +11642,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -11657,7 +11650,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -11934,7 +11927,6 @@ public class Cassandra {
       return new get_slice_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -12318,7 +12310,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -12326,7 +12318,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -12675,7 +12667,6 @@ public class Cassandra {
       return new get_count_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_parent = null;
@@ -13081,7 +13072,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -13089,7 +13080,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -13363,7 +13354,6 @@ public class Cassandra {
       return new get_count_result(this);
     }
 
-    @Override
     public void clear() {
       setSuccessIsSet(false);
       this.success = 0;
@@ -13728,7 +13718,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -13738,7 +13728,7 @@ public class Cassandra {
         __isset_bitfield = 0;
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -14055,7 +14045,6 @@ public class Cassandra {
       return new multiget_slice_args(this);
     }
 
-    @Override
     public void clear() {
       this.keys = null;
       this.column_parent = null;
@@ -14466,7 +14455,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -14474,7 +14463,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -14796,7 +14785,6 @@ public class Cassandra {
       return new multiget_slice_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -15176,7 +15164,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -15184,7 +15172,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -15564,7 +15552,6 @@ public class Cassandra {
       return new multiget_multislice_args(this);
     }
 
-    @Override
     public void clear() {
       this.request = null;
       this.column_parent = null;
@@ -15899,7 +15886,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -15907,7 +15894,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -16218,7 +16205,6 @@ public class Cassandra {
       return new multiget_multislice_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -16598,7 +16584,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -16606,7 +16592,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -17027,7 +17013,6 @@ public class Cassandra {
       return new multiget_count_args(this);
     }
 
-    @Override
     public void clear() {
       this.keys = null;
       this.column_parent = null;
@@ -17438,7 +17423,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -17446,7 +17431,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -17753,7 +17738,6 @@ public class Cassandra {
       return new multiget_count_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -18133,7 +18117,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -18141,7 +18125,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -18494,7 +18478,6 @@ public class Cassandra {
       return new get_range_slices_args(this);
     }
 
-    @Override
     public void clear() {
       this.column_parent = null;
       this.predicate = null;
@@ -18893,7 +18876,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -18901,7 +18884,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -19180,7 +19163,6 @@ public class Cassandra {
       return new get_range_slices_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -19564,7 +19546,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -19572,7 +19554,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -19921,7 +19903,6 @@ public class Cassandra {
       return new get_paged_slice_args(this);
     }
 
-    @Override
     public void clear() {
       this.column_family = null;
       this.range = null;
@@ -20324,7 +20305,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -20332,7 +20313,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -20607,7 +20588,6 @@ public class Cassandra {
       return new get_paged_slice_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -20991,7 +20971,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -20999,7 +20979,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -21348,7 +21328,6 @@ public class Cassandra {
       return new get_indexed_slices_args(this);
     }
 
-    @Override
     public void clear() {
       this.column_parent = null;
       this.index_clause = null;
@@ -21747,7 +21726,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -21755,7 +21734,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -22034,7 +22013,6 @@ public class Cassandra {
       return new get_indexed_slices_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -22418,7 +22396,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -22426,7 +22404,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -22775,7 +22753,6 @@ public class Cassandra {
       return new insert_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_parent = null;
@@ -23181,7 +23158,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -23189,7 +23166,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -23449,7 +23426,6 @@ public class Cassandra {
       return new insert_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -23748,7 +23724,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -23756,7 +23732,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -24048,7 +24024,6 @@ public class Cassandra {
       return new add_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_parent = null;
@@ -24454,7 +24429,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -24462,7 +24437,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -24722,7 +24697,6 @@ public class Cassandra {
       return new add_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -25021,7 +24995,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -25029,7 +25003,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -25365,7 +25339,6 @@ public class Cassandra {
       return new cas_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_family = null;
@@ -25944,7 +25917,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -25952,7 +25925,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -26337,7 +26310,6 @@ public class Cassandra {
       return new cas_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -26709,7 +26681,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -26717,7 +26689,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -27078,7 +27050,6 @@ public class Cassandra {
       return new cas_columns_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_family = null;
@@ -27657,7 +27628,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -27665,7 +27636,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -28050,7 +28021,6 @@ public class Cassandra {
       return new cas_columns_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -28422,7 +28392,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -28430,7 +28400,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -28774,7 +28744,6 @@ public class Cassandra {
       return new put_unless_exists_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_family = null;
@@ -29268,7 +29237,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -29276,7 +29245,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -29604,7 +29573,6 @@ public class Cassandra {
       return new put_unless_exists_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -29976,7 +29944,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -29984,7 +29952,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -30303,7 +30271,6 @@ public class Cassandra {
       return new remove_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.column_path = null;
@@ -30697,7 +30664,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -30707,7 +30674,7 @@ public class Cassandra {
         __isset_bitfield = 0;
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -30976,7 +30943,6 @@ public class Cassandra {
       return new remove_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -31275,7 +31241,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -31283,7 +31249,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -31563,7 +31529,6 @@ public class Cassandra {
       return new remove_counter_args(this);
     }
 
-    @Override
     public void clear() {
       this.key = null;
       this.path = null;
@@ -31893,7 +31858,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -31901,7 +31866,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -32143,7 +32108,6 @@ public class Cassandra {
       return new remove_counter_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -32442,7 +32406,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -32450,7 +32414,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -32749,7 +32713,6 @@ public class Cassandra {
       return new batch_mutate_args(this);
     }
 
-    @Override
     public void clear() {
       this.mutation_map = null;
       this.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.ONE;
@@ -33004,7 +32967,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -33012,7 +32975,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -33346,7 +33309,6 @@ public class Cassandra {
       return new batch_mutate_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -33645,7 +33607,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -33653,7 +33615,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -33952,7 +33914,6 @@ public class Cassandra {
       return new atomic_batch_mutate_args(this);
     }
 
-    @Override
     public void clear() {
       this.mutation_map = null;
       this.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.ONE;
@@ -34207,7 +34168,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -34215,7 +34176,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -34549,7 +34510,6 @@ public class Cassandra {
       return new atomic_batch_mutate_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -34848,7 +34808,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -34856,7 +34816,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -35102,7 +35062,6 @@ public class Cassandra {
       return new truncate_args(this);
     }
 
-    @Override
     public void clear() {
       this.cfname = null;
     }
@@ -35264,7 +35223,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -35272,7 +35231,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -35480,7 +35439,6 @@ public class Cassandra {
       return new truncate_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
       this.ue = null;
@@ -35779,7 +35737,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -35787,7 +35745,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -36033,7 +35991,6 @@ public class Cassandra {
       return new get_multi_slice_args(this);
     }
 
-    @Override
     public void clear() {
       this.request = null;
     }
@@ -36198,7 +36155,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -36206,7 +36163,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -36433,7 +36390,6 @@ public class Cassandra {
       return new get_multi_slice_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -36817,7 +36773,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -36825,7 +36781,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -37110,7 +37066,6 @@ public class Cassandra {
       return new describe_schema_versions_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -37200,7 +37155,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -37208,7 +37163,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -37403,7 +37358,6 @@ public class Cassandra {
       return new describe_schema_versions_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -37643,7 +37597,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -37651,7 +37605,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -37922,7 +37876,6 @@ public class Cassandra {
       return new describe_keyspaces_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -38012,7 +37965,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -38020,7 +37973,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -38205,7 +38158,6 @@ public class Cassandra {
       return new describe_keyspaces_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -38449,7 +38401,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -38457,7 +38409,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -38692,7 +38644,6 @@ public class Cassandra {
       return new describe_cluster_name_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -38782,7 +38733,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -38790,7 +38741,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -38958,7 +38909,6 @@ public class Cassandra {
       return new describe_cluster_name_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
     }
@@ -39117,7 +39067,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -39125,7 +39075,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -39301,7 +39251,6 @@ public class Cassandra {
       return new describe_version_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -39391,7 +39340,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -39399,7 +39348,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -39567,7 +39516,6 @@ public class Cassandra {
       return new describe_version_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
     }
@@ -39726,7 +39674,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -39734,7 +39682,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -39928,7 +39876,6 @@ public class Cassandra {
       return new describe_ring_args(this);
     }
 
-    @Override
     public void clear() {
       this.keyspace = null;
     }
@@ -40090,7 +40037,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -40098,7 +40045,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -40299,7 +40246,6 @@ public class Cassandra {
       return new describe_ring_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -40543,7 +40489,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -40551,7 +40497,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -40804,7 +40750,6 @@ public class Cassandra {
       return new describe_local_ring_args(this);
     }
 
-    @Override
     public void clear() {
       this.keyspace = null;
     }
@@ -40966,7 +40911,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -40974,7 +40919,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -41175,7 +41120,6 @@ public class Cassandra {
       return new describe_local_ring_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -41419,7 +41363,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -41427,7 +41371,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -41662,7 +41606,6 @@ public class Cassandra {
       return new describe_token_map_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -41752,7 +41695,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -41760,7 +41703,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -41943,7 +41886,6 @@ public class Cassandra {
       return new describe_token_map_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -42183,7 +42125,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -42191,7 +42133,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -42430,7 +42372,6 @@ public class Cassandra {
       return new describe_partitioner_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -42520,7 +42461,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -42528,7 +42469,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -42696,7 +42637,6 @@ public class Cassandra {
       return new describe_partitioner_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
     }
@@ -42855,7 +42795,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -42863,7 +42803,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -43039,7 +42979,6 @@ public class Cassandra {
       return new describe_snitch_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -43129,7 +43068,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -43137,7 +43076,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -43305,7 +43244,6 @@ public class Cassandra {
       return new describe_snitch_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
     }
@@ -43464,7 +43402,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -43472,7 +43410,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -43666,7 +43604,6 @@ public class Cassandra {
       return new describe_keyspace_args(this);
     }
 
-    @Override
     public void clear() {
       this.keyspace = null;
     }
@@ -43828,7 +43765,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -43836,7 +43773,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -44044,7 +43981,6 @@ public class Cassandra {
       return new describe_keyspace_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.nfe = null;
@@ -44346,7 +44282,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -44354,7 +44290,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -44638,7 +44574,6 @@ public class Cassandra {
       return new describe_splits_args(this);
     }
 
-    @Override
     public void clear() {
       this.cfName = null;
       this.start_token = null;
@@ -45013,7 +44948,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -45023,7 +44958,7 @@ public class Cassandra {
         __isset_bitfield = 0;
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -45270,7 +45205,6 @@ public class Cassandra {
       return new describe_splits_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -45514,7 +45448,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -45522,7 +45456,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -45755,7 +45689,6 @@ public class Cassandra {
       return new trace_next_query_args(this);
     }
 
-    @Override
     public void clear() {
     }
 
@@ -45845,7 +45778,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -45853,7 +45786,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -46021,7 +45954,6 @@ public class Cassandra {
       return new trace_next_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
     }
@@ -46190,7 +46122,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -46198,7 +46130,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -46430,7 +46362,6 @@ public class Cassandra {
       return new describe_splits_ex_args(this);
     }
 
-    @Override
     public void clear() {
       this.cfName = null;
       this.start_token = null;
@@ -46805,7 +46736,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -46815,7 +46746,7 @@ public class Cassandra {
         __isset_bitfield = 0;
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -47065,7 +46996,6 @@ public class Cassandra {
       return new describe_splits_ex_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -47309,7 +47239,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -47317,7 +47247,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -47570,7 +47500,6 @@ public class Cassandra {
       return new system_add_column_family_args(this);
     }
 
-    @Override
     public void clear() {
       this.cf_def = null;
     }
@@ -47735,7 +47664,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -47743,7 +47672,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -47953,7 +47882,6 @@ public class Cassandra {
       return new system_add_column_family_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -48252,7 +48180,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -48260,7 +48188,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -48504,7 +48432,6 @@ public class Cassandra {
       return new system_drop_column_family_args(this);
     }
 
-    @Override
     public void clear() {
       this.column_family = null;
     }
@@ -48666,7 +48593,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -48674,7 +48601,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -48882,7 +48809,6 @@ public class Cassandra {
       return new system_drop_column_family_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -49181,7 +49107,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -49189,7 +49115,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -49433,7 +49359,6 @@ public class Cassandra {
       return new system_add_keyspace_args(this);
     }
 
-    @Override
     public void clear() {
       this.ks_def = null;
     }
@@ -49598,7 +49523,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -49606,7 +49531,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -49816,7 +49741,6 @@ public class Cassandra {
       return new system_add_keyspace_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -50115,7 +50039,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -50123,7 +50047,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -50367,7 +50291,6 @@ public class Cassandra {
       return new system_drop_keyspace_args(this);
     }
 
-    @Override
     public void clear() {
       this.keyspace = null;
     }
@@ -50529,7 +50452,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -50537,7 +50460,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -50745,7 +50668,6 @@ public class Cassandra {
       return new system_drop_keyspace_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -51044,7 +50966,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -51052,7 +50974,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -51296,7 +51218,6 @@ public class Cassandra {
       return new system_update_keyspace_args(this);
     }
 
-    @Override
     public void clear() {
       this.ks_def = null;
     }
@@ -51461,7 +51382,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -51469,7 +51390,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -51679,7 +51600,6 @@ public class Cassandra {
       return new system_update_keyspace_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -51978,7 +51898,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -51986,7 +51906,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -52230,7 +52150,6 @@ public class Cassandra {
       return new system_update_column_family_args(this);
     }
 
-    @Override
     public void clear() {
       this.cf_def = null;
     }
@@ -52395,7 +52314,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -52403,7 +52322,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -52613,7 +52532,6 @@ public class Cassandra {
       return new system_update_column_family_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -52912,7 +52830,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -52920,7 +52838,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -53184,7 +53102,6 @@ public class Cassandra {
       return new execute_cql_query_args(this);
     }
 
-    @Override
     public void clear() {
       this.query = null;
       this.compression = null;
@@ -53437,7 +53354,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -53445,7 +53362,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -53693,7 +53610,6 @@ public class Cassandra {
       return new execute_cql_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -54135,7 +54051,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -54143,7 +54059,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -54479,7 +54395,6 @@ public class Cassandra {
       return new execute_cql3_query_args(this);
     }
 
-    @Override
     public void clear() {
       this.query = null;
       this.compression = null;
@@ -54813,7 +54728,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -54821,7 +54736,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -55085,7 +55000,6 @@ public class Cassandra {
       return new execute_cql3_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -55527,7 +55441,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -55535,7 +55449,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -55851,7 +55765,6 @@ public class Cassandra {
       return new prepare_cql_query_args(this);
     }
 
-    @Override
     public void clear() {
       this.query = null;
       this.compression = null;
@@ -56104,7 +56017,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -56112,7 +56025,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -56324,7 +56237,6 @@ public class Cassandra {
       return new prepare_cql_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -56556,7 +56468,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -56564,7 +56476,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -56805,7 +56717,6 @@ public class Cassandra {
       return new prepare_cql3_query_args(this);
     }
 
-    @Override
     public void clear() {
       this.query = null;
       this.compression = null;
@@ -57058,7 +56969,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -57066,7 +56977,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -57278,7 +57189,6 @@ public class Cassandra {
       return new prepare_cql3_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -57510,7 +57420,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -57518,7 +57428,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -57755,7 +57665,6 @@ public class Cassandra {
       return new execute_prepared_cql_query_args(this);
     }
 
-    @Override
     public void clear() {
       setItemIdIsSet(false);
       this.itemId = 0;
@@ -57999,7 +57908,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -58009,7 +57918,7 @@ public class Cassandra {
         __isset_bitfield = 0;
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -58290,7 +58199,6 @@ public class Cassandra {
       return new execute_prepared_cql_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -58732,7 +58640,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -58740,7 +58648,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -59072,7 +58980,6 @@ public class Cassandra {
       return new execute_prepared_cql3_query_args(this);
     }
 
-    @Override
     public void clear() {
       setItemIdIsSet(false);
       this.itemId = 0;
@@ -59397,7 +59304,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -59407,7 +59314,7 @@ public class Cassandra {
         __isset_bitfield = 0;
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -59704,7 +59611,6 @@ public class Cassandra {
       return new execute_prepared_cql3_query_result(this);
     }
 
-    @Override
     public void clear() {
       this.success = null;
       this.ire = null;
@@ -60146,7 +60052,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -60154,7 +60060,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -60450,7 +60356,6 @@ public class Cassandra {
       return new set_cql_version_args(this);
     }
 
-    @Override
     public void clear() {
       this.version = null;
     }
@@ -60612,7 +60517,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -60620,7 +60525,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -60804,7 +60709,6 @@ public class Cassandra {
       return new set_cql_version_result(this);
     }
 
-    @Override
     public void clear() {
       this.ire = null;
     }
@@ -60963,7 +60867,7 @@ public class Cassandra {
       try {
         write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 
@@ -60971,7 +60875,7 @@ public class Cassandra {
       try {
         read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
       } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
+        throw new java.io.IOException(te.getMessage());
       }
     }
 

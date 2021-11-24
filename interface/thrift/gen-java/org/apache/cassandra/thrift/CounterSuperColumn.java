@@ -156,7 +156,6 @@ public class CounterSuperColumn implements org.apache.thrift.TBase<CounterSuperC
     return new CounterSuperColumn(this);
   }
 
-  @Override
   public void clear() {
     this.name = null;
     this.columns = null;
@@ -416,7 +415,7 @@ public class CounterSuperColumn implements org.apache.thrift.TBase<CounterSuperC
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -424,7 +423,7 @@ public class CounterSuperColumn implements org.apache.thrift.TBase<CounterSuperC
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

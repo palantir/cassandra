@@ -148,7 +148,6 @@ public class Mutation implements org.apache.thrift.TBase<Mutation, Mutation._Fie
     return new Mutation(this);
   }
 
-  @Override
   public void clear() {
     this.column_or_supercolumn = null;
     this.deletion = null;
@@ -387,7 +386,7 @@ public class Mutation implements org.apache.thrift.TBase<Mutation, Mutation._Fie
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -395,7 +394,7 @@ public class Mutation implements org.apache.thrift.TBase<Mutation, Mutation._Fie
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

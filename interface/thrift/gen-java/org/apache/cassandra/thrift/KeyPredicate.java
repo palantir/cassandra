@@ -147,7 +147,6 @@ public class KeyPredicate implements org.apache.thrift.TBase<KeyPredicate, KeyPr
     return new KeyPredicate(this);
   }
 
-  @Override
   public void clear() {
     this.key = null;
     this.predicate = null;
@@ -393,7 +392,7 @@ public class KeyPredicate implements org.apache.thrift.TBase<KeyPredicate, KeyPr
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -401,7 +400,7 @@ public class KeyPredicate implements org.apache.thrift.TBase<KeyPredicate, KeyPr
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

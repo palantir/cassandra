@@ -157,7 +157,6 @@ public class SlicePredicate implements org.apache.thrift.TBase<SlicePredicate, S
     return new SlicePredicate(this);
   }
 
-  @Override
   public void clear() {
     this.column_names = null;
     this.slice_range = null;
@@ -408,7 +407,7 @@ public class SlicePredicate implements org.apache.thrift.TBase<SlicePredicate, S
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -416,7 +415,7 @@ public class SlicePredicate implements org.apache.thrift.TBase<SlicePredicate, S
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

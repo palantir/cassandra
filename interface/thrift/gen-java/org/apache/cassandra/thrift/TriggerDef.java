@@ -159,7 +159,6 @@ public class TriggerDef implements org.apache.thrift.TBase<TriggerDef, TriggerDe
     return new TriggerDef(this);
   }
 
-  @Override
   public void clear() {
     this.name = null;
     this.options = null;
@@ -405,7 +404,7 @@ public class TriggerDef implements org.apache.thrift.TBase<TriggerDef, TriggerDe
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -413,7 +412,7 @@ public class TriggerDef implements org.apache.thrift.TBase<TriggerDef, TriggerDe
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

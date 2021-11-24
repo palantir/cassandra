@@ -175,7 +175,6 @@ public class IndexClause implements org.apache.thrift.TBase<IndexClause, IndexCl
     return new IndexClause(this);
   }
 
-  @Override
   public void clear() {
     this.expressions = null;
     this.start_key = null;
@@ -502,7 +501,7 @@ public class IndexClause implements org.apache.thrift.TBase<IndexClause, IndexCl
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -512,7 +511,7 @@ public class IndexClause implements org.apache.thrift.TBase<IndexClause, IndexCl
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

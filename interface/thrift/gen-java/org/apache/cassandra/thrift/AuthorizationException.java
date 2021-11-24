@@ -142,7 +142,6 @@ public class AuthorizationException extends TException implements org.apache.thr
     return new AuthorizationException(this);
   }
 
-  @Override
   public void clear() {
     this.why = null;
   }
@@ -304,7 +303,7 @@ public class AuthorizationException extends TException implements org.apache.thr
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -312,7 +311,7 @@ public class AuthorizationException extends TException implements org.apache.thr
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

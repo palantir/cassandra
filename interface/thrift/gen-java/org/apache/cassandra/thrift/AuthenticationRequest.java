@@ -145,7 +145,6 @@ public class AuthenticationRequest implements org.apache.thrift.TBase<Authentica
     return new AuthenticationRequest(this);
   }
 
-  @Override
   public void clear() {
     this.credentials = null;
   }
@@ -318,7 +317,7 @@ public class AuthenticationRequest implements org.apache.thrift.TBase<Authentica
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -326,7 +325,7 @@ public class AuthenticationRequest implements org.apache.thrift.TBase<Authentica
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

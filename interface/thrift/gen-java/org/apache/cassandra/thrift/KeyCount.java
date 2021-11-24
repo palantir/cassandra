@@ -153,7 +153,6 @@ public class KeyCount implements org.apache.thrift.TBase<KeyCount, KeyCount._Fie
     return new KeyCount(this);
   }
 
-  @Override
   public void clear() {
     this.key = null;
     setCountIsSet(false);
@@ -392,7 +391,7 @@ public class KeyCount implements org.apache.thrift.TBase<KeyCount, KeyCount._Fie
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -402,7 +401,7 @@ public class KeyCount implements org.apache.thrift.TBase<KeyCount, KeyCount._Fie
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

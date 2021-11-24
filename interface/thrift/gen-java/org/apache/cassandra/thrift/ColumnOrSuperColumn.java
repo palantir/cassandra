@@ -178,7 +178,6 @@ public class ColumnOrSuperColumn implements org.apache.thrift.TBase<ColumnOrSupe
     return new ColumnOrSuperColumn(this);
   }
 
-  @Override
   public void clear() {
     this.column = null;
     this.super_column = null;
@@ -567,7 +566,7 @@ public class ColumnOrSuperColumn implements org.apache.thrift.TBase<ColumnOrSupe
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -575,7 +574,7 @@ public class ColumnOrSuperColumn implements org.apache.thrift.TBase<ColumnOrSupe
     try {
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

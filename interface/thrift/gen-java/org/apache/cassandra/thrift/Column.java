@@ -177,7 +177,6 @@ public class Column implements org.apache.thrift.TBase<Column, Column._Fields>, 
     return new Column(this);
   }
 
-  @Override
   public void clear() {
     this.name = null;
     this.value = null;
@@ -567,7 +566,7 @@ public class Column implements org.apache.thrift.TBase<Column, Column._Fields>, 
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -577,7 +576,7 @@ public class Column implements org.apache.thrift.TBase<Column, Column._Fields>, 
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

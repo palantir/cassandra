@@ -207,7 +207,6 @@ public class KeyRange implements org.apache.thrift.TBase<KeyRange, KeyRange._Fie
     return new KeyRange(this);
   }
 
-  @Override
   public void clear() {
     this.start_key = null;
     this.end_key = null;
@@ -758,7 +757,7 @@ public class KeyRange implements org.apache.thrift.TBase<KeyRange, KeyRange._Fie
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -768,7 +767,7 @@ public class KeyRange implements org.apache.thrift.TBase<KeyRange, KeyRange._Fie
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

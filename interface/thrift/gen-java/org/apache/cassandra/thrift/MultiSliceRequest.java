@@ -211,7 +211,6 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     return new MultiSliceRequest(this);
   }
 
-  @Override
   public void clear() {
     this.key = null;
     this.column_parent = null;
@@ -761,7 +760,7 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -771,7 +770,7 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 

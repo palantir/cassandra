@@ -157,7 +157,6 @@ public class CASResult implements org.apache.thrift.TBase<CASResult, CASResult._
     return new CASResult(this);
   }
 
-  @Override
   public void clear() {
     setSuccessIsSet(false);
     this.success = false;
@@ -400,7 +399,7 @@ public class CASResult implements org.apache.thrift.TBase<CASResult, CASResult._
     try {
       write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
@@ -410,7 +409,7 @@ public class CASResult implements org.apache.thrift.TBase<CASResult, CASResult._
       __isset_bitfield = 0;
       read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
     } catch (org.apache.thrift.TException te) {
-      throw new java.io.IOException(te);
+      throw new java.io.IOException(te.getMessage());
     }
   }
 
