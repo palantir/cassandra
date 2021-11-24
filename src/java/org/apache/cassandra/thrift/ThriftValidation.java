@@ -668,4 +668,19 @@ public class ThriftValidation
             filter = SuperColumns.fromSCFilter(metadata.comparator, superColumn, filter);
         return filter;
     }
+
+    public static void validateProposedColumnUpdates(List<ProposedColumnUpdate> columnUpdates)
+    {
+        Set<ByteBuffer> knownColumnNames = new HashSet<>(columnUpdates.size());
+        for (ProposedColumnUpdate columnUpdate : columnUpdates) {
+            ByteBuffer expectedColumnName = columnUpdate.expected_column.name;
+            if (!expectedColumnName.equals(columnUpdate.proposed_column.name))
+                throw new org.apache.cassandra.exceptions.InvalidRequestException(String.format("user-proposed cell-CAS update has disagreeing columns; [%s] was expected, [%s] was proposed",
+                                                                                                ByteBufferUtil.bytesToHex(expectedColumnName),
+                                                                                                ByteBufferUtil.bytesToHex(columnUpdate.proposed_column.name)));
+            if (!knownColumnNames.add(expectedColumnName))
+                throw new org.apache.cassandra.exceptions.InvalidRequestException(String.format("user-proposed cell-CAS update features the column [%s] twice, which is not allowed",
+                                                                                                ByteBufferUtil.bytesToHex(expectedColumnName)));
+        }
+    }
 }

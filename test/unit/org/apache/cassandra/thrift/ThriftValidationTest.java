@@ -30,10 +30,13 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.db.marshal.*;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.locator.LocalStrategy;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.ByteBufferUtil;
+
+import com.google.common.collect.ImmutableList;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -201,5 +204,90 @@ public class ThriftValidationTest
         }
 
         assert !gotException : "got unexpected ConfigurationException";
+    }
+
+    @Test
+    public void testValidateProposedColumnUpdatesDetectsColumnUpdateWithInconsistentColumnNames() {
+        ProposedColumnUpdate proposedColumnUpdate = new ProposedColumnUpdate()
+                .setExpected_column(new Column()
+                                    .setName(ByteBufferUtil.bytes("name1"))
+                                    .setValue(ByteBufferUtil.bytes(42))
+                                    .setTimestamp(5L))
+                .setProposed_column(new Column()
+                                    .setName(ByteBufferUtil.bytes("name2"))
+                                    .setValue(ByteBufferUtil.bytes(42))
+                                    .setTimestamp(5L));
+
+        boolean gotException = false;
+        try
+        {
+            ThriftValidation.validateProposedColumnUpdates(ImmutableList.of(proposedColumnUpdate));
+        }
+        catch (InvalidRequestException e)
+        {
+            gotException = true;
+        }
+
+        assert gotException : "expected InvalidRequestException but not received.";
+    }
+
+    @Test
+    public void testValidateProposedColumnUpdatesDetectsProposedUpdatesToTheSameColumn() {
+        ProposedColumnUpdate proposedColumnUpdate1 = new ProposedColumnUpdate()
+                .setExpected_column(new Column()
+                                    .setName(ByteBufferUtil.bytes("name1"))
+                                    .setValue(ByteBufferUtil.bytes(42))
+                                    .setTimestamp(5L))
+                .setProposed_column(new Column()
+                                    .setName(ByteBufferUtil.bytes("name1"))
+                                    .setValue(ByteBufferUtil.bytes(43))
+                                    .setTimestamp(5L));
+        ProposedColumnUpdate proposedColumnUpdate2 = new ProposedColumnUpdate()
+                .setExpected_column(new Column()
+                                    .setName(ByteBufferUtil.bytes("name1"))
+                                    .setValue(ByteBufferUtil.bytes(42))
+                                    .setTimestamp(5L))
+                .setProposed_column(new Column()
+                                    .setName(ByteBufferUtil.bytes("name1"))
+                                    .setValue(ByteBufferUtil.bytes(44))
+                                    .setTimestamp(5L));
+
+        boolean gotException = false;
+        try
+        {
+            ThriftValidation.validateProposedColumnUpdates(ImmutableList.of(proposedColumnUpdate1, proposedColumnUpdate2));
+        }
+        catch (InvalidRequestException e)
+        {
+            gotException = true;
+        }
+
+        assert gotException : "expected InvalidRequestException but not received.";
+    }
+
+
+    @Test
+    public void testValidateProposedColumnUpdatesAllowsNormalInput() {
+        ProposedColumnUpdate proposedColumnUpdate1 = new ProposedColumnUpdate()
+        .setExpected_column(new Column()
+                            .setName(ByteBufferUtil.bytes("name1"))
+                            .setValue(ByteBufferUtil.bytes(111))
+                            .setTimestamp(5L))
+        .setProposed_column(new Column()
+                            .setName(ByteBufferUtil.bytes("name1"))
+                            .setValue(ByteBufferUtil.bytes(333))
+                            .setTimestamp(6L));
+        ProposedColumnUpdate proposedColumnUpdate2 = new ProposedColumnUpdate()
+        .setExpected_column(new Column()
+                            .setName(ByteBufferUtil.bytes("name2"))
+                            .setValue(ByteBufferUtil.bytes(555))
+                            .setTimestamp(7L))
+        .setProposed_column(new Column()
+                            .setName(ByteBufferUtil.bytes("name2"))
+                            .setValue(ByteBufferUtil.bytes(777))
+                            .setTimestamp(8L));
+
+        ThriftValidation.validateProposedColumnUpdates(ImmutableList.of(proposedColumnUpdate1, proposedColumnUpdate2));
+        // no exception = pass
     }
 }
