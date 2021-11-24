@@ -590,6 +590,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public void rebuild(String sourceDc, String keyspace);
 
+    /** True if this node is rebuilding and receiving data. */
+    public boolean isRebuilding();
+
     /**
      * To be used after issuing a rebuild to verify whether all relevant data has been successfully streamed to this
      * node from the source datacenter.
