@@ -51,11 +51,12 @@ import java.util.Collections;
 import java.util.BitSet;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import javax.annotation.Generated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class cassandraConstants {
 
-  public static final String VERSION = "20.1.0-pt2";
+  public static final String VERSION = "20.1.0-pt3";
 
 }
