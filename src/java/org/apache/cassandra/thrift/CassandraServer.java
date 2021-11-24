@@ -1042,7 +1042,7 @@ public class CassandraServer implements Cassandra.Iface
                               ConsistencyLevel commit_consistency_level)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
-        return null;
+        throw new InvalidRequestException("Not supported yet!");
     }
 
     private List<IMutation> createMutationList(ConsistencyLevel consistency_level,
