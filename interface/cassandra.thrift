@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0-pt2"
+const string VERSION = "20.1.0-pt3"
 
 
 #
@@ -609,6 +609,15 @@ struct KeyPredicate {
     2: optional SlicePredicate predicate,
 }
 
+/**
+ * A pair of two columns.
+ * It is expected that the columns provided have the same key.
+ */
+struct ConditionalColumnUpdate {
+    1: optional Column expected,
+    2: optional Column update,
+}
+
 service Cassandra {
   # auth methods
   void login(1: required AuthenticationRequest auth_request) throws (1:AuthenticationException authnx, 2:AuthorizationException authzx),
@@ -749,6 +758,20 @@ service Cassandra {
    * the write.
    */
   CASResult cas(1:required binary key,
+                2:required string column_family,
+                3:list<Column> expected,
+                4:list<Column> updates,
+                5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
+                6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+       throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
+   * Atomic compare and set, with column-level granularity. Unlike cas(), this method is concerned only with the
+   * values of the columns that are specified. In particular, the presence of additional columns outside of
+   *
+   * The semantics of cas_columns() are otherwise equivalent to that of cas().
+   */
+  CASResult cas_columns(1:required binary key,
                 2:required string column_family,
                 3:list<Column> expected,
                 4:list<Column> updates,
