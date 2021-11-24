@@ -1258,7 +1258,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    public boolean isRebuilding() {
+    public boolean isRebuilding()
+    {
         return isRebuilding.get();
     }
 
