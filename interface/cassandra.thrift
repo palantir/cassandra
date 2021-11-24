@@ -308,10 +308,13 @@ struct SlicePredicate {
     2: optional SliceRange   slice_range,
 }
 
+/**
+ * A column update is a proposal used in cell_cas(). It is expected that the name of the expected and proposed
+ * column is the same.
+ */
 struct ProposedColumnUpdate {
-    1: optional binary expected_column_name,
-    2: optional binary expected_column_value,
-    3: optional binary proposed_column_value,
+    1: optional Column expected_column,
+    2: optional Column proposed_column,
 }
 
 enum IndexOperator {

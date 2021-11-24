@@ -26,6 +26,7 @@ package org.apache.cassandra.thrift;
  *
  */
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.thrift.scheme.IScheme;
 import org.apache.thrift.scheme.SchemeFactory;
 import org.apache.thrift.scheme.StandardScheme;
@@ -53,12 +54,15 @@ import javax.annotation.Generated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A column update is a proposal used in cell_cas(). It is expected that the name of the expected and proposed
+ * column is the same.
+ */
 public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedColumnUpdate, ProposedColumnUpdate._Fields>, java.io.Serializable, Cloneable, Comparable<ProposedColumnUpdate> {
   private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("ProposedColumnUpdate");
 
-  private static final org.apache.thrift.protocol.TField EXPECTED_COLUMN_NAME_FIELD_DESC = new org.apache.thrift.protocol.TField("expected_column_name", org.apache.thrift.protocol.TType.STRING, (short)1);
-  private static final org.apache.thrift.protocol.TField EXPECTED_COLUMN_VALUE_FIELD_DESC = new org.apache.thrift.protocol.TField("expected_column_value", org.apache.thrift.protocol.TType.STRING, (short)2);
-  private static final org.apache.thrift.protocol.TField PROPOSED_COLUMN_VALUE_FIELD_DESC = new org.apache.thrift.protocol.TField("proposed_column_value", org.apache.thrift.protocol.TType.STRING, (short)3);
+  private static final org.apache.thrift.protocol.TField EXPECTED_COLUMN_FIELD_DESC = new org.apache.thrift.protocol.TField("expected_column", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+  private static final org.apache.thrift.protocol.TField PROPOSED_COLUMN_FIELD_DESC = new org.apache.thrift.protocol.TField("proposed_column", org.apache.thrift.protocol.TType.STRUCT, (short)2);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -66,15 +70,13 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
     schemes.put(TupleScheme.class, new ProposedColumnUpdateTupleSchemeFactory());
   }
 
-  public ByteBuffer expected_column_name; // optional
-  public ByteBuffer expected_column_value; // optional
-  public ByteBuffer proposed_column_value; // optional
+  public Column expected_column; // optional
+  public Column proposed_column; // optional
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-    EXPECTED_COLUMN_NAME((short)1, "expected_column_name"),
-    EXPECTED_COLUMN_VALUE((short)2, "expected_column_value"),
-    PROPOSED_COLUMN_VALUE((short)3, "proposed_column_value");
+    EXPECTED_COLUMN((short)1, "expected_column"),
+    PROPOSED_COLUMN((short)2, "proposed_column");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -89,12 +91,10 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
      */
     public static _Fields findByThriftId(int fieldId) {
       switch(fieldId) {
-        case 1: // EXPECTED_COLUMN_NAME
-          return EXPECTED_COLUMN_NAME;
-        case 2: // EXPECTED_COLUMN_VALUE
-          return EXPECTED_COLUMN_VALUE;
-        case 3: // PROPOSED_COLUMN_VALUE
-          return PROPOSED_COLUMN_VALUE;
+        case 1: // EXPECTED_COLUMN
+          return EXPECTED_COLUMN;
+        case 2: // PROPOSED_COLUMN
+          return PROPOSED_COLUMN;
         default:
           return null;
       }
@@ -135,16 +135,14 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
   }
 
   // isset id assignments
-  private static final _Fields optionals[] = {_Fields.EXPECTED_COLUMN_NAME,_Fields.EXPECTED_COLUMN_VALUE,_Fields.PROPOSED_COLUMN_VALUE};
+  private static final _Fields optionals[] = {_Fields.EXPECTED_COLUMN,_Fields.PROPOSED_COLUMN};
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
     Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
-    tmpMap.put(_Fields.EXPECTED_COLUMN_NAME, new org.apache.thrift.meta_data.FieldMetaData("expected_column_name", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING        , true)));
-    tmpMap.put(_Fields.EXPECTED_COLUMN_VALUE, new org.apache.thrift.meta_data.FieldMetaData("expected_column_value", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING        , true)));
-    tmpMap.put(_Fields.PROPOSED_COLUMN_VALUE, new org.apache.thrift.meta_data.FieldMetaData("proposed_column_value", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING        , true)));
+    tmpMap.put(_Fields.EXPECTED_COLUMN, new org.apache.thrift.meta_data.FieldMetaData("expected_column", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
+        new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, Column.class)));
+    tmpMap.put(_Fields.PROPOSED_COLUMN, new org.apache.thrift.meta_data.FieldMetaData("proposed_column", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
+        new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, Column.class)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(ProposedColumnUpdate.class, metaDataMap);
   }
@@ -156,14 +154,11 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
    * Performs a deep copy on <i>other</i>.
    */
   public ProposedColumnUpdate(ProposedColumnUpdate other) {
-    if (other.isSetExpected_column_name()) {
-      this.expected_column_name = org.apache.thrift.TBaseHelper.copyBinary(other.expected_column_name);
+    if (other.isSetExpected_column()) {
+      this.expected_column = new Column(other.expected_column);
     }
-    if (other.isSetExpected_column_value()) {
-      this.expected_column_value = org.apache.thrift.TBaseHelper.copyBinary(other.expected_column_value);
-    }
-    if (other.isSetProposed_column_value()) {
-      this.proposed_column_value = org.apache.thrift.TBaseHelper.copyBinary(other.proposed_column_value);
+    if (other.isSetProposed_column()) {
+      this.proposed_column = new Column(other.proposed_column);
     }
   }
 
@@ -173,136 +168,73 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
 
   @Override
   public void clear() {
-    this.expected_column_name = null;
-    this.expected_column_value = null;
-    this.proposed_column_value = null;
+    this.expected_column = null;
+    this.proposed_column = null;
   }
 
-  public byte[] getExpected_column_name() {
-    setExpected_column_name(org.apache.thrift.TBaseHelper.rightSize(expected_column_name));
-    return expected_column_name == null ? null : expected_column_name.array();
+  public Column getExpected_column() {
+    return this.expected_column;
   }
 
-  public ByteBuffer bufferForExpected_column_name() {
-    return org.apache.thrift.TBaseHelper.copyBinary(expected_column_name);
-  }
-
-  public ProposedColumnUpdate setExpected_column_name(byte[] expected_column_name) {
-    this.expected_column_name = expected_column_name == null ? (ByteBuffer)null : ByteBuffer.wrap(Arrays.copyOf(expected_column_name, expected_column_name.length));
+  public ProposedColumnUpdate setExpected_column(Column expected_column) {
+    this.expected_column = expected_column;
     return this;
   }
 
-  public ProposedColumnUpdate setExpected_column_name(ByteBuffer expected_column_name) {
-    this.expected_column_name = org.apache.thrift.TBaseHelper.copyBinary(expected_column_name);
-    return this;
+  public void unsetExpected_column() {
+    this.expected_column = null;
   }
 
-  public void unsetExpected_column_name() {
-    this.expected_column_name = null;
+  /** Returns true if field expected_column is set (has been assigned a value) and false otherwise */
+  public boolean isSetExpected_column() {
+    return this.expected_column != null;
   }
 
-  /** Returns true if field expected_column_name is set (has been assigned a value) and false otherwise */
-  public boolean isSetExpected_column_name() {
-    return this.expected_column_name != null;
-  }
-
-  public void setExpected_column_nameIsSet(boolean value) {
+  public void setExpected_columnIsSet(boolean value) {
     if (!value) {
-      this.expected_column_name = null;
+      this.expected_column = null;
     }
   }
 
-  public byte[] getExpected_column_value() {
-    setExpected_column_value(org.apache.thrift.TBaseHelper.rightSize(expected_column_value));
-    return expected_column_value == null ? null : expected_column_value.array();
+  public Column getProposed_column() {
+    return this.proposed_column;
   }
 
-  public ByteBuffer bufferForExpected_column_value() {
-    return org.apache.thrift.TBaseHelper.copyBinary(expected_column_value);
-  }
-
-  public ProposedColumnUpdate setExpected_column_value(byte[] expected_column_value) {
-    this.expected_column_value = expected_column_value == null ? (ByteBuffer)null : ByteBuffer.wrap(Arrays.copyOf(expected_column_value, expected_column_value.length));
+  public ProposedColumnUpdate setProposed_column(Column proposed_column) {
+    this.proposed_column = proposed_column;
     return this;
   }
 
-  public ProposedColumnUpdate setExpected_column_value(ByteBuffer expected_column_value) {
-    this.expected_column_value = org.apache.thrift.TBaseHelper.copyBinary(expected_column_value);
-    return this;
+  public void unsetProposed_column() {
+    this.proposed_column = null;
   }
 
-  public void unsetExpected_column_value() {
-    this.expected_column_value = null;
+  /** Returns true if field proposed_column is set (has been assigned a value) and false otherwise */
+  public boolean isSetProposed_column() {
+    return this.proposed_column != null;
   }
 
-  /** Returns true if field expected_column_value is set (has been assigned a value) and false otherwise */
-  public boolean isSetExpected_column_value() {
-    return this.expected_column_value != null;
-  }
-
-  public void setExpected_column_valueIsSet(boolean value) {
+  public void setProposed_columnIsSet(boolean value) {
     if (!value) {
-      this.expected_column_value = null;
-    }
-  }
-
-  public byte[] getProposed_column_value() {
-    setProposed_column_value(org.apache.thrift.TBaseHelper.rightSize(proposed_column_value));
-    return proposed_column_value == null ? null : proposed_column_value.array();
-  }
-
-  public ByteBuffer bufferForProposed_column_value() {
-    return org.apache.thrift.TBaseHelper.copyBinary(proposed_column_value);
-  }
-
-  public ProposedColumnUpdate setProposed_column_value(byte[] proposed_column_value) {
-    this.proposed_column_value = proposed_column_value == null ? (ByteBuffer)null : ByteBuffer.wrap(Arrays.copyOf(proposed_column_value, proposed_column_value.length));
-    return this;
-  }
-
-  public ProposedColumnUpdate setProposed_column_value(ByteBuffer proposed_column_value) {
-    this.proposed_column_value = org.apache.thrift.TBaseHelper.copyBinary(proposed_column_value);
-    return this;
-  }
-
-  public void unsetProposed_column_value() {
-    this.proposed_column_value = null;
-  }
-
-  /** Returns true if field proposed_column_value is set (has been assigned a value) and false otherwise */
-  public boolean isSetProposed_column_value() {
-    return this.proposed_column_value != null;
-  }
-
-  public void setProposed_column_valueIsSet(boolean value) {
-    if (!value) {
-      this.proposed_column_value = null;
+      this.proposed_column = null;
     }
   }
 
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
-    case EXPECTED_COLUMN_NAME:
+    case EXPECTED_COLUMN:
       if (value == null) {
-        unsetExpected_column_name();
+        unsetExpected_column();
       } else {
-        setExpected_column_name((ByteBuffer)value);
+        setExpected_column((Column)value);
       }
       break;
 
-    case EXPECTED_COLUMN_VALUE:
+    case PROPOSED_COLUMN:
       if (value == null) {
-        unsetExpected_column_value();
+        unsetProposed_column();
       } else {
-        setExpected_column_value((ByteBuffer)value);
-      }
-      break;
-
-    case PROPOSED_COLUMN_VALUE:
-      if (value == null) {
-        unsetProposed_column_value();
-      } else {
-        setProposed_column_value((ByteBuffer)value);
+        setProposed_column((Column)value);
       }
       break;
 
@@ -311,14 +243,11 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
 
   public Object getFieldValue(_Fields field) {
     switch (field) {
-    case EXPECTED_COLUMN_NAME:
-      return getExpected_column_name();
+    case EXPECTED_COLUMN:
+      return getExpected_column();
 
-    case EXPECTED_COLUMN_VALUE:
-      return getExpected_column_value();
-
-    case PROPOSED_COLUMN_VALUE:
-      return getProposed_column_value();
+    case PROPOSED_COLUMN:
+      return getProposed_column();
 
     }
     throw new IllegalStateException();
@@ -331,12 +260,10 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
     }
 
     switch (field) {
-    case EXPECTED_COLUMN_NAME:
-      return isSetExpected_column_name();
-    case EXPECTED_COLUMN_VALUE:
-      return isSetExpected_column_value();
-    case PROPOSED_COLUMN_VALUE:
-      return isSetProposed_column_value();
+    case EXPECTED_COLUMN:
+      return isSetExpected_column();
+    case PROPOSED_COLUMN:
+      return isSetProposed_column();
     }
     throw new IllegalStateException();
   }
@@ -354,30 +281,21 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
     if (that == null)
       return false;
 
-    boolean this_present_expected_column_name = true && this.isSetExpected_column_name();
-    boolean that_present_expected_column_name = true && that.isSetExpected_column_name();
-    if (this_present_expected_column_name || that_present_expected_column_name) {
-      if (!(this_present_expected_column_name && that_present_expected_column_name))
+    boolean this_present_expected_column = true && this.isSetExpected_column();
+    boolean that_present_expected_column = true && that.isSetExpected_column();
+    if (this_present_expected_column || that_present_expected_column) {
+      if (!(this_present_expected_column && that_present_expected_column))
         return false;
-      if (!this.expected_column_name.equals(that.expected_column_name))
-        return false;
-    }
-
-    boolean this_present_expected_column_value = true && this.isSetExpected_column_value();
-    boolean that_present_expected_column_value = true && that.isSetExpected_column_value();
-    if (this_present_expected_column_value || that_present_expected_column_value) {
-      if (!(this_present_expected_column_value && that_present_expected_column_value))
-        return false;
-      if (!this.expected_column_value.equals(that.expected_column_value))
+      if (!this.expected_column.equals(that.expected_column))
         return false;
     }
 
-    boolean this_present_proposed_column_value = true && this.isSetProposed_column_value();
-    boolean that_present_proposed_column_value = true && that.isSetProposed_column_value();
-    if (this_present_proposed_column_value || that_present_proposed_column_value) {
-      if (!(this_present_proposed_column_value && that_present_proposed_column_value))
+    boolean this_present_proposed_column = true && this.isSetProposed_column();
+    boolean that_present_proposed_column = true && that.isSetProposed_column();
+    if (this_present_proposed_column || that_present_proposed_column) {
+      if (!(this_present_proposed_column && that_present_proposed_column))
         return false;
-      if (!this.proposed_column_value.equals(that.proposed_column_value))
+      if (!this.proposed_column.equals(that.proposed_column))
         return false;
     }
 
@@ -388,20 +306,15 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
   public int hashCode() {
     HashCodeBuilder builder = new HashCodeBuilder();
 
-    boolean present_expected_column_name = true && (isSetExpected_column_name());
-    builder.append(present_expected_column_name);
-    if (present_expected_column_name)
-      builder.append(expected_column_name);
+    boolean present_expected_column = true && (isSetExpected_column());
+    builder.append(present_expected_column);
+    if (present_expected_column)
+      builder.append(expected_column);
 
-    boolean present_expected_column_value = true && (isSetExpected_column_value());
-    builder.append(present_expected_column_value);
-    if (present_expected_column_value)
-      builder.append(expected_column_value);
-
-    boolean present_proposed_column_value = true && (isSetProposed_column_value());
-    builder.append(present_proposed_column_value);
-    if (present_proposed_column_value)
-      builder.append(proposed_column_value);
+    boolean present_proposed_column = true && (isSetProposed_column());
+    builder.append(present_proposed_column);
+    if (present_proposed_column)
+      builder.append(proposed_column);
 
     return builder.toHashCode();
   }
@@ -414,32 +327,22 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
 
     int lastComparison = 0;
 
-    lastComparison = Boolean.valueOf(isSetExpected_column_name()).compareTo(other.isSetExpected_column_name());
+    lastComparison = Boolean.valueOf(isSetExpected_column()).compareTo(other.isSetExpected_column());
     if (lastComparison != 0) {
       return lastComparison;
     }
-    if (isSetExpected_column_name()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.expected_column_name, other.expected_column_name);
+    if (isSetExpected_column()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.expected_column, other.expected_column);
       if (lastComparison != 0) {
         return lastComparison;
       }
     }
-    lastComparison = Boolean.valueOf(isSetExpected_column_value()).compareTo(other.isSetExpected_column_value());
+    lastComparison = Boolean.valueOf(isSetProposed_column()).compareTo(other.isSetProposed_column());
     if (lastComparison != 0) {
       return lastComparison;
     }
-    if (isSetExpected_column_value()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.expected_column_value, other.expected_column_value);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
-    lastComparison = Boolean.valueOf(isSetProposed_column_value()).compareTo(other.isSetProposed_column_value());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetProposed_column_value()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.proposed_column_value, other.proposed_column_value);
+    if (isSetProposed_column()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.proposed_column, other.proposed_column);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -464,32 +367,22 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
     StringBuilder sb = new StringBuilder("ProposedColumnUpdate(");
     boolean first = true;
 
-    if (isSetExpected_column_name()) {
-      sb.append("expected_column_name:");
-      if (this.expected_column_name == null) {
+    if (isSetExpected_column()) {
+      sb.append("expected_column:");
+      if (this.expected_column == null) {
         sb.append("null");
       } else {
-        org.apache.thrift.TBaseHelper.toString(this.expected_column_name, sb);
+        sb.append(this.expected_column);
       }
       first = false;
     }
-    if (isSetExpected_column_value()) {
+    if (isSetProposed_column()) {
       if (!first) sb.append(", ");
-      sb.append("expected_column_value:");
-      if (this.expected_column_value == null) {
+      sb.append("proposed_column:");
+      if (this.proposed_column == null) {
         sb.append("null");
       } else {
-        org.apache.thrift.TBaseHelper.toString(this.expected_column_value, sb);
-      }
-      first = false;
-    }
-    if (isSetProposed_column_value()) {
-      if (!first) sb.append(", ");
-      sb.append("proposed_column_value:");
-      if (this.proposed_column_value == null) {
-        sb.append("null");
-      } else {
-        org.apache.thrift.TBaseHelper.toString(this.proposed_column_value, sb);
+        sb.append(this.proposed_column);
       }
       first = false;
     }
@@ -500,6 +393,12 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
   public void validate() throws org.apache.thrift.TException {
     // check for required fields
     // check for sub-struct validity
+    if (expected_column != null) {
+      expected_column.validate();
+    }
+    if (proposed_column != null) {
+      proposed_column.validate();
+    }
   }
 
   private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
@@ -536,26 +435,20 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
           break;
         }
         switch (schemeField.id) {
-          case 1: // EXPECTED_COLUMN_NAME
-            if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
-              struct.expected_column_name = iprot.readBinary();
-              struct.setExpected_column_nameIsSet(true);
+          case 1: // EXPECTED_COLUMN
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+              struct.expected_column = new Column();
+              struct.expected_column.read(iprot);
+              struct.setExpected_columnIsSet(true);
             } else { 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 2: // EXPECTED_COLUMN_VALUE
-            if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
-              struct.expected_column_value = iprot.readBinary();
-              struct.setExpected_column_valueIsSet(true);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-            }
-            break;
-          case 3: // PROPOSED_COLUMN_VALUE
-            if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
-              struct.proposed_column_value = iprot.readBinary();
-              struct.setProposed_column_valueIsSet(true);
+          case 2: // PROPOSED_COLUMN
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+              struct.proposed_column = new Column();
+              struct.proposed_column.read(iprot);
+              struct.setProposed_columnIsSet(true);
             } else { 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
@@ -575,24 +468,17 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
       struct.validate();
 
       oprot.writeStructBegin(STRUCT_DESC);
-      if (struct.expected_column_name != null) {
-        if (struct.isSetExpected_column_name()) {
-          oprot.writeFieldBegin(EXPECTED_COLUMN_NAME_FIELD_DESC);
-          oprot.writeBinary(struct.expected_column_name);
+      if (struct.expected_column != null) {
+        if (struct.isSetExpected_column()) {
+          oprot.writeFieldBegin(EXPECTED_COLUMN_FIELD_DESC);
+          struct.expected_column.write(oprot);
           oprot.writeFieldEnd();
         }
       }
-      if (struct.expected_column_value != null) {
-        if (struct.isSetExpected_column_value()) {
-          oprot.writeFieldBegin(EXPECTED_COLUMN_VALUE_FIELD_DESC);
-          oprot.writeBinary(struct.expected_column_value);
-          oprot.writeFieldEnd();
-        }
-      }
-      if (struct.proposed_column_value != null) {
-        if (struct.isSetProposed_column_value()) {
-          oprot.writeFieldBegin(PROPOSED_COLUMN_VALUE_FIELD_DESC);
-          oprot.writeBinary(struct.proposed_column_value);
+      if (struct.proposed_column != null) {
+        if (struct.isSetProposed_column()) {
+          oprot.writeFieldBegin(PROPOSED_COLUMN_FIELD_DESC);
+          struct.proposed_column.write(oprot);
           oprot.writeFieldEnd();
         }
       }
@@ -614,42 +500,34 @@ public class ProposedColumnUpdate implements org.apache.thrift.TBase<ProposedCol
     public void write(org.apache.thrift.protocol.TProtocol prot, ProposedColumnUpdate struct) throws org.apache.thrift.TException {
       TTupleProtocol oprot = (TTupleProtocol) prot;
       BitSet optionals = new BitSet();
-      if (struct.isSetExpected_column_name()) {
+      if (struct.isSetExpected_column()) {
         optionals.set(0);
       }
-      if (struct.isSetExpected_column_value()) {
+      if (struct.isSetProposed_column()) {
         optionals.set(1);
       }
-      if (struct.isSetProposed_column_value()) {
-        optionals.set(2);
+      oprot.writeBitSet(optionals, 2);
+      if (struct.isSetExpected_column()) {
+        struct.expected_column.write(oprot);
       }
-      oprot.writeBitSet(optionals, 3);
-      if (struct.isSetExpected_column_name()) {
-        oprot.writeBinary(struct.expected_column_name);
-      }
-      if (struct.isSetExpected_column_value()) {
-        oprot.writeBinary(struct.expected_column_value);
-      }
-      if (struct.isSetProposed_column_value()) {
-        oprot.writeBinary(struct.proposed_column_value);
+      if (struct.isSetProposed_column()) {
+        struct.proposed_column.write(oprot);
       }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, ProposedColumnUpdate struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(3);
+      BitSet incoming = iprot.readBitSet(2);
       if (incoming.get(0)) {
-        struct.expected_column_name = iprot.readBinary();
-        struct.setExpected_column_nameIsSet(true);
+        struct.expected_column = new Column();
+        struct.expected_column.read(iprot);
+        struct.setExpected_columnIsSet(true);
       }
       if (incoming.get(1)) {
-        struct.expected_column_value = iprot.readBinary();
-        struct.setExpected_column_valueIsSet(true);
-      }
-      if (incoming.get(2)) {
-        struct.proposed_column_value = iprot.readBinary();
-        struct.setProposed_column_valueIsSet(true);
+        struct.proposed_column = new Column();
+        struct.proposed_column.read(iprot);
+        struct.setProposed_columnIsSet(true);
       }
     }
   }
