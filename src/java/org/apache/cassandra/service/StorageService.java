@@ -1258,6 +1258,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public boolean isRebuilding()
+    {
+        return isRebuilding.get();
+    }
+
     public Set<String> getKeyspacesWithAllRangesAvailable(String sourceDc)
     {
         Set<String> keyspaces = Schema.instance.getNonSystemKeyspaces().stream()
