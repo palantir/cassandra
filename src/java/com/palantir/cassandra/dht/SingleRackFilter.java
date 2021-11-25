@@ -20,10 +20,13 @@ package com.palantir.cassandra.dht;
 
 import java.net.InetAddress;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
@@ -61,15 +64,10 @@ public class SingleRackFilter implements RangeStreamer.ISourceFilter
         {
             Iterator<String> sourceRacksIterator = sourceRacks.iterator();
             Iterator<String> localRacksIterator = localRacks.iterator();
-            while (sourceRacksIterator.hasNext())
-            {
-                String sourceRack = sourceRacksIterator.next();
-                if (localRack.equals(localRacksIterator.next()))
-                {
-                    maybeRack = Optional.of(sourceRack);
-                    break;
-                }
-            }
+            Map<String, String> localToSourceRack = IntStream.range(0, localRacks.size())
+                                                             .boxed()
+                                                             .collect(Collectors.toMap(_i -> localRacksIterator.next(), _i -> sourceRacksIterator.next()));
+            maybeRack = Optional.of(localToSourceRack.get(localRack));
         }
 
         return new SingleRackFilter(maybeRack);
