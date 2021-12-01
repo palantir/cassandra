@@ -31,12 +31,18 @@ import java.util.stream.IntStream;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.palantir.cassandra.utils.LockKeyspaceUtils;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.RangeStreamer;
 import org.assertj.core.util.VisibleForTesting;
 
 public class SingleRackFilter implements RangeStreamer.ISourceFilter
 {
+
+    private static final Logger log = LoggerFactory.getLogger(SingleRackFilter.class);
 
     private final Optional<String> maybeRack;
 
@@ -51,7 +57,8 @@ public class SingleRackFilter implements RangeStreamer.ISourceFilter
     }
 
     @VisibleForTesting
-    Optional<String> getMaybeRack() {
+    Optional<String> getMaybeRack()
+    {
         return maybeRack;
     }
 
@@ -69,6 +76,7 @@ public class SingleRackFilter implements RangeStreamer.ISourceFilter
                                                              .collect(Collectors.toMap(_i -> localRacksIterator.next(), _i -> sourceRacksIterator.next()));
             maybeRack = Optional.of(localToSourceRack.get(localRack));
         }
+        log.info("Mapped current rack {} from current datacenter {} to source rack {} from source datacenter {}.", localRack, localDatacenter, maybeRack, sourceDatacenter);
 
         return new SingleRackFilter(maybeRack);
     }
