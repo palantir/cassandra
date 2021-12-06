@@ -38,6 +38,7 @@ import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Meter;
 import com.palantir.cassandra.utils.LockKeyspaceUtils;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
@@ -354,6 +355,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             state().hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             return getSliceInternal(keyspace, key, column_parent, System.currentTimeMillis(), predicate, consistency_level, cState);
         }
@@ -402,6 +404,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             return multigetSliceInternal(keyspace, keys, column_parent, System.currentTimeMillis(), predicate, consistency_level, cState);
         }
@@ -440,6 +443,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             return multigetMultisliceInternal(keyspace, request, column_parent, System.currentTimeMillis(), consistency_level, cState);
         }
@@ -605,6 +609,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_path.column_family, Permission.SELECT);
 
             CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_path.column_family);
@@ -674,6 +679,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             Keyspace keyspaceName = Keyspace.open(keyspace);
             ColumnFamilyStore cfs = keyspaceName.getColumnFamilyStore(column_parent.column_family);
@@ -754,6 +760,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
 
             Map<ByteBuffer, Integer> counts = new HashMap<ByteBuffer, Integer>();
@@ -784,6 +791,7 @@ public class CassandraServer implements Cassandra.Iface
     {
         ThriftClientState cState = state();
         String keyspace = cState.getKeyspace();
+        markRequestMeter(keyspace);
         cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.MODIFY);
 
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family, false);
@@ -877,6 +885,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_family, Permission.MODIFY);
             cState.hasColumnFamilyAccess(keyspace, column_family, Permission.SELECT);
 
@@ -966,6 +975,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_family, Permission.MODIFY);
             // CAS updates can be used to simulate a get request, so should require Permission.SELECT.
             cState.hasColumnFamilyAccess(keyspace, column_family, Permission.SELECT);
@@ -1044,6 +1054,7 @@ public class CassandraServer implements Cassandra.Iface
         List<IMutation> mutations = new ArrayList<>();
         ThriftClientState cState = state();
         String keyspace = cState.getKeyspace();
+        markRequestMeter(keyspace);
 
         for (Map.Entry<ByteBuffer, Map<String, List<Mutation>>> mutationEntry: mutation_map.entrySet())
         {
@@ -1248,6 +1259,7 @@ public class CassandraServer implements Cassandra.Iface
     {
         ThriftClientState cState = state();
         String keyspace = cState.getKeyspace();
+        markRequestMeter(keyspace);
         cState.hasColumnFamilyAccess(keyspace, column_path.column_family, Permission.MODIFY);
 
         CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_path.column_family, isCommutativeOp);
@@ -1379,6 +1391,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
 
             CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
@@ -1464,6 +1477,7 @@ public class CassandraServer implements Cassandra.Iface
 
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_family, Permission.SELECT);
 
             CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_family);
@@ -1558,6 +1572,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ThriftClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family, false);
             ThriftValidation.validateColumnParent(metadata, column_parent);
@@ -1747,6 +1762,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasKeyspaceAccess(keyspace, Permission.CREATE);
             cf_def.unsetId(); // explicitly ignore any id set by client (Hector likes to set zero)
             CFMetaData cfm = ThriftConversion.fromThrift(cf_def);
@@ -1775,6 +1791,7 @@ public class CassandraServer implements Cassandra.Iface
         try
         {
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_family, Permission.DROP);
             MigrationManager.announceColumnFamilyDrop(keyspace, column_family);
             return Schema.instance.getVersion().toString();
@@ -1913,6 +1930,7 @@ public class CassandraServer implements Cassandra.Iface
         try
         {
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, cfname, Permission.MODIFY);
 
             if (startSessionIfRequested())
@@ -1995,6 +2013,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
 
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.MODIFY);
 
@@ -2254,6 +2273,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
             state().hasColumnFamilyAccess(keyspace, request.getColumn_parent().column_family, Permission.SELECT);
             CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, request.getColumn_parent().column_family);
             if (metadata.cfType == ColumnFamilyType.Super)
@@ -2340,6 +2360,12 @@ public class CassandraServer implements Cassandra.Iface
             }
         });
     }
+
+    private void markRequestMeter(String keyspace)
+    {
+        ClientMetrics.instance.getRequestsInvolvingKeyspaceMeter("Thrift", keyspace).mark();
+    }
+
 
     @VisibleForTesting
     static class ThriftPutUnlessExistsRequest implements CASRequest
