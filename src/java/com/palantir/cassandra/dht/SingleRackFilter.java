@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import com.palantir.cassandra.utils.LockKeyspaceUtils;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.RangeStreamer;
+import org.apache.cassandra.locator.AbstractReplicationStrategy;
+import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.assertj.core.util.VisibleForTesting;
 
 public class SingleRackFilter implements RangeStreamer.ISourceFilter
@@ -62,21 +64,32 @@ public class SingleRackFilter implements RangeStreamer.ISourceFilter
         return maybeRack;
     }
 
-    public static SingleRackFilter create(SetMultimap<String, String> datacenterRacks, String sourceDatacenter, String localDatacenter, String localRack)
+    public static SingleRackFilter create(SetMultimap<String, String> datacenterRacks, String sourceDatacenter, String localDatacenter, String localRack, AbstractReplicationStrategy replicationStrategy)
     {
         Set<String> localRacks = new TreeSet<>(datacenterRacks.get(localDatacenter));
         Set<String> sourceRacks = new TreeSet<>(datacenterRacks.get(sourceDatacenter));
         Optional<String> maybeRack = Optional.empty();
-        if (localRacks.size() == sourceRacks.size())
-        {
-            Iterator<String> sourceRacksIterator = sourceRacks.iterator();
-            Iterator<String> localRacksIterator = localRacks.iterator();
-            Map<String, String> localToSourceRack = IntStream.range(0, localRacks.size())
-                                                             .boxed()
-                                                             .collect(Collectors.toMap(_i -> localRacksIterator.next(), _i -> sourceRacksIterator.next()));
-            maybeRack = Optional.of(localToSourceRack.get(localRack));
+
+        if(replicationStrategy instanceof NetworkTopologyStrategy) {
+            NetworkTopologyStrategy networkTopologyStrategy = ((NetworkTopologyStrategy) replicationStrategy);
+            int sourceDcRf = networkTopologyStrategy.getReplicationFactor(sourceDatacenter);
+            int localDcRf = networkTopologyStrategy.getReplicationFactor(localDatacenter);
+            if (sourceDcRf == localDcRf) {
+                if (localRacks.size() == sourceRacks.size() && localRacks.size() == localDcRf)
+                {
+                    Iterator<String> sourceRacksIterator = sourceRacks.iterator();
+                    Iterator<String> localRacksIterator = localRacks.iterator();
+                    Map<String, String> localToSourceRack = IntStream.range(0, localRacks.size())
+                                                                     .boxed()
+                                                                     .collect(Collectors.toMap(_i -> localRacksIterator.next(), _i -> sourceRacksIterator.next()));
+                    maybeRack = Optional.of(localToSourceRack.get(localRack));
+                    log.info("Mapped current rack {} from current datacenter {} to source rack {} from source datacenter {}.",
+                             localRack, localDatacenter, maybeRack, sourceDatacenter);
+                }
+            }
+        } else {
+            log.info("Creating empty rack filter as replication strategy is not network, but rather {}", replicationStrategy.getClass().getSimpleName());
         }
-        log.info("Mapped current rack {} from current datacenter {} to source rack {} from source datacenter {}.", localRack, localDatacenter, maybeRack, sourceDatacenter);
 
         return new SingleRackFilter(maybeRack);
     }

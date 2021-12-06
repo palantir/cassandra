@@ -1326,7 +1326,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                                               DatabaseDescriptor.getEndpointSnitch().getRack(address)));
             String localDc = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
             String localRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddress());
-            streamer.addSourceFilter(SingleRackFilter.create(topology, sourceDc, localDc, localRack));
+            AbstractReplicationStrategy replicationStrategy = Keyspace.open(keyspace).getReplicationStrategy();
+            streamer.addSourceFilter(SingleRackFilter.create(topology, sourceDc, localDc, localRack, replicationStrategy));
         }
 
         if (keyspace == null)
