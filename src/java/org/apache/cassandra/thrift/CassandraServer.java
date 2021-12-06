@@ -2363,7 +2363,14 @@ public class CassandraServer implements Cassandra.Iface
 
     private void markRequestMeter(String keyspace)
     {
-        ClientMetrics.instance.getRequestsInvolvingKeyspaceMeter("Thrift", keyspace).mark();
+        try 
+        {
+            ClientMetrics.instance.getRequestsInvolvingKeyspaceMeter("Thrift", keyspace).mark();
+        } 
+        catch (Exception e)
+        {
+            logger.error("Failed to mark thrift request metric for keyspace {}", keyspace);
+        }
     }
 
 
