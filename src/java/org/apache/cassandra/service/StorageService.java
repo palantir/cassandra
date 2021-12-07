@@ -4923,7 +4923,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public boolean isKeyspaceCreationEnabled() {
-        return LockKeyspaceUtils.isKeyspaceCreationLocked();
+        return !LockKeyspaceUtils.isKeyspaceCreationLocked();
     }
 
     public boolean isNodeDisabled() {
