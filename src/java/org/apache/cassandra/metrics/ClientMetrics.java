@@ -18,12 +18,8 @@
  */
 package org.apache.cassandra.metrics;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-
-import com.google.common.collect.ImmutableSet;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
