@@ -19,8 +19,10 @@
 package org.apache.cassandra.metrics;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
@@ -28,11 +30,13 @@ import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 public class ClientMetrics
 {
     private static final MetricNameFactory factory = new DefaultNameFactory("Client");
-    
     public static final ClientMetrics instance = new ClientMetrics();
-    
+
+    private ConcurrentHashMap<String, Meter> meters;
+
     private ClientMetrics()
     {
+        meters = new ConcurrentHashMap<>();
     }
 
     public void addCounter(String name, final Callable<Integer> provider)
@@ -50,5 +54,15 @@ public class ClientMetrics
                 }
             }
         });
+    }
+
+    public Meter getRequestsInvolvingKeyspaceMeter(String prefix, String keyspace)
+    {
+        String name = prefix + "Requests,keyspace=" + keyspace;
+        if (!meters.containsKey(name))
+        {
+            meters.put(name, Metrics.meter(factory.createMetricName(name)));
+        }
+        return meters.get(name);
     }
 }
