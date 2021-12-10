@@ -1313,21 +1313,23 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (sourceDc != null)
         {
             streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
-            /**
-             * Given RF 3, with 3 abritrary racks, this will result in a fully consistent rebuild.
-             * This is due to the simple fact that, our topology will be mirrored identically across datacenters.
-             * As a result, the only way for our destination datacenter to have inconsistent data, is for our
-             * source datacenter to have inconsistent data.
-             */
-            HashMultimap<String, String> topology = HashMultimap.create();
-            Gossiper.instance.getEndpointStates().stream()
-                             .map(Entry::getKey)
-                             .forEach(address -> topology.put(DatabaseDescriptor.getEndpointSnitch().getDatacenter(address),
-                                                              DatabaseDescriptor.getEndpointSnitch().getRack(address)));
-            String localDc = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
-            String localRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddress());
-            AbstractReplicationStrategy replicationStrategy = Keyspace.open(keyspace).getReplicationStrategy();
-            streamer.addSourceFilter(SingleRackFilter.create(topology, sourceDc, localDc, localRack, replicationStrategy));
+            if (keyspace != null) {
+                /**
+                 * Given RF 3, with 3 abritrary racks, this will result in a fully consistent rebuild.
+                 * This is due to the simple fact that, our topology will be mirrored identically across datacenters.
+                 * As a result, the only way for our destination datacenter to have inconsistent data, is for our
+                 * source datacenter to have inconsistent data.
+                 */
+                HashMultimap<String, String> topology = HashMultimap.create();
+                Gossiper.instance.getEndpointStates().stream()
+                                 .map(Entry::getKey)
+                                 .forEach(address -> topology.put(DatabaseDescriptor.getEndpointSnitch().getDatacenter(address),
+                                                                  DatabaseDescriptor.getEndpointSnitch().getRack(address)));
+                String localDc = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
+                String localRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddress());
+                AbstractReplicationStrategy replicationStrategy = Keyspace.open(keyspace).getReplicationStrategy();
+                streamer.addSourceFilter(SingleRackFilter.create(topology, sourceDc, localDc, localRack, replicationStrategy));
+            }
         }
 
         if (keyspace == null)
