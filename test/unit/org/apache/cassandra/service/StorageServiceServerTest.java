@@ -598,6 +598,50 @@ public class StorageServiceServerTest
     }
 
     @Test
+    public void getRebuiltKeyspaces_removesKeyspacesWithUnavailableRanges() throws UnknownHostException
+    {
+        TokenMetadata metadata = StorageService.instance.getTokenMetadata();
+        metadata.clearUnsafe();
+
+        Token.TokenFactory factory = StorageService.getPartitioner().getTokenFactory();
+
+        // DC1
+        metadata.updateNormalToken(factory.fromString("A"), InetAddress.getByName("127.0.0.1"));
+        metadata.updateNormalToken(factory.fromString("C"), InetAddress.getByName("127.0.0.2"));
+
+        // DC2
+        metadata.updateNormalToken(factory.fromString("B"), InetAddress.getByName("127.0.0.4"));
+        metadata.updateNormalToken(factory.fromString("D"), InetAddress.getByName("127.0.0.5"));
+
+        Map<String, String> configOptions = new HashMap<>();
+        configOptions.put("DC1", "1");
+        configOptions.put("DC2", "1");
+
+        Keyspace.clear("Keyspace1");
+        KSMetaData meta = KSMetaData.newKeyspace("Keyspace1", "NetworkTopologyStrategy", configOptions, false);
+        Schema.instance.setKeyspaceDefinition(meta);
+
+        // If nodes aren't up RangeStreamer's FailureDetectorSourceFilter will remove the endpoints
+        // from streaming consideration
+        InetAddress h2 = InetAddress.getByName("127.0.0.2");
+        InetAddress h4 = InetAddress.getByName("127.0.0.4");
+        InetAddress h5 = InetAddress.getByName("127.0.0.5");
+        Gossiper.instance.initializeNodeUnsafe(h2, UUID.randomUUID(), 1);
+        Gossiper.instance.initializeNodeUnsafe(h4, UUID.randomUUID(), 1);
+        Gossiper.instance.initializeNodeUnsafe(h5, UUID.randomUUID(), 1);
+        Gossiper.instance.realMarkAlive(h2, Gossiper.instance.getEndpointStateForEndpoint(h2));
+        Gossiper.instance.realMarkAlive(h4, Gossiper.instance.getEndpointStateForEndpoint(h4));
+        Gossiper.instance.realMarkAlive(h5, Gossiper.instance.getEndpointStateForEndpoint(h5));
+
+        Set<String> res1 = StorageService.instance.getKeyspacesWithAllRangesAvailable("DC2");
+        assertThat(res1).isEmpty();
+
+        SystemKeyspace.updateAvailableRanges("Keyspace1", StorageService.instance.getLocalRanges("Keyspace1"));
+        Set<String> res2 = StorageService.instance.getKeyspacesWithAllRangesAvailable("DC2");
+        assertThat(res2).containsOnly("Keyspace1");
+    }
+
+    @Test
     public void testPrimaryRangesWithSimpleStrategy() throws Exception
     {
         TokenMetadata metadata = StorageService.instance.getTokenMetadata();
@@ -774,49 +818,5 @@ public class StorageServiceServerTest
         TokenMetadata tmd = new TokenMetadata();
         StorageService.instance.setTokenMetadataUnsafe(tmd);
         assertThat(StorageService.instance.getLocalHostId()).isNull();
-    }
-
-    @Test
-    public void getRebuiltKeyspaces_removesKeyspacesWithUnavailableRanges() throws UnknownHostException
-    {
-        Map<String, String> configOptions = new HashMap<>();
-        configOptions.put("DC1", "1");
-        configOptions.put("DC2", "1");
-
-        Keyspace.clear("Keyspace1");
-        KSMetaData meta = KSMetaData.newKeyspace("Keyspace1", "NetworkTopologyStrategy", configOptions, false);
-        Schema.instance.setKeyspaceDefinition(meta);
-
-        TokenMetadata metadata = StorageService.instance.getTokenMetadata();
-        metadata.clearUnsafe();
-
-        Token.TokenFactory factory = StorageService.getPartitioner().getTokenFactory();
-
-        // DC1
-        metadata.updateNormalToken(factory.fromString("A"), InetAddress.getByName("127.0.0.1"));
-        metadata.updateNormalToken(factory.fromString("C"), InetAddress.getByName("127.0.0.2"));
-
-        // DC2
-        metadata.updateNormalToken(factory.fromString("B"), InetAddress.getByName("127.0.0.4"));
-        metadata.updateNormalToken(factory.fromString("D"), InetAddress.getByName("127.0.0.5"));
-
-        // If nodes aren't up RangeStreamer's FailureDetectorSourceFilter will remove the endpoints
-        // from streaming consideration
-        InetAddress h2 = InetAddress.getByName("127.0.0.2");
-        InetAddress h4 = InetAddress.getByName("127.0.0.4");
-        InetAddress h5 = InetAddress.getByName("127.0.0.5");
-        Gossiper.instance.initializeNodeUnsafe(h2, UUID.randomUUID(), 1);
-        Gossiper.instance.initializeNodeUnsafe(h4, UUID.randomUUID(), 1);
-        Gossiper.instance.initializeNodeUnsafe(h5, UUID.randomUUID(), 1);
-        Gossiper.instance.realMarkAlive(h2, Gossiper.instance.getEndpointStateForEndpoint(h2));
-        Gossiper.instance.realMarkAlive(h4, Gossiper.instance.getEndpointStateForEndpoint(h4));
-        Gossiper.instance.realMarkAlive(h5, Gossiper.instance.getEndpointStateForEndpoint(h5));
-
-        Set<String> res1 = StorageService.instance.getKeyspacesWithAllRangesAvailable("DC2");
-        assertThat(res1).isEmpty();
-
-        SystemKeyspace.updateAvailableRanges("Keyspace1", StorageService.instance.getLocalRanges("Keyspace1"));
-        Set<String> res2 = StorageService.instance.getKeyspacesWithAllRangesAvailable("DC2");
-        assertThat(res2).containsOnly("Keyspace1");
     }
 }
