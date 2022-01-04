@@ -4953,6 +4953,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         instance.startTransports();
     }
 
+    @Override
+    public void persistentDisableClientInterfaces() {
+        try
+        {
+            DisableClientInterfaceSetting.instance.setTrue();
+            instance.shutdownClientServers();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to persistently disable client interfaces due to IO Exception", e);
+        }
+    }
+
     public boolean isNodeDisabled() {
         return instance.areAllTransportsStopped() && isAutoCompactionDisabled();
     }
