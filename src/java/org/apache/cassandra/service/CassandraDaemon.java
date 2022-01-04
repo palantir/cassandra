@@ -225,11 +225,21 @@ public class CassandraDaemon
         completeSetupMayThrowSstableException();
     }
 
-    /* This functionality should only be used in a migration mode, and ensures that client interfaces are not enabled across restarts. */
+    /* This functionality should only be used in a migration mode for a brand new cluster, and ensures that client
+       interfaces are not enabled across restarts. */
     private void doNotStartupClientInterfacesIfDisabled() {
+        // only run this for new clusters - after that, we rely on the behavior set via the JMX probe
+        boolean isNewCluster = Boolean.getBoolean("palantir_cassandra.is_new_cluster");
+        if (!isNewCluster)
+        {
+            return;
+        }
+
         boolean doNotStartupClientInterfaces = Boolean.getBoolean("palantir_cassandra.persist_disable_client_interfaces");
         if (doNotStartupClientInterfaces)
         {
+            logger.warn("Disabling client interfaces persistently, because this is a new cluster with " +
+                            "'persist_disable_client_interfaces' set to true");
             try
             {
                 DisableClientInterfaceSetting.instance.setTrue();
