@@ -50,6 +50,7 @@ import ch.qos.logback.core.Appender;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAckVerbHandler;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSynVerbHandler;
 import com.palantir.cassandra.dht.SingleRackFilter;
+import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
@@ -4944,6 +4945,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public boolean isKeyspaceCreationEnabled() {
         return !LockKeyspaceCreationSetting.instance.isTrue();
+    }
+
+    @Override
+    public void persistentEnableClientInterfaces() {
+        DisableClientInterfaceSetting.instance.setFalse();
+        instance.startTransports();
     }
 
     public boolean isNodeDisabled() {
