@@ -29,7 +29,7 @@ public class LockKeyspaceCreationSetting extends PersistentSetting
     }
 
     public synchronized void validateKeyspaceCreationUnlocked() {
-        if (isEnabled())
+        if (isTrue())
             throw new org.apache.cassandra.exceptions.InvalidRequestException("keyspace creation is disabled");
     }
 }

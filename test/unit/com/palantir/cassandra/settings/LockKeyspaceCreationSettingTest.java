@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import org.junit.Test;
 
-import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -43,8 +42,8 @@ public class LockKeyspaceCreationSettingTest
     public void validateKeyspaceCreationUnlocked_doesNotThrowWhenUnlocked() throws IOException
     {
         LockKeyspaceCreationSetting setting = new LockKeyspaceCreationSetting();
-        setting.enable();
-        setting.disable();
+        setting.setTrue();
+        setting.setFalse();
         setting.validateKeyspaceCreationUnlocked();
     }
 }

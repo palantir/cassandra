@@ -220,7 +220,25 @@ public class CassandraDaemon
         FileUtils.setDefaultUncaughtExceptionHandler();
 
         Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
+
+        doNotStartupClientInterfacesIfDisabled();
         completeSetupMayThrowSstableException();
+    }
+
+    /* This functionality should only be used in a migration mode, and ensures that client interfaces are not enabled across restarts. */
+    private void doNotStartupClientInterfacesIfDisabled() {
+        boolean doNotStartupClientInterfaces = Boolean.getBoolean("palantir_cassandra.persist_disable_client_interfaces");
+        if (doNotStartupClientInterfaces)
+        {
+            try
+            {
+                DisableClientInterfaceSetting.instance.setTrue();
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException("Caught IOException when attempting to mark persistent setting", e);
+            }
+        }
     }
 
     /* This part of setup may throw a CorruptSSTableException. */
@@ -390,7 +408,7 @@ public class CassandraDaemon
 
     public void startNativeTransport()
     {
-        if (DisableClientInterfaceSetting.instance.isEnabled())
+        if (DisableClientInterfaceSetting.instance.isTrue())
         {
             logger.warn("Not enabling client interface servers (thrift and native transport) because persistent settings" +
                         " have marked client interfaces as disabled");
@@ -525,7 +543,7 @@ public class CassandraDaemon
      */
     public void start()
     {
-        if (DisableClientInterfaceSetting.instance.isEnabled())
+        if (DisableClientInterfaceSetting.instance.isTrue())
         {
             logger.warn("Not enabling client interface servers (thrift and native transport) because persistent settings" +
                         " have marked client interfaces as disabled");

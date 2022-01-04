@@ -36,7 +36,7 @@ public class PersistentSetting
         this.settingName = settingName;
     }
 
-    public synchronized void enable() throws IOException
+    public synchronized void setTrue() throws IOException
     {
         File lockFile = new File(DatabaseDescriptor.getPersistentSettingsLocation(), settingName);
         try
@@ -50,12 +50,12 @@ public class PersistentSetting
         }
     }
 
-    public synchronized void disable() {
+    public synchronized void setFalse() {
         File lockFile = new File(DatabaseDescriptor.getPersistentSettingsLocation(), settingName);
         lockFile.delete();
     }
 
-    public synchronized boolean isEnabled() {
+    public synchronized boolean isTrue() {
         return new File(DatabaseDescriptor.getPersistentSettingsLocation(), settingName).exists();
     }
 }

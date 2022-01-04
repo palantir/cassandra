@@ -4933,17 +4933,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public void disableKeyspaceCreation() throws IOException {
-        LockKeyspaceCreationSetting.instance.enable();
+        LockKeyspaceCreationSetting.instance.setTrue();
     }
 
     @Override
     public void enableKeyspaceCreation() {
-        LockKeyspaceCreationSetting.instance.disable();
+        LockKeyspaceCreationSetting.instance.setFalse();
     }
 
     @Override
     public boolean isKeyspaceCreationEnabled() {
-        return !LockKeyspaceCreationSetting.instance.isEnabled();
+        return !LockKeyspaceCreationSetting.instance.isTrue();
     }
 
     public boolean isNodeDisabled() {
