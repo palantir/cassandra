@@ -20,6 +20,8 @@ package com.palantir.cassandra.settings;
 
 import java.io.IOException;
 
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 import org.apache.cassandra.exceptions.InvalidRequestException;
@@ -29,6 +31,12 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 public class LockKeyspaceCreationSettingTest
 {
+
+    @After
+    public void cleanup() {
+        LockKeyspaceCreationSetting.instance.setFalse();
+    }
+
     @Test
     public void validateKeyspaceCreationUnlocked_throwsWhenLocked() throws IOException
     {
