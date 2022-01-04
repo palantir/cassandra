@@ -823,4 +823,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Returns true if keyspace creation is enabled.
      */
     public boolean isKeyspaceCreationEnabled();
+
+    /**
+     * Removes the persistent setting that disables client interfaces, and starts the Native Transport and Thrift servers.
+     */
+    public void persistentEnableClientInterfaces();
+
+    /**
+     * Sets the persistent setting that disables client interfaces, and stops the Native Transport and Thrift servers.
+     */
+    public void persistentDisableClientInterfaces();
 }

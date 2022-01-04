@@ -50,7 +50,8 @@ import ch.qos.logback.core.Appender;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAckVerbHandler;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSynVerbHandler;
 import com.palantir.cassandra.dht.SingleRackFilter;
-import com.palantir.cassandra.utils.LockKeyspaceUtils;
+import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
+import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -4933,17 +4934,34 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public void disableKeyspaceCreation() throws IOException {
-        LockKeyspaceUtils.lockKeyspaceCreation();
+        LockKeyspaceCreationSetting.instance.setTrue();
     }
 
     @Override
     public void enableKeyspaceCreation() {
-        LockKeyspaceUtils.unlockKeyspaceCreation();
+        LockKeyspaceCreationSetting.instance.setFalse();
     }
 
     @Override
     public boolean isKeyspaceCreationEnabled() {
-        return !LockKeyspaceUtils.isKeyspaceCreationLocked();
+        return !LockKeyspaceCreationSetting.instance.isTrue();
+    }
+
+    @Override
+    public void persistentEnableClientInterfaces() {
+        DisableClientInterfaceSetting.instance.setFalse();
+        instance.startTransports();
+    }
+
+    @Override
+    public void persistentDisableClientInterfaces() {
+        try
+        {
+            DisableClientInterfaceSetting.instance.setTrue();
+            instance.shutdownClientServers();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to persistently disable client interfaces due to IO Exception", e);
+        }
     }
 
     public boolean isNodeDisabled() {
