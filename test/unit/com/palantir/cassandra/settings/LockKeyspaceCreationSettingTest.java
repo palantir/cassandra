@@ -30,9 +30,10 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 public class LockKeyspaceCreationSettingTest
 {
     @Test
-    public void validateKeyspaceCreationUnlocked_throwsWhenLocked()
+    public void validateKeyspaceCreationUnlocked_throwsWhenLocked() throws IOException
     {
         LockKeyspaceCreationSetting setting = new LockKeyspaceCreationSetting();
+        setting.setTrue();
         assertThatThrownBy(setting::validateKeyspaceCreationUnlocked)
             .isInstanceOf(InvalidRequestException.class)
             .hasMessage("keyspace creation is disabled");
