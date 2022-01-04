@@ -1302,7 +1302,7 @@ public class DatabaseDescriptor
         return conf.saved_caches_directory;
     }
 
-    public static String getLockKeyspacesDirectory() {
+    public static String getPersistentSettingsLocation() {
         return conf.persistent_settings_directory;
     }
 

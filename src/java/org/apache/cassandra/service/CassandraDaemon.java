@@ -60,6 +60,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -389,6 +390,13 @@ public class CassandraDaemon
 
     public void startNativeTransport()
     {
+        if (DisableClientInterfaceSetting.instance.isEnabled())
+        {
+            logger.warn("Not enabling client interface servers (thrift and native transport) because persistent settings" +
+                        " have marked client interfaces as disabled");
+            return;
+        }
+
         validateTransportsCanStart();
 
         if (nativeServer == null)
@@ -517,6 +525,13 @@ public class CassandraDaemon
      */
     public void start()
     {
+        if (DisableClientInterfaceSetting.instance.isEnabled())
+        {
+            logger.warn("Not enabling client interface servers (thrift and native transport) because persistent settings" +
+                        " have marked client interfaces as disabled");
+            return;
+        }
+
         try
         {
             validateTransportsCanStart();

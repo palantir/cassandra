@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.utils;
+package com.palantir.cassandra.settings;
 
 import java.io.IOException;
 
 import org.junit.Test;
 
+import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-public class LockKeyspaceUtilsTest
+public class LockKeyspaceCreationSettingTest
 {
     @Test
-    public void validateKeyspaceCreationUnlocked_throwsWhenLocked() throws IOException
+    public void validateKeyspaceCreationUnlocked_throwsWhenLocked()
     {
-        LockKeyspaceUtils.lockKeyspaceCreation();
-        assertThatThrownBy(LockKeyspaceUtils::validateKeyspaceCreationUnlocked)
+        LockKeyspaceCreationSetting setting = new LockKeyspaceCreationSetting();
+        assertThatThrownBy(setting::validateKeyspaceCreationUnlocked)
             .isInstanceOf(InvalidRequestException.class)
             .hasMessage("keyspace creation is disabled");
     }
@@ -41,8 +42,9 @@ public class LockKeyspaceUtilsTest
     @Test
     public void validateKeyspaceCreationUnlocked_doesNotThrowWhenUnlocked() throws IOException
     {
-        LockKeyspaceUtils.lockKeyspaceCreation();
-        LockKeyspaceUtils.unlockKeyspaceCreation();
-        LockKeyspaceUtils.validateKeyspaceCreationUnlocked();
+        LockKeyspaceCreationSetting setting = new LockKeyspaceCreationSetting();
+        setting.enable();
+        setting.disable();
+        setting.validateKeyspaceCreationUnlocked();
     }
 }

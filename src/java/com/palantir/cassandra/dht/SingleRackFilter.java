@@ -24,17 +24,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.palantir.cassandra.utils.LockKeyspaceUtils;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.RangeStreamer;
 import org.apache.cassandra.locator.AbstractReplicationStrategy;
