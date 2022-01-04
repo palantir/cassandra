@@ -32,7 +32,7 @@ public class LockKeyspaceCreationSettingTest
     @Test
     public void validateKeyspaceCreationUnlocked_throwsWhenLocked() throws IOException
     {
-        LockKeyspaceCreationSetting setting = new LockKeyspaceCreationSetting();
+        LockKeyspaceCreationSetting setting = LockKeyspaceCreationSetting.instance;
         setting.setTrue();
         assertThatThrownBy(setting::validateKeyspaceCreationUnlocked)
             .isInstanceOf(InvalidRequestException.class)
@@ -42,7 +42,7 @@ public class LockKeyspaceCreationSettingTest
     @Test
     public void validateKeyspaceCreationUnlocked_doesNotThrowWhenUnlocked() throws IOException
     {
-        LockKeyspaceCreationSetting setting = new LockKeyspaceCreationSetting();
+        LockKeyspaceCreationSetting setting = LockKeyspaceCreationSetting.instance;
         setting.setTrue();
         setting.setFalse();
         setting.validateKeyspaceCreationUnlocked();

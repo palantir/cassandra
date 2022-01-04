@@ -24,7 +24,7 @@ public class DisableClientInterfaceSetting extends PersistentSetting
 
     public static final DisableClientInterfaceSetting instance = new DisableClientInterfaceSetting();
 
-    public DisableClientInterfaceSetting() {
+    private DisableClientInterfaceSetting() {
         super(SETTING_NAME);
     }
 }

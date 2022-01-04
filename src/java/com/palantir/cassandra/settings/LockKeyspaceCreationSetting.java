@@ -24,7 +24,7 @@ public class LockKeyspaceCreationSetting extends PersistentSetting
 
     public static final LockKeyspaceCreationSetting instance = new LockKeyspaceCreationSetting();
 
-    public LockKeyspaceCreationSetting() {
+    private LockKeyspaceCreationSetting() {
         super(SETTING_NAME);
     }
 
