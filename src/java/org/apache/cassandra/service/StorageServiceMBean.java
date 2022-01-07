@@ -833,4 +833,6 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Sets the persistent setting that disables client interfaces, and stops the Native Transport and Thrift servers.
      */
     public void persistentDisableClientInterfaces();
+
+    public boolean isMigrating();
 }

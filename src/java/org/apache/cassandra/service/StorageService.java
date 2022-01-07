@@ -4964,6 +4964,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    @Override
+    public boolean isMigrating()
+    {
+        return Boolean.getBoolean("palantir_cassandra.migration_mode");
+    }
+
     public boolean isNodeDisabled() {
         return instance.areAllTransportsStopped() && isAutoCompactionDisabled();
     }
