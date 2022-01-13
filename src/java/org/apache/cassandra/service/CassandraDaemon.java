@@ -76,6 +76,7 @@ import org.apache.cassandra.exceptions.StartupException;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
+import org.apache.cassandra.metrics.HiccupMeter;
 import org.apache.cassandra.service.StorageServiceMBean.NonTransientError;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.utils.*;
@@ -380,6 +381,7 @@ public class CassandraDaemon
                 logger.warn("Failed to load metrics-reporter-config, metric sinks will not be activated", e);
             }
         }
+        new HiccupMeter().start();
 
         if (!FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress()))
             waitForGossipToSettle();
