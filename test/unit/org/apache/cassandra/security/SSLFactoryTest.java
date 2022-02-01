@@ -208,13 +208,9 @@ public class SSLFactoryTest
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
 
-        EncryptionOptions options = getServerEncryptionOptions();
-        options.keystore = "test/conf/alternate.jks";
-        options.keystore_password = "password";
-
-        try (SSLServerSocket server = SSLFactory.getServerSocket(options, localhost, PORT))
+        try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
         {
-            SSLSocket client = SSLFactory.getSocket(options, localhost, PORT);
+            SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), localhost, PORT);
             List<SNIServerName> snis = client.getSSLParameters().getServerNames();
             // Only SNI header updated, nothing else
             assertThat(client.getInetAddress()).isEqualTo(localhost);
@@ -239,11 +235,7 @@ public class SSLFactoryTest
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
 
-        EncryptionOptions options = getServerEncryptionOptions();
-        options.keystore = "test/conf/alternate.jks";
-        options.keystore_password = "password";
-
-        try (SSLServerSocket server = SSLFactory.getServerSocket(options, localhost, PORT))
+        try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
         {
             SSLSocket client = SSLFactory.getSocket(getClientEncryptionOptions(), localhost, PORT);
             List<SNIServerName> snis = client.getSSLParameters().getServerNames();
