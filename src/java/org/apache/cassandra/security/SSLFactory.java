@@ -23,12 +23,18 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -55,6 +62,7 @@ import com.palantir.cassandra.cvim.InetAddressHostname;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.io.util.FileUtils;
+import sun.security.x509.X500Name;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +135,6 @@ public final class SSLFactory
     public static SSLContext createSSLContext(EncryptionOptions options, boolean buildTruststore) throws IOException
     {
         FileInputStream tsf = null;
-        FileInputStream ksf = null;
         SSLContext ctx;
         try
         {
@@ -145,24 +152,8 @@ public final class SSLFactory
                 trustManagers = tmf.getTrustManagers();
             }
 
-            ksf = new FileInputStream(options.keystore);
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(options.algorithm);
-            KeyStore ks = KeyStore.getInstance(options.store_type);
-            ks.load(ksf, options.keystore_password.toCharArray());
-            if (!checkedExpiry)
-            {
-                for (Enumeration<String> aliases = ks.aliases(); aliases.hasMoreElements(); )
-                {
-                    String alias = aliases.nextElement();
-                    if (ks.getCertificate(alias).getType().equals("X.509"))
-                    {
-                        Date expires = ((X509Certificate) ks.getCertificate(alias)).getNotAfter();
-                        if (expires.before(new Date()))
-                            logger.warn("Certificate for {} expired on {}", alias, expires);
-                    }
-                }
-                checkedExpiry = true;
-            }
+            KeyStore ks = getKeyStore(options);
             kmf.init(ks, options.keystore_password.toCharArray());
 
             ctx.init(kmf.getKeyManagers(), trustManagers, null);
@@ -174,7 +165,6 @@ public final class SSLFactory
         finally
         {
             FileUtils.closeQuietly(tsf);
-            FileUtils.closeQuietly(ksf);
         }
         return ctx;
     }
@@ -215,9 +205,18 @@ public final class SSLFactory
         }
     }
 
-    private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters)
+    private static void maybeAddSni(InetAddress addr, SSLParameters sslParameters, EncryptionOptions options)
     {
-        String providedName = addr.getHostName();
+        Set<String> validServerNames = getValidServerNames(options);
+        String hostname = addr.getHostName();
+
+        if(!validServerNames.isEmpty() && !validServerNames.contains(hostname)) {
+            hostname = addr.getCanonicalHostName();
+            logger.info("Using canoical hostname {} instead of localhost {} as no entry for hostname found in keystore {}", addr.getHostName(), hostname, validServerNames);
+        }
+
+        String providedName = hostname;
+
         Optional<InetAddressHostname> maybeName = Optional.empty();
         if (DatabaseDescriptor.isCrossVpcSniSubstitutionEnabled())
         {
@@ -230,6 +229,12 @@ public final class SSLFactory
             "Adding SNI header to socket if hostname present for {}/{}", name, addr.getHostAddress());
         if (name != null)
         {
+            if(!validServerNames.isEmpty() && !validServerNames.contains(name)) {
+                logger.error("Cannot use server name {} for SNI as no certificate has entry {}",
+                             name,
+                             validServerNames);
+                throw new RuntimeException("Server name to be used for SNI is not listed as a name in any certificate.");
+            }
             SNIServerName sniName = new SNIHostName(name);
             List<SNIServerName> sniHostNames = ImmutableList.of(sniName);
             sslParameters.setServerNames(sniHostNames);
@@ -274,7 +279,82 @@ public final class SSLFactory
     {
         prepareSocket(socket, options);
         SSLParameters sslParameters = socket.getSSLParameters();
-        maybeAddSni(endpoint, sslParameters);
+        maybeAddSni(endpoint, sslParameters, options);
         socket.setSSLParameters(sslParameters);
+    }
+
+    @VisibleForTesting
+    static Set<String> getValidServerNames(EncryptionOptions options) {
+        Set<String> validServerNames = new HashSet<>();
+        try {
+            KeyStore ks = getKeyStore(options);
+            Enumeration<String> aliases = ks.aliases();
+            while(aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                Certificate certificate = ks.getCertificate(alias);
+                if (certificate instanceof X509Certificate) {
+                    X509Certificate x509 = (X509Certificate) certificate;
+                    try
+                    {
+                        // Add the common name
+                        validServerNames.add(new X500Name(x509.getSubjectX500Principal().getName()).getCommonName());
+                        if (x509.getSubjectAlternativeNames() != null) {
+                            x509.getSubjectAlternativeNames().forEach(list -> {
+                                if (list != null && list.size() > 1) {
+                                    /*
+                                     * Type is always the first entry of the list.
+                                     * Type 2 and 7 are DNS and IP addresses respectively.
+                                     */
+                                    int type = (Integer) list.get(0);
+                                    if (type == 2 || type == 7) {
+                                        validServerNames.addAll(list.subList(1, list.size()).stream().map(Object::toString).collect(Collectors.toList()));
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    catch (CertificateParsingException e)
+                    {
+                        logger.warn("Could not load subject alternative names from certificate", e);
+                    }
+                }
+            }
+        }
+        catch (IOException | KeyStoreException e)
+        {
+            logger.error("Failed to load keystore, not validating SNI headers.", e);
+        }
+        return validServerNames;
+    }
+
+    public static KeyStore getKeyStore(EncryptionOptions options) throws IOException
+    {
+        FileInputStream ksf = null;
+        try {
+            ksf = new FileInputStream(options.keystore);
+            KeyStore ks = KeyStore.getInstance(options.store_type);
+            ks.load(ksf, options.keystore_password.toCharArray());
+            if (!checkedExpiry)
+            {
+                for (Enumeration<String> aliases = ks.aliases(); aliases.hasMoreElements(); )
+                {
+                    String alias = aliases.nextElement();
+                    if (ks.getCertificate(alias).getType().equals("X.509"))
+                    {
+                        Date expires = ((X509Certificate) ks.getCertificate(alias)).getNotAfter();
+                        if (expires.before(new Date()))
+                            logger.warn("Certificate for {} expired on {}", alias, expires);
+                    }
+                }
+                checkedExpiry = true;
+            }
+            return ks;
+        }
+        catch (Exception e)
+        {
+            throw new IOException("Error creating the initializing the SSL Context", e);
+        } finally {
+            FileUtils.closeQuietly(ksf);
+        }
     }
 }
