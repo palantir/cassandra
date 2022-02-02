@@ -235,10 +235,10 @@ public class CrossVpcIpMappingHandshakerTest
     {
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         long first = System.currentTimeMillis();
-        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
+        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithAllNodes();
         Thread.sleep(1);
         long second = System.currentTimeMillis();
-        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithSeeds();
+        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithAllNodes();
         assertThat(CrossVpcIpMappingHandshaker.instance.getLastTriggeredHandshakeMillis()).isGreaterThan(first);
         assertThat(CrossVpcIpMappingHandshaker.instance.getLastTriggeredHandshakeMillis()).isLessThan(second);
     }
