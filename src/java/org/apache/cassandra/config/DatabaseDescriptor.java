@@ -1313,11 +1313,11 @@ public class DatabaseDescriptor
 
     public static Set<InetAddress> getAllHosts()
     {
-        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.<InetAddress>builder();
         if (conf.all_hosts.isEmpty()) {
             logger.warn("all_hosts config was empty. Defaulting to providing only seeds");
             return getSeeds();
         }
+        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.<InetAddress>builder();
         for (String hostname : conf.all_hosts)
         {
             try
