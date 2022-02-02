@@ -105,6 +105,8 @@ public class DatabaseDescriptor
     private static Comparator<InetAddress> localComparator;
     private static boolean hasLoggedConfig;
 
+    private static final String allHostsRaw = System.getProperty("palantir_cassandra.all_hosts", "");
+
     private static boolean daemonInitialized;
 
     public static boolean isDaemonInitialized()
@@ -1314,7 +1316,6 @@ public class DatabaseDescriptor
 
     public static Set<InetAddress> getAllHosts()
     {
-        String allHostsRaw = System.getProperty("palantir_cassandra.all_hosts", "");
         if (StringUtils.isBlank(allHostsRaw)) {
             logger.warn("all_hosts config was empty. Defaulting to providing only seeds");
             return getSeeds();

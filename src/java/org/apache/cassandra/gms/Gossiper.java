@@ -1333,7 +1333,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     public synchronized Map<InetAddress, EndpointState> doShadowRound()
     {
-        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithAllNodes();
+        CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithAllPeers();
         buildSeedsList();
         // it may be that the local address is the only entry in the seed
         // list in which case, attempting a shadow round is pointless

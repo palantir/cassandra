@@ -173,7 +173,7 @@ public class CrossVpcIpMappingHandshaker
         return Optional.ofNullable(ipHostnameMappings.get(ip));
     }
 
-    public void triggerHandshakeWithAllNodes()
+    public void triggerHandshakeWithAllPeers()
     {
         if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
             return;
@@ -184,13 +184,13 @@ public class CrossVpcIpMappingHandshaker
                 logger.trace("Ignoring handshake request as last handshake is too recent");
                 return;
             }
-            // nodes should be provided via config by hostname with our setup
-            Set<InetAddress> allNodes = DatabaseDescriptor.getAllHosts()
+            // peers should be provided via config by hostname with our setup
+            Set<InetAddress> allPeers = DatabaseDescriptor.getAllHosts()
                                                        .stream()
                                                        .filter(host -> !host.equals(FBUtilities.getBroadcastAddress()))
                                                        .collect(Collectors.toSet());
 
-            triggerHandshakeFromSelf(allNodes);
+            triggerHandshakeFromSelf(allPeers);
         }
         catch (Exception e)
         {
@@ -253,7 +253,7 @@ public class CrossVpcIpMappingHandshaker
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             try
             {
-                triggerHandshakeWithAllNodes();
+                triggerHandshakeWithAllPeers();
             }
             catch (Exception e)
             {
