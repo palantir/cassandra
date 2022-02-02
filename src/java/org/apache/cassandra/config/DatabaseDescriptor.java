@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1313,12 +1314,15 @@ public class DatabaseDescriptor
 
     public static Set<InetAddress> getAllHosts()
     {
-        if (conf.all_hosts.isEmpty()) {
+        String allHostsRaw = System.getProperty("palantir_cassandra.all_hosts", "");
+        if (StringUtils.isBlank(allHostsRaw)) {
             logger.warn("all_hosts config was empty. Defaulting to providing only seeds");
             return getSeeds();
         }
-        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.<InetAddress>builder();
-        for (String hostname : conf.all_hosts)
+        String[] allHosts = allHostsRaw.split(",", -1);
+
+        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.builder();
+        for (String hostname : allHosts)
         {
             try
             {

@@ -43,6 +43,7 @@ public class CrossVpcIpMappingHandshakerTest
         CrossVpcIpMappingHandshaker.instance.stop();
         CrossVpcIpMappingHandshaker.instance.clearMappings();
         CrossVpcIpMappingHandshaker.instance.setLastTriggeredHandshakeMillis(0);
+        System.setProperty("palantir_cassandra.all_hosts", "localhost,");
     }
 
     @Test
@@ -236,7 +237,7 @@ public class CrossVpcIpMappingHandshakerTest
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         long first = System.currentTimeMillis();
         CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithAllNodes();
-        Thread.sleep(1);
+        Thread.sleep(2);
         long second = System.currentTimeMillis();
         CrossVpcIpMappingHandshaker.instance.triggerHandshakeWithAllNodes();
         assertThat(CrossVpcIpMappingHandshaker.instance.getLastTriggeredHandshakeMillis()).isGreaterThan(first);
