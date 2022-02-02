@@ -1311,6 +1311,25 @@ public class DatabaseDescriptor
         return ImmutableSet.<InetAddress>builder().addAll(seedProvider.getSeeds()).build();
     }
 
+    public static Set<InetAddress> getAllHosts()
+    {
+        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.<InetAddress>builder();
+        for (String hostname : conf.all_hosts)
+        {
+            try
+            {
+                builder.add(InetAddress.getByName(hostname));
+            }
+            catch (UnknownHostException ex)
+            {
+                logger.warn(
+                        "Could not find host {}, presumably because that pod/host isn't online or DNS is not working",
+                        hostname, ex);
+            }
+        }
+        return builder.build();
+    }
+
     public static InetAddress getListenAddress()
     {
         return listenAddress;

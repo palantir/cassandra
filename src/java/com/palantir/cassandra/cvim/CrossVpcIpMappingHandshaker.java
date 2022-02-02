@@ -173,7 +173,7 @@ public class CrossVpcIpMappingHandshaker
         return Optional.ofNullable(ipHostnameMappings.get(ip));
     }
 
-    public void triggerHandshakeWithSeeds()
+    public void triggerHandshakeWithAllNodes()
     {
         if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
             return;
@@ -184,14 +184,13 @@ public class CrossVpcIpMappingHandshaker
                 logger.trace("Ignoring handshake request as last handshake is too recent");
                 return;
             }
-            // seeds should be provided via config by hostname with our setup. Could probably get fancier with deciding
-            // who we currently are going to handshake with like the Gossiper does
-            Set<InetAddress> seeds = DatabaseDescriptor.getSeeds()
+            // nodes should be provided via config by hostname with our setup
+            Set<InetAddress> allNodes = DatabaseDescriptor.getAllHosts()
                                                        .stream()
-                                                       .filter(seed -> !seed.equals(FBUtilities.getBroadcastAddress()))
+                                                       .filter(host -> !host.equals(FBUtilities.getBroadcastAddress()))
                                                        .collect(Collectors.toSet());
 
-            triggerHandshakeFromSelf(seeds);
+            triggerHandshakeFromSelf(allNodes);
         }
         catch (Exception e)
         {
@@ -254,7 +253,7 @@ public class CrossVpcIpMappingHandshaker
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             try
             {
-                triggerHandshakeWithSeeds();
+                triggerHandshakeWithAllNodes();
             }
             catch (Exception e)
             {

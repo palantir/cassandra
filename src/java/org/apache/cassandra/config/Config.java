@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Supplier;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
 import org.slf4j.Logger;
@@ -136,6 +137,8 @@ public class Config
     public Boolean cross_vpc_sni_substitution_enabled = false;
     // Max amount of time a socket will attempt to connect to remote before terminating
     public Long cross_vpc_connect_timeout_in_ms = 3000L;
+    // All cassandra hosts. Should be supplied by hostname for Cross VPC mapping to succeed.
+    public Set<String> all_hosts = ImmutableSet.of();
 
     /* intentionally left set to true, despite being set to false in stock 2.2 cassandra.yaml
        we don't want to surprise Thrift users who have the setting blank in the yaml during 2.1->2.2 upgrade */
