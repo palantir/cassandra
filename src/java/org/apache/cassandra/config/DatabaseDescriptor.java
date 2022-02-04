@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +104,8 @@ public class DatabaseDescriptor
     private static String localDC;
     private static Comparator<InetAddress> localComparator;
     private static boolean hasLoggedConfig;
+
+    private static final String allHostsRaw = System.getProperty("palantir_cassandra.all_hosts", "");
 
     private static boolean daemonInitialized;
 
@@ -1309,6 +1312,31 @@ public class DatabaseDescriptor
     public static Set<InetAddress> getSeeds()
     {
         return ImmutableSet.<InetAddress>builder().addAll(seedProvider.getSeeds()).build();
+    }
+
+    public static Set<InetAddress> getAllHosts()
+    {
+        if (StringUtils.isBlank(allHostsRaw)) {
+            logger.warn("all_hosts config was empty. Defaulting to providing only seeds");
+            return getSeeds();
+        }
+        String[] allHosts = allHostsRaw.split(",", -1);
+
+        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.builder();
+        for (String hostname : allHosts)
+        {
+            try
+            {
+                builder.add(InetAddress.getByName(hostname));
+            }
+            catch (UnknownHostException ex)
+            {
+                logger.warn(
+                        "Could not find host {}, presumably because that pod/host isn't online or DNS is not working",
+                        hostname, ex);
+            }
+        }
+        return builder.build();
     }
 
     public static InetAddress getListenAddress()
