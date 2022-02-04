@@ -2007,4 +2007,8 @@ public class DatabaseDescriptor
     public static int getWriteDelay() {
         return conf.write_delay_in_s;
     }
+
+    public static boolean isSslNteEnabled() {
+        return conf.enable_ssl_nte;
+    }
 }
