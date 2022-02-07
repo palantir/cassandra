@@ -510,7 +510,6 @@ public class OutboundTcpConnection extends Thread
                 socket = null;
                 if (DatabaseDescriptor.isSslNteEnabled()) {
                     StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSL_ERROR, ImmutableMap.of());
-                    StorageService.instance.unsafeDisableNode();
                 }
                 // SSL errors won't be recoverable within timeout period so we'll just abort
                 return false;
