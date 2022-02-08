@@ -264,8 +264,6 @@ public class Config
 
     public boolean inter_dc_tcp_nodelay = true;
 
-    public boolean enable_ssl_nte = true;
-
     public MemtableAllocationType memtable_allocation_type = MemtableAllocationType.heap_buffers;
 
     /**

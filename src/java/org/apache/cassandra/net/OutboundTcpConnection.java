@@ -78,6 +78,7 @@ public class OutboundTcpConnection extends Thread
      */
     private static final String INTRADC_TCP_NODELAY_PROPERTY = PREFIX + "otc_intradc_tcp_nodelay";
     private static final boolean INTRADC_TCP_NODELAY = Boolean.valueOf(System.getProperty(INTRADC_TCP_NODELAY_PROPERTY, "true"));
+    private static final boolean ENABLE_SSL_NTE = Boolean.valueOf(System.getProperty("palantir_cassandra.enable_ssl_nte", "true"));;
 
     /*
      * Size of buffer in output stream
@@ -508,7 +509,7 @@ public class OutboundTcpConnection extends Thread
             {
                 logger.error("SSL handshake error for outbound connection to " + socket, e);
                 socket = null;
-                if (DatabaseDescriptor.isSslNteEnabled()) {
+                if (ENABLE_SSL_NTE) {
                     StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSL_ERROR, ImmutableMap.of());
                 }
                 // SSL errors won't be recoverable within timeout period so we'll just abort
