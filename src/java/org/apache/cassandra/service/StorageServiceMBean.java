@@ -48,7 +48,8 @@ public interface StorageServiceMBean extends NotificationEmitter
         COMMIT_LOG_CORRUPTION,
         SSTABLE_CORRUPTION,
         FS_ERROR,
-        BOOTSTRAP_ERROR
+        BOOTSTRAP_ERROR,
+        SSL_ERROR
     }
 
     /**
