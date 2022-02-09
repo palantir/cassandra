@@ -49,6 +49,8 @@ import net.jpountz.xxhash.XXHashFactory;
 import org.apache.cassandra.io.util.DataOutputStreamPlus;
 import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
 import org.apache.cassandra.io.util.WrappedDataOutputStreamPlus;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.CoalescingStrategies;
@@ -62,6 +64,7 @@ import org.xerial.snappy.SnappyOutputStream;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 public class OutboundTcpConnection extends Thread
@@ -75,6 +78,7 @@ public class OutboundTcpConnection extends Thread
      */
     private static final String INTRADC_TCP_NODELAY_PROPERTY = PREFIX + "otc_intradc_tcp_nodelay";
     private static final boolean INTRADC_TCP_NODELAY = Boolean.valueOf(System.getProperty(INTRADC_TCP_NODELAY_PROPERTY, "true"));
+    private static final boolean ENABLE_SSL_NTE = Boolean.valueOf(System.getProperty("palantir_cassandra.enable_ssl_nte", "true"));;
 
     /*
      * Size of buffer in output stream
@@ -505,6 +509,9 @@ public class OutboundTcpConnection extends Thread
             {
                 logger.error("SSL handshake error for outbound connection to " + socket, e);
                 socket = null;
+                if (ENABLE_SSL_NTE) {
+                    StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSL_ERROR, ImmutableMap.of());
+                }
                 // SSL errors won't be recoverable within timeout period so we'll just abort
                 return false;
             }
