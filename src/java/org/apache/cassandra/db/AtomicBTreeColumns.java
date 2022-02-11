@@ -25,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -42,6 +41,7 @@ import org.apache.cassandra.utils.SearchIterator;
 import org.apache.cassandra.utils.btree.BTree;
 import org.apache.cassandra.utils.btree.BTreeSearchIterator;
 import org.apache.cassandra.utils.btree.UpdateFunction;
+import org.apache.cassandra.utils.concurrent.Locks;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.utils.memory.HeapAllocator;
 import org.apache.cassandra.utils.memory.MemtableAllocator;
@@ -86,9 +86,6 @@ public class AtomicBTreeColumns extends ColumnFamily
      * otherwise.
      */
     private volatile int wasteTracker = TRACKER_NEVER_WASTED;
-
-    // Replacement for Unsafe.monitorEnter/monitorExit used in o.a.c.concurrent.Locks
-    private final ReentrantLock lock = new ReentrantLock();
 
     private static final AtomicIntegerFieldUpdater<AtomicBTreeColumns> wasteTrackerUpdater = AtomicIntegerFieldUpdater.newUpdater(AtomicBTreeColumns.class, "wasteTracker");
 
@@ -211,7 +208,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         {
             if (usePessimisticLocking())
             {
-                acquireLock();
+                Locks.monitorEnterUnsafe(this);
                 monitorOwned = true;
             }
             while (true)
@@ -251,7 +248,7 @@ public class AtomicBTreeColumns extends ColumnFamily
                     }
                     if (shouldLock)
                     {
-                        acquireLock();
+                        Locks.monitorEnterUnsafe(this);
                         monitorOwned = true;
                     }
                 }
@@ -260,7 +257,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         finally
         {
             if (monitorOwned)
-                releaseLock();
+                Locks.monitorExitUnsafe(this);
         }
     }
 
@@ -308,16 +305,6 @@ public class AtomicBTreeColumns extends ColumnFamily
         if (wasteTracker == TRACKER_NEVER_WASTED || wasteTracker == TRACKER_PESSIMISTIC_LOCKING)
             return wasteTracker + 1;
         return wasteTracker;
-    }
-
-    private void acquireLock()
-    {
-        lock.lock();
-    }
-
-    private void releaseLock()
-    {
-        lock.unlock();
     }
 
     // no particular reason not to implement these next methods, we just haven't needed them yet
