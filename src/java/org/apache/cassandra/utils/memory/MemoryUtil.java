@@ -24,7 +24,6 @@ import java.nio.ByteOrder;
 
 import com.sun.jna.Native;
 import sun.misc.Unsafe;
-import sun.nio.ch.DirectBuffer;
 
 public abstract class MemoryUtil
 {
@@ -75,6 +74,12 @@ public abstract class MemoryUtil
         {
             throw new AssertionError(e);
         }
+    }
+
+    public static long getAddress(ByteBuffer buffer)
+    {
+        assert buffer.getClass() == DIRECT_BYTE_BUFFER_CLASS;
+        return unsafe.getLong(buffer, DIRECT_BYTE_BUFFER_ADDRESS_OFFSET);
     }
 
     public static long allocate(long size)
@@ -309,7 +314,7 @@ public abstract class MemoryUtil
             return;
 
         if (buffer.isDirect())
-            setBytes(((DirectBuffer)buffer).address() + start, address, count);
+            setBytes(getAddress(buffer) + start, address, count);
         else
             setBytes(address, buffer.array(), buffer.arrayOffset() + start, count);
     }
