@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.io.DataInput;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Predicate;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
@@ -62,6 +63,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public volatile int count;
     public final int compositesToGroup;
 
+    private final boolean includeTombstonesInReduction;
+
     private boolean hitTombstoneFailureThreshold = false;
     private boolean hitTombstoneWarnThreshold = false;
 
@@ -72,7 +75,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     private CountingCellIterator reducedCells;
 
-    private RangeTombstoneCounter rangeTombstoneCounter = new RangeTombstoneCounter();
+    private Predicate<Integer> columnCounterSaturationTester;
+
 
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count)
     {
@@ -82,6 +86,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count, int compositesToGroup)
     {
         this(new ColumnSlice(start, finish), reversed, count, compositesToGroup);
+    }
+
+    public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count, boolean includeTombstonesInReduction)
+    {
+        this(new ColumnSlice(start, finish), reversed, count, -1, includeTombstonesInReduction);
     }
 
     public SliceQueryFilter(ColumnSlice slice, boolean reversed, int count)
@@ -94,16 +103,27 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this(new ColumnSlice[]{ slice }, reversed, count, compositesToGroup);
     }
 
+    public SliceQueryFilter(ColumnSlice slice, boolean reversed, int count, int compositesToGroup, boolean includeTombstonesInReduction)
+    {
+        this(new ColumnSlice[]{ slice }, reversed, count, compositesToGroup, includeTombstonesInReduction);
+    }
+
+
     /**
      * Constructor that accepts multiple slices. All slices are assumed to be in the same direction (forward or
      * reversed).
      */
     public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count)
     {
-        this(slices, reversed, count, -1);
+        this(slices, reversed, count, -1, false);
     }
 
     public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count, int compositesToGroup)
+    {
+        this(slices, reversed, count, compositesToGroup, false);
+    }
+
+    public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count, int compositesToGroup, boolean includeTombstonesInReduction)
     {
         this.slices = slices;
         this.reversed = reversed;
@@ -112,21 +132,22 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
                                              ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
                                              : null;
+        this.includeTombstonesInReduction = includeTombstonesInReduction;
     }
 
     public SliceQueryFilter cloneShallow()
     {
-        return new SliceQueryFilter(slices, reversed, count, compositesToGroup);
+        return new SliceQueryFilter(slices, reversed, count, compositesToGroup, includeTombstonesInReduction);
     }
 
     public SliceQueryFilter withUpdatedCount(int newCount)
     {
-        return new SliceQueryFilter(slices, reversed, newCount, compositesToGroup);
+        return new SliceQueryFilter(slices, reversed, newCount, compositesToGroup, includeTombstonesInReduction);
     }
 
     public SliceQueryFilter withUpdatedSlices(ColumnSlice[] newSlices)
     {
-        return new SliceQueryFilter(newSlices, reversed, count, compositesToGroup);
+        return new SliceQueryFilter(newSlices, reversed, count, compositesToGroup, includeTombstonesInReduction);
     }
 
     /** Returns true if the slice includes static columns, false otherwise. */
@@ -278,6 +299,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
     {
         reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
+        columnCounterSaturationTester = includeTombstonesInReduction
+                                        ? columnCounter::hasSeenAtLeast : columnCounter::hasSeenCellsSoFar;
         deletionInfo = container.deletionInfo();
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
@@ -285,7 +308,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
-        while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
+        while (!columnCounterSaturationTester.test(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
 

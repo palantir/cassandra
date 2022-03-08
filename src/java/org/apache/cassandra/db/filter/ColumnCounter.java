@@ -75,6 +75,14 @@ public class ColumnCounter
         return live() >= numLiveCellsDesired;
     }
 
+    /**
+     * @return true if this counter has counted at least {@code numLiveCellsDesired} cells (live or tombstones), accounting for groupings.
+     */
+    public boolean hasSeenCellsSoFar(int numLiveCellsDesired) {
+        return live() + tombstones() >= numLiveCellsDesired;
+    }
+
+
     public ColumnCounter countAll(ColumnFamily container)
     {
         if (container == null)

@@ -469,7 +469,7 @@ public class CassandraServer implements Cassandra.Iface
 
         Composite start = metadata.comparator.fromByteBuffer(range.start);
         Composite finish = metadata.comparator.fromByteBuffer(range.finish);
-        return new SliceQueryFilter(start, finish, range.reversed, range.count);
+        return new SliceQueryFilter(start, finish, range.reversed, range.count, true);
     }
 
     private IDiskAtomFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SlicePredicate predicate)
