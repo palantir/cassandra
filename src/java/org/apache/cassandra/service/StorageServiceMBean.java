@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -309,6 +310,11 @@ public interface StorageServiceMBean extends NotificationEmitter
      * Forces major compaction of a single keyspace
      */
     public void forceKeyspaceCompaction(boolean bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
+
+    /**
+     * Gets the latest successful cleanup timestamp for the node
+     */
+    public Instant getLastSuccessfulCleanupTsForNode();
 
     /**
      * Trigger a cleanup of keys on a single keyspace
