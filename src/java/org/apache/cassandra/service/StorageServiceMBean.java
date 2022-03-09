@@ -31,8 +31,6 @@ import java.util.concurrent.TimeoutException;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
 
-import org.apache.cassandra.utils.progress.ProgressState;
-
 public interface StorageServiceMBean extends NotificationEmitter
 {
     /**
@@ -67,6 +65,14 @@ public interface StorageServiceMBean extends NotificationEmitter
      */
     public enum TransientError {
         EXCEEDED_DISK_THRESHOLD
+    }
+
+    public enum ProgressState
+    {
+        UNKNOWN,
+        IN_PROGRESS,
+        FAILED,
+        SUCCEEDED
     }
 
     /**

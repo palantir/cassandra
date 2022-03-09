@@ -21,7 +21,7 @@ package org.apache.cassandra.repair;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.cassandra.utils.progress.ProgressState;
+import org.apache.cassandra.service.StorageServiceMBean;
 
 public class RepairTracker
 {
@@ -40,17 +40,17 @@ public class RepairTracker
         commandToRepairs.put(command, task);
     }
 
-    public ProgressState getRepairState(int command)
+    public StorageServiceMBean.ProgressState getRepairState(int command)
     {
         return Optional.ofNullable(commandToRepairs.get(command))
                        .map(RepairRunnable::getCurrentState)
-                       .orElse(ProgressState.UNKNOWN);
+                       .orElse(StorageServiceMBean.ProgressState.UNKNOWN);
     }
 
     public Optional<Integer> getInProgressRepair(RepairArguments arguments)
     {
         return Optional.ofNullable(argsToMostRecentRepair.get(arguments))
-                       .filter(repair -> ProgressState.IN_PROGRESS == repair.getCurrentState())
+                       .filter(repair -> StorageServiceMBean.ProgressState.IN_PROGRESS == repair.getCurrentState())
                        .map(RepairRunnable::getCommand);
     }
 }

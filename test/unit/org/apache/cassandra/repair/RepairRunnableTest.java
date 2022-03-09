@@ -21,13 +21,13 @@ package org.apache.cassandra.repair;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.junit.Test;
 
 import org.apache.cassandra.repair.messages.RepairOption;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventType;
-import org.apache.cassandra.utils.progress.ProgressState;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,14 +53,14 @@ public class RepairRunnableTest
     public void maybeUpdateProgressState_switchesToInProgress_onProgress()
     {
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS));
     }
 
     @Test
     public void maybeUpdateProgressState_switchesToInProgress_onStart()
     {
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.START),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS));
     }
 
     @Test
@@ -71,11 +71,11 @@ public class RepairRunnableTest
                                                      ProgressEventType.COMPLETE,
                                                      ProgressEventType.PROGRESS,
                                                      ProgressEventType.SUCCESS),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.FAILED,
-                                                     ProgressState.FAILED,
-                                                     ProgressState.FAILED,
-                                                     ProgressState.FAILED));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED));
     }
 
     @Test
@@ -83,8 +83,8 @@ public class RepairRunnableTest
     {
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
                                                      ProgressEventType.ABORT),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.FAILED));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.FAILED));
     }
 
     @Test
@@ -93,9 +93,9 @@ public class RepairRunnableTest
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
                                                      ProgressEventType.SUCCESS,
                                                      ProgressEventType.ERROR),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.SUCCEEDED,
-                                                     ProgressState.FAILED));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.FAILED));
     }
 
     @Test
@@ -105,10 +105,10 @@ public class RepairRunnableTest
                                                      ProgressEventType.SUCCESS,
                                                      ProgressEventType.COMPLETE,
                                                      ProgressEventType.PROGRESS),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.SUCCEEDED,
-                                                     ProgressState.SUCCEEDED,
-                                                     ProgressState.SUCCEEDED));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED));
     }
 
     @Test
@@ -116,8 +116,8 @@ public class RepairRunnableTest
     {
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
                                                      ProgressEventType.COMPLETE),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.UNKNOWN));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.UNKNOWN));
     }
 
     @Test
@@ -126,15 +126,15 @@ public class RepairRunnableTest
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
                                                      ProgressEventType.SUCCESS,
                                                      ProgressEventType.COMPLETE),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.SUCCEEDED,
-                                                     ProgressState.SUCCEEDED));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED));
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
                                                      ProgressEventType.ERROR,
                                                      ProgressEventType.COMPLETE),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.FAILED,
-                                                     ProgressState.FAILED));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED));
     }
 
     @Test
@@ -142,15 +142,15 @@ public class RepairRunnableTest
     {
         testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
                                                      ProgressEventType.NOTIFICATION),
-                                    ImmutableList.of(ProgressState.IN_PROGRESS,
-                                                     ProgressState.IN_PROGRESS));
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.IN_PROGRESS));
     }
 
-    private void testEventsAndExpectedStates(List<ProgressEventType> progressEvents, List<ProgressState> expectedStates)
+    private void testEventsAndExpectedStates(List<ProgressEventType> progressEvents, List<StorageServiceMBean.ProgressState> expectedStates)
     {
         assertThat(progressEvents.size()).isEqualTo(expectedStates.size());
         RepairRunnable task = new RepairRunnable(mock(StorageService.class), 1, mock(RepairOption.class), "keyspace");
-        assertThat(task.getCurrentState()).isEqualTo(ProgressState.UNKNOWN);
+        assertThat(task.getCurrentState()).isEqualTo(StorageServiceMBean.ProgressState.UNKNOWN);
 
         for (int i = 0; i < progressEvents.size(); i++)
         {

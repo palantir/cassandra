@@ -29,6 +29,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
+
+import org.apache.cassandra.service.StorageServiceMBean;
+
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +62,6 @@ import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventNotifier;
 import org.apache.cassandra.utils.progress.ProgressEventType;
 import org.apache.cassandra.utils.progress.ProgressListener;
-import org.apache.cassandra.utils.progress.ProgressState;
 
 public class RepairRunnable extends WrappedRunnable implements ProgressEventNotifier
 {
@@ -69,7 +71,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     private final int cmd;
     private final RepairOption options;
     private final String keyspace;
-    private ProgressState currentState;
+    private StorageServiceMBean.ProgressState currentState;
 
     private final List<ProgressListener> listeners = new ArrayList<>();
 
@@ -79,14 +81,14 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         this.cmd = cmd;
         this.options = options;
         this.keyspace = keyspace;
-        this.currentState = ProgressState.UNKNOWN;
+        this.currentState = StorageServiceMBean.ProgressState.UNKNOWN;
     }
 
     public int getCommand() {
         return cmd;
     }
 
-    public ProgressState getCurrentState() {
+    public StorageServiceMBean.ProgressState getCurrentState() {
         return currentState;
     }
 
@@ -107,24 +109,24 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         switch (event.getType()) {
             case START:
             case PROGRESS:
-                currentState = (currentState == ProgressState.UNKNOWN) ? ProgressState.IN_PROGRESS : currentState;
+                currentState = (currentState == StorageServiceMBean.ProgressState.UNKNOWN) ? StorageServiceMBean.ProgressState.IN_PROGRESS : currentState;
                 break;
             case ABORT:
             case ERROR:
-                currentState = ProgressState.FAILED;
+                currentState = StorageServiceMBean.ProgressState.FAILED;
                 break;
             case SUCCESS:
-                currentState = (currentState == ProgressState.FAILED) ? currentState : ProgressState.SUCCEEDED;
+                currentState = (currentState == StorageServiceMBean.ProgressState.FAILED) ? currentState : StorageServiceMBean.ProgressState.SUCCEEDED;
                 break;
             case COMPLETE:
-                currentState = (currentState == ProgressState.FAILED || currentState == ProgressState.SUCCEEDED)
-                               ? currentState : ProgressState.UNKNOWN;
+                currentState = (currentState == StorageServiceMBean.ProgressState.FAILED || currentState == StorageServiceMBean.ProgressState.SUCCEEDED)
+                               ? currentState : StorageServiceMBean.ProgressState.UNKNOWN;
                 break;
             case NOTIFICATION:
                 break;
             default:
                 logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}", cmd);
-                currentState = ProgressState.UNKNOWN;
+                currentState = StorageServiceMBean.ProgressState.UNKNOWN;
         }
     }
 

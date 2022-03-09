@@ -23,12 +23,11 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.junit.Test;
 
-import org.antlr.analysis.SemanticContext;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.repair.messages.RepairOption;
-import org.apache.cassandra.utils.progress.ProgressState;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -44,7 +43,7 @@ public class RepairTrackerTest
     public void getRepairState_unknownIfCommandNotTracked()
     {
         tracker = new RepairTracker();
-        assertThat(tracker.getRepairState(1)).isEqualTo(ProgressState.UNKNOWN);
+        assertThat(tracker.getRepairState(1)).isEqualTo(StorageServiceMBean.ProgressState.UNKNOWN);
     }
 
     @Test
@@ -52,15 +51,15 @@ public class RepairTrackerTest
     {
         tracker = new RepairTracker();
         RepairRunnable task = mock(RepairRunnable.class);
-        doReturn(ProgressState.FAILED).when(task).getCurrentState();
+        doReturn(StorageServiceMBean.ProgressState.FAILED).when(task).getCurrentState();
         tracker.track(1, args, task);
 
         RepairRunnable task2 = mock(RepairRunnable.class);
-        doReturn(ProgressState.SUCCEEDED).when(task2).getCurrentState();
+        doReturn(StorageServiceMBean.ProgressState.SUCCEEDED).when(task2).getCurrentState();
         tracker.track(2, args, task2);
 
-        assertThat(tracker.getRepairState(1)).isEqualTo(ProgressState.FAILED);
-        assertThat(tracker.getRepairState(2)).isEqualTo(ProgressState.SUCCEEDED);
+        assertThat(tracker.getRepairState(1)).isEqualTo(StorageServiceMBean.ProgressState.FAILED);
+        assertThat(tracker.getRepairState(2)).isEqualTo(StorageServiceMBean.ProgressState.SUCCEEDED);
     }
 
     @Test
@@ -80,17 +79,17 @@ public class RepairTrackerTest
         tracker.track(1, args, task);
 
 
-        Set<ProgressState> nonInProgress = Arrays.stream(ProgressState.values())
-                                                 .filter(state -> ProgressState.IN_PROGRESS != (state))
+        Set<StorageServiceMBean.ProgressState> nonInProgress = Arrays.stream(StorageServiceMBean.ProgressState.values())
+                                                 .filter(state -> StorageServiceMBean.ProgressState.IN_PROGRESS != (state))
                                                  .collect(Collectors.toSet());
 
-        for (ProgressState state : nonInProgress)
+        for (StorageServiceMBean.ProgressState state : nonInProgress)
         {
             doReturn(state).when(task).getCurrentState();
             assertThat(tracker.getInProgressRepair(args)).isEmpty();
         }
 
-        doReturn(ProgressState.IN_PROGRESS).when(task).getCurrentState();
+        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task).getCurrentState();
         assertThat(tracker.getInProgressRepair(args)).contains(1);
     }
 
@@ -100,11 +99,11 @@ public class RepairTrackerTest
         tracker = new RepairTracker();
         RepairRunnable task1 = mock(RepairRunnable.class);
         doReturn(1).when(task1).getCommand();
-        doReturn(ProgressState.IN_PROGRESS).when(task1).getCurrentState();
+        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task1).getCurrentState();
         tracker.track(1, args, task1);
 
         RepairRunnable task2 = mock(RepairRunnable.class);
-        doReturn(ProgressState.IN_PROGRESS).when(task2).getCurrentState();
+        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task2).getCurrentState();
         doReturn(2).when(task2).getCommand();
         tracker.track(2, args, task2);
 
@@ -117,7 +116,7 @@ public class RepairTrackerTest
         tracker = new RepairTracker();
         RepairRunnable task1 = mock(RepairRunnable.class);
         doReturn(1).when(task1).getCommand();
-        doReturn(ProgressState.IN_PROGRESS).when(task1).getCurrentState();
+        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task1).getCurrentState();
         tracker.track(1, args, task1);
 
         RepairArguments newReference = new RepairArguments("test",
