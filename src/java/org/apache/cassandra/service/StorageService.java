@@ -106,8 +106,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final BootstrapManager bootstrapManager = new BootstrapManager();
 
-    private final ConcurrentHashMap<RepairArguments, RepairRunnable> argsToMostRecentRepair = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Integer, RepairRunnable> commandToRepairs = new ConcurrentHashMap<>();
+    private final RepairTracker repairTracker = new RepairTracker();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -3301,9 +3300,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public ProgressState getRepairState(int repairCommandNumber) {
-        return Optional.ofNullable(commandToRepairs.get(repairCommandNumber))
-                .map(RepairRunnable::getCurrentState)
-                .orElse(ProgressState.UNKNOWN);
+        return repairTracker.getRepairState(repairCommandNumber);
     }
 
     public int repairAsync(String keyspace, Map<String, String> repairSpec)
@@ -3533,13 +3530,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (options.getRanges().isEmpty() || Keyspace.open(keyspace).getReplicationStrategy().getReplicationFactor() < 2)
             return 0;
-
         RepairArguments arguments = new RepairArguments(keyspace, options);
-        Optional<Integer> inProgressCommand = Optional.ofNullable(argsToMostRecentRepair.get(arguments))
-                                                            .filter(repair -> ProgressState.IN_PROGRESS == repair.getCurrentState())
-                                                      .map(RepairRunnable::getCommand);
 
+        Optional<Integer> inProgressCommand = repairTracker.getInProgressRepair(arguments);
         int cmd = inProgressCommand.orElse(nextRepairCommand.incrementAndGet());
+
         if (!inProgressCommand.isPresent()) {
             new Thread(createRepairTask(cmd, arguments, legacy)).start();
         } else {
@@ -3557,9 +3552,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
 
         RepairRunnable task = new RepairRunnable(this, cmd, arguments.repairOptions(), arguments.keyspace());
-
-        argsToMostRecentRepair.put(arguments, task);
-        commandToRepairs.put(cmd, task);
+        repairTracker.track(cmd, arguments, task);
 
         task.addProgressListener(progressSupport);
         if (legacy)
