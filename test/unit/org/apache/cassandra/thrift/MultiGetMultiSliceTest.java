@@ -56,8 +56,7 @@ public class MultiGetMultiSliceTest
     private static final ByteBuffer COLUMN_B = ByteBufferUtil.bytes("b");
     private static final ByteBuffer COLUMN_C = ByteBufferUtil.bytes("c");
     private static final ByteBuffer COLUMN_D = ByteBufferUtil.bytes("d");
-    private static final ByteBuffer COLUMN_X = ByteBufferUtil.bytes("x");
-    private static final ByteBuffer COLUMN_Y = ByteBufferUtil.bytes("y");
+
     private static final ByteBuffer COLUMN_Z = ByteBufferUtil.bytes("z");
 
     private static final KeyPredicate PARTITION_1_COLUMN_A = keyPredicateForColumns(PARTITION_1, COLUMN_A);

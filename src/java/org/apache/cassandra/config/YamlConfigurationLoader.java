@@ -54,7 +54,8 @@ public class YamlConfigurationLoader implements ConfigurationLoader
     {
         String configUrl = System.getProperty("cassandra.config");
         if (configUrl == null)
-            configUrl = DEFAULT_CONFIGURATION;
+
+            configUrl = "conf/cassandra.yaml";
 
         URL url;
         try

@@ -135,7 +135,7 @@ public class CassandraServer implements Cassandra.Iface
         return columnFamilyMultimap;
     }
 
-    public List<ColumnOrSuperColumn> thriftifyColumns(Collection<Cell> cells, boolean reverseOrder, long now)
+    public List<ColumnOrSuperColumn> thriftifyLiveColumns(Collection<Cell> cells, boolean reverseOrder, long now)
     {
         ArrayList<ColumnOrSuperColumn> thriftColumns = new ArrayList<ColumnOrSuperColumn>(cells.size());
         for (Cell cell : cells)
@@ -149,6 +149,24 @@ public class CassandraServer implements Cassandra.Iface
         // we have to do the reversing here, since internally we pass results around in ColumnFamily
         // objects, which always sort their cells in the "natural" order
         // TODO this is inconvenient for direct users of StorageProxy
+        return sortThriftifiedColumns(reverseOrder, thriftColumns);
+    }
+
+    public List<ColumnOrSuperColumn> thriftifyAllColumns(Collection<Cell> cells, boolean reverseOrder, long now)
+    {
+        ArrayList<ColumnOrSuperColumn> thriftColumns = new ArrayList<ColumnOrSuperColumn>(cells.size());
+        for (Cell cell : cells) {
+            thriftColumns.add(thriftifyColumnWithName(cell, cell.name().toByteBuffer()));
+        }
+
+        // we have to do the reversing here, since internally we pass results around in ColumnFamily
+        // objects, which always sort their cells in the "natural" order
+        // TODO this is inconvenient for direct users of StorageProxy
+        return sortThriftifiedColumns(reverseOrder, thriftColumns);
+    }
+
+    private List<ColumnOrSuperColumn> sortThriftifiedColumns(boolean reverseOrder, ArrayList<ColumnOrSuperColumn> thriftColumns)
+    {
         if (reverseOrder)
             Collections.reverse(thriftColumns);
         return thriftColumns;
@@ -209,9 +227,7 @@ public class CassandraServer implements Cassandra.Iface
 
                 thriftSuperColumns.add(thriftifyColumnWithName(cell, SuperColumns.subName(cell.name())));
             }
-            if (reverseOrder)
-                Collections.reverse(thriftSuperColumns);
-            return thriftSuperColumns;
+            return sortThriftifiedColumns(reverseOrder, thriftSuperColumns);
         }
         else
         {
@@ -240,10 +256,7 @@ public class CassandraServer implements Cassandra.Iface
             current.getColumns().add(thriftifySubColumn(cell).setName(SuperColumns.subName(cell.name())));
         }
 
-        if (reverseOrder)
-            Collections.reverse(thriftSuperColumns);
-
-        return thriftSuperColumns;
+        return sortThriftifiedColumns(reverseOrder, thriftSuperColumns);
     }
 
     private List<ColumnOrSuperColumn> thriftifyCounterSuperColumns(Collection<Cell> cells, boolean reverseOrder, long now)
@@ -264,10 +277,7 @@ public class CassandraServer implements Cassandra.Iface
             current.getColumns().add(thriftifySubCounter(cell).setName(SuperColumns.subName(cell.name())));
         }
 
-        if (reverseOrder)
-            Collections.reverse(thriftSuperColumns);
-
-        return thriftSuperColumns;
+        return sortThriftifiedColumns(reverseOrder, thriftSuperColumns);
     }
 
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> getSlice(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
@@ -330,7 +340,7 @@ public class CassandraServer implements Cassandra.Iface
         }
         else
         {
-            return thriftifyColumns(cf.getSortedColumns(), reverseOrder, now);
+            return thriftifyLiveColumns(cf.getSortedColumns(), reverseOrder, now);
         }
     }
 

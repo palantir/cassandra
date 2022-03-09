@@ -27,7 +27,6 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
-import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
@@ -75,7 +74,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     private CountingCellIterator reducedCells;
 
-    private Predicate<Integer> columnCounterSaturationTester;
+    private Predicate<Integer> columnCounterLimit;
 
 
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count)
@@ -299,8 +298,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
     {
         reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
-        columnCounterSaturationTester = includeTombstonesInReduction
-                                        ? columnCounter::hasSeenAtLeast : columnCounter::hasSeenCellsSoFar;
+        columnCounterLimit = includeTombstonesInReduction
+                                        ? columnCounter::hasSeenCellsSoFar : columnCounter::hasSeenAtLeast;
         deletionInfo = container.deletionInfo();
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
 
@@ -308,7 +307,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
-        while (!columnCounterSaturationTester.test(count) && reducedCells.hasNext())
+        while (!columnCounterLimit.test(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
 

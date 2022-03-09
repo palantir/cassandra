@@ -57,9 +57,19 @@ public class QueryFilterTest {
         List<Cell> left = ImmutableList.of(value('a'), value('d'), value('e'), value('f'));
         List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'e'), value('a'), value('b'), rangeDelete('a', 'e'), value('g'));
         ColumnFamily cf = newCF();
-        collate(cf, left.iterator(), right.iterator());
+        collateCountsTomstones(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().isLive()).isTrue();
-        assertThat(cf.iterator()).containsExactly(value('f'), value('g'));
+        assertThat(cf.iterator()).containsExactly(value('f'));
+    }
+
+    @Test
+    public void testCollateOnDiskAtom_countsTombstones() {
+        List<Cell> left = ImmutableList.of(value('a'), value('d'), value('e'), value('f'));
+        List<OnDiskAtom> right = ImmutableList.of(rangeDelete('e', 'f'));
+        ColumnFamily cf = newCF();
+        collateCountsTomstones(cf, left.iterator(), right.iterator());
+        assertThat(cf.deletionInfo().isLive()).isTrue();
+        assertThat(cf.iterator()).containsExactly(value('a'), value('d'));
     }
 
     @Test
@@ -100,6 +110,12 @@ public class QueryFilterTest {
 
     private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
         IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, Integer.MAX_VALUE);
+        QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
+        return read(returnCf);
+    }
+
+    private static List<Cell> collateCountsTomstones(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
+        IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, 7, -1, true);
         QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
         return read(returnCf);
     }
