@@ -59,6 +59,7 @@ import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventNotifier;
 import org.apache.cassandra.utils.progress.ProgressEventType;
 import org.apache.cassandra.utils.progress.ProgressListener;
+import org.apache.cassandra.utils.progress.ProgressState;
 
 public class RepairRunnable extends WrappedRunnable implements ProgressEventNotifier
 {
@@ -68,6 +69,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     private final int cmd;
     private final RepairOption options;
     private final String keyspace;
+    private ProgressState currentState;
 
     private final List<ProgressListener> listeners = new ArrayList<>();
 
@@ -77,6 +79,15 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         this.cmd = cmd;
         this.options = options;
         this.keyspace = keyspace;
+        this.currentState = ProgressState.UNKNOWN;
+    }
+
+    public int getCommand() {
+        return cmd;
+    }
+
+    public ProgressState getCurrentState() {
+        return currentState;
     }
 
     @Override
@@ -91,8 +102,31 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         listeners.remove(listener);
     }
 
+    protected void maybeUpdateProgressState(ProgressEvent event)
+    {
+        switch (event.getType()) {
+            case PROGRESS:
+                currentState = (currentState == ProgressState.UNKNOWN) ? ProgressState.IN_PROGRESS : currentState;
+                break;
+            case ERROR:
+                currentState = ProgressState.FAILED;
+                break;
+            case SUCCESS:
+                currentState = (currentState == ProgressState.FAILED) ? currentState : ProgressState.SUCCEEDED;
+                break;
+            case COMPLETE:
+                currentState = (currentState == ProgressState.FAILED || currentState == ProgressState.SUCCEEDED)
+                               ? currentState : ProgressState.UNKNOWN;
+                break;
+            default:
+                logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}", cmd);
+                currentState = ProgressState.UNKNOWN;
+        }
+    }
+
     protected void fireProgressEvent(String tag, ProgressEvent event)
     {
+        maybeUpdateProgressState(event);
         for (ProgressListener listener : listeners)
         {
             listener.progress(tag, event);
