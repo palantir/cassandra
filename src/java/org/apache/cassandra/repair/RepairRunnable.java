@@ -105,9 +105,11 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     protected void maybeUpdateProgressState(ProgressEvent event)
     {
         switch (event.getType()) {
+            case START:
             case PROGRESS:
                 currentState = (currentState == ProgressState.UNKNOWN) ? ProgressState.IN_PROGRESS : currentState;
                 break;
+            case ABORT:
             case ERROR:
                 currentState = ProgressState.FAILED;
                 break;
@@ -117,6 +119,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
             case COMPLETE:
                 currentState = (currentState == ProgressState.FAILED || currentState == ProgressState.SUCCEEDED)
                                ? currentState : ProgressState.UNKNOWN;
+                break;
+            case NOTIFICATION:
                 break;
             default:
                 logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}", cmd);
