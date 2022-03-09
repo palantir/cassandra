@@ -64,7 +64,7 @@ public class SimpleThriftClient implements ThriftClient
     @Override
     public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        return client.multiget_slice(keys, column_parent, predicate, consistency_level);
+        return client.multiget_slice(keys, column_parent, predicate, consistency_level, );
     }
 
     @Override
