@@ -3299,6 +3299,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    @Override
     public ProgressState getRepairState(int repairCommandNumber) {
         return Optional.ofNullable(commandToRepairs.get(repairCommandNumber))
                 .map(RepairRunnable::getCurrentState)

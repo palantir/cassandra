@@ -31,6 +31,8 @@ import java.util.concurrent.TimeoutException;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
 
+import org.apache.cassandra.utils.progress.ProgressState;
+
 public interface StorageServiceMBean extends NotificationEmitter
 {
     /**
@@ -356,6 +358,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @throws IOException
      */
     public void forceKeyspaceFlush(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
+
+    /**
+     * Retrieves the last known state of the given repair. Use this to track repair progress without needing to rely
+     * on an uninterrupted stream of JMX notifications (useful when repairs last multiple hours).
+     * @param repairCommandNumber the value returned by {@link #repairAsync(String, Map)}
+     * @return The current known state of the given repair
+     */
+    public ProgressState getRepairState(int repairCommandNumber);
 
     /**
      * Invoke repair asynchronously.
