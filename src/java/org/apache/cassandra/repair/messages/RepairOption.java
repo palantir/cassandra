@@ -19,6 +19,8 @@ package org.apache.cassandra.repair.messages;
 
 import java.util.*;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -305,6 +307,42 @@ public class RepairOption
 
     public boolean isInLocalDCOnly() {
         return dataCenters.size() == 1 && dataCenters.contains(DatabaseDescriptor.getLocalDataCenter());
+    }
+
+    @Override
+    public boolean equals(@Nullable Object another) {
+        if (this == another) return true;
+        return another instanceof RepairOption
+               && equalTo((RepairOption) another);
+    }
+
+    private boolean equalTo(RepairOption another) {
+        return parallelism == another.parallelism
+               && primaryRange == another.primaryRange
+               && incremental == another.incremental
+               && trace == another.trace
+               && jobThreads == another.jobThreads
+               && isSubrangeRepair == another.isSubrangeRepair
+               && columnFamilies.equals(another.columnFamilies)
+               && dataCenters.equals(another.dataCenters)
+               && hosts.equals(another.hosts)
+               && ranges.equals(another.ranges);
+    }
+
+    @Override
+    public int hashCode() {
+        int h = 5381;
+        h += (h << 5) + columnFamilies.hashCode();
+        h += (h << 5) + dataCenters.hashCode();
+        h += (h << 5) + hosts.hashCode();
+        h += (h << 5) + ranges.hashCode();
+        h += (h << 5) + Objects.hashCode(parallelism);
+        h += (h << 5) + Objects.hashCode(primaryRange);
+        h += (h << 5) + Objects.hashCode(incremental);
+        h += (h << 5) + Objects.hashCode(trace);
+        h += (h << 5) + Objects.hashCode(jobThreads);
+        h += (h << 5) + Objects.hashCode(isSubrangeRepair);
+        return h;
     }
 
     @Override
