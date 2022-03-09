@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -366,12 +365,12 @@ public class TokenMetadata
 
     public Optional<InetAddress> getReplacementNode(InetAddress endpoint)
     {
-        return Optional.fromNullable(replacementToOriginal.inverse().get(endpoint));
+        return Optional.ofNullable(replacementToOriginal.inverse().get(endpoint));
     }
 
     public Optional<InetAddress> getReplacingNode(InetAddress endpoint)
     {
-        return Optional.fromNullable((replacementToOriginal.get(endpoint)));
+        return Optional.ofNullable((replacementToOriginal.get(endpoint)));
     }
 
     public void removeBootstrapTokens(Collection<Token> tokens)

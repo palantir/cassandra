@@ -33,7 +33,6 @@ import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
@@ -84,6 +83,7 @@ import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventType;
+import org.apache.cassandra.utils.progress.ProgressState;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
 
@@ -105,6 +105,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final BootstrapManager bootstrapManager = new BootstrapManager();
+
+    private final ConcurrentHashMap<RepairArguments, RepairRunnable> argsToMostRecentRepair = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, RepairRunnable> commandToRepairs = new ConcurrentHashMap<>();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -3296,6 +3299,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public ProgressState getRepairState(int repairCommandNumber) {
+        return Optional.ofNullable(commandToRepairs.get(repairCommandNumber))
+                .map(RepairRunnable::getCurrentState)
+                .orElse(ProgressState.UNKNOWN);
+    }
+
     public int repairAsync(String keyspace, Map<String, String> repairSpec)
     {
         RepairOption option = RepairOption.parse(repairSpec, getPartitioner());
@@ -3524,19 +3533,33 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (options.getRanges().isEmpty() || Keyspace.open(keyspace).getReplicationStrategy().getReplicationFactor() < 2)
             return 0;
 
-        int cmd = nextRepairCommand.incrementAndGet();
-        new Thread(createRepairTask(cmd, keyspace, options, legacy)).start();
+        RepairArguments arguments = new RepairArguments(keyspace, options);
+        Optional<Integer> inProgressCommand = Optional.ofNullable(argsToMostRecentRepair.get(arguments))
+                                                            .filter(repair -> ProgressState.IN_PROGRESS == repair.getCurrentState())
+                                                      .map(RepairRunnable::getCommand);
+
+        int cmd = inProgressCommand.orElse(nextRepairCommand.incrementAndGet());
+        if (!inProgressCommand.isPresent()) {
+            new Thread(createRepairTask(cmd, arguments, legacy)).start();
+        } else {
+            logger.info("Combining new repair request with in-progress (identical) repair command #{}", cmd);
+        }
         return cmd;
     }
 
-    private FutureTask<Object> createRepairTask(final int cmd, final String keyspace, final RepairOption options, boolean legacy)
+    private FutureTask<Object> createRepairTask(final int cmd, final RepairArguments arguments, boolean legacy)
     {
-        if (!options.getDataCenters().isEmpty() && !options.getDataCenters().contains(DatabaseDescriptor.getLocalDataCenter()))
+        if (!arguments.repairOptions().getDataCenters().isEmpty() &&
+                        !arguments.repairOptions().getDataCenters().contains(DatabaseDescriptor.getLocalDataCenter()))
         {
             throw new IllegalArgumentException("the local data center must be part of the repair");
         }
 
-        RepairRunnable task = new RepairRunnable(this, cmd, options, keyspace);
+        RepairRunnable task = new RepairRunnable(this, cmd, arguments.repairOptions(), arguments.keyspace());
+
+        argsToMostRecentRepair.put(arguments, task);
+        commandToRepairs.put(cmd, task);
+
         task.addProgressListener(progressSupport);
         if (legacy)
             task.addProgressListener(legacyProgressSupport);
