@@ -18,6 +18,9 @@
 
 package org.apache.cassandra.repair;
 
+import java.util.Objects;
+import javax.annotation.Nullable;
+
 import org.apache.cassandra.repair.messages.RepairOption;
 
 public class RepairArguments
@@ -39,5 +42,25 @@ public class RepairArguments
     public RepairOption repairOptions()
     {
         return options;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object another) {
+        if (this == another) return true;
+        return another instanceof RepairArguments
+               && equalTo((RepairArguments) another);
+    }
+
+    private boolean equalTo(RepairArguments another) {
+        return keyspace.equals(another.keyspace)
+               && options.equals(another.options);
+    }
+
+    @Override
+    public int hashCode() {
+        int h = 5381;
+        h += (h << 5) + options.hashCode();
+        h += (h << 5) + keyspace.hashCode();
+        return h;
     }
 }
