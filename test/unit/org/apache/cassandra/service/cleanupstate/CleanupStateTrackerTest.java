@@ -95,4 +95,15 @@ public class CleanupStateTrackerTest
         tracker.recordSuccessfulCleanupForTable(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
         assertThat(state.getTableEntries().get(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY)).isGreaterThan(epoch1);
     }
+
+    @Test
+    public void getLastSuccessfulCleanupTsForNodeReturnsMinTsIfNoEntriesExist() throws IOException
+    {
+        CleanupStatePersister persister =
+                new CleanupStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
+        CleanupState state = new CleanupState(ImmutableMap.of());
+        CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
+
+        assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(CleanupStateTracker.MIN_TS);
+    }
 }
