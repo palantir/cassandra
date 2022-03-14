@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.service.cleanupstate;
+package org.apache.cassandra.service.opstate;
 
 import org.codehaus.jackson.map.ObjectMapper;
 
-public class CleanupStateTestConstants
+public class OpStateTestConstants
 {
-    public static final String TEST_CLEANUP_STATE_FILE_LOCATION =
-    System.getProperty("user.dir") + "/test/resources/test_node_cleanup_state.json";
+    public static final String TEST_STATE_FILE_LOCATION =
+    System.getProperty("user.dir") + "/test/resources/test_node_op_state.json";
 
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public static final String KEYSPACE1 = "keyspace1";
     public static final String TABLE1 = "table1";
     public static final KeyspaceTableKey KEYSPACE_TABLE_KEY_1 =
-        KeyspaceTableKey.of(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
+        KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1);
 
     public static final String KEYSPACE2 = "keyspace2";
     public static final String TABLE2 = "table2";
     public static final KeyspaceTableKey KEYSPACE_TABLE_KEY_2 =
-    KeyspaceTableKey.of(CleanupStateTestConstants.KEYSPACE2, CleanupStateTestConstants.TABLE2);
+    KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2);
 
 
 }

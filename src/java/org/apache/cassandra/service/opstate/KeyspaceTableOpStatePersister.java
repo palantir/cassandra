@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.service.cleanupstate;
+package org.apache.cassandra.service.opstate;
 
 import java.io.File;
 import java.io.IOException;

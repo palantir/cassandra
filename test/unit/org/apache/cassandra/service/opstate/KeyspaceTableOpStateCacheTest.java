@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.service.cleanupstate;
+package org.apache.cassandra.service.opstate;
 
 import java.time.Instant;
 import java.util.AbstractMap;
@@ -26,47 +26,47 @@ import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CleanupStateTest
+public class KeyspaceTableOpStateCacheTest
 {
     @Test
-    public void cleanupStateSuccessfullyUpdates()
+    public void stateSuccessfullyUpdates()
     {
-        CleanupState state = new CleanupState(ImmutableMap.of());
+        KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
         assertThat(state.getTableEntries()).isEmpty();
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
+        state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
         assertThat(state.getTableEntries()).containsExactly(
-            new AbstractMap.SimpleEntry<>(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+            new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }
 
     @Test
     public void entryExistsReturnsExceptedStatus()
     {
-        CleanupState state = new CleanupState(ImmutableMap.of());
-        assertThat(state.entryExists(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1)).isFalse();
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
-        assertThat(state.entryExists(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1)).isTrue();
+        KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
+        assertThat(state.entryExists(OpStateTestConstants.KEYSPACE_TABLE_KEY_1)).isFalse();
+        state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
+        assertThat(state.entryExists(OpStateTestConstants.KEYSPACE_TABLE_KEY_1)).isTrue();
     }
 
     @Test
     public void getMinimumTsReturnsExceptedValues()
     {
-        CleanupState state =
-            new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+        KeyspaceTableOpStateCache state =
+            new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
         assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(10L));
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
+        state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
         assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(10L));
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
+        state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
         assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(20L));
     }
 
     @Test
     public void throwsWhenTryingToUpdateWithSmallerTs()
     {
-        CleanupState state =
-            new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
+        KeyspaceTableOpStateCache state =
+            new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
         try
         {
-            state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
+            state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
         }
         catch (IllegalArgumentException e) // Expected
         {

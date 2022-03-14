@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.service.cleanupstate;
+package org.apache.cassandra.service.opstate;
 
 
 import java.time.Instant;
@@ -27,11 +27,11 @@ import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.annotations.VisibleForTesting;
 
-public class CleanupState
+public class KeyspaceTableOpStateCache
 {
     private final ConcurrentMap<KeyspaceTableKey, Instant> tableEntries;
 
-    public CleanupState(Map<KeyspaceTableKey, Instant> initialEntries)
+    public KeyspaceTableOpStateCache(Map<KeyspaceTableKey, Instant> initialEntries)
     {
         this.tableEntries = new ConcurrentHashMap<>(initialEntries);
     }
@@ -51,7 +51,7 @@ public class CleanupState
         throws IllegalArgumentException
     {
         if (tableEntries.containsKey(entryKey) && tableEntries.get(entryKey).compareTo(value) > 0)
-            throw new IllegalArgumentException("Can only update cleanup state entry with increasing timestamp");
+            throw new IllegalArgumentException("Can only update cache entry with increasing timestamp");
 
         tableEntries.put(entryKey, value);
         return tableEntries;

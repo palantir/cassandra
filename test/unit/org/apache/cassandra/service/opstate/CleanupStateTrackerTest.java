@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.service.cleanupstate;
+package org.apache.cassandra.service.opstate;
 
 
 import java.io.File;
-import java.io.IOException;
 import java.time.Instant;
 
 import com.google.common.collect.ImmutableMap;
@@ -39,34 +38,35 @@ public class CleanupStateTrackerTest
 
     @After
     public void afterEach(){
-        new File(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION).delete();
+        new File(OpStateTestConstants.TEST_STATE_FILE_LOCATION).delete();
     }
 
     @Test
     public void updateTsForEntryUpdatesBothStateAndPersistent()
     {
         KeyspaceTableOpStatePersister persister =
-            spy(new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION));
-        CleanupState state = spy(new CleanupState(ImmutableMap.of()));
+            spy(new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION));
+        KeyspaceTableOpStateCache state = spy(new KeyspaceTableOpStateCache(ImmutableMap.of()));
 
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
-        tracker.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
+        tracker.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
         verify(state, times(1))
-            .updateTsForEntry(eq(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(Instant.ofEpochMilli(10L)));
+            .updateTsForEntry(eq(OpStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(Instant.ofEpochMilli(10L)));
         verify(persister, times(1))
-            .updateFileWithNewState(eq(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
+            .updateFileWithNewState(eq(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
     }
 
     @Test
     public void createCleanupEntryForTableIfNotExistsDoesNothingIfEntryExists()
     {
         KeyspaceTableOpStatePersister persister =
-            new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
-        CleanupState state =
-            new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
+            new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStateCache state =
+            new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
-        tracker.createCleanupEntryForTableIfNotExists(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
+        tracker.createCleanupEntryForTableIfNotExists(
+            OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1);
         verify(tracker, times(0)).updateTsForEntry(any(), any());
     }
 
@@ -74,13 +74,13 @@ public class CleanupStateTrackerTest
     public void createCleanupEntryForTableSucceedsIfEntryDoesNotExist()
     {
         KeyspaceTableOpStatePersister persister =
-            new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
-        CleanupState state = new CleanupState(ImmutableMap.of());
+            new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
-        tracker.createCleanupEntryForTableIfNotExists(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
+        tracker.createCleanupEntryForTableIfNotExists(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1);
         verify(tracker, times(1))
-        .updateTsForEntry(eq(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(CleanupStateTracker.MIN_TS));
+            .updateTsForEntry(eq(OpStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(CleanupStateTracker.MIN_TS));
     }
 
     @Test
@@ -88,26 +88,28 @@ public class CleanupStateTrackerTest
     {
         Instant instant1 = Instant.now();
         KeyspaceTableOpStatePersister persister =
-            new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
-        CleanupState state = new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, instant1));
+            new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStateCache state =
+            new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, instant1));
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
         assertThat(state.getTableEntries()
-                        .get(KeyspaceTableKey.of(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1)))
+                        .get(KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1)))
             .isEqualTo(instant1);
-        tracker.recordSuccessfulCleanupForTable(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
-        assertThat(state.getTableEntries().get(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1)
-                        .compareTo(instant1)).isGreaterThan(0);
+
+        tracker.recordSuccessfulCleanupForTable(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1);
+        assertThat(state.getTableEntries()
+                        .get(OpStateTestConstants.KEYSPACE_TABLE_KEY_1).compareTo(instant1))
+            .isGreaterThan(0);
     }
 
     @Test
     public void getLastSuccessfulCleanupTsForNodeReturnsMinTsIfNoEntriesExist()
     {
         KeyspaceTableOpStatePersister persister =
-                new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
-        CleanupState state = new CleanupState(ImmutableMap.of());
+                new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
-
         assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(CleanupStateTracker.MIN_TS);
     }
 }

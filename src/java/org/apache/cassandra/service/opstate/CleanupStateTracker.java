@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.service.cleanupstate;
+package org.apache.cassandra.service.opstate;
 
 import java.time.Instant;
 import java.util.Map;
@@ -36,13 +36,13 @@ public class CleanupStateTracker
     static final Instant MIN_TS = Instant.EPOCH;
     private static final String CLEANUP_STATE_FILE_NAME = "node_cleanup_state.json";
 
-    private final CleanupState state;
+    private final KeyspaceTableOpStateCache state;
     private final KeyspaceTableOpStatePersister persister;
 
     public CleanupStateTracker()
     {
         this.persister = new KeyspaceTableOpStatePersister(cleanupStateFileLocation());
-        this.state = new CleanupState(persister.readStateFromFile());
+        this.state = new KeyspaceTableOpStateCache(persister.readStateFromFile());
     }
 
     @VisibleForTesting
@@ -52,7 +52,7 @@ public class CleanupStateTracker
     }
 
     @VisibleForTesting
-    CleanupStateTracker(CleanupState state, KeyspaceTableOpStatePersister persister)
+    CleanupStateTracker(KeyspaceTableOpStateCache state, KeyspaceTableOpStatePersister persister)
     {
         this.persister = persister;
         this.state = state;
