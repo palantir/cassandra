@@ -43,7 +43,7 @@ public class CleanupStateTrackerTest
     }
 
     @Test
-    public void updateTsForEntryUpdatesBothStateAndPersistent() throws IOException
+    public void updateTsForEntryUpdatesBothStateAndPersistent()
     {
         KeyspaceTableOpStatePersister persister =
             spy(new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION));
@@ -58,7 +58,7 @@ public class CleanupStateTrackerTest
     }
 
     @Test
-    public void createCleanupEntryForTableIfNotExistsDoesNothingIfEntryExists() throws IOException
+    public void createCleanupEntryForTableIfNotExistsDoesNothingIfEntryExists()
     {
         KeyspaceTableOpStatePersister persister =
             new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
@@ -71,7 +71,7 @@ public class CleanupStateTrackerTest
     }
 
     @Test
-    public void createCleanupEntryForTableSucceedsIfEntryDoesNotExist() throws IOException
+    public void createCleanupEntryForTableSucceedsIfEntryDoesNotExist()
     {
         KeyspaceTableOpStatePersister persister =
             new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
@@ -84,7 +84,7 @@ public class CleanupStateTrackerTest
     }
 
     @Test
-    public void recordSuccessfulCleanupForTableUpdatesEntry() throws IOException
+    public void recordSuccessfulCleanupForTableUpdatesEntry()
     {
         Instant instant1 = Instant.now();
         KeyspaceTableOpStatePersister persister =
@@ -101,7 +101,7 @@ public class CleanupStateTrackerTest
     }
 
     @Test
-    public void getLastSuccessfulCleanupTsForNodeReturnsMinTsIfNoEntriesExist() throws IOException
+    public void getLastSuccessfulCleanupTsForNodeReturnsMinTsIfNoEntriesExist()
     {
         KeyspaceTableOpStatePersister persister =
                 new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);

@@ -18,16 +18,20 @@
 
 package org.apache.cassandra.service.cleanupstate;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.config.DatabaseDescriptor;
 
 public class CleanupStateTracker
 {
+    private static final Logger log = LoggerFactory.getLogger(CleanupStateTracker.class);
+
     @VisibleForTesting
     static final Instant MIN_TS = Instant.EPOCH;
     private static final String CLEANUP_STATE_FILE_NAME = "node_cleanup_state.json";
@@ -35,7 +39,7 @@ public class CleanupStateTracker
     private final CleanupState state;
     private final KeyspaceTableOpStatePersister persister;
 
-    public CleanupStateTracker() throws IOException
+    public CleanupStateTracker()
     {
         this.persister = new KeyspaceTableOpStatePersister(cleanupStateFileLocation());
         this.state = new CleanupState(persister.readStateFromFile());
@@ -56,7 +60,7 @@ public class CleanupStateTracker
 
     /** Creates table entry if it does not already exist */
     public synchronized void createCleanupEntryForTableIfNotExists(String keyspaceName, String columnFamily)
-        throws IllegalArgumentException, IOException
+        throws IllegalArgumentException
     {
         KeyspaceTableKey entryKey = KeyspaceTableKey.of(keyspaceName, columnFamily);
         if (!state.entryExists(entryKey))
@@ -67,7 +71,7 @@ public class CleanupStateTracker
 
     /** Updates ts for table entry */
     public synchronized void recordSuccessfulCleanupForTable(String keyspaceName, String columnFamily)
-        throws IllegalArgumentException, IOException
+        throws IllegalArgumentException
     {
         updateTsForEntry(KeyspaceTableKey.of(keyspaceName, columnFamily), Instant.now());
     }
@@ -82,9 +86,10 @@ public class CleanupStateTracker
     }
 
     @VisibleForTesting
-    void updateTsForEntry(KeyspaceTableKey key, Instant value) throws IllegalArgumentException, IOException
+    void updateTsForEntry(KeyspaceTableKey key, Instant value) throws IllegalArgumentException
     {
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
-        persister.updateFileWithNewState(updatedEntries);
+        if (!persister.updateFileWithNewState(updatedEntries))
+            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
     }
 }

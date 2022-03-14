@@ -39,14 +39,14 @@ public class KeyspaceTableOpStatePersisterTest
     }
 
     @Test
-    public void operationStatePersisterSuccessfullyCreateFileWhenDoesNotExist() throws IOException
+    public void operationStatePersisterSuccessfullyCreateFileWhenDoesNotExist()
     {
         new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
         assertThat(new File(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION)).exists();
     }
 
     @Test
-    public void operationStatePersisterReturnsEmptyMapAtFileCreation() throws IOException
+    public void operationStatePersisterReturnsEmptyMapAtFileCreation()
     {
         KeyspaceTableOpStatePersister persister =
             new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
@@ -54,7 +54,7 @@ public class KeyspaceTableOpStatePersisterTest
     }
 
     @Test
-    public void operationStatePersisterSuccessfullyUpdatesFile() throws IOException
+    public void operationStatePersisterSuccessfullyUpdatesFile()
     {
         KeyspaceTableOpStatePersister persister =
             new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);

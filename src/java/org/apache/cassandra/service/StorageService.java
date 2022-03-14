@@ -107,7 +107,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final BootstrapManager bootstrapManager = new BootstrapManager();
-    private CleanupStateTracker cleanupState = null;
+    private final CleanupStateTracker cleanupState = new CleanupStateTracker();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -288,16 +288,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, new CrossVpcIpMappingSynVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK, new CrossVpcIpMappingAckVerbHandler());
-
-        // Attempt to create cleanup state. Keep field null if error.
-        try
-        {
-            this.cleanupState = new CleanupStateTracker();
-        }
-        catch (IOException e)
-        {
-            logger.warn("Error when creating cleanup state tracker", e);
-        }
     }
 
     public void registerDaemon(CassandraDaemon daemon)
@@ -2927,9 +2917,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public Instant getLastSuccessfulCleanupTsForNode()
     {
-        if (cleanupState == null)
-            throw new IllegalStateException("Tracker is null, cleanup state info unretrievable.");
-
         return cleanupState.getLastSuccessfulCleanupTsForNode();
     }
 
@@ -2942,9 +2929,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (keyspaceName.equals(SystemKeyspace.NAME))
             throw new RuntimeException("Cleanup of the system keyspace is neither necessary nor wise");
-
-        if (cleanupState == null)
-            throw new IllegalStateException("Tracker is null, cleanup state info unretrievable.");
 
         CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
         for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
