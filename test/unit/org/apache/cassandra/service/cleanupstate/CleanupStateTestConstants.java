@@ -29,6 +29,13 @@ public class CleanupStateTestConstants
 
     public static final String KEYSPACE1 = "keyspace1";
     public static final String TABLE1 = "table1";
-    public static final String KEYSPACE1_TABLE1_KEY = KEYSPACE1 + ":" +TABLE1;
-    public static final String KEYSPACE2_TABLE2_KEY = "keyspace2:table2";
+    public static final KeyspaceTableKey KEYSPACE_TABLE_KEY_1 =
+        KeyspaceTableKey.of(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
+
+    public static final String KEYSPACE2 = "keyspace2";
+    public static final String TABLE2 = "table2";
+    public static final KeyspaceTableKey KEYSPACE_TABLE_KEY_2 =
+    KeyspaceTableKey.of(CleanupStateTestConstants.KEYSPACE2, CleanupStateTestConstants.TABLE2);
+
+
 }

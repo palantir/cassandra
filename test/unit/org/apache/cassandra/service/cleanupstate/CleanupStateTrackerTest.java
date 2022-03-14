@@ -45,24 +45,25 @@ public class CleanupStateTrackerTest
     @Test
     public void updateTsForEntryUpdatesBothStateAndPersistent() throws IOException
     {
-        CleanupStatePersister persister =
-            spy(new CleanupStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION));
+        KeyspaceTableOpStatePersister persister =
+            spy(new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION));
         CleanupState state = spy(new CleanupState(ImmutableMap.of()));
 
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
-        tracker.updateTsForEntry(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 10L);
+        tracker.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
         verify(state, times(1))
-            .updateTsForEntry(eq(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY), eq(10L));
+            .updateTsForEntry(eq(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(Instant.ofEpochMilli(10L)));
         verify(persister, times(1))
-            .updateFileWithNewState(eq(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 10L)));
+            .updateFileWithNewState(eq(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
     }
 
     @Test
     public void createCleanupEntryForTableIfNotExistsDoesNothingIfEntryExists() throws IOException
     {
-        CleanupStatePersister persister =
-            new CleanupStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
-        CleanupState state = new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 20L));
+        KeyspaceTableOpStatePersister persister =
+            new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
+        CleanupState state =
+            new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
         tracker.createCleanupEntryForTableIfNotExists(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
@@ -72,35 +73,38 @@ public class CleanupStateTrackerTest
     @Test
     public void createCleanupEntryForTableSucceedsIfEntryDoesNotExist() throws IOException
     {
-        CleanupStatePersister persister =
-            new CleanupStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
+        KeyspaceTableOpStatePersister persister =
+            new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
         CleanupState state = new CleanupState(ImmutableMap.of());
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
         tracker.createCleanupEntryForTableIfNotExists(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
         verify(tracker, times(1))
-            .updateTsForEntry(eq(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY), eq(CleanupStateTracker.MIN_TS.toEpochMilli()));
+        .updateTsForEntry(eq(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(CleanupStateTracker.MIN_TS));
     }
 
     @Test
     public void recordSuccessfulCleanupForTableUpdatesEntry() throws IOException
     {
-        Long epoch1 = Instant.now().toEpochMilli();
-        CleanupStatePersister persister =
-            new CleanupStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
-        CleanupState state = new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, epoch1));
+        Instant instant1 = Instant.now();
+        KeyspaceTableOpStatePersister persister =
+            new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
+        CleanupState state = new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, instant1));
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
-        assertThat(state.getTableEntries().get(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY)).isEqualTo(epoch1);
+        assertThat(state.getTableEntries()
+                        .get(KeyspaceTableKey.of(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1)))
+            .isEqualTo(instant1);
         tracker.recordSuccessfulCleanupForTable(CleanupStateTestConstants.KEYSPACE1, CleanupStateTestConstants.TABLE1);
-        assertThat(state.getTableEntries().get(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY)).isGreaterThan(epoch1);
+        assertThat(state.getTableEntries().get(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1)
+                        .compareTo(instant1)).isGreaterThan(0);
     }
 
     @Test
     public void getLastSuccessfulCleanupTsForNodeReturnsMinTsIfNoEntriesExist() throws IOException
     {
-        CleanupStatePersister persister =
-                new CleanupStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
+        KeyspaceTableOpStatePersister persister =
+                new KeyspaceTableOpStatePersister(CleanupStateTestConstants.TEST_CLEANUP_STATE_FILE_LOCATION);
         CleanupState state = new CleanupState(ImmutableMap.of());
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
 

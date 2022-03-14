@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.service.cleanupstate;
 
+import java.time.Instant;
 import java.util.AbstractMap;
 
 import com.google.common.collect.ImmutableMap;
@@ -32,37 +33,40 @@ public class CleanupStateTest
     {
         CleanupState state = new CleanupState(ImmutableMap.of());
         assertThat(state.getTableEntries()).isEmpty();
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 10L);
-        assertThat(state.getTableEntries()).containsExactly(new AbstractMap.SimpleEntry<>(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 10L));
+        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
+        assertThat(state.getTableEntries()).containsExactly(
+            new AbstractMap.SimpleEntry<>(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }
 
     @Test
     public void entryExistsReturnsExceptedStatus()
     {
         CleanupState state = new CleanupState(ImmutableMap.of());
-        assertThat(state.entryExists(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY)).isFalse();
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 20L);
-        assertThat(state.entryExists(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY)).isTrue();
+        assertThat(state.entryExists(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1)).isFalse();
+        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
+        assertThat(state.entryExists(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1)).isTrue();
     }
 
     @Test
     public void getMinimumTsReturnsExceptedValues()
     {
-        CleanupState state = new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 10L));
-        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(10L);
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE2_TABLE2_KEY, 20L);
-        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(10L);
-        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 20L);
-        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(20L);
+        CleanupState state =
+            new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(10L));
+        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
+        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(10L));
+        state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
+        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(20L));
     }
 
     @Test
     public void throwsWhenTryingToUpdateWithSmallerTs()
     {
-        CleanupState state = new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 20L));
+        CleanupState state =
+            new CleanupState(ImmutableMap.of(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
         try
         {
-            state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE1_TABLE1_KEY, 10L);
+            state.updateTsForEntry(CleanupStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
         }
         catch (IllegalArgumentException e) // Expected
         {
