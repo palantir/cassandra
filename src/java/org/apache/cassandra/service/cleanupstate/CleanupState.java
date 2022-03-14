@@ -19,6 +19,7 @@
 package org.apache.cassandra.service.cleanupstate;
 
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,25 +29,25 @@ import com.google.common.annotations.VisibleForTesting;
 
 public class CleanupState
 {
-    private final ConcurrentMap<String, Long> tableEntries;
+    private final ConcurrentMap<KeyspaceTableKey, Instant> tableEntries;
 
-    public CleanupState(Map<String, Long> initialEntries)
+    public CleanupState(Map<KeyspaceTableKey, Instant> initialEntries)
     {
         this.tableEntries = new ConcurrentHashMap<>(initialEntries);
     }
 
     @VisibleForTesting
-    ConcurrentMap<String, Long> getTableEntries()
+    ConcurrentMap<KeyspaceTableKey, Instant> getTableEntries()
     {
         return tableEntries;
     }
 
-    public boolean entryExists(String entryKey)
+    public boolean entryExists(KeyspaceTableKey entryKey)
     {
         return tableEntries.containsKey(entryKey);
     }
 
-    public Map<String, Long> updateTsForEntry(String entryKey, Long value)
+    public Map<KeyspaceTableKey, Instant> updateTsForEntry(KeyspaceTableKey entryKey, Instant value)
         throws IllegalArgumentException
     {
         if (tableEntries.containsKey(entryKey) && tableEntries.get(entryKey).compareTo(value) > 0)
@@ -56,7 +57,7 @@ public class CleanupState
         return tableEntries;
     }
 
-    public Long getMinimumTsOfAllEntries()
+    public Instant getMinimumTsOfAllEntries()
     {
         if (tableEntries.isEmpty())
             return null;

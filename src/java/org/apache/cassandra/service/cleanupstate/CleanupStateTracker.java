@@ -33,12 +33,12 @@ public class CleanupStateTracker
     private static final String CLEANUP_STATE_FILE_NAME = "node_cleanup_state.json";
 
     private final CleanupState state;
-    private final CleanupStatePersister persister;
+    private final KeyspaceTableOpStatePersister persister;
 
     public CleanupStateTracker() throws IOException
     {
-        this.persister = new CleanupStatePersister(cleanupStateFileLocation());
-        this.state = new CleanupState(persister.readCleanupStateFromFile());
+        this.persister = new KeyspaceTableOpStatePersister(cleanupStateFileLocation());
+        this.state = new CleanupState(persister.readStateFromFile());
     }
 
     @VisibleForTesting
@@ -48,7 +48,7 @@ public class CleanupStateTracker
     }
 
     @VisibleForTesting
-    CleanupStateTracker(CleanupState state, CleanupStatePersister persister)
+    CleanupStateTracker(CleanupState state, KeyspaceTableOpStatePersister persister)
     {
         this.persister = persister;
         this.state = state;
@@ -58,10 +58,10 @@ public class CleanupStateTracker
     public synchronized void createCleanupEntryForTableIfNotExists(String keyspaceName, String columnFamily)
         throws IllegalArgumentException, IOException
     {
-        String entryKey = convertKeyspaceTableToKey(keyspaceName, columnFamily);
+        KeyspaceTableKey entryKey = KeyspaceTableKey.of(keyspaceName, columnFamily);
         if (!state.entryExists(entryKey))
         {
-            updateTsForEntry(entryKey, MIN_TS.toEpochMilli());
+            updateTsForEntry(entryKey, MIN_TS);
         }
     }
 
@@ -69,25 +69,22 @@ public class CleanupStateTracker
     public synchronized void recordSuccessfulCleanupForTable(String keyspaceName, String columnFamily)
         throws IllegalArgumentException, IOException
     {
-        updateTsForEntry(convertKeyspaceTableToKey(keyspaceName, columnFamily), Instant.now().toEpochMilli());
+        updateTsForEntry(KeyspaceTableKey.of(keyspaceName, columnFamily), Instant.now());
     }
 
     /** Returns min ts for this node, null if no entry exists. */
     public Instant getLastSuccessfulCleanupTsForNode()
     {
-        Long minTsFromState = state.getMinimumTsOfAllEntries();
-        return minTsFromState == null? MIN_TS: Instant.ofEpochMilli(minTsFromState);
+        Instant minTsFromState = state.getMinimumTsOfAllEntries();
+        if (minTsFromState == null)
+            return MIN_TS;
+        return minTsFromState;
     }
 
     @VisibleForTesting
-    void updateTsForEntry(String key, Long value) throws IllegalArgumentException, IOException
+    void updateTsForEntry(KeyspaceTableKey key, Instant value) throws IllegalArgumentException, IOException
     {
-        Map<String, Long> updatedEntries = state.updateTsForEntry(key, value);
+        Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
         persister.updateFileWithNewState(updatedEntries);
-    }
-
-    private String convertKeyspaceTableToKey(String keyspaceName, String columnFamily)
-    {
-        return keyspaceName + ":" + columnFamily;
     }
 }
