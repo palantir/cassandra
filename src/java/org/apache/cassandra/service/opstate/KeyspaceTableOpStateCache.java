@@ -22,6 +22,7 @@ package org.apache.cassandra.service.opstate;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -57,11 +58,11 @@ public class KeyspaceTableOpStateCache
         return tableEntries;
     }
 
-    public Instant getMinimumTsOfAllEntries()
+    public Optional<Instant> getMinimumTsOfAllEntries()
     {
         if (tableEntries.isEmpty())
-            return null;
+            return Optional.empty();
 
-        return Collections.min(tableEntries.values());
+        return Optional.of(Collections.min(tableEntries.values()));
     }
 }

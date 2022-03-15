@@ -79,10 +79,7 @@ public class CleanupStateTracker
     /** Returns min ts for this node, null if no entry exists. */
     public Instant getLastSuccessfulCleanupTsForNode()
     {
-        Instant minTsFromState = state.getMinimumTsOfAllEntries();
-        if (minTsFromState == null)
-            return MIN_TS;
-        return minTsFromState;
+        return state.getMinimumTsOfAllEntries().orElse(MIN_TS);
     }
 
     @VisibleForTesting

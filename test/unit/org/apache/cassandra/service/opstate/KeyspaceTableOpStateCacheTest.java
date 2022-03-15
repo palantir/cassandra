@@ -52,11 +52,11 @@ public class KeyspaceTableOpStateCacheTest
     {
         KeyspaceTableOpStateCache state =
             new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
-        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(10L));
+        assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(10L));
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
-        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(10L));
+        assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(10L));
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
-        assertThat(state.getMinimumTsOfAllEntries()).isEqualTo(Instant.ofEpochMilli(20L));
+        assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(20L));
     }
 
     @Test

@@ -23,7 +23,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 public class OpStateTestConstants
 {
     public static final String TEST_STATE_FILE_LOCATION =
-    System.getProperty("user.dir") + "/test/resources/test_node_op_state.json";
+        System.getProperty("user.dir") + "/test/resources/test_node_op_state.json";
 
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
