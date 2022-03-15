@@ -20,6 +20,7 @@ package org.apache.cassandra.service.opstate;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,9 +37,9 @@ public class KeyspaceTableOpStatePersister
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private File persistentFile;
-    private final String persistentFileLocation;
+    private final Path persistentFileLocation;
 
-    public KeyspaceTableOpStatePersister(String persistentFileLocation)
+    public KeyspaceTableOpStatePersister(Path persistentFileLocation)
     {
         this.persistentFileLocation = persistentFileLocation;
         this.persistentFile = getOrMaybeCreateStateFile();
@@ -86,7 +87,7 @@ public class KeyspaceTableOpStatePersister
         if (persistentFile != null)
             return persistentFile;
 
-        File operationStateFile = new File(persistentFileLocation);
+        File operationStateFile = persistentFileLocation.toFile();
         try
         {
             operationStateFile.createNewFile();

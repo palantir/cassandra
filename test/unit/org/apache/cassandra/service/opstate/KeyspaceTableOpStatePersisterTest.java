@@ -20,44 +20,53 @@ package org.apache.cassandra.service.opstate;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.AbstractMap;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.After;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class KeyspaceTableOpStatePersisterTest
 {
+    private static Path stateFilePath;
+
+    @BeforeClass
+    public static void before() throws IOException
+    {
+        Path directory = Files.createTempDirectory(OpStateTestConstants.TEST_DIRECTORY_NAME);
+        stateFilePath = directory.resolve(OpStateTestConstants.TEST_STATE_FILE_NAME);
+    }
 
     @After
     public void afterEach()
     {
-        new File(OpStateTestConstants.TEST_STATE_FILE_LOCATION).delete();
+        stateFilePath.toFile().delete();
     }
 
     @Test
     public void keyspaceTableOpStatePersisterSuccessfullyCreateFileWhenDoesNotExist()
     {
-        new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
-        assertThat(new File(OpStateTestConstants.TEST_STATE_FILE_LOCATION)).exists();
+        new KeyspaceTableOpStatePersister(stateFilePath);
+        assertThat(stateFilePath.toFile()).exists();
     }
 
     @Test
     public void keyspaceTableOpStatePersisterReturnsEmptyMapAtFileCreation()
     {
-        KeyspaceTableOpStatePersister persister =
-            new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         assertThat(persister.readStateFromPersistentLocation()).isEmpty();
     }
 
     @Test
     public void keyspaceTableOpStatePersisterSuccessfullyUpdatesFile()
     {
-        KeyspaceTableOpStatePersister persister =
-            new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         assertThat(persister.readStateFromPersistentLocation()).isEmpty();
 
         persister.updateStateInPersistentLocation(
@@ -69,14 +78,13 @@ public class KeyspaceTableOpStatePersisterTest
     @Test
     public void keyspaceTableOpStatePersisterSuccessfullyRetrievesFileWhenExists() throws IOException
     {
-        new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
-        File testOpStateFile = new File(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        new KeyspaceTableOpStatePersister(stateFilePath);
+        File testOpStateFile = stateFilePath.toFile();
         assertThat(testOpStateFile).exists();
         OpStateTestConstants.OBJECT_MAPPER.writeValue(
             testOpStateFile, ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1.toString(), 10L));
 
-        KeyspaceTableOpStatePersister persister =
-            new KeyspaceTableOpStatePersister(OpStateTestConstants.TEST_STATE_FILE_LOCATION);
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         assertThat(persister.readStateFromPersistentLocation()).containsExactly(
             new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }

@@ -18,6 +18,8 @@
 
 package org.apache.cassandra.service.opstate;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Map;
 
@@ -46,9 +48,9 @@ public class CleanupStateTracker
     }
 
     @VisibleForTesting
-    String cleanupStateFileLocation()
+    Path cleanupStateFileLocation()
     {
-        return DatabaseDescriptor.getPersistentSettingsLocation() + "/" + CLEANUP_STATE_FILE_NAME;
+        return Paths.get(DatabaseDescriptor.getPersistentSettingsLocation() + "/" + CLEANUP_STATE_FILE_NAME);
     }
 
     @VisibleForTesting
