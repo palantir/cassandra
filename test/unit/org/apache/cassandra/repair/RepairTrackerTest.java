@@ -20,10 +20,16 @@ package org.apache.cassandra.repair;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
+
+import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.KeyCollisionTest;
 import org.apache.cassandra.service.StorageServiceMBean;
+
 import org.junit.Test;
 
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -80,8 +86,8 @@ public class RepairTrackerTest
 
 
         Set<StorageServiceMBean.ProgressState> nonInProgress = Arrays.stream(StorageServiceMBean.ProgressState.values())
-                                                 .filter(state -> StorageServiceMBean.ProgressState.IN_PROGRESS != (state))
-                                                 .collect(Collectors.toSet());
+                                                                     .filter(state -> StorageServiceMBean.ProgressState.IN_PROGRESS != (state))
+                                                                     .collect(Collectors.toSet());
 
         for (StorageServiceMBean.ProgressState state : nonInProgress)
         {
@@ -113,16 +119,45 @@ public class RepairTrackerTest
     @Test
     public void getInProgressRepair_matchesSameArgs()
     {
+        RepairArguments newReference = new RepairArguments("test",
+                                                           RepairOption.parse(new HashMap<>(),
+                                                                              Murmur3Partitioner.instance));
+        assertArgMatch(args, newReference, true);
+    }
+
+    @Test
+    public void getInProgressRepair_doesNotMatchDifferentArgs()
+    {
+
+        RepairArguments diffKeyspace = new RepairArguments("diff",
+                                                           RepairOption.parse(new HashMap<>(),
+                                                                              Murmur3Partitioner.instance));
+        assertArgMatch(args, diffKeyspace, false);
+        RepairArguments diffOptions = new RepairArguments("test",
+                                                          RepairOption.parse(ImmutableMap.of(RepairOption.INCREMENTAL_KEY,
+                                                                                             "true",
+                                                                                             RepairOption.RANGES_KEY,
+                                                                                             "42:42"),
+                                                                             Murmur3Partitioner.instance));
+        assertArgMatch(args, diffOptions, false);
+        RepairArguments diffOptions2 = new RepairArguments("test",
+                                                          RepairOption.parse(ImmutableMap.of(RepairOption.INCREMENTAL_KEY,
+                                                                                             "true",
+                                                                                             RepairOption.RANGES_KEY,
+                                                                                             "45:50"),
+                                                                             Murmur3Partitioner.instance));
+        assertArgMatch(diffOptions2, diffOptions, false);
+    }
+
+    private void assertArgMatch(RepairArguments arg1, RepairArguments arg2, boolean match)
+    {
         tracker = new RepairTracker();
         RepairRunnable task1 = mock(RepairRunnable.class);
         doReturn(1).when(task1).getCommand();
         doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task1).getCurrentState();
-        tracker.track(1, args, task1);
+        tracker.track(1, arg1, task1);
 
-        RepairArguments newReference = new RepairArguments("test",
-                                                           RepairOption.parse(new HashMap<>(),
-                                                                              Murmur3Partitioner.instance));
-
-        assertThat(tracker.getInProgressRepair(newReference)).contains(1);
+        Optional<Integer> expected = match ? Optional.of(1) : Optional.empty();
+        assertThat(tracker.getInProgressRepair(arg2)).isEqualTo(expected);
     }
 }
