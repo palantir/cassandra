@@ -42,7 +42,7 @@ public class CleanupStateTracker
     public CleanupStateTracker()
     {
         this.persister = new KeyspaceTableOpStatePersister(cleanupStateFileLocation());
-        this.state = new KeyspaceTableOpStateCache(persister.readStateFromFile());
+        this.state = new KeyspaceTableOpStateCache(persister.readStateFromPersistentLocation());
     }
 
     @VisibleForTesting
@@ -86,7 +86,7 @@ public class CleanupStateTracker
     void updateTsForEntry(KeyspaceTableKey key, Instant value) throws IllegalArgumentException
     {
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
-        if (!persister.updateFileWithNewState(updatedEntries))
+        if (!persister.updateStateInPersistentLocation(updatedEntries))
             log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
     }
 }

@@ -44,39 +44,41 @@ public class KeyspaceTableOpStatePersister
         this.persistentFile = getOrMaybeCreateStateFile();
     }
 
-    public Map<KeyspaceTableKey, Instant> readStateFromFile()
+    public Map<KeyspaceTableKey, Instant> readStateFromPersistentLocation()
     {
         File persistentStateFile = getOrMaybeCreateStateFile();
-        if (persistentStateFile == null || persistentStateFile.length() == 0)
+        if (persistentStateFile == null)
             return new HashMap<>();
 
         try
         {
-            return convertMapTypeToKeyspaceTableKeyInstant(OBJECT_MAPPER.readValue(persistentStateFile, Map.class));
+            return readStateFromFile(persistentStateFile);
         }
-        catch (Exception e)
+        catch (IOException e)
         {
-            log.warn("Failed to retrieve state from file.", persistentStateFile.getAbsolutePath(), e);
             return new HashMap<>();
         }
     }
 
-    public boolean updateFileWithNewState(Map<KeyspaceTableKey, Instant> updatedEntries)
+    public boolean updateStateInPersistentLocation(Map<KeyspaceTableKey, Instant> updatedEntries)
     {
         File persistentStateFile = getOrMaybeCreateStateFile();
         if (persistentStateFile == null)
             return false;
-
         try
         {
-            OBJECT_MAPPER.writeValue(persistentStateFile, convertMapTypeToStringLong(updatedEntries));
+            Map<KeyspaceTableKey, Instant> persistentEntries = readStateFromFile(persistentStateFile);
+
+            // We assume inputted entries will always be more up to date compared to the ones from the file
+            persistentEntries.putAll(updatedEntries);
+            return writeStateToFile(persistentStateFile, persistentEntries);
         }
         catch (IOException e)
         {
-            log.warn("Failed to update state file.", persistentStateFile.getAbsolutePath(), e);
+            log.warn("Failed to update persistent location with state.");
             return false;
         }
-        return true;
+
     }
 
     private File getOrMaybeCreateStateFile()
@@ -96,6 +98,35 @@ public class KeyspaceTableOpStatePersister
         }
         this.persistentFile = operationStateFile;
         return operationStateFile;
+    }
+
+    private Map<KeyspaceTableKey, Instant> readStateFromFile(File file) throws IOException
+    {
+        if(file.length() == 0)
+            return new HashMap<>();
+        try
+        {
+            return convertMapTypeToKeyspaceTableKeyInstant(OBJECT_MAPPER.readValue(file, Map.class));
+        }
+        catch (IOException e)
+        {
+            log.warn("Failed to read state from file.", file.getAbsolutePath(), e);
+            throw e;
+        }
+    }
+
+    private boolean writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries) throws IOException
+    {
+        try
+        {
+            OBJECT_MAPPER.writeValue(file, convertMapTypeToStringLong(updatedEntries));
+        }
+        catch (IOException e)
+        {
+            log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
+            throw e;
+        }
+        return true;
     }
 
     private static Map<KeyspaceTableKey, Instant> convertMapTypeToKeyspaceTableKeyInstant(Map<Object, Object> map)

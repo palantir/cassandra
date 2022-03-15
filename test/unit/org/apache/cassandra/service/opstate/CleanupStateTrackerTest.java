@@ -53,7 +53,7 @@ public class CleanupStateTrackerTest
         verify(state, times(1))
             .updateTsForEntry(eq(OpStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(Instant.ofEpochMilli(10L)));
         verify(persister, times(1))
-            .updateFileWithNewState(eq(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
+            .updateStateInPersistentLocation(eq(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
     }
 
     @Test
