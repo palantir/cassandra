@@ -18,36 +18,37 @@
 
 package org.apache.cassandra.repair;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.cassandra.service.StorageServiceMBean;
 
 public class RepairTracker
 {
-    private final ConcurrentHashMap<RepairArguments, RepairRunnable> argsToMostRecentRepair;
-    private final ConcurrentHashMap<Integer, RepairRunnable> commandToRepairs;
+    private final Map<RepairArguments, RepairRunnable> argsToMostRecentRepair;
+    private final Map<Integer, RepairRunnable> commandToRepairs;
 
     public RepairTracker()
     {
-        argsToMostRecentRepair = new ConcurrentHashMap<>();
-        commandToRepairs = new ConcurrentHashMap<>();
+        argsToMostRecentRepair = new HashMap<>();
+        commandToRepairs = new HashMap<>();
     }
 
-    public void track(int command, RepairArguments arguments, RepairRunnable task)
+    public synchronized void track(int command, RepairArguments arguments, RepairRunnable task)
     {
         argsToMostRecentRepair.put(arguments, task);
         commandToRepairs.put(command, task);
     }
 
-    public StorageServiceMBean.ProgressState getRepairState(int command)
+    public synchronized StorageServiceMBean.ProgressState getRepairState(int command)
     {
         return Optional.ofNullable(commandToRepairs.get(command))
                        .map(RepairRunnable::getCurrentState)
                        .orElse(StorageServiceMBean.ProgressState.UNKNOWN);
     }
 
-    public Optional<Integer> getInProgressRepair(RepairArguments arguments)
+    public synchronized Optional<Integer> getInProgressRepair(RepairArguments arguments)
     {
         return Optional.ofNullable(argsToMostRecentRepair.get(arguments))
                        .filter(repair -> StorageServiceMBean.ProgressState.IN_PROGRESS == repair.getCurrentState())
