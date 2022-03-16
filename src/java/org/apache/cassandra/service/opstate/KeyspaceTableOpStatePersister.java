@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,19 +46,19 @@ public class KeyspaceTableOpStatePersister
         this.persistentFile = getOrMaybeCreateStateFile();
     }
 
-    public Map<KeyspaceTableKey, Instant> readStateFromPersistentLocation()
+    public Optional<Map<KeyspaceTableKey, Instant>> readStateFromPersistentLocation()
     {
         File persistentStateFile = getOrMaybeCreateStateFile();
         if (persistentStateFile == null)
-            return new HashMap<>();
+            return Optional.empty();
 
         try
         {
-            return readStateFromFile(persistentStateFile);
+            return Optional.of(readStateFromFile(persistentStateFile));
         }
         catch (IOException e)
         {
-            return new HashMap<>();
+            return Optional.empty();
         }
     }
 

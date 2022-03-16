@@ -60,18 +60,18 @@ public class KeyspaceTableOpStatePersisterTest
     public void keyspaceTableOpStatePersisterReturnsEmptyMapAtFileCreation()
     {
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
-        assertThat(persister.readStateFromPersistentLocation()).isEmpty();
+        assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
     }
 
     @Test
     public void keyspaceTableOpStatePersisterSuccessfullyUpdatesFile()
     {
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
-        assertThat(persister.readStateFromPersistentLocation()).isEmpty();
+        assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
 
         persister.updateStateInPersistentLocation(
             ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
-        assertThat(persister.readStateFromPersistentLocation()).containsExactly(
+        assertThat(persister.readStateFromPersistentLocation().get()).containsExactly(
             new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }
 
@@ -85,7 +85,7 @@ public class KeyspaceTableOpStatePersisterTest
             testOpStateFile, ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1.toString(), 10L));
 
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
-        assertThat(persister.readStateFromPersistentLocation()).containsExactly(
+        assertThat(persister.readStateFromPersistentLocation().get()).containsExactly(
             new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }
 }

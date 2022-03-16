@@ -21,7 +21,9 @@ package org.apache.cassandra.service.opstate;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -40,11 +42,17 @@ public class CleanupStateTracker
 
     private final KeyspaceTableOpStateCache state;
     private final KeyspaceTableOpStatePersister persister;
+    private boolean successfulReadFromPersister = false;
 
     public CleanupStateTracker()
     {
         this.persister = new KeyspaceTableOpStatePersister(cleanupStateFileLocation());
-        this.state = new KeyspaceTableOpStateCache(persister.readStateFromPersistentLocation());
+
+        Optional<Map<KeyspaceTableKey, Instant>> maybeStateFromPersister = persister.readStateFromPersistentLocation();
+        if (maybeStateFromPersister.isPresent())
+            successfulReadFromPersister = true;
+
+        this.state = new KeyspaceTableOpStateCache(maybeStateFromPersister.orElse(new HashMap<>()));
     }
 
     @VisibleForTesting
@@ -58,6 +66,7 @@ public class CleanupStateTracker
     {
         this.persister = persister;
         this.state = state;
+        this.successfulReadFromPersister = true;
     }
 
     /** Creates table entry if it does not already exist */
@@ -81,6 +90,7 @@ public class CleanupStateTracker
     /** Returns min ts for this node, null if no entry exists. */
     public Instant getLastSuccessfulCleanupTsForNode()
     {
+        updateCacheIfHasNotYetSuccessfullyReadFromPersister();
         return state.getMinimumTsOfAllEntries().orElse(MIN_TS);
     }
 
@@ -89,6 +99,27 @@ public class CleanupStateTracker
     {
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
         if (!persister.updateStateInPersistentLocation(updatedEntries))
+        {
             log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
+            return;
+        }
+        updateCacheIfHasNotYetSuccessfullyReadFromPersister();
+    }
+
+    private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()
+    {
+        if (successfulReadFromPersister)
+            return;
+
+        Optional<Map<KeyspaceTableKey, Instant>> maybeStateFromPersister = persister.readStateFromPersistentLocation();
+        if (maybeStateFromPersister.isPresent())
+        {
+            // We always consider that the cache contains the most up-to-date entries
+            maybeStateFromPersister.get().forEach((key, ts) -> {
+                if (!state.entryExists(key))
+                    state.updateTsForEntry(key, ts);
+                 });
+            successfulReadFromPersister = true;
+        }
     }
 }

@@ -18,11 +18,11 @@
 
 package org.apache.cassandra.service.opstate;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.After;
@@ -101,8 +101,8 @@ public class CleanupStateTrackerTest
             new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, instant1));
 
         CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
-        assertThat(state.getTableEntries()
-                        .get(KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1)))
+        Map<KeyspaceTableKey, Instant> cacheEntries = state.getTableEntries();
+        assertThat(cacheEntries.get(KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1)))
             .isEqualTo(instant1);
 
         tracker.recordSuccessfulCleanupForTable(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1);

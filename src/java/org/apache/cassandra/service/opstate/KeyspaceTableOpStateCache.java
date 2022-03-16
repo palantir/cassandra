@@ -38,9 +38,9 @@ public class KeyspaceTableOpStateCache
     }
 
     @VisibleForTesting
-    ConcurrentMap<KeyspaceTableKey, Instant> getTableEntries()
+    Map<KeyspaceTableKey, Instant> getTableEntries()
     {
-        return tableEntries;
+        return Collections.unmodifiableMap(tableEntries);
     }
 
     public boolean entryExists(KeyspaceTableKey entryKey)
@@ -55,7 +55,7 @@ public class KeyspaceTableOpStateCache
             throw new IllegalArgumentException("Can only update cache entry with increasing timestamp");
 
         tableEntries.put(entryKey, value);
-        return tableEntries;
+        return Collections.unmodifiableMap(tableEntries);
     }
 
     public Optional<Instant> getMinimumTsOfAllEntries()
