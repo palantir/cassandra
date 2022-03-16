@@ -38,12 +38,78 @@ import org.apache.cassandra.repair.messages.RepairOption;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 public class RepairTrackerTest
 {
     private final RepairOption options = RepairOption.parse(new HashMap<>(), Murmur3Partitioner.instance);
     private final RepairArguments args = new RepairArguments("test", options);
     private RepairTracker tracker;
+
+    @Test
+    public void cleanCompletedRepairs_invokedOnTrack()
+    {
+        tracker = spy(new RepairTracker());
+        tracker.track(1, mock(RepairArguments.class), mock(RepairRunnable.class));
+        verify(tracker).cleanCompletedRepairs();
+    }
+
+    @Test
+    public void cleanCompletedRepairs_invokedOnGetRepairState()
+    {
+        tracker = spy(new RepairTracker());
+        tracker.getRepairState(1);
+        verify(tracker).cleanCompletedRepairs();
+    }
+
+    @Test
+    public void cleanCompletedRepairs_invokedOnGetInProgressRepair()
+    {
+        tracker = spy(new RepairTracker());
+        tracker.getInProgressRepair(mock(RepairArguments.class));
+        verify(tracker).cleanCompletedRepairs();
+    }
+
+    @Test
+    public void cleanCompletedRepairs_updatesMapsCorrectly()
+    {
+        RepairArguments args1 = new RepairArguments("test", options);
+        RepairArguments args2 = new RepairArguments("test2", options);
+        RepairArguments args3 = new RepairArguments("test3", options);
+
+        RepairRunnable inProgress = mock(RepairRunnable.class);
+        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(inProgress).getCurrentState();
+
+        tracker = new RepairTracker();
+        tracker.track(1, args1, inProgress);
+
+        RepairRunnable unknown = mock(RepairRunnable.class);
+        doReturn(StorageServiceMBean.ProgressState.UNKNOWN).when(unknown).getCurrentState();
+        tracker.track(2, args2, unknown);
+
+        RepairRunnable completed = mock(RepairRunnable.class);
+        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(completed).getCurrentState();
+        doReturn(3).when(completed).getCommand();
+        tracker.track(3, args3, completed);
+
+        assertThat(tracker.getCommandToCompletedRepairs()).isEmpty();
+        assertThat(tracker.getArgsToMostRecentRepair()).isEqualTo(ImmutableMap.of(args1,
+                                                                                  inProgress,
+                                                                                  args2,
+                                                                                  unknown,
+                                                                                  args3,
+                                                                                  completed));
+        assertThat(tracker.getCommandToRepairs()).isEqualTo(ImmutableMap.of(1, inProgress, 2, unknown, 3, completed));
+
+        doReturn(StorageServiceMBean.ProgressState.SUCCEEDED).when(completed).getCurrentState();
+        doReturn(true).when(completed).isComplete();
+        tracker.cleanCompletedRepairs();
+
+        assertThat(tracker.getCommandToCompletedRepairs()).containsOnlyKeys(3);
+        assertThat(tracker.getArgsToMostRecentRepair()).isEqualTo(ImmutableMap.of(args1, inProgress, args2, unknown));
+        assertThat(tracker.getCommandToRepairs()).isEqualTo(ImmutableMap.of(1, inProgress, 2, unknown));
+    }
 
     @Test
     public void getRepairState_unknownIfCommandNotTracked()

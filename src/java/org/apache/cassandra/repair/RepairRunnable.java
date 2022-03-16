@@ -92,6 +92,10 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         return currentState;
     }
 
+    public boolean isComplete() {
+        return currentState == StorageServiceMBean.ProgressState.FAILED || currentState == StorageServiceMBean.ProgressState.SUCCEEDED;
+    }
+
     @Override
     public void addProgressListener(ProgressListener listener)
     {
@@ -119,8 +123,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                 currentState = (currentState == StorageServiceMBean.ProgressState.FAILED) ? currentState : StorageServiceMBean.ProgressState.SUCCEEDED;
                 break;
             case COMPLETE:
-                currentState = (currentState == StorageServiceMBean.ProgressState.FAILED || currentState == StorageServiceMBean.ProgressState.SUCCEEDED)
-                               ? currentState : StorageServiceMBean.ProgressState.UNKNOWN;
+                // Something is wrong if we get a COMPLETE notification twice for the same RepairRunnable
+                currentState = isComplete() ? currentState : StorageServiceMBean.ProgressState.UNKNOWN;
                 break;
             case NOTIFICATION:
                 break;
