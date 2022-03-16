@@ -22,6 +22,7 @@ import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -73,6 +74,7 @@ import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.repair.*;
 import org.apache.cassandra.repair.messages.RepairOption;
+import org.apache.cassandra.service.opstate.CleanupStateTracker;
 import org.apache.cassandra.service.paxos.CommitVerbHandler;
 import org.apache.cassandra.service.paxos.PrepareVerbHandler;
 import org.apache.cassandra.service.paxos.ProposeVerbHandler;
@@ -105,6 +107,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final BootstrapManager bootstrapManager = new BootstrapManager();
+    private final CleanupStateTracker cleanupState = new CleanupStateTracker();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -2912,6 +2915,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return Gossiper.instance.getCurrentGenerationNumber(FBUtilities.getBroadcastAddress());
     }
 
+    public Instant getLastSuccessfulCleanupTsForNode()
+    {
+        return cleanupState.getLastSuccessfulCleanupTsForNode();
+    }
+
     public int forceKeyspaceCleanup(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         return forceKeyspaceCleanup(0, keyspaceName, columnFamilies);
@@ -2925,9 +2933,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
         for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
         {
+            cleanupState.createCleanupEntryForTableIfNotExists(keyspaceName, cfStore.getColumnFamilyName());
             CompactionManager.AllSSTableOpStatus oneStatus = cfStore.forceCleanup(jobs);
             if (oneStatus != CompactionManager.AllSSTableOpStatus.SUCCESSFUL)
                 status = oneStatus;
+            else
+                cleanupState.recordSuccessfulCleanupForTable(keyspaceName, cfStore.getColumnFamilyName());
         }
         return status.statusCode;
     }
