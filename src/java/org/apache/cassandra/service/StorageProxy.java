@@ -2070,15 +2070,17 @@ public class StorageProxy implements StorageProxyMBean
         Iterable<InetAddress> allHosts = Iterables.concat(Gossiper.instance.getLiveMembers(), Gossiper.instance.getUnreachableMembers());
         for (InetAddress host : allHosts)
         {
-            UUID version = versions.get(host);
-            String stringVersion = version == null ? UNREACHABLE : version.toString();
-            List<String> hosts = results.get(stringVersion);
-            if (hosts == null)
-            {
-                hosts = new ArrayList<String>();
-                results.put(stringVersion, hosts);
+            if (StorageService.instance.getTokenMetadata().isMember(host)) {
+                UUID version = versions.get(host);
+                String stringVersion = version == null ? UNREACHABLE : version.toString();
+                List<String> hosts = results.get(stringVersion);
+                if (hosts == null)
+                {
+                    hosts = new ArrayList<String>();
+                    results.put(stringVersion, hosts);
+                }
+                hosts.add(host.getHostAddress());
             }
-            hosts.add(host.getHostAddress());
         }
 
         // we're done: the results map is ready to return to the client.  the rest is just debug logging:
