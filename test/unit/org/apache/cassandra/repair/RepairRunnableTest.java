@@ -27,16 +27,16 @@ public class RepairRunnableTest
     @Test
     public void parseCommandFromTag_parsesExpected()
     {
-        assertThat(RepairRunnable.parseCommandFromTag("repair: 1021")).contains(1021);
-        assertThat(RepairRunnable.parseCommandFromTag("repair: 2")).contains(2);
+        assertThat(RepairRunnable.parseCommandFromTag("repair:1021")).contains(1021);
+        assertThat(RepairRunnable.parseCommandFromTag("repair:2")).contains(2);
     }
 
     @Test
     public void parseCommandFromTag_emptyWhenExpected()
     {
-        assertThat(RepairRunnable.parseCommandFromTag("repair:1")).isEmpty();
-        assertThat(RepairRunnable.parseCommandFromTag("fake: 1")).isEmpty();
+        assertThat(RepairRunnable.parseCommandFromTag("repair: 1")).isEmpty();
+        assertThat(RepairRunnable.parseCommandFromTag("fake:1")).isEmpty();
         assertThat(RepairRunnable.parseCommandFromTag("repair:")).isEmpty();
-        assertThat(RepairRunnable.parseCommandFromTag("repair: x")).isEmpty();
+        assertThat(RepairRunnable.parseCommandFromTag("repair:x")).isEmpty();
     }
 }

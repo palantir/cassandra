@@ -49,9 +49,9 @@ public class RepairTrackerTest
     private final RepairOption options = RepairOption.parse(new HashMap<>(), Murmur3Partitioner.instance);
     private final RepairArguments args = new RepairArguments("test", options);
 
-    private static final String TAG1 = "repair: 1";
-    private static final String TAG2 = "repair: 2";
-    private static final String TAG3 = "repair: 3";
+    private static final String TAG1 = "repair:1";
+    private static final String TAG2 = "repair:2";
+    private static final String TAG3 = "repair:3";
 
     private static final ProgressEvent PROGRESS = new ProgressEvent(ProgressEventType.PROGRESS, 0, 100, "test");
     private static final ProgressEvent SUCCESS = new ProgressEvent(ProgressEventType.SUCCESS, 0, 100, "test");

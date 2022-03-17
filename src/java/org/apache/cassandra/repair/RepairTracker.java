@@ -51,8 +51,6 @@ public class RepairTracker implements ProgressListener
     {
         argsToMostRecentRepair.put(arguments, command);
         commandToProgressState.put(command, StorageServiceMBean.ProgressState.UNKNOWN);
-        logger.info("argsToMostRecentRepair {}", argsToMostRecentRepair);
-        logger.info("commandToProgressState {}", commandToProgressState);
     }
 
     public synchronized StorageServiceMBean.ProgressState getRepairState(int command)
@@ -63,21 +61,23 @@ public class RepairTracker implements ProgressListener
 
     public synchronized Optional<Integer> getInProgressRepair(RepairArguments arguments)
     {
-        Optional<Integer> mostRecent = Optional.ofNullable(argsToMostRecentRepair.get(arguments));
-        mostRecent.ifPresent(cmd -> logger.info("Found recent repair command {} for args {}", cmd, arguments));
-        mostRecent = mostRecent
+        return Optional.ofNullable(argsToMostRecentRepair.get(arguments))
                        .filter(command -> isInProgressState(commandToProgressState.get(command)));
-        mostRecent.ifPresent(cmd -> logger.info("Found recent in-progress repair command {}", cmd));
-        return mostRecent;
     }
 
     public synchronized void progress(String tag, ProgressEvent event)
     {
-        Optional<Integer> repairCommand = RepairRunnable.parseCommandFromTag(tag);
-        if (!repairCommand.isPresent())
-            return;
+        try
+        {
+            Optional<Integer> repairCommand = RepairRunnable.parseCommandFromTag(tag);
+            if (!repairCommand.isPresent())
+                return;
 
-        maybeUpdateProgressState(event, repairCommand.get());
+            maybeUpdateProgressState(event, repairCommand.get());
+        } catch (Exception e)
+        {
+            logger.error("Failed to track repair progress locally", e);
+        }
     }
 
     private void updateProgressState(StorageServiceMBean.ProgressState state, int command)

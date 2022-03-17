@@ -70,7 +70,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     private final int cmd;
     private final RepairOption options;
     private final String keyspace;
-    private static final String TAG_PREFIX = "repair: ";
+    private static final String TAG_PREFIX = "repair:";
     private static final Pattern TAG_PATTERN = Pattern.compile(TAG_PREFIX + "\\d+$");
 
     private final List<ProgressListener> listeners = new ArrayList<>();
