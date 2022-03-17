@@ -23,93 +23,137 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 
-import org.apache.commons.collections.map.UnmodifiableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.service.StorageServiceMBean;
+import org.apache.cassandra.utils.progress.ProgressEvent;
+import org.apache.cassandra.utils.progress.ProgressListener;
 
-public class RepairTracker
+public class RepairTracker implements ProgressListener
 {
-    private final Map<RepairArguments, RepairRunnable> argsToMostRecentRepair;
-    private final Map<Integer, RepairRunnable> commandToRepairs;
-    private final Map<Integer, StorageServiceMBean.ProgressState> commandToCompletedRepairs;
+    private static final Logger logger = LoggerFactory.getLogger(RepairTracker.class);
+    private final Map<RepairArguments, Integer> argsToMostRecentRepair;
+    private final Map<Integer, StorageServiceMBean.ProgressState> commandToProgressState;
 
     public RepairTracker()
     {
         argsToMostRecentRepair = new HashMap<>();
-        commandToRepairs = new HashMap<>();
-        commandToCompletedRepairs = new HashMap<>();
+        commandToProgressState = new HashMap<>();
     }
 
-    public synchronized void track(int command, RepairArguments arguments, RepairRunnable task)
+    public synchronized void track(int command, RepairArguments arguments)
     {
-        cleanCompletedRepairs();
-        argsToMostRecentRepair.put(arguments, task);
-        commandToRepairs.put(command, task);
+        argsToMostRecentRepair.put(arguments, command);
+        commandToProgressState.put(command, StorageServiceMBean.ProgressState.UNKNOWN);
     }
 
     public synchronized StorageServiceMBean.ProgressState getRepairState(int command)
     {
-        cleanCompletedRepairs();
-        StorageServiceMBean.ProgressState completedState = Optional.ofNullable(commandToCompletedRepairs.get(command))
-                                                                   .orElse(StorageServiceMBean.ProgressState.UNKNOWN);
-        return Optional.ofNullable(commandToRepairs.get(command))
-                       .map(RepairRunnable::getCurrentState)
-                       .orElse(completedState);
+        return Optional.ofNullable(commandToProgressState.get(command))
+                       .orElse(StorageServiceMBean.ProgressState.UNKNOWN);
     }
 
     public synchronized Optional<Integer> getInProgressRepair(RepairArguments arguments)
     {
-        cleanCompletedRepairs();
         return Optional.ofNullable(argsToMostRecentRepair.get(arguments))
-                       .filter(repair -> StorageServiceMBean.ProgressState.IN_PROGRESS == repair.getCurrentState())
-                       .map(RepairRunnable::getCommand);
+            .filter(command -> isInProgressState(commandToProgressState.get(command)));
+    }
+
+    public synchronized void progress(String tag, ProgressEvent event)
+    {
+        Optional<Integer> repairCommand = RepairRunnable.parseCommandFromTag(tag);
+        if (!repairCommand.isPresent())
+            return;
+
+        maybeUpdateProgressState(event, repairCommand.get());
+    }
+
+    private void updateProgressState(StorageServiceMBean.ProgressState state, int command)
+    {
+        logger.info("Updating state for repair command {} to {}", command, state);
+        commandToProgressState.put(command, state);
+        if (isCompleteState(state))
+        {
+            cleanCompletedRepairs();
+        }
     }
 
     @VisibleForTesting
-    Map<RepairArguments, RepairRunnable> getArgsToMostRecentRepair()
+    void maybeUpdateProgressState(ProgressEvent event, int command)
+    {
+        StorageServiceMBean.ProgressState currentState = getRepairState(command);
+        StorageServiceMBean.ProgressState newState;
+
+        switch (event.getType()) {
+            case START:
+            case PROGRESS:
+                newState = (currentState == StorageServiceMBean.ProgressState.UNKNOWN) ? StorageServiceMBean.ProgressState.IN_PROGRESS : currentState;
+                break;
+            case ABORT:
+            case ERROR:
+                newState = StorageServiceMBean.ProgressState.FAILED;
+                break;
+            case SUCCESS:
+                newState = (currentState == StorageServiceMBean.ProgressState.FAILED) ? currentState : StorageServiceMBean.ProgressState.SUCCEEDED;
+                break;
+            case COMPLETE:
+                // Something is wrong if we get a COMPLETE notification when we haven't failed or succeeded
+                newState = isCompleteState(currentState) ? currentState : StorageServiceMBean.ProgressState.UNKNOWN;
+                break;
+            case NOTIFICATION:
+                return;
+            default:
+                logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}", command);
+                newState = StorageServiceMBean.ProgressState.UNKNOWN;
+        }
+        if (newState != currentState)
+            updateProgressState(newState, command);
+    }
+
+    private void cleanCompletedRepairs()
+    {
+        Set<Integer> completed = commandToProgressState.entrySet().stream()
+                                                       .filter(e -> isCompleteState(e.getValue()))
+                                                       .map(Map.Entry::getKey)
+                                                       .collect(Collectors.toSet());
+        removeMatchingCommands(completed, argsToMostRecentRepair);
+    }
+
+    private <T> void removeMatchingCommands(Set<Integer> toRemove, Map<T, Integer> map)
+    {
+        Set<T> keysToRemove = map.entrySet()
+                                 .stream()
+                                 .filter(e -> toRemove.contains(e.getValue()))
+                                 .map(Map.Entry::getKey)
+                                 .collect(Collectors.toSet());
+        keysToRemove.forEach(map::remove);
+    }
+
+    private boolean isCompleteState(StorageServiceMBean.ProgressState state)
+    {
+        return state == StorageServiceMBean.ProgressState.FAILED || state == StorageServiceMBean.ProgressState.SUCCEEDED;
+    }
+
+    @VisibleForTesting
+    boolean isInProgressState(StorageServiceMBean.ProgressState state)
+    {
+        return state == StorageServiceMBean.ProgressState.IN_PROGRESS;
+    }
+
+    @VisibleForTesting
+    Map<RepairArguments, Integer> getArgsToMostRecentRepair()
     {
         return argsToMostRecentRepair;
     }
 
     @VisibleForTesting
-    Map<Integer, RepairRunnable> getCommandToRepairs()
+    Map<Integer, StorageServiceMBean.ProgressState> getCommandToProgressState()
     {
-        return commandToRepairs;
+        return commandToProgressState;
     }
 
-    @VisibleForTesting
-    Map<Integer, StorageServiceMBean.ProgressState> getCommandToCompletedRepairs()
-    {
-        return commandToCompletedRepairs;
-    }
-
-    @VisibleForTesting
-    void cleanCompletedRepairs()
-    {
-        Map<Integer, StorageServiceMBean.ProgressState> newlyCompleted =
-                        Stream.concat(argsToMostRecentRepair.values().stream(), commandToRepairs.values().stream())
-                              .filter(RepairRunnable::isComplete)
-                              .distinct()
-                              .collect(Collectors.toMap(RepairRunnable::getCommand,
-                                                        RepairRunnable::getCurrentState));
-
-        commandToCompletedRepairs.putAll(newlyCompleted);
-        removeMatchingCommands(newlyCompleted.keySet(), argsToMostRecentRepair);
-        removeMatchingCommands(newlyCompleted.keySet(), commandToRepairs);
-    }
-
-    private <T> void removeMatchingCommands(Set<Integer> toRemove, Map<T, RepairRunnable> map)
-    {
-        Set<T> keysToRemove = map.entrySet()
-                                 .stream()
-                                 .filter(e -> toRemove.contains(e.getValue().getCommand()))
-                                 .map(Map.Entry::getKey)
-                                 .collect(Collectors.toSet());
-        keysToRemove.forEach(map::remove);
-    }
 }

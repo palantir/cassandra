@@ -24,13 +24,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
-
-import org.apache.cassandra.service.StorageServiceMBean;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.slf4j.Logger;
@@ -71,7 +70,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     private final int cmd;
     private final RepairOption options;
     private final String keyspace;
-    private StorageServiceMBean.ProgressState currentState;
+    private static final String TAG_PREFIX = "repair: ";
+    private static final Pattern TAG_PATTERN = Pattern.compile(TAG_PREFIX + "\\d+$");
 
     private final List<ProgressListener> listeners = new ArrayList<>();
 
@@ -81,19 +81,6 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         this.cmd = cmd;
         this.options = options;
         this.keyspace = keyspace;
-        this.currentState = StorageServiceMBean.ProgressState.UNKNOWN;
-    }
-
-    public int getCommand() {
-        return cmd;
-    }
-
-    public StorageServiceMBean.ProgressState getCurrentState() {
-        return currentState;
-    }
-
-    public boolean isComplete() {
-        return currentState == StorageServiceMBean.ProgressState.FAILED || currentState == StorageServiceMBean.ProgressState.SUCCEEDED;
     }
 
     @Override
@@ -108,35 +95,15 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         listeners.remove(listener);
     }
 
-    protected void maybeUpdateProgressState(ProgressEvent event)
-    {
-        switch (event.getType()) {
-            case START:
-            case PROGRESS:
-                currentState = (currentState == StorageServiceMBean.ProgressState.UNKNOWN) ? StorageServiceMBean.ProgressState.IN_PROGRESS : currentState;
-                break;
-            case ABORT:
-            case ERROR:
-                currentState = StorageServiceMBean.ProgressState.FAILED;
-                break;
-            case SUCCESS:
-                currentState = (currentState == StorageServiceMBean.ProgressState.FAILED) ? currentState : StorageServiceMBean.ProgressState.SUCCEEDED;
-                break;
-            case COMPLETE:
-                // Something is wrong if we get a COMPLETE notification twice for the same RepairRunnable
-                currentState = isComplete() ? currentState : StorageServiceMBean.ProgressState.UNKNOWN;
-                break;
-            case NOTIFICATION:
-                break;
-            default:
-                logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}", cmd);
-                currentState = StorageServiceMBean.ProgressState.UNKNOWN;
+    public static Optional<Integer> parseCommandFromTag(String tag) {
+        if (!TAG_PATTERN.matcher(tag).find()) {
+            return Optional.empty();
         }
+        return Optional.of(Integer.parseInt(tag.substring(TAG_PREFIX.length())));
     }
 
     protected void fireProgressEvent(String tag, ProgressEvent event)
     {
-        maybeUpdateProgressState(event);
         for (ProgressListener listener : listeners)
         {
             listener.progress(tag, event);
@@ -153,7 +120,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     {
         final TraceState traceState;
 
-        final String tag = "repair:" + cmd;
+        final String tag = TAG_PREFIX + cmd;
 
         final AtomicInteger progress = new AtomicInteger();
         final int totalProgress = 4 + options.getRanges().size(); // get valid column families, calculate neighbors, validation, prepare for repair + number of ranges to repair
