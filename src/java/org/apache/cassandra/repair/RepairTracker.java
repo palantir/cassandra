@@ -51,6 +51,8 @@ public class RepairTracker implements ProgressListener
     {
         argsToMostRecentRepair.put(arguments, command);
         commandToProgressState.put(command, StorageServiceMBean.ProgressState.UNKNOWN);
+        logger.info("argsToMostRecentRepair {}", argsToMostRecentRepair);
+        logger.info("commandToProgressState {}", commandToProgressState);
     }
 
     public synchronized StorageServiceMBean.ProgressState getRepairState(int command)
@@ -61,8 +63,12 @@ public class RepairTracker implements ProgressListener
 
     public synchronized Optional<Integer> getInProgressRepair(RepairArguments arguments)
     {
-        return Optional.ofNullable(argsToMostRecentRepair.get(arguments))
+        Optional<Integer> mostRecent = Optional.ofNullable(argsToMostRecentRepair.get(arguments));
+        mostRecent.ifPresent(cmd -> logger.info("Found recent repair command {} for args {}", cmd, arguments));
+        mostRecent = mostRecent
                        .filter(command -> isInProgressState(commandToProgressState.get(command)));
+        mostRecent.ifPresent(cmd -> logger.info("Found recent in-progress repair command {}", cmd));
+        return mostRecent;
     }
 
     public synchronized void progress(String tag, ProgressEvent event)
@@ -80,6 +86,7 @@ public class RepairTracker implements ProgressListener
         commandToProgressState.put(command, state);
         if (isCompleteState(state))
         {
+            logger.info("No longer collapsing identical repairs on top of repair command {}", command);
             argsToMostRecentRepair.inverse().remove(command);
         }
     }
