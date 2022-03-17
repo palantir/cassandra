@@ -25,6 +25,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,12 +38,12 @@ import org.apache.cassandra.utils.progress.ProgressListener;
 public class RepairTracker implements ProgressListener
 {
     private static final Logger logger = LoggerFactory.getLogger(RepairTracker.class);
-    private final Map<RepairArguments, Integer> argsToMostRecentRepair;
+    private final BiMap<RepairArguments, Integer> argsToMostRecentRepair;
     private final Map<Integer, StorageServiceMBean.ProgressState> commandToProgressState;
 
     public RepairTracker()
     {
-        argsToMostRecentRepair = new HashMap<>();
+        argsToMostRecentRepair = HashBiMap.create();
         commandToProgressState = new HashMap<>();
     }
 
@@ -60,7 +62,7 @@ public class RepairTracker implements ProgressListener
     public synchronized Optional<Integer> getInProgressRepair(RepairArguments arguments)
     {
         return Optional.ofNullable(argsToMostRecentRepair.get(arguments))
-            .filter(command -> isInProgressState(commandToProgressState.get(command)));
+                       .filter(command -> isInProgressState(commandToProgressState.get(command)));
     }
 
     public synchronized void progress(String tag, ProgressEvent event)
@@ -78,7 +80,7 @@ public class RepairTracker implements ProgressListener
         commandToProgressState.put(command, state);
         if (isCompleteState(state))
         {
-            cleanCompletedRepairs();
+            argsToMostRecentRepair.inverse().remove(command);
         }
     }
 
@@ -88,7 +90,8 @@ public class RepairTracker implements ProgressListener
         StorageServiceMBean.ProgressState currentState = getRepairState(command);
         StorageServiceMBean.ProgressState newState;
 
-        switch (event.getType()) {
+        switch (event.getType())
+        {
             case START:
             case PROGRESS:
                 newState = (currentState == StorageServiceMBean.ProgressState.UNKNOWN) ? StorageServiceMBean.ProgressState.IN_PROGRESS : currentState;
@@ -107,30 +110,12 @@ public class RepairTracker implements ProgressListener
             case NOTIFICATION:
                 return;
             default:
-                logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}", command);
+                logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}",
+                             command);
                 newState = StorageServiceMBean.ProgressState.UNKNOWN;
         }
         if (newState != currentState)
             updateProgressState(newState, command);
-    }
-
-    private void cleanCompletedRepairs()
-    {
-        Set<Integer> completed = commandToProgressState.entrySet().stream()
-                                                       .filter(e -> isCompleteState(e.getValue()))
-                                                       .map(Map.Entry::getKey)
-                                                       .collect(Collectors.toSet());
-        removeMatchingCommands(completed, argsToMostRecentRepair);
-    }
-
-    private <T> void removeMatchingCommands(Set<Integer> toRemove, Map<T, Integer> map)
-    {
-        Set<T> keysToRemove = map.entrySet()
-                                 .stream()
-                                 .filter(e -> toRemove.contains(e.getValue()))
-                                 .map(Map.Entry::getKey)
-                                 .collect(Collectors.toSet());
-        keysToRemove.forEach(map::remove);
     }
 
     private boolean isCompleteState(StorageServiceMBean.ProgressState state)
@@ -155,5 +140,4 @@ public class RepairTracker implements ProgressListener
     {
         return commandToProgressState;
     }
-
 }

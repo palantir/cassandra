@@ -18,17 +18,13 @@
 
 package org.apache.cassandra.repair;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.service.StorageServiceMBean;
 
 import org.junit.Test;
@@ -43,6 +39,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -67,6 +64,7 @@ public class RepairTrackerTest
     {
         tracker = spy(new RepairTracker());
         tracker.track(1, args);
+        reset(tracker);
 
         tracker.progress("not repair", PROGRESS);
         verify(tracker).progress(any(), any());
