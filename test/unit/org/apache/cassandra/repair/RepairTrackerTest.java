@@ -20,95 +20,86 @@ package org.apache.cassandra.repair;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.cassandra.dht.IPartitioner;
-import org.apache.cassandra.dht.KeyCollisionTest;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.service.StorageServiceMBean;
 
 import org.junit.Test;
 
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.repair.messages.RepairOption;
+import org.apache.cassandra.utils.progress.ProgressEvent;
+import org.apache.cassandra.utils.progress.ProgressEventType;
+import org.assertj.core.api.AssertionsForClassTypes;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 public class RepairTrackerTest
 {
     private final RepairOption options = RepairOption.parse(new HashMap<>(), Murmur3Partitioner.instance);
     private final RepairArguments args = new RepairArguments("test", options);
+
+    private static final String TAG1 = "repair: 1";
+    private static final String TAG2 = "repair: 2";
+    private static final String TAG3 = "repair: 3";
+
+    private static final ProgressEvent PROGRESS = new ProgressEvent(ProgressEventType.PROGRESS, 0, 100, "test");
+    private static final ProgressEvent SUCCESS = new ProgressEvent(ProgressEventType.SUCCESS, 0, 100, "test");
+    private static final ProgressEvent FAIL = new ProgressEvent(ProgressEventType.ERROR, 0, 100, "test");
+
     private RepairTracker tracker;
 
     @Test
-    public void cleanCompletedRepairs_invokedOnTrack()
+    public void progress_noopsWhenNotRepairTag()
     {
         tracker = spy(new RepairTracker());
-        tracker.track(1, mock(RepairArguments.class), mock(RepairRunnable.class));
-        verify(tracker).cleanCompletedRepairs();
+        tracker.track(1, args);
+
+        tracker.progress("not repair", PROGRESS);
+        verify(tracker).progress(any(), any());
+        verifyNoMoreInteractions(tracker);
     }
 
     @Test
-    public void cleanCompletedRepairs_invokedOnGetRepairState()
-    {
-        tracker = spy(new RepairTracker());
-        tracker.getRepairState(1);
-        verify(tracker).cleanCompletedRepairs();
-    }
-
-    @Test
-    public void cleanCompletedRepairs_invokedOnGetInProgressRepair()
-    {
-        tracker = spy(new RepairTracker());
-        tracker.getInProgressRepair(mock(RepairArguments.class));
-        verify(tracker).cleanCompletedRepairs();
-    }
-
-    @Test
-    public void cleanCompletedRepairs_updatesMapsCorrectly()
+    public void progress_cleansCompletedRepairsOnCompletion()
     {
         RepairArguments args1 = new RepairArguments("test", options);
         RepairArguments args2 = new RepairArguments("test2", options);
         RepairArguments args3 = new RepairArguments("test3", options);
 
-        RepairRunnable inProgress = mock(RepairRunnable.class);
-        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(inProgress).getCurrentState();
-
         tracker = new RepairTracker();
-        tracker.track(1, args1, inProgress);
+        tracker.track(1, args1);
+        tracker.track(2, args2);
+        tracker.track(3, args3);
 
-        RepairRunnable unknown = mock(RepairRunnable.class);
-        doReturn(StorageServiceMBean.ProgressState.UNKNOWN).when(unknown).getCurrentState();
-        tracker.track(2, args2, unknown);
+        tracker.progress(TAG1, PROGRESS);
+        tracker.progress(TAG3, PROGRESS);
 
-        RepairRunnable completed = mock(RepairRunnable.class);
-        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(completed).getCurrentState();
-        doReturn(3).when(completed).getCommand();
-        tracker.track(3, args3, completed);
+        assertThat(tracker.getArgsToMostRecentRepair()).isEqualTo(ImmutableMap.of(args1, 1, args2, 2, args3, 3));
+        assertThat(tracker.getCommandToProgressState()).isEqualTo(ImmutableMap.of(1,
+                                                                                  StorageServiceMBean.ProgressState.IN_PROGRESS, 2,
+                                                                                  StorageServiceMBean.ProgressState.UNKNOWN, 3,
+                                                                                  StorageServiceMBean.ProgressState.IN_PROGRESS));
 
-        assertThat(tracker.getCommandToCompletedRepairs()).isEmpty();
-        assertThat(tracker.getArgsToMostRecentRepair()).isEqualTo(ImmutableMap.of(args1,
-                                                                                  inProgress,
-                                                                                  args2,
-                                                                                  unknown,
-                                                                                  args3,
-                                                                                  completed));
-        assertThat(tracker.getCommandToRepairs()).isEqualTo(ImmutableMap.of(1, inProgress, 2, unknown, 3, completed));
-
-        doReturn(StorageServiceMBean.ProgressState.SUCCEEDED).when(completed).getCurrentState();
-        doReturn(true).when(completed).isComplete();
-        tracker.cleanCompletedRepairs();
-
-        assertThat(tracker.getCommandToCompletedRepairs()).containsOnlyKeys(3);
-        assertThat(tracker.getArgsToMostRecentRepair()).isEqualTo(ImmutableMap.of(args1, inProgress, args2, unknown));
-        assertThat(tracker.getCommandToRepairs()).isEqualTo(ImmutableMap.of(1, inProgress, 2, unknown));
+        tracker.progress(TAG3, SUCCESS);
+        assertThat(tracker.getArgsToMostRecentRepair()).isEqualTo(ImmutableMap.of(args1, 1, args2, 2));
+        assertThat(tracker.getCommandToProgressState()).isEqualTo(ImmutableMap.of(1,
+                                                                                  StorageServiceMBean.ProgressState.IN_PROGRESS, 2,
+                                                                                  StorageServiceMBean.ProgressState.UNKNOWN, 3,
+                                                                                  StorageServiceMBean.ProgressState.SUCCEEDED));
     }
 
     @Test
@@ -122,13 +113,11 @@ public class RepairTrackerTest
     public void getRepairState_returnsExpected()
     {
         tracker = new RepairTracker();
-        RepairRunnable task = mock(RepairRunnable.class);
-        doReturn(StorageServiceMBean.ProgressState.FAILED).when(task).getCurrentState();
-        tracker.track(1, args, task);
+        tracker.track(1, args);
+        tracker.progress(TAG1, FAIL);
 
-        RepairRunnable task2 = mock(RepairRunnable.class);
-        doReturn(StorageServiceMBean.ProgressState.SUCCEEDED).when(task2).getCurrentState();
-        tracker.track(2, args, task2);
+        tracker.track(2, args);
+        tracker.progress(TAG2, SUCCESS);
 
         assertThat(tracker.getRepairState(1)).isEqualTo(StorageServiceMBean.ProgressState.FAILED);
         assertThat(tracker.getRepairState(2)).isEqualTo(StorageServiceMBean.ProgressState.SUCCEEDED);
@@ -145,39 +134,29 @@ public class RepairTrackerTest
     @Test
     public void getInProgressRepair_onlyReturnsInProgress()
     {
-        tracker = new RepairTracker();
-        RepairRunnable task = mock(RepairRunnable.class);
-        doReturn(1).when(task).getCommand();
-        tracker.track(1, args, task);
+        tracker = spy(new RepairTracker());
 
+        assertThat(tracker.getInProgressRepair(args)).isEmpty();
 
-        Set<StorageServiceMBean.ProgressState> nonInProgress = Arrays.stream(StorageServiceMBean.ProgressState.values())
-                                                                     .filter(state -> StorageServiceMBean.ProgressState.IN_PROGRESS != (state))
-                                                                     .collect(Collectors.toSet());
+        tracker.track(1, args);
+        tracker.progress(TAG1, PROGRESS);
 
-        for (StorageServiceMBean.ProgressState state : nonInProgress)
-        {
-            doReturn(state).when(task).getCurrentState();
-            assertThat(tracker.getInProgressRepair(args)).isEmpty();
-        }
-
-        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task).getCurrentState();
         assertThat(tracker.getInProgressRepair(args)).contains(1);
+
+        doReturn(false).when(tracker).isInProgressState(any());
+        assertThat(tracker.getInProgressRepair(args)).isEmpty();
     }
 
     @Test
     public void getInProgressRepair_onlyReturnsMostRecentlyTracked()
     {
         tracker = new RepairTracker();
-        RepairRunnable task1 = mock(RepairRunnable.class);
-        doReturn(1).when(task1).getCommand();
-        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task1).getCurrentState();
-        tracker.track(1, args, task1);
 
-        RepairRunnable task2 = mock(RepairRunnable.class);
-        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task2).getCurrentState();
-        doReturn(2).when(task2).getCommand();
-        tracker.track(2, args, task2);
+        tracker.track(1, args);
+        tracker.track(2, args);
+
+        tracker.progress(TAG1, PROGRESS);
+        tracker.progress(TAG2, PROGRESS);
 
         assertThat(tracker.getInProgressRepair(args)).contains(2);
     }
@@ -215,13 +194,125 @@ public class RepairTrackerTest
         assertArgMatch(diffOptions2, diffOptions, false);
     }
 
+    @Test
+    public void maybeUpdateProgressState_switchesToInProgress_onProgress()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_switchesToInProgress_onStart()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.START),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_switchesPermanentlyToFailed_onError()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.ERROR,
+                                                     ProgressEventType.COMPLETE,
+                                                     ProgressEventType.PROGRESS,
+                                                     ProgressEventType.SUCCESS),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_switchesToFailed_onAbort()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.ABORT),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.FAILED));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_switchesToFailedFromSucceeded()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.SUCCESS,
+                                                     ProgressEventType.ERROR),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.FAILED));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_switchesToSucceeded()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.SUCCESS,
+                                                     ProgressEventType.COMPLETE,
+                                                     ProgressEventType.PROGRESS),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_unknownIfCompleteWithoutSuccessOrFailure()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.COMPLETE),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.UNKNOWN));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_noopsIfCompleteWithSuccessOrFailure()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.SUCCESS,
+                                                     ProgressEventType.COMPLETE),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED,
+                                                     StorageServiceMBean.ProgressState.SUCCEEDED));
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.ERROR,
+                                                     ProgressEventType.COMPLETE),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.FAILED,
+                                                     StorageServiceMBean.ProgressState.FAILED));
+    }
+
+    @Test
+    public void maybeUpdateProgressState_noops_onNotification()
+    {
+        testEventsAndExpectedStates(ImmutableList.of(ProgressEventType.PROGRESS,
+                                                     ProgressEventType.NOTIFICATION),
+                                    ImmutableList.of(StorageServiceMBean.ProgressState.IN_PROGRESS,
+                                                     StorageServiceMBean.ProgressState.IN_PROGRESS));
+    }
+
+    private void testEventsAndExpectedStates(List<ProgressEventType> progressEvents, List<StorageServiceMBean.ProgressState> expectedStates)
+    {
+        AssertionsForClassTypes.assertThat(progressEvents.size()).isEqualTo(expectedStates.size());
+
+        tracker = new RepairTracker();
+        tracker.track(1, args);
+
+        assertThat(tracker.getRepairState(1)).isEqualTo(StorageServiceMBean.ProgressState.UNKNOWN);
+
+        for (int i = 0; i < progressEvents.size(); i++)
+        {
+            ProgressEvent event = new ProgressEvent(progressEvents.get(i), 0, 100, "test");
+            tracker.progress(TAG1, event);
+            assertThat(tracker.getRepairState(1)).isEqualTo(expectedStates.get(i));
+        }
+    }
+
     private void assertArgMatch(RepairArguments arg1, RepairArguments arg2, boolean match)
     {
         tracker = new RepairTracker();
-        RepairRunnable task1 = mock(RepairRunnable.class);
-        doReturn(1).when(task1).getCommand();
-        doReturn(StorageServiceMBean.ProgressState.IN_PROGRESS).when(task1).getCurrentState();
-        tracker.track(1, arg1, task1);
+        tracker.track(1, arg1);
+        tracker.progress(TAG1, PROGRESS);
 
         Optional<Integer> expected = match ? Optional.of(1) : Optional.empty();
         assertThat(tracker.getInProgressRepair(arg2)).isEqualTo(expected);
