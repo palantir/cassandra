@@ -24,11 +24,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
+
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +70,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     private final int cmd;
     private final RepairOption options;
     private final String keyspace;
+    private static final String TAG_PREFIX = "repair:";
+    private static final Pattern TAG_PATTERN = Pattern.compile(TAG_PREFIX + "\\d+$");
 
     private final List<ProgressListener> listeners = new ArrayList<>();
 
@@ -91,6 +95,13 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         listeners.remove(listener);
     }
 
+    public static Optional<Integer> parseCommandFromTag(String tag) {
+        if (!TAG_PATTERN.matcher(tag).find()) {
+            return Optional.empty();
+        }
+        return Optional.of(Integer.parseInt(tag.substring(TAG_PREFIX.length())));
+    }
+
     protected void fireProgressEvent(String tag, ProgressEvent event)
     {
         for (ProgressListener listener : listeners)
@@ -109,7 +120,7 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
     {
         final TraceState traceState;
 
-        final String tag = "repair:" + cmd;
+        final String tag = TAG_PREFIX + cmd;
 
         final AtomicInteger progress = new AtomicInteger();
         final int totalProgress = 4 + options.getRanges().size(); // get valid column families, calculate neighbors, validation, prepare for repair + number of ranges to repair

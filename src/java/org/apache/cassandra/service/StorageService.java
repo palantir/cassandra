@@ -34,7 +34,6 @@ import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
@@ -108,6 +107,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final BootstrapManager bootstrapManager = new BootstrapManager();
     private final CleanupStateTracker cleanupState = new CleanupStateTracker();
+
+    private final RepairTracker repairTracker = new RepairTracker();
 
     /**
      * @deprecated backward support to previous notification interface
@@ -3307,6 +3308,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    @Override
+    public ProgressState getRepairState(int repairCommandNumber) {
+        return repairTracker.getRepairState(repairCommandNumber);
+    }
+
     public int repairAsync(String keyspace, Map<String, String> repairSpec)
     {
         RepairOption option = RepairOption.parse(repairSpec, getPartitioner());
@@ -3534,20 +3540,31 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (options.getRanges().isEmpty() || Keyspace.open(keyspace).getReplicationStrategy().getReplicationFactor() < 2)
             return 0;
+        RepairArguments arguments = new RepairArguments(keyspace, options);
 
-        int cmd = nextRepairCommand.incrementAndGet();
-        new Thread(createRepairTask(cmd, keyspace, options, legacy)).start();
+        Optional<Integer> inProgressCommand = repairTracker.getInProgressRepair(arguments);
+        int cmd = inProgressCommand.orElse(nextRepairCommand.incrementAndGet());
+
+        if (!inProgressCommand.isPresent()) {
+            new Thread(createRepairTask(cmd, arguments, legacy)).start();
+        } else {
+            logger.info("Combining new repair request with in-progress (identical) repair command #{}", cmd);
+        }
         return cmd;
     }
 
-    private FutureTask<Object> createRepairTask(final int cmd, final String keyspace, final RepairOption options, boolean legacy)
+    private FutureTask<Object> createRepairTask(final int cmd, final RepairArguments arguments, boolean legacy)
     {
-        if (!options.getDataCenters().isEmpty() && !options.getDataCenters().contains(DatabaseDescriptor.getLocalDataCenter()))
+        if (!arguments.repairOptions().getDataCenters().isEmpty() &&
+                        !arguments.repairOptions().getDataCenters().contains(DatabaseDescriptor.getLocalDataCenter()))
         {
             throw new IllegalArgumentException("the local data center must be part of the repair");
         }
 
-        RepairRunnable task = new RepairRunnable(this, cmd, options, keyspace);
+        RepairRunnable task = new RepairRunnable(this, cmd, arguments.repairOptions(), arguments.keyspace());
+        repairTracker.track(cmd, arguments);
+
+        task.addProgressListener(repairTracker);
         task.addProgressListener(progressSupport);
         if (legacy)
             task.addProgressListener(legacyProgressSupport);

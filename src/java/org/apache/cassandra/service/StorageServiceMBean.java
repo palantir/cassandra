@@ -68,6 +68,14 @@ public interface StorageServiceMBean extends NotificationEmitter
         EXCEEDED_DISK_THRESHOLD
     }
 
+    public enum ProgressState
+    {
+        UNKNOWN,
+        IN_PROGRESS,
+        FAILED,
+        SUCCEEDED
+    }
+
     /**
      * Retrieve the list of live nodes in the cluster, where "liveness" is
      * determined by the failure detector of the node being queried.
@@ -362,6 +370,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @throws IOException
      */
     public void forceKeyspaceFlush(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
+
+    /**
+     * Retrieves the last known state of the given repair. Use this to track repair progress without needing to rely
+     * on an uninterrupted stream of JMX notifications (useful when repairs last multiple hours).
+     * @param repairCommandNumber the value returned by {@link #repairAsync(String, Map)}
+     * @return The current known state of the given repair
+     */
+    public ProgressState getRepairState(int repairCommandNumber);
 
     /**
      * Invoke repair asynchronously.
