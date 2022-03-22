@@ -60,7 +60,9 @@ import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.commitlog.CommitLog;
+import org.apache.cassandra.db.compaction.CompactionInfo;
 import org.apache.cassandra.db.compaction.CompactionManager;
+import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.dht.*;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.exceptions.*;
@@ -69,6 +71,7 @@ import org.apache.cassandra.io.sstable.SSTableDeletingTask;
 import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.locator.*;
+import org.apache.cassandra.metrics.CompactionMetrics;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.repair.*;
@@ -2914,6 +2917,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public int getCurrentGenerationNumber()
     {
         return Gossiper.instance.getCurrentGenerationNumber(FBUtilities.getBroadcastAddress());
+    }
+
+    public boolean isCleanupRunning()
+    {
+        return CompactionMetrics.getCompactions().stream()
+                                .map(CompactionInfo.Holder::getCompactionInfo)
+                                .anyMatch(c -> c.getTaskType() == OperationType.CLEANUP);
     }
 
     public Instant getLastSuccessfulCleanupTsForNode()
