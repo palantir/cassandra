@@ -320,6 +320,11 @@ public interface StorageServiceMBean extends NotificationEmitter
     public void forceKeyspaceCompaction(boolean bypassDiskspaceCheck, boolean splitOutput, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
 
     /**
+     * Returns true if at least one cleanup operation is currently running on node
+     */
+    public boolean isCleanupRunning();
+
+    /**
      * Gets the latest successful cleanup timestamp for the node
      */
     public Instant getLastSuccessfulCleanupTsForNode();

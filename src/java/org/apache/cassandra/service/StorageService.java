@@ -107,6 +107,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final BootstrapManager bootstrapManager = new BootstrapManager();
     private final CleanupStateTracker cleanupState = new CleanupStateTracker();
+    private int cleanupOpsInProgress = 0;
 
     private final RepairTracker repairTracker = new RepairTracker();
 
@@ -2916,6 +2917,21 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return Gossiper.instance.getCurrentGenerationNumber(FBUtilities.getBroadcastAddress());
     }
 
+    public boolean isCleanupRunning()
+    {
+        return cleanupOpsInProgress > 0;
+    }
+
+    private synchronized void cleanupOpStarted()
+    {
+        cleanupOpsInProgress += 1;
+    }
+
+    private synchronized void cleanupOpCompleted()
+    {
+        cleanupOpsInProgress -= 1;
+    }
+
     public Instant getLastSuccessfulCleanupTsForNode()
     {
         return cleanupState.getLastSuccessfulCleanupTsForNode();
@@ -2931,17 +2947,25 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (keyspaceName.equals(SystemKeyspace.NAME))
             throw new RuntimeException("Cleanup of the system keyspace is neither necessary nor wise");
 
-        CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
-        for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
+        cleanupOpStarted();
+        try
         {
-            cleanupState.createCleanupEntryForTableIfNotExists(keyspaceName, cfStore.getColumnFamilyName());
-            CompactionManager.AllSSTableOpStatus oneStatus = cfStore.forceCleanup(jobs);
-            if (oneStatus != CompactionManager.AllSSTableOpStatus.SUCCESSFUL)
-                status = oneStatus;
-            else
-                cleanupState.recordSuccessfulCleanupForTable(keyspaceName, cfStore.getColumnFamilyName());
+            CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
+            for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
+            {
+                cleanupState.createCleanupEntryForTableIfNotExists(keyspaceName, cfStore.getColumnFamilyName());
+                CompactionManager.AllSSTableOpStatus oneStatus = cfStore.forceCleanup(jobs);
+                if (oneStatus != CompactionManager.AllSSTableOpStatus.SUCCESSFUL)
+                    status = oneStatus;
+                else
+                    cleanupState.recordSuccessfulCleanupForTable(keyspaceName, cfStore.getColumnFamilyName());
+            }
+            return status.statusCode;
         }
-        return status.statusCode;
+        finally
+        {
+            cleanupOpCompleted();
+        }
     }
 
     public int scrub(boolean disableSnapshot, boolean skipCorrupted, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
