@@ -998,7 +998,10 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             logger.trace("marking as down {}", addr);
         localState.markDead();
         liveEndpoints.remove(addr);
-        unreachableEndpoints.put(addr, System.nanoTime());
+        if (!justRemovedEndpoints.containsKey(addr))
+        {
+            unreachableEndpoints.put(addr, System.nanoTime());
+        }
         logger.info("InetAddress {} is now DOWN", addr);
         for (IEndpointStateChangeSubscriber subscriber : subscribers)
             subscriber.onDead(addr, localState);
