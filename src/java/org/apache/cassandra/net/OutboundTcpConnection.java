@@ -511,6 +511,8 @@ public class OutboundTcpConnection extends Thread
                 logger.error("SSL handshake error for outbound connection to " + socket, e);
                 socket = null;
                 if (ENABLE_SSL_NTE) {
+                    // EOFException is thrown (sometimes) when a node is turned off unexpectately.
+                    // It does not indicate anything is wrong the SSL certificate, which is what we truly care about.
                     if (!(e.getCause() instanceof EOFException)) {
                         StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSL_ERROR, ImmutableMap.of());
                         StorageService.instance.disableNode();
