@@ -19,6 +19,7 @@ package org.apache.cassandra.net;
 
 import java.io.DataInputStream;
 import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -510,7 +511,12 @@ public class OutboundTcpConnection extends Thread
                 logger.error("SSL handshake error for outbound connection to " + socket, e);
                 socket = null;
                 if (ENABLE_SSL_NTE) {
-                    StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSL_ERROR, ImmutableMap.of());
+                    // EOFException is thrown (sometimes) when a node is turned off unexpectately.
+                    // It does not indicate anything is wrong the SSL certificate, which is what we truly care about.
+                    if (!(e.getCause() instanceof EOFException)) {
+                        StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.SSL_ERROR, ImmutableMap.of());
+                        StorageService.instance.disableNode();
+                    }
                 }
                 // SSL errors won't be recoverable within timeout period so we'll just abort
                 return false;
