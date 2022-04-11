@@ -1449,6 +1449,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             logger.info("Resetting bootstrap progress to start fresh");
             SystemKeyspace.resetAvailableRanges();
+
+            logger.info("Truncating all keyspaces/CFs before joining");
+            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+            {
+                Keyspace keyspace = Keyspace.open(keyspaceName);
+                for (ColumnFamilyStore store : keyspace.getColumnFamilyStores())
+                {
+                    logger.info("Truncating {}.{}", keyspaceName, store.name);
+                    store.truncateBlocking(false);
+                }
+            }
         }
 
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
