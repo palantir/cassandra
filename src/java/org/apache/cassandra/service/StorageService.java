@@ -896,7 +896,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 Keyspace keyspace = Keyspace.open(keyspaceName);
                 for (ColumnFamilyStore store : keyspace.getColumnFamilyStores())
                 {
-                    logger.warn("Detected previous bootstrap failure; retrying");
                     Collection<SSTableReader> tables = store.getSSTables();
                     if (tables.size() > 0)
                     {
