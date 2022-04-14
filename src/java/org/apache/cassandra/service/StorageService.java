@@ -2960,6 +2960,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 else
                     cleanupState.recordSuccessfulCleanupForTable(keyspaceName, cfStore.getColumnFamilyName());
             }
+            Thread.sleep(2*60*1000);
             return status.statusCode;
         }
         finally
