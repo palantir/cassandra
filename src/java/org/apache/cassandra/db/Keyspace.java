@@ -403,6 +403,11 @@ public class Keyspace
         Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
 
         if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
+            logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
+                         FBUtilities.getBroadcastAddress(),
+                         mutation.key(),
+                         naturalEndpoints,
+                         pendingEndpoints);
             throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
         }
 
