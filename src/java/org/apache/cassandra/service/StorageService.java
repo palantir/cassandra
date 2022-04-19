@@ -208,6 +208,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
     private static final boolean allowSimultaneousMoves = Boolean.valueOf(System.getProperty("cassandra.consistent.simultaneousmoves.allow","false"));
+    private static final Long threadSleepCorruption = Long.valueOf(System.getProperty("palantir_cassandra.thread_sleep_corruption_ms", "0"));
     private static final boolean joinRing = Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true"));
     private boolean replacing;
     private UUID replacingId;
@@ -2314,6 +2315,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     logger.warn("Host ID collision for {} between {} and {}; {} is the new owner", hostId, existing, endpoint, endpoint);
                     tokenMetadata.removeEndpoint(existing);
                     endpointsToRemove.add(existing);
+                    try
+                    {
+                        if(threadSleepCorruption > 0)
+                        {
+                            Thread.sleep(threadSleepCorruption);
+                        }
+                    }
+                    catch (InterruptedException e)
+                    {
+                        logger.error(e);
+                    }
                     tokenMetadata.updateHostId(hostId, endpoint);
                 }
                 else
