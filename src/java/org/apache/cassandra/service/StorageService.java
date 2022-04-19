@@ -2324,7 +2324,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     }
                     catch (InterruptedException e)
                     {
-                        logger.error(e);
+                        logger.error("interuppted sleep", e);
                     }
                     tokenMetadata.updateHostId(hostId, endpoint);
                 }
