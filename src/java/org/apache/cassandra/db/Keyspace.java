@@ -388,6 +388,10 @@ public class Keyspace
         apply(mutation, writeCommitLog, true, writeCommitLog);
     }
 
+
+    public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes) {
+        apply(mutation, writeCommitLog, updateIndexes, writeCommitLog);
+    }
     /**
      * This method appends a row to the global CommitLog, then updates memtables and indexes.
      *
