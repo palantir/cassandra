@@ -163,7 +163,7 @@ public class CollationController
                     public void run()
                     {
                         // skipping commitlog and index updates is fine since we're just de-fragmenting existing data
-                        Keyspace.open(mutation.getKeyspaceName()).apply(mutation, false, false);
+                        Keyspace.open(mutation.getKeyspaceName()).apply(mutation, false, false, false);
                     }
                 });
             }

@@ -385,7 +385,7 @@ public class Keyspace
 
     public void apply(Mutation mutation, boolean writeCommitLog)
     {
-        apply(mutation, writeCommitLog, true);
+        apply(mutation, writeCommitLog, true, writeCommitLog);
     }
 
     /**
@@ -396,21 +396,22 @@ public class Keyspace
      * @param writeCommitLog false to disable commitlog append entirely
      * @param updateIndexes  false to disable index updates (used by CollationController "defragmenting")
      */
-    public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
+    public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes, boolean validateKey)
     {
-        Token tk = StorageService.getPartitioner().getToken(mutation.key());
-        List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
-        Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
+        if (validateKey) {
+            Token tk = StorageService.getPartitioner().getToken(mutation.key());
+            List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+            Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
 
-        if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
-            logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
-                         FBUtilities.getBroadcastAddress(),
-                         mutation.key(),
-                         naturalEndpoints,
-                         pendingEndpoints);
-            throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
+            if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
+                logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
+                             FBUtilities.getBroadcastAddress(),
+                             mutation.key(),
+                             naturalEndpoints,
+                             pendingEndpoints);
+                throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
+            }
         }
-
 
         if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
             throw new RuntimeException("Testing write failures");
