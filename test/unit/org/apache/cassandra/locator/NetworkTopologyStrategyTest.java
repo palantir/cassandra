@@ -141,6 +141,52 @@ public class NetworkTopologyStrategyTest
         }
     }
 
+    @Test
+    public void testTinyCluster() throws UnknownHostException, ConfigurationException
+    {
+        int[] dcRacks = new int[]{3};
+        int[] dcEndpoints = new int[]{2};
+        int[] dcReplication = new int[]{3};
+
+        IEndpointSnitch snitch = new RackInferringSnitch();
+        DatabaseDescriptor.setEndpointSnitch(snitch);
+        TokenMetadata metadata = new TokenMetadata();
+        Map<String, String> configOptions = new HashMap<String, String>();
+        Multimap<InetAddress, Token> tokens = HashMultimap.create();
+
+        int totalRF = 0;
+        for (int dc = 0; dc < dcRacks.length; ++dc)
+        {
+            totalRF += dcReplication[dc];
+            configOptions.put(Integer.toString(dc), Integer.toString(dcReplication[dc]));
+            int totalEp = 1;
+            for (int rack = 0; rack < dcRacks[dc]; ++rack)
+            {
+                if (totalEp <= dcEndpoints[dc]) {
+                    byte[] ipBytes = new byte[]{10, (byte)dc, (byte)rack, (byte)totalEp};
+                    InetAddress address = InetAddress.getByAddress(ipBytes);
+                    StringToken token = new StringToken(String.format("%02x%02x%02x", totalEp, rack, dc));
+                    logger.debug("adding node {} at {}", address, token);
+                    tokens.put(address, token);
+                    totalEp++;
+                }
+            }
+        }
+        metadata.updateNormalTokens(tokens);
+
+        NetworkTopologyStrategy strategy = new NetworkTopologyStrategy(keyspaceName, metadata, snitch, configOptions);
+
+        for (String testToken : new String[]{"123456", "200000", "000402", "ffffff", "400200"})
+        {
+            List<InetAddress> endpoints = strategy.calculateNaturalEndpoints(new StringToken(testToken), metadata);
+            Set<InetAddress> epSet = new HashSet<InetAddress>(endpoints);
+
+            Assert.assertEquals(totalRF, endpoints.size());
+            Assert.assertEquals(totalRF, epSet.size());
+            logger.debug("{}: {}", testToken, endpoints);
+        }
+    }
+
     public void createDummyTokens(TokenMetadata metadata, boolean populateDC3) throws UnknownHostException
     {
         // DC 1
