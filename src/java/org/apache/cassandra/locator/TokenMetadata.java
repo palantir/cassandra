@@ -92,6 +92,7 @@ public class TokenMetadata
 
     /* Use this lock for manipulating the token map */
     private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
+    private final ReadWriteLock publicLock = new ReentrantReadWriteLock(true);
     private volatile ArrayList<Token> sortedTokens;
 
     private final Topology topology;
@@ -125,6 +126,14 @@ public class TokenMetadata
     private ArrayList<Token> sortTokens()
     {
         return new ArrayList<>(tokenToEndpointMap.keySet());
+    }
+
+    public void lock() {
+        publicLock.writeLock().lock();
+    }
+
+    public void unlock() {
+        publicLock.writeLock().unlock();
     }
 
     /** @return the number of nodes bootstrapping into source's primary range */
@@ -174,6 +183,7 @@ public class TokenMetadata
         if (endpointTokens.isEmpty())
             return;
 
+        publicLock.readLock().lock();
         lock.writeLock().lock();
         try
         {
@@ -209,6 +219,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -222,6 +233,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             InetAddress storedEp = endpointToHostIdMap.inverse().get(hostId);
@@ -245,6 +257,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
 
     }
@@ -253,6 +266,7 @@ public class TokenMetadata
     public UUID getHostId(InetAddress endpoint)
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return endpointToHostIdMap.get(endpoint);
@@ -260,6 +274,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -267,6 +282,7 @@ public class TokenMetadata
     public InetAddress getEndpointForHostId(UUID hostId)
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return endpointToHostIdMap.inverse().get(hostId);
@@ -274,6 +290,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -281,6 +298,7 @@ public class TokenMetadata
     public Map<InetAddress, UUID> getEndpointToHostIdMapForReading()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             Map<InetAddress, UUID> readMap = new HashMap<>();
@@ -290,6 +308,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -310,6 +329,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             InetAddress oldEndpoint;
@@ -333,6 +353,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -342,6 +363,7 @@ public class TokenMetadata
         assert newNode != null && oldNode != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             Collection<Token> oldNodeTokens = tokenToEndpointMap.inverse().get(oldNode);
@@ -360,6 +382,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -378,6 +401,7 @@ public class TokenMetadata
         assert tokens != null && !tokens.isEmpty();
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             for (Token token : tokens)
@@ -386,6 +410,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -394,6 +419,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             leavingEndpoints.add(endpoint);
@@ -401,6 +427,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -414,6 +441,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
 
         try
         {
@@ -422,6 +450,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -430,6 +459,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             bootstrapTokens.removeValue(endpoint);
@@ -447,6 +477,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -458,6 +489,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             logger.info("Updating topology for {}", endpoint);
@@ -467,6 +499,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -477,6 +510,7 @@ public class TokenMetadata
     public void updateTopology()
     {
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             logger.info("Updating topology for all endpoints that have changed");
@@ -486,6 +520,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -498,6 +533,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             for (Pair<Token, InetAddress> pair : movingEndpoints)
@@ -514,6 +550,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -523,6 +560,7 @@ public class TokenMetadata
         assert isMember(endpoint); // don't want to return nulls
 
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return new ArrayList<>(tokenToEndpointMap.inverse().get(endpoint));
@@ -530,6 +568,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -544,6 +583,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return tokenToEndpointMap.inverse().containsKey(endpoint);
@@ -551,6 +591,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -559,6 +600,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return leavingEndpoints.contains(endpoint);
@@ -566,6 +608,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -574,6 +617,7 @@ public class TokenMetadata
         assert endpoint != null;
 
         lock.readLock().lock();
+        publicLock.readLock().lock();
 
         try
         {
@@ -588,6 +632,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -600,6 +645,7 @@ public class TokenMetadata
     public TokenMetadata cloneOnlyTokenMap()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return new TokenMetadata(SortedBiMultiValMap.create(tokenToEndpointMap, null, inetaddressCmp),
@@ -609,6 +655,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -621,19 +668,24 @@ public class TokenMetadata
      */
     public TokenMetadata cachedOnlyTokenMap()
     {
-        TokenMetadata tm = cachedTokenMap.get();
-        if (tm != null)
-            return tm;
-
-        // synchronize to prevent thundering herd (CASSANDRA-6345)
-        synchronized (this)
-        {
-            if ((tm = cachedTokenMap.get()) != null)
+        publicLock.readLock().lock();
+        try {
+            TokenMetadata tm = cachedTokenMap.get();
+            if (tm != null)
                 return tm;
 
-            tm = cloneOnlyTokenMap();
-            cachedTokenMap.set(tm);
-            return tm;
+            // synchronize to prevent thundering herd (CASSANDRA-6345)
+            synchronized (this)
+            {
+                if ((tm = cachedTokenMap.get()) != null)
+                    return tm;
+
+                tm = cloneOnlyTokenMap();
+                cachedTokenMap.set(tm);
+                return tm;
+            }
+        } finally {
+            publicLock.readLock().unlock();
         }
     }
 
@@ -646,6 +698,7 @@ public class TokenMetadata
     public TokenMetadata cloneAfterAllLeft()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return removeEndpoints(cloneOnlyTokenMap(), leavingEndpoints);
@@ -653,6 +706,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -672,7 +726,7 @@ public class TokenMetadata
      */
     public TokenMetadata cloneAfterAllSettled()
     {
-        lock.readLock().lock();
+        lock.readLock().lock(); publicLock.readLock().lock();
 
         try
         {
@@ -690,12 +744,14 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
     public InetAddress getEndpoint(Token token)
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return tokenToEndpointMap.get(token);
@@ -703,6 +759,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -813,6 +870,7 @@ public class TokenMetadata
                 TokenMetadata metadata;
 
                 lock.readLock().lock();
+                publicLock.readLock().lock();
                 try
                 {
                     bootstrapTokens.putAll(this.bootstrapTokens);
@@ -823,6 +881,7 @@ public class TokenMetadata
                 finally
                 {
                     lock.readLock().unlock();
+                    publicLock.readLock().unlock();
                 }
 
                 pendingRanges.put(keyspaceName, calculatePendingRanges(strategy, metadata, bootstrapTokens,
@@ -959,6 +1018,7 @@ public class TokenMetadata
     public BiMultiValMap<Token, InetAddress> getBootstrapTokens()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return new BiMultiValMap<Token, InetAddress>(bootstrapTokens);
@@ -966,12 +1026,14 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
     public Set<InetAddress> getAllEndpoints()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return ImmutableSet.copyOf(endpointToHostIdMap.keySet());
@@ -979,6 +1041,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -986,6 +1049,7 @@ public class TokenMetadata
     public Set<InetAddress> getLeavingEndpoints()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return ImmutableSet.copyOf(leavingEndpoints);
@@ -993,6 +1057,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -1003,6 +1068,7 @@ public class TokenMetadata
     public Set<Pair<Token, InetAddress>> getMovingEndpoints()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             return ImmutableSet.copyOf(movingEndpoints);
@@ -1010,6 +1076,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -1077,6 +1144,7 @@ public class TokenMetadata
     public void clearUnsafe()
     {
         lock.writeLock().lock();
+        publicLock.readLock().lock();
         try
         {
             tokenToEndpointMap.clear();
@@ -1092,6 +1160,7 @@ public class TokenMetadata
         finally
         {
             lock.writeLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -1099,6 +1168,7 @@ public class TokenMetadata
     {
         StringBuilder sb = new StringBuilder();
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             Set<InetAddress> eps = tokenToEndpointMap.inverse().keySet();
@@ -1148,6 +1218,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
 
         return sb.toString();
@@ -1186,6 +1257,7 @@ public class TokenMetadata
     public Multimap<InetAddress, Token> getEndpointToTokenMapForReading()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             Multimap<InetAddress, Token> cloned = HashMultimap.create();
@@ -1196,6 +1268,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
@@ -1206,6 +1279,7 @@ public class TokenMetadata
     public Map<Token, InetAddress> getNormalAndBootstrappingTokenToEndpointMap()
     {
         lock.readLock().lock();
+        publicLock.readLock().lock();
         try
         {
             Map<Token, InetAddress> map = new HashMap<>(tokenToEndpointMap.size() + bootstrapTokens.size());
@@ -1216,6 +1290,7 @@ public class TokenMetadata
         finally
         {
             lock.readLock().unlock();
+            publicLock.readLock().unlock();
         }
     }
 
