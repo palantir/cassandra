@@ -2297,118 +2297,130 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // Order Matters, TM.updateHostID() should be called before TM.updateNormalToken(), (see CASSANDRA-4300).
         UUID hostId = Gossiper.instance.getHostId(endpoint);
         InetAddress existing = tokenMetadata.getEndpointForHostId(hostId);
-        if (replacing && isReplacingSameAddress() && Gossiper.instance.getEndpointStateForEndpoint(DatabaseDescriptor.getReplaceAddress()) != null
-            && (hostId.equals(Gossiper.instance.getHostId(DatabaseDescriptor.getReplaceAddress()))))
-            logger.warn("Not updating token metadata for {} because I am replacing it", endpoint);
-        else
-        {
-            if (existing != null && !existing.equals(endpoint))
+        boolean acquiredTokenLock = false;
+        try {
+            if (replacing && isReplacingSameAddress() && Gossiper.instance.getEndpointStateForEndpoint(DatabaseDescriptor.getReplaceAddress()) != null
+                && (hostId.equals(Gossiper.instance.getHostId(DatabaseDescriptor.getReplaceAddress()))))
+                logger.warn("Not updating token metadata for {} because I am replacing it", endpoint);
+            else
             {
-                if (existing.equals(FBUtilities.getBroadcastAddress()))
+                if (existing != null && !existing.equals(endpoint))
                 {
-                    logger.warn("Not updating host ID {} for {} because it's mine", hostId, endpoint);
-                    tokenMetadata.removeEndpoint(endpoint);
-                    endpointsToRemove.add(endpoint);
-                }
-                else if (Gossiper.instance.compareEndpointStartup(endpoint, existing) > 0)
-                {
-                    logger.warn("Host ID collision for {} between {} and {}; {} is the new owner", hostId, existing, endpoint, endpoint);
-                    tokenMetadata.removeEndpoint(existing);
-                    endpointsToRemove.add(existing);
-                    try
+                    // It's safe for us to say we acquired the lock before we've, as this is simply used for calling unlock.
+                    // Unlock will throw if a separate thread that is not holding it tries to unlock it.
+                    acquiredTokenLock = true;
+                    tokenMetadata.lock();
+                    if (existing.equals(FBUtilities.getBroadcastAddress()))
                     {
-                        logger.info("Thread sleep for corruption {}", threadSleepCorruption);
-                        if(threadSleepCorruption > 0)
+                        logger.warn("Not updating host ID {} for {} because it's mine", hostId, endpoint);
+                        tokenMetadata.removeEndpoint(endpoint);
+                        endpointsToRemove.add(endpoint);
+                    }
+                    else if (Gossiper.instance.compareEndpointStartup(endpoint, existing) > 0)
+                    {
+                        logger.warn("Host ID collision for {} between {} and {}; {} is the new owner", hostId, existing, endpoint, endpoint);
+                        tokenMetadata.removeEndpoint(existing);
+                        endpointsToRemove.add(existing);
+                        try
                         {
-                            Thread.sleep(threadSleepCorruption);
-                            logger.info("Finished sleep for corruption {}", threadSleepCorruption);
+                            logger.info("Thread sleep for corruption {}", threadSleepCorruption);
+                            if(threadSleepCorruption > 0)
+                            {
+                                Thread.sleep(threadSleepCorruption);
+                                logger.info("Finished sleep for corruption {}", threadSleepCorruption);
+                            }
                         }
+                        catch (InterruptedException e)
+                        {
+                            logger.error("interuppted sleep", e);
+                        }
+                        tokenMetadata.updateHostId(hostId, endpoint);
                     }
-                    catch (InterruptedException e)
+                    else
                     {
-                        logger.error("interuppted sleep", e);
+                        logger.warn("Host ID collision for {} between {} and {}; ignored {}", hostId, existing, endpoint, endpoint);
+                        tokenMetadata.removeEndpoint(endpoint);
+                        endpointsToRemove.add(endpoint);
                     }
+                }
+                else
                     tokenMetadata.updateHostId(hostId, endpoint);
+            }
+
+            for (final Token token : tokens)
+            {
+                // we don't want to update if this node is responsible for the token and it has a later startup time than endpoint.
+                InetAddress currentOwner = tokenMetadata.getEndpoint(token);
+                if (currentOwner == null)
+                {
+                    logger.debug("New node {} at token {}", endpoint, token);
+                    tokensToUpdateInMetadata.add(token);
+                    tokensToUpdateInSystemKeyspace.add(token);
+                }
+                else if (endpoint.equals(currentOwner))
+                {
+                    // set state back to normal, since the node may have tried to leave, but failed and is now back up
+                    tokensToUpdateInMetadata.add(token);
+                    tokensToUpdateInSystemKeyspace.add(token);
+                }
+                else if (Gossiper.instance.compareEndpointStartup(endpoint, currentOwner) > 0)
+                {
+                    tokensToUpdateInMetadata.add(token);
+                    tokensToUpdateInSystemKeyspace.add(token);
+
+                    // currentOwner is no longer current, endpoint is.  Keep track of these moves, because when
+                    // a host no longer has any tokens, we'll want to remove it.
+                    Multimap<InetAddress, Token> epToTokenCopy = getTokenMetadata().getEndpointToTokenMapForReading();
+                    epToTokenCopy.get(currentOwner).remove(token);
+                    if (epToTokenCopy.get(currentOwner).size() < 1)
+                        endpointsToRemove.add(currentOwner);
+
+                    logger.info(String.format("Nodes %s and %s have the same token %s.  %s is the new owner",
+                                              endpoint,
+                                              currentOwner,
+                                              token,
+                                              endpoint));
                 }
                 else
                 {
-                    logger.warn("Host ID collision for {} between {} and {}; ignored {}", hostId, existing, endpoint, endpoint);
-                    tokenMetadata.removeEndpoint(endpoint);
-                    endpointsToRemove.add(endpoint);
+                    logger.info(String.format("Nodes %s and %s have the same token %s.  Ignoring %s",
+                                              endpoint,
+                                              currentOwner,
+                                              token,
+                                              endpoint));
                 }
             }
-            else
-                tokenMetadata.updateHostId(hostId, endpoint);
-        }
 
-        for (final Token token : tokens)
+            // capture because updateNormalTokens clears moving and member status
+            boolean isMember = tokenMetadata.isMember(endpoint);
+            boolean isMoving = tokenMetadata.isMoving(endpoint);
+            tokenMetadata.updateNormalTokens(tokensToUpdateInMetadata, endpoint);
+            for (InetAddress ep : endpointsToRemove)
+            {
+                removeEndpoint(ep);
+                if (replacing && DatabaseDescriptor.getReplaceAddress().equals(ep))
+                    Gossiper.instance.replacementQuarantine(ep); // quarantine locally longer than normally; see CASSANDRA-8260
+            }
+            if (!tokensToUpdateInSystemKeyspace.isEmpty())
+                SystemKeyspace.updateTokens(endpoint, tokensToUpdateInSystemKeyspace);
+
+            if (isMoving || operationMode == Mode.MOVING)
+            {
+                tokenMetadata.removeFromMoving(endpoint);
+                notifyMoved(endpoint);
+            }
+            else if (!isMember) // prior to this, the node was not a member
+            {
+                notifyJoined(endpoint);
+            }
+
+            PendingRangeCalculatorService.instance.update();
+        } finally
         {
-            // we don't want to update if this node is responsible for the token and it has a later startup time than endpoint.
-            InetAddress currentOwner = tokenMetadata.getEndpoint(token);
-            if (currentOwner == null)
-            {
-                logger.debug("New node {} at token {}", endpoint, token);
-                tokensToUpdateInMetadata.add(token);
-                tokensToUpdateInSystemKeyspace.add(token);
-            }
-            else if (endpoint.equals(currentOwner))
-            {
-                // set state back to normal, since the node may have tried to leave, but failed and is now back up
-                tokensToUpdateInMetadata.add(token);
-                tokensToUpdateInSystemKeyspace.add(token);
-            }
-            else if (Gossiper.instance.compareEndpointStartup(endpoint, currentOwner) > 0)
-            {
-                tokensToUpdateInMetadata.add(token);
-                tokensToUpdateInSystemKeyspace.add(token);
-
-                // currentOwner is no longer current, endpoint is.  Keep track of these moves, because when
-                // a host no longer has any tokens, we'll want to remove it.
-                Multimap<InetAddress, Token> epToTokenCopy = getTokenMetadata().getEndpointToTokenMapForReading();
-                epToTokenCopy.get(currentOwner).remove(token);
-                if (epToTokenCopy.get(currentOwner).size() < 1)
-                    endpointsToRemove.add(currentOwner);
-
-                logger.info(String.format("Nodes %s and %s have the same token %s.  %s is the new owner",
-                                          endpoint,
-                                          currentOwner,
-                                          token,
-                                          endpoint));
-            }
-            else
-            {
-                logger.info(String.format("Nodes %s and %s have the same token %s.  Ignoring %s",
-                                           endpoint,
-                                           currentOwner,
-                                           token,
-                                           endpoint));
+            if (acquiredTokenLock) {
+                tokenMetadata.unlock();
             }
         }
-
-        // capture because updateNormalTokens clears moving and member status
-        boolean isMember = tokenMetadata.isMember(endpoint);
-        boolean isMoving = tokenMetadata.isMoving(endpoint);
-        tokenMetadata.updateNormalTokens(tokensToUpdateInMetadata, endpoint);
-        for (InetAddress ep : endpointsToRemove)
-        {
-            removeEndpoint(ep);
-            if (replacing && DatabaseDescriptor.getReplaceAddress().equals(ep))
-                Gossiper.instance.replacementQuarantine(ep); // quarantine locally longer than normally; see CASSANDRA-8260
-        }
-        if (!tokensToUpdateInSystemKeyspace.isEmpty())
-            SystemKeyspace.updateTokens(endpoint, tokensToUpdateInSystemKeyspace);
-
-        if (isMoving || operationMode == Mode.MOVING)
-        {
-            tokenMetadata.removeFromMoving(endpoint);
-            notifyMoved(endpoint);
-        }
-        else if (!isMember) // prior to this, the node was not a member
-        {
-            notifyJoined(endpoint);
-        }
-
-        PendingRangeCalculatorService.instance.update();
     }
 
     /**
