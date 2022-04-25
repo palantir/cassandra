@@ -1491,8 +1491,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public boolean resumeBootstrap()
     {
-        logger.info("Resuming bootstraps is currently not supported, as it can result in corruption.");
-        return false;
+        throw new RuntimeException("Resuming bootstraps is currently not supported, as it can result in corruption.");
         /*
         if (isBootstrapMode && SystemKeyspace.bootstrapInProgress())
         {
