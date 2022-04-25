@@ -67,6 +67,7 @@ import org.apache.cassandra.exceptions.*;
 import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.sstable.SSTableDeletingTask;
 import org.apache.cassandra.io.sstable.SSTableLoader;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.locator.*;
 import org.apache.cassandra.metrics.StorageMetrics;
@@ -888,35 +889,34 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
             bootstrapManager.awaitBootstrappable();
+            boolean previousDataFound = false;
+
+            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+            {
+                Keyspace keyspace = Keyspace.open(keyspaceName);
+                for (ColumnFamilyStore store : keyspace.getColumnFamilyStores())
+                {
+                    Collection<SSTableReader> tables = store.getSSTables();
+                    if (tables.size() > 0)
+                    {
+                        logger.error("Found previous SSTables {} for keyspace {} and cf {}.", tables, keyspaceName, store.name);
+                        previousDataFound = true;
+                    }
+                }
+            }
+
+            if (previousDataFound)
+            {
+                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR,
+                                        ImmutableMap.of("previousDataFound", "true"));
+                unsafeDisableNode();
+                // leave node in non-transient error state and prevent it from bootstrapping into the cluster
+                throw new BootstrappingSafetyException("Detected data from previous bootstrap, failling.");
+            }
+
             if (SystemKeyspace.bootstrapInProgress())
             {
-                // on detection of previous bootstrap failure prevent boostrap from proceeding if data directories are
-                // filled up beyond palantir_cassandra.bootstrap_disk_usage_threshold_percentage
-                Entry<Directories.DataDirectory, Double> mostUtilizedDataDir = Directories.getMaxPathToUtilization();
-                Double percentageDataDirUtilization = mostUtilizedDataDir.getValue() * 100;
-
-                if (BOOTSTRAP_DISK_USAGE_THRESHOLD != null && percentageDataDirUtilization > Double.valueOf(BOOTSTRAP_DISK_USAGE_THRESHOLD))
-                {
-                    // disable node preventing bootstrap continuation.
-                    recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR,
-                                            ImmutableMap.of("directory", mostUtilizedDataDir.getKey().location.toString(),
-                                                            "percentageDataDirUtilization", percentageDataDirUtilization.toString(),
-                                                            "threshold", BOOTSTRAP_DISK_USAGE_THRESHOLD.toString()));
-                    logger.error("Preventing node from continuing after failed bootstrap as data_file_dirs are too full ({}%) " +
-                                 "and exceed palantir_cassandra.bootstrap_disk_usage_threshold_percentage ({}%) ",
-                                 percentageDataDirUtilization,
-                                 BOOTSTRAP_DISK_USAGE_THRESHOLD);
-                    unsafeDisableNode();
-                    // leave node in non-transient error state and prevent it from bootstrapping into the cluster
-                    throw new BootstrappingSafetyException(Mode.NON_TRANSIENT_ERROR.toString(),
-                                                          mostUtilizedDataDir.getKey().location.toString(),
-                                                          percentageDataDirUtilization,
-                                                          Double.valueOf(BOOTSTRAP_DISK_USAGE_THRESHOLD));
-                }
-                else
-                {
-                    logger.warn("Detected previous bootstrap failure; retrying");
-                }
+                logger.warn("Detected previous bootstrap failure; retrying");
             }
             else
             {
