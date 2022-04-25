@@ -893,6 +893,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
             for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
             {
+                Set<Range<Token>> availableRanges = SystemKeyspace.getAvailableRanges(keyspaceName, StorageService.getPartitioner());
+
+                if(!availableRanges.isEmpty()) {
+                    logger.error("Found previous ranges available {} for a non-system keyspace.", availableRanges);
+                    previousDataFound = true;
+                }
+
                 Keyspace keyspace = Keyspace.open(keyspaceName);
                 for (ColumnFamilyStore store : keyspace.getColumnFamilyStores())
                 {
@@ -1484,6 +1491,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public boolean resumeBootstrap()
     {
+        logger.info("Resuming bootstraps is currently not supported, as it can result in corruption.");
+        return false;
+        /*
         if (isBootstrapMode && SystemKeyspace.bootstrapInProgress())
         {
             logger.info("Resuming bootstrap...");
@@ -1539,6 +1549,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Resuming bootstrap is requested, but the node is already bootstrapped.");
             return false;
         }
+         */
     }
 
     @Override
