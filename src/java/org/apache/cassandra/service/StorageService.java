@@ -2255,7 +2255,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      *
      * @param endpoint node
      */
-    private void handleStateNormal(final InetAddress endpoint, final String status)
+    private synchronized void handleStateNormal(final InetAddress endpoint, final String status)
     {
         Collection<Token> tokens = getTokensFor(endpoint);
         Set<Token> tokensToUpdateInMetadata = new HashSet<>();
