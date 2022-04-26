@@ -22,6 +22,11 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Multimap;
@@ -37,6 +42,7 @@ import static org.apache.cassandra.Util.token;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.sun.tools.javac.util.List;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.Token;
@@ -47,6 +53,8 @@ public class TokenMetadataTest
 {
     public final static String ONE = "1";
     public final static String SIX = "6";
+
+    private final ExecutorService executorService = ForkJoinPool.commonPool();
 
     static TokenMetadata tmd;
 
@@ -65,6 +73,62 @@ public class TokenMetadataTest
         assertEquals(actual.toString(), expected.length, actual.size());
         for (int i = 0; i < expected.length; i++)
             assertEquals("Mismatch at index " + i + ": " + actual, token(expected[i]), actual.get(i));
+    }
+
+    private void testMethodLock(Semaphore semaphore, Runnable runnable) {
+        executorService.execute(() -> {
+            try
+            {
+                runnable.run();
+                semaphore.release();
+            }
+            catch (Exception e)
+            {
+            }
+        });
+    }
+
+    @Test
+    public void testPublicLock() throws InterruptedException, UnknownHostException
+    {
+        InetAddress inetAddress = InetAddress.getByName("127.0.0.1");
+        InetAddress replaceInetAddress = InetAddress.getByName("127.0.0.10");
+        Semaphore semaphore = new Semaphore(0);
+        tmd.lock();
+        testMethodLock(semaphore, () -> tmd.pendingRangeChanges(inetAddress));
+        testMethodLock(semaphore, () -> tmd.isMember(inetAddress));
+        testMethodLock(semaphore, () -> tmd.isLeaving(inetAddress));
+        testMethodLock(semaphore, () -> tmd.isMoving(inetAddress));
+        testMethodLock(semaphore, () -> tmd.cloneOnlyTokenMap());
+        testMethodLock(semaphore, () -> tmd.cachedOnlyTokenMap());
+        testMethodLock(semaphore, () -> tmd.cloneAfterAllLeft());
+        testMethodLock(semaphore, () -> tmd.cloneAfterAllSettled());
+        testMethodLock(semaphore, () -> tmd.addLeavingEndpoint(inetAddress));
+        testMethodLock(semaphore, () -> tmd.addMovingEndpoint(token(ONE), inetAddress));
+        testMethodLock(semaphore, () -> tmd.addBootstrapTokens(List.of(token(ONE)), inetAddress));
+        testMethodLock(semaphore, () -> tmd.addReplaceTokens(List.of(token(ONE)), inetAddress, replaceInetAddress));
+        testMethodLock(semaphore, () -> tmd.removeEndpoint(inetAddress));
+        testMethodLock(semaphore, () -> tmd.removeFromMoving(inetAddress));
+        testMethodLock(semaphore, () -> tmd.removeBootstrapTokens(List.of(token(ONE))));
+        testMethodLock(semaphore, () -> tmd.updateNormalToken(token(ONE), inetAddress));
+        testMethodLock(semaphore, () -> tmd.updateHostId(UUID.randomUUID(), inetAddress));
+        testMethodLock(semaphore, () -> tmd.getEndpointForHostId(UUID.randomUUID()));
+        testMethodLock(semaphore, () -> tmd.getEndpointToHostIdMapForReading());
+        testMethodLock(semaphore, () -> tmd.getHostId(inetAddress));
+        testMethodLock(semaphore, () -> tmd.getTokens(inetAddress));
+        testMethodLock(semaphore, () -> tmd.getBootstrapTokens());
+        testMethodLock(semaphore, () -> tmd.getAllEndpoints());
+        testMethodLock(semaphore, () -> tmd.getLeavingEndpoints());
+        testMethodLock(semaphore, () -> tmd.getMovingEndpoints());
+        testMethodLock(semaphore, () -> tmd.getEndpoint(token(ONE)));
+        testMethodLock(semaphore, () -> tmd.updateTopology(inetAddress));
+        testMethodLock(semaphore, () -> tmd.updateTopology());
+        testMethodLock(semaphore, () -> tmd.clearUnsafe());
+        testMethodLock(semaphore, () -> tmd.getEndpointToTokenMapForReading());
+        testMethodLock(semaphore, () -> tmd.getNormalAndBootstrappingTokenToEndpointMap());
+        assertFalse(semaphore.tryAcquire(1, TimeUnit.SECONDS));
+        tmd.unlock();
+        assertTrue(semaphore.tryAcquire(10, TimeUnit.SECONDS));
     }
 
     @Test
