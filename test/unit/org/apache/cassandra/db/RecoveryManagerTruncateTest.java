@@ -43,6 +43,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.compress.DeflateCompressor;
 import org.apache.cassandra.io.compress.LZ4Compressor;
 import org.apache.cassandra.io.compress.SnappyCompressor;
+import org.apache.cassandra.io.compress.ZstdCompressor;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
@@ -74,6 +75,7 @@ public class RecoveryManagerTruncateTest
                 { null }, // No compression
                 { new ParameterizedClass(LZ4Compressor.class.getName(), Collections.<String, String>emptyMap()) },
                 { new ParameterizedClass(SnappyCompressor.class.getName(), Collections.<String, String>emptyMap()) },
+                { new ParameterizedClass(ZstdCompressor.class.getName(), Collections.<String, String>emptyMap()) },
                 { new ParameterizedClass(DeflateCompressor.class.getName(), Collections.<String, String>emptyMap()) } });
     }
 

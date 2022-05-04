@@ -34,7 +34,9 @@ public class CompressorPerformance
                 SnappyCompressor.instance,  // warm up
                 DeflateCompressor.instance,
                 LZ4Compressor.instance,
-                SnappyCompressor.instance
+                SnappyCompressor.instance,
+                ZstdCompressor.getOrCreate(ZstdCompressor.FAST_COMPRESSION_LEVEL),
+                ZstdCompressor.getOrCreate(ZstdCompressor.DEFAULT_COMPRESSION_LEVEL)
         })
         {
             for (BufferType in: BufferType.values())
@@ -69,10 +71,15 @@ public class CompressorPerformance
         int count = 100;
 
         long time = System.nanoTime();
+        long uncompressedBytes = 0;
+        long compressedBytes = 0;
         for (int i=0; i<count; ++i)
         {
             output.clear();
             compressor.compress(dataSource, output);
+            uncompressedBytes += dataSource.limit();
+            compressedBytes += output.position();
+
             // Make sure not optimized away.
             checksum += output.get(ThreadLocalRandom.current().nextInt(output.position()));
             dataSource.rewind();
@@ -92,7 +99,7 @@ public class CompressorPerformance
             input.rewind();
         }
         long timed = System.nanoTime() - time;
-        System.out.format("Compressor %s %s->%s compress %.3f ns/b %.3f mb/s uncompress %.3f ns/b %.3f mb/s.%s\n",
+        System.out.format("Compressor %s %s->%s compress %.3f ns/b %.3f mb/s uncompress %.3f ns/b %.3f mb/s ratio %.2f:1.%s\n",
                           compressor.getClass().getSimpleName(),
                           in,
                           out,
@@ -100,6 +107,7 @@ public class CompressorPerformance
                           Math.scalb(1.0e9, -20) * count * len / timec,
                           1.0 * timed / (count * len),
                           Math.scalb(1.0e9, -20) * count * len / timed,
+                          ((double) uncompressedBytes) / ((double) compressedBytes),
                           checksum == 0 ? " " : "");
     }
 
