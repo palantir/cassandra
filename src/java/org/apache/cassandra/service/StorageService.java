@@ -2967,7 +2967,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public int forceKeyspaceCleanup(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         if (getJoiningNodes().size() > 0)
-            throw new RuntimeException("Triggering a cleanup while at least one node is bootstrapping can cause corruption");
+            throw new RuntimeException("Cleanup operation not permitted: triggering cleanups while at least one node is bootstrapping can cause corruption");
 
         if (keyspaceName.equals(SystemKeyspace.NAME))
             throw new RuntimeException("Cleanup of the system keyspace is neither necessary nor wise");
