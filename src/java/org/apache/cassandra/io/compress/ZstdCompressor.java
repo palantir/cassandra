@@ -31,9 +31,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.luben.zstd.Zstd;
 
-/**
- * ZSTD Compressor
- */
 public class ZstdCompressor implements ICompressor
 {
     private static final Logger logger = LoggerFactory.getLogger(ZstdCompressor.class);
@@ -53,12 +50,6 @@ public class ZstdCompressor implements ICompressor
 
     private final int compressionLevel;
 
-    /**
-     * Create a Zstd compressor with the given options
-     *
-     * @param options
-     * @return
-     */
     public static ZstdCompressor create(Map<String, String> options)
     {
         int level = getOrDefaultCompressionLevel(options);
@@ -69,51 +60,23 @@ public class ZstdCompressor implements ICompressor
         return getOrCreate(level);
     }
 
-    /**
-     * Private constructor
-     *
-     * @param compressionLevel
-     */
     private ZstdCompressor(int compressionLevel)
     {
         this.compressionLevel = compressionLevel;
         logger.trace("Creating Zstd Compressor with compression level={}", compressionLevel);
     }
 
-    /**
-     * Get a cached instance or return a new one
-     *
-     * @param level
-     * @return
-     */
     public static ZstdCompressor getOrCreate(int level)
     {
         return instances.computeIfAbsent(level, l -> new ZstdCompressor(level));
     }
 
-    /**
-     * Get initial compressed buffer length
-     *
-     * @param chunkLength
-     * @return
-     */
     @Override
     public int initialCompressedBufferLength(int chunkLength)
     {
         return (int) Zstd.compressBound(chunkLength);
     }
 
-    /**
-     * Decompress data using arrays
-     *
-     * @param input
-     * @param inputOffset
-     * @param inputLength
-     * @param output
-     * @param outputOffset
-     * @return
-     * @throws IOException
-     */
     @Override
     public int uncompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset)
     throws IOException
@@ -127,13 +90,6 @@ public class ZstdCompressor implements ICompressor
         return (int) dsz;
     }
 
-    /**
-     * Decompress data via ByteBuffers
-     *
-     * @param input
-     * @param output
-     * @throws IOException
-     */
     @Override
     public void uncompress(ByteBuffer input, ByteBuffer output) throws IOException
     {
@@ -146,13 +102,6 @@ public class ZstdCompressor implements ICompressor
         }
     }
 
-    /**
-     * Compress using ByteBuffers
-     *
-     * @param input
-     * @param output
-     * @throws IOException
-     */
     @Override
     public void compress(ByteBuffer input, ByteBuffer output) throws IOException
     {
@@ -165,23 +114,12 @@ public class ZstdCompressor implements ICompressor
         }
     }
 
-    /**
-     * Check if the given compression level is valid. This can be a negative value as well.
-     *
-     * @param level
-     * @return
-     */
+    /** Check if the given compression level is valid. This can be a negative value as well. */
     private static boolean isValid(int level)
     {
         return (level >= FAST_COMPRESSION_LEVEL && level <= BEST_COMPRESSION_LEVEL);
     }
 
-    /**
-     * Parse the compression options
-     *
-     * @param options
-     * @return
-     */
     private static int getOrDefaultCompressionLevel(Map<String, String> options)
     {
         if (options == null)
@@ -195,40 +133,23 @@ public class ZstdCompressor implements ICompressor
         return Integer.valueOf(val);
     }
 
-    /**
-     * Return the preferred BufferType
-     *
-     * @return
-     */
     @Override
     public BufferType preferredBufferType()
     {
         return BufferType.OFF_HEAP;
     }
 
-    /**
-     * Check whether the given BufferType is supported
-     *
-     * @param bufferType
-     * @return
-     */
     @Override
     public boolean supports(BufferType bufferType)
     {
         return bufferType == BufferType.OFF_HEAP;
     }
 
-    /**
-     * Lists the supported options by this compressor
-     *
-     * @return
-     */
     @Override
     public Set<String> supportedOptions()
     {
         return new HashSet<>(Collections.singletonList(COMPRESSION_LEVEL_OPTION_NAME));
     }
-
 
     @VisibleForTesting
     public int getCompressionLevel()

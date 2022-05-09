@@ -69,17 +69,6 @@ public class CompressionParameters
         return cp;
     }
 
-    public static CompressionParameters zstd()
-    {
-        return zstd(DEFAULT_CHUNK_LENGTH);
-    }
-
-    public static CompressionParameters zstd(Integer chunkLength)
-    {
-        ZstdCompressor compressor = ZstdCompressor.create(Collections.emptyMap());
-        return new CompressionParameters(compressor, chunkLength, Collections.emptyMap());
-    }
-
     public CompressionParameters(String sstableCompressorClass, Integer chunkLength, Map<String, String> otherOptions) throws ConfigurationException
     {
         this(createCompressor(parseCompressorClass(sstableCompressorClass), otherOptions), chunkLength, otherOptions);
