@@ -64,7 +64,7 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
     @Test
     public void testLZ4Writer() throws IOException
     {
-        compressor = LZ4Compressor.instance;
+        compressor = LZ4Compressor.create(Collections.emptyMap());
         runTests("LZ4");
     }
 
@@ -80,6 +80,13 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
     {
         compressor = SnappyCompressor.instance;
         runTests("Snappy");
+    }
+
+    @Test
+    public void testZSTDWriter() throws IOException
+    {
+        compressor = ZstdCompressor.create(Collections.emptyMap());
+        runTests("ZSTD");
     }
 
     private void testWrite(File f, int bytesToTest) throws IOException
@@ -176,7 +183,8 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
         byte[] toWrite = new byte[writeSize];
 
         try (SequentialWriter writer = new CompressedSequentialWriter(tempFile, offsetsFile.getPath(),
-                                                                                new CompressionParameters(LZ4Compressor.instance),new MetadataCollector(CellNames.fromAbstractType(UTF8Type.instance, false))))
+                                                                                new CompressionParameters(LZ4Compressor.create(Collections.emptyMap())),
+                                                                      new MetadataCollector(CellNames.fromAbstractType(UTF8Type.instance, false))))
         {
             // write bytes greather than buffer
             writer.write(toWrite);
@@ -226,7 +234,10 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
 
         private TestableCSW(File file, File offsetsFile) throws IOException
         {
-            this(file, offsetsFile, new CompressedSequentialWriter(file, offsetsFile.getPath(), new CompressionParameters(LZ4Compressor.instance, BUFFER_SIZE, new HashMap<String, String>()), new MetadataCollector(CellNames.fromAbstractType(UTF8Type.instance, false))));
+            this(file, offsetsFile, new CompressedSequentialWriter(file,
+                                                                   offsetsFile.getPath(), new CompressionParameters(LZ4Compressor.create(Collections.emptyMap()), BUFFER_SIZE, Collections.emptyMap()),
+                                                                   new MetadataCollector(new SimpleDenseCellNameType(BytesType.instance))));
+
         }
 
         private TestableCSW(File file, File offsetsFile, CompressedSequentialWriter sw) throws IOException
@@ -241,7 +252,7 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
             Assert.assertFalse(offsetsFile.exists());
             byte[] compressed = readFileToByteArray(file);
             byte[] uncompressed = new byte[partialContents.length];
-            LZ4Compressor.instance.uncompress(compressed, 0, compressed.length - 4, uncompressed, 0);
+            LZ4Compressor.create(Collections.<String, String>emptyMap()).uncompress(compressed, 0, compressed.length - 4, uncompressed, 0);
             Assert.assertTrue(Arrays.equals(partialContents, uncompressed));
         }
 
@@ -259,8 +270,8 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
             int offset = (int) offsets.readLong();
             byte[] compressed = readFileToByteArray(file);
             byte[] uncompressed = new byte[fullContents.length];
-            LZ4Compressor.instance.uncompress(compressed, 0, offset - 4, uncompressed, 0);
-            LZ4Compressor.instance.uncompress(compressed, offset, compressed.length - (4 + offset), uncompressed, partialContents.length);
+            LZ4Compressor.create(Collections.<String, String>emptyMap()).uncompress(compressed, 0, offset - 4, uncompressed, 0);
+            LZ4Compressor.create(Collections.<String, String>emptyMap()).uncompress(compressed, offset, compressed.length - (4 + offset), uncompressed, partialContents.length);
             Assert.assertTrue(Arrays.equals(fullContents, uncompressed));
         }
 
