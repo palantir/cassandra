@@ -1717,6 +1717,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return CompactionManager.instance.performCleanup(ColumnFamilyStore.this, jobs);
     }
 
+    /** Returns true if all sstables in this CF do not need to be cleaned, or false if one or more need to be cleaned
+     * or their status cannot be determined.
+     */
+    public boolean isFullyClean(int jobs) throws ExecutionException, InterruptedException
+    {
+        return CompactionManager.instance.checkIfFullyClean(ColumnFamilyStore.this, jobs);
+    }
+
     public CompactionManager.AllSSTableOpStatus scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkData, boolean reinsertOverflowedTTLRows, int jobs) throws ExecutionException, InterruptedException
     {
         return scrub(disableSnapshot, skipCorrupted, false, checkData, reinsertOverflowedTTLRows, jobs);

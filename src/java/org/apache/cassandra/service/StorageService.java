@@ -2993,6 +2993,24 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public boolean isKeyspaceFullyClean(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
+    {
+        if (getJoiningNodes().size() > 0)
+            throw new RuntimeException("Cleanup operation not permitted: triggering cleanups while at least one node is bootstrapping can cause corruption");
+
+        if (keyspaceName.equals(SystemKeyspace.NAME))
+            throw new RuntimeException("Cleanup of the system keyspace is neither necessary nor wise");
+
+        for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
+        {
+            boolean cfIsFullyClean = cfStore.isFullyClean(jobs);
+            if (!cfIsFullyClean) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public int scrub(boolean disableSnapshot, boolean skipCorrupted, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         return scrub(disableSnapshot, skipCorrupted, true, 0, keyspaceName, columnFamilies);
