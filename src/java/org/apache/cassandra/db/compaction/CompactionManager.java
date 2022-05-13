@@ -370,7 +370,7 @@ public class CompactionManager implements CompactionManagerMBean
                         return callable.execute(txn);
                     }
                 };
-                Future<T> fut = (ListenableFuture<T>) executor.submitIfRunning(callableGeneric, "paralell sstable callable operation");
+                Future<T> fut = (ListenableFuture<T>) executor.submitIfRunning(callableGeneric, "parallel sstable callable operation");
                 if (!fut.isCancelled())
                     futures.add(fut);
                 else

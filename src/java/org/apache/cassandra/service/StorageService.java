@@ -2996,10 +2996,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public boolean isKeyspaceFullyClean(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         if (getJoiningNodes().size() > 0)
-            throw new RuntimeException("Cleanup operation not permitted: triggering cleanups while at least one node is bootstrapping can cause corruption");
+            throw new RuntimeException("Cannot check if a keyspace is clean while at least one node is bootstrapping.");
 
         if (keyspaceName.equals(SystemKeyspace.NAME))
-            throw new RuntimeException("Cleanup of the system keyspace is neither necessary nor wise");
+            return true; // Cleanup of a system keyspace is never required
 
         for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
         {
