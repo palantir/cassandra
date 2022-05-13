@@ -95,7 +95,7 @@ public class CleanupStateTrackerTest
     @Test
     public void recordSuccessfulCleanupForTableUpdatesEntry()
     {
-        Instant instant1 = Instant.now();
+        Instant instant1 = Instant.now().minusSeconds(30);
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         KeyspaceTableOpStateCache state =
             new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, instant1));
