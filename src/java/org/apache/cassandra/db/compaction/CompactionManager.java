@@ -333,10 +333,77 @@ public class CompactionManager implements CompactionManagerMBean
         }
     }
 
+    /**
+     * Run an operation over all sstables using jobs threads
+     *
+     * @param cfs the column family store to run the operation on
+     * @param callable the callable operation to run
+     * @param jobs the number of threads to use - 0 means use all available. It never uses more than concurrent_compactors threads
+     * @return status of the operation
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    @SuppressWarnings("resource")
+    private <T> Optional<List<T>> parallelAllSSTableCallable(final ColumnFamilyStore cfs, final OneSSTableCallable<T> callable, int jobs, OperationType operationType) throws ExecutionException, InterruptedException
+    {
+        List<LifecycleTransaction> transactions = new ArrayList<>();
+        try (LifecycleTransaction compacting = cfs.markAllCompacting(operationType))
+        {
+            Iterable<SSTableReader> sstables = compacting != null ? Lists.newArrayList(callable.filterSSTables(compacting)) : Collections.<SSTableReader>emptyList();
+            if (Iterables.isEmpty(sstables))
+            {
+                logger.info("No sstables for {}.{}", cfs.keyspace.getName(), cfs.name);
+                return Optional.of(ImmutableList.of());
+            }
+
+            List<Future<T>> futures = new ArrayList<>();
+
+            for (final SSTableReader sstable : sstables)
+            {
+                final LifecycleTransaction txn = compacting.split(singleton(sstable));
+                transactions.add(txn);
+                Callable<T> callableGeneric = new Callable<T>()
+                {
+                    @Override
+                    public T call() throws Exception
+                    {
+                        return callable.execute(txn);
+                    }
+                };
+                Future<T> fut = (ListenableFuture<T>) executor.submitIfRunning(callableGeneric, "parallel sstable callable operation");
+                if (!fut.isCancelled())
+                    futures.add(fut);
+                else
+                    return Optional.empty();
+
+                if (jobs > 0 && futures.size() == jobs)
+                {
+                    FBUtilities.waitOnFutures(futures);
+                    futures.clear();
+                }
+            }
+            List<T> results = FBUtilities.waitOnFutures(futures);
+            assert compacting.originals().isEmpty();
+            return Optional.of(results);
+        }
+        finally
+        {
+            Throwable fail = Throwables.close(null, transactions);
+            if (fail != null)
+                logger.error("Failed to cleanup lifecycle transactions {}", fail);
+        }
+    }
+
     private static interface OneSSTableOperation
     {
         Iterable<SSTableReader> filterSSTables(LifecycleTransaction transaction);
         void execute(LifecycleTransaction input) throws IOException;
+    }
+
+    private static interface OneSSTableCallable<T>
+    {
+        Iterable<SSTableReader> filterSSTables(LifecycleTransaction transaction);
+        T execute(LifecycleTransaction input) throws IOException;
     }
 
     public enum AllSSTableOpStatus { ABORTED(1), SUCCESSFUL(0);
@@ -458,6 +525,50 @@ public class CompactionManager implements CompactionManagerMBean
                 doCleanupOne(cfStore, txn, cleanupStrategy, ranges, hasIndexes);
             }
         }, jobs, OperationType.CLEANUP);
+    }
+
+    public boolean checkIfFullyClean(final ColumnFamilyStore cfStore, int jobs) throws InterruptedException, ExecutionException
+    {
+        assert !cfStore.isIndex();
+        Keyspace keyspace = cfStore.keyspace;
+        if (!StorageService.instance.isJoined())
+        {
+            logger.info("Cleanup cannot run before a node has joined the ring");
+            return false;
+        }
+        final Collection<Range<Token>> ranges = StorageService.instance.getLocalRanges(keyspace.getName());
+        if (ranges.isEmpty())
+        {
+            logger.info("Node owns no data for keyspace {}", keyspace.getName());
+            return true;
+        }
+        final boolean hasIndexes = cfStore.indexManager.hasIndexes();
+
+        Optional<List<Boolean>> result = parallelAllSSTableCallable(cfStore, new OneSSTableCallable<Boolean>()
+        {
+            @Override
+            public Iterable<SSTableReader> filterSSTables(LifecycleTransaction transaction)
+            {
+                List<SSTableReader> sortedSSTables = Lists.newArrayList(transaction.originals());
+                Collections.sort(sortedSSTables, new SSTableReader.SizeComparator());
+                return sortedSSTables;
+            }
+
+            @Override
+            public Boolean execute(LifecycleTransaction txn) throws IOException
+            {
+                return checksIfCleanupNeededOne(txn, ranges, hasIndexes);
+            }
+        }, jobs, OperationType.CLEANUP);
+
+        if (!result.isPresent())
+        {
+            logger.warn("Could not determine if cleanup is required.");
+            return false;
+        }
+
+        // If even one sstable requires cleanup, then we consider this entire cf to require cleanup
+        return !result.get().contains(true);
     }
 
     /**
@@ -845,6 +956,23 @@ public class CompactionManager implements CompactionManagerMBean
         return false;
     }
 
+    private boolean checksIfCleanupNeededOne(LifecycleTransaction txn, Collection<Range<Token>> ranges, boolean hasIndexes)
+    {
+        SSTableReader sstable = txn.onlyOne();
+        if (!hasIndexes && !new Bounds<>(sstable.first.getToken(), sstable.last.getToken()).intersects(ranges))
+        {
+            txn.obsoleteOriginals();
+            txn.finish();
+            return false;
+        }
+        if (!needsCleanup(sstable, ranges))
+        {
+            logger.trace("Skipping {} for cleanup; all rows should be kept", sstable);
+            return false;
+        }
+        return true;
+    }
+
     /**
      * This function goes over a file and removes the keys that the node is not responsible for
      * and only keeps keys that this node is responsible for.
@@ -856,19 +984,10 @@ public class CompactionManager implements CompactionManagerMBean
     {
         assert !cfs.isIndex();
 
+        if (!checksIfCleanupNeededOne(txn, ranges, hasIndexes)) {
+            return;
+        }
         SSTableReader sstable = txn.onlyOne();
-
-        if (!hasIndexes && !new Bounds<>(sstable.first.getToken(), sstable.last.getToken()).intersects(ranges))
-        {
-            txn.obsoleteOriginals();
-            txn.finish();
-            return;
-        }
-        if (!needsCleanup(sstable, ranges))
-        {
-            logger.trace("Skipping {} for cleanup; all rows should be kept", sstable);
-            return;
-        }
 
         long start = System.nanoTime();
 

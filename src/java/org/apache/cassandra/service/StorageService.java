@@ -2966,8 +2966,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public int forceKeyspaceCleanup(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
-        if (getJoiningNodes().size() > 0)
-            throw new RuntimeException("Cleanup operation not permitted: triggering cleanups while at least one node is bootstrapping can cause corruption");
+        if (getJoiningNodes().size() > 0 || getLeavingNodes().size() > 0)
+            throw new RuntimeException("Cleanup operation not permitted: triggering cleanups while at least one node is bootstrapping/leaving can cause corruption");
 
         if (keyspaceName.equals(SystemKeyspace.NAME))
             throw new RuntimeException("Cleanup of the system keyspace is neither necessary nor wise");
@@ -2991,6 +2991,24 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             cleanupOpCompleted();
         }
+    }
+
+    public boolean isKeyspaceFullyClean(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
+    {
+        if (getJoiningNodes().size() > 0 || getLeavingNodes().size() > 0)
+            throw new RuntimeException("Cannot check if a keyspace is clean while at least one node is bootstrapping or leaving.");
+
+        if (keyspaceName.equals(SystemKeyspace.NAME))
+            return true; // Cleanup of a system keyspace is never required
+
+        for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
+        {
+            boolean cfIsFullyClean = cfStore.isFullyClean(jobs);
+            if (!cfIsFullyClean) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public int scrub(boolean disableSnapshot, boolean skipCorrupted, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
