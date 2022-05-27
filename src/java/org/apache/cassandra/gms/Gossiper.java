@@ -219,6 +219,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     public boolean seenAnySeed()
     {
+        logger.info("Checking if seenAnySeed with seeds {} and endpointStateMap {}", seeds, endpointStateMap);
         for (Map.Entry<InetAddress, EndpointState> entry : endpointStateMap.entrySet())
         {
             if (seeds.contains(entry.getKey()))
@@ -226,6 +227,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             try
             {
                 VersionedValue internalIp = entry.getValue().getApplicationState(ApplicationState.INTERNAL_IP);
+                logger.info("Converting endpoint entry {} to internalIP {} and comparing it to seeds", entry.getValue(), internalIp);
                 if (internalIp != null && seeds.contains(InetAddress.getByName(internalIp.value)))
                     return true;
             }
