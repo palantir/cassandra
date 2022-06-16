@@ -21,6 +21,7 @@ package org.apache.cassandra.service.opstate;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -76,11 +77,17 @@ public class KeyspaceTableOpStateCache
         return Optional.of(Collections.min(tableEntries.values()));
     }
 
+
     @VisibleForTesting
     Set<KeyspaceTableKey> getValidKeyspaceTableEntries(){
-        return Schema.instance.getKeyspaces().stream()
-                              .flatMap(keyspace -> Schema.instance.getKeyspaceInstance(keyspace).getColumnFamilyStores().stream()
-                                                                  .map(cf -> KeyspaceTableKey.of(keyspace, cf.getColumnFamilyName())))
-                              .collect(Collectors.toSet());
+        Set<KeyspaceTableKey> validEntries = new HashSet<>();
+        Schema.instance.getKeyspaces().forEach(keyspace -> {
+            Set<KeyspaceTableKey> keyspaceEntries = Schema.instance.getKeyspaceInstance(keyspace).getColumnFamilyStores()
+                                                                   .stream()
+                                                                   .map(cf -> KeyspaceTableKey.of(keyspace, cf.getColumnFamilyName()))
+                                                                   .collect(Collectors.toSet());
+            validEntries.addAll(keyspaceEntries);
+        });
+        return validEntries;
     }
 }
