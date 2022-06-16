@@ -86,7 +86,7 @@ public class CleanupStateTracker
     }
 
     /** Returns min ts for this node, null if no entry exists. */
-    public Instant getLastSuccessfulCleanupTsForNode()
+    public synchronized Instant getLastSuccessfulCleanupTsForNode()
     {
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
         return state.getMinimumTsOfAllEntries().orElse(MIN_TS);
