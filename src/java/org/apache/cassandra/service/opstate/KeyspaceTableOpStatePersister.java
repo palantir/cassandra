@@ -20,7 +20,10 @@ package org.apache.cassandra.service.opstate;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -73,7 +76,8 @@ public class KeyspaceTableOpStatePersister
 
             // We assume inputted entries will always be more up to date compared to the ones from the file
             persistentEntries.putAll(updatedEntries);
-            return writeStateToFile(persistentStateFile, persistentEntries);
+            writeStateToFile(persistentStateFile, persistentEntries);
+            return true;
         }
         catch (IOException e)
         {
@@ -117,18 +121,30 @@ public class KeyspaceTableOpStatePersister
         }
     }
 
-    private boolean writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries) throws IOException
+    private void writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries) throws IOException
     {
+       atomicWritetoFile(file, OBJECT_MAPPER.writeValueAsString(convertMapTypeToStringLong(updatedEntries)));
+    }
+
+    private void atomicWritetoFile(File file, String content) throws IOException
+    {
+        String tmpFilePath = file.getAbsolutePath() + ".tmp";
+        File tmpFile = new File(tmpFilePath);
         try
         {
-            OBJECT_MAPPER.writeValue(file, convertMapTypeToStringLong(updatedEntries));
+            Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+            Files.move(tmpFile.toPath(), file.toPath(),
+                       StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         }
         catch (IOException e)
         {
             log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
             throw e;
         }
-        return true;
+        finally
+        {
+            Files.delete(tmpFile.toPath());
+        }
     }
 
     private static Map<KeyspaceTableKey, Instant> convertMapTypeToKeyspaceTableKeyInstant(Map<Object, Object> map)

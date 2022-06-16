@@ -35,18 +35,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class KeyspaceTableOpStatePersisterTest
 {
     private static Path stateFilePath;
+    private static Path tmpStateFilePath;
 
     @BeforeClass
     public static void before() throws IOException
     {
         Path directory = Files.createTempDirectory(OpStateTestConstants.TEST_DIRECTORY_NAME);
         stateFilePath = directory.resolve(OpStateTestConstants.TEST_STATE_FILE_NAME);
+        tmpStateFilePath = directory.resolve(OpStateTestConstants.TEST_TMP_STATE_FILE_NAME);
     }
 
     @After
     public void afterEach()
     {
         stateFilePath.toFile().delete();
+        tmpStateFilePath.toFile().delete();
     }
 
     @Test
@@ -73,6 +76,20 @@ public class KeyspaceTableOpStatePersisterTest
             ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
         assertThat(persister.readStateFromPersistentLocation().get()).containsExactly(
             new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+    }
+
+    @Test
+    public void keyspaceTableOpStatePersisterUpdatesFileAtomically() throws IOException
+    {
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
+        assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
+        tmpStateFilePath.toFile().createNewFile();
+        tmpStateFilePath.toFile().setReadOnly();
+
+        assertThat(persister.updateStateInPersistentLocation(
+                ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)))).isFalse();
+        assertThat(tmpStateFilePath.toFile().exists()).isFalse();
+        assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
     }
 
     @Test
