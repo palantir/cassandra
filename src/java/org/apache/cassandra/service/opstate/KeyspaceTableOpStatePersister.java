@@ -29,9 +29,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 public class KeyspaceTableOpStatePersister
@@ -61,6 +63,11 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
+            if (e instanceof JsonParseException)
+            {
+                log.warn("Persistent file corrupted, wiping content.");
+                writeStateToFile(persistentStateFile, ImmutableMap.of());
+            }
             return Optional.empty();
         }
     }
@@ -76,8 +83,7 @@ public class KeyspaceTableOpStatePersister
 
             // We assume inputted entries will always be more up to date compared to the ones from the file
             persistentEntries.putAll(updatedEntries);
-            writeStateToFile(persistentStateFile, persistentEntries);
-            return true;
+            return writeStateToFile(persistentStateFile, persistentEntries);
         }
         catch (IOException e)
         {
@@ -121,9 +127,17 @@ public class KeyspaceTableOpStatePersister
         }
     }
 
-    private void writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries) throws IOException
+    private boolean writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries)
     {
-       atomicWritetoFile(file, OBJECT_MAPPER.writeValueAsString(convertMapTypeToStringLong(updatedEntries)));
+        try
+        {
+            atomicWritetoFile(file, OBJECT_MAPPER.writeValueAsString(convertMapTypeToStringLong(updatedEntries)));
+            return true;
+        }
+        catch (IOException e)
+        {
+            return false;
+        }
     }
 
     private void atomicWritetoFile(File file, String content) throws IOException
@@ -132,6 +146,7 @@ public class KeyspaceTableOpStatePersister
         File tmpFile = new File(tmpFilePath);
         try
         {
+            tmpFile.createNewFile();
             Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
             Files.move(tmpFile.toPath(), file.toPath(),
                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);

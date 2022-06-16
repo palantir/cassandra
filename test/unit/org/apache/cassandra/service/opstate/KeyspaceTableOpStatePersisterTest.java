@@ -31,6 +31,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class KeyspaceTableOpStatePersisterTest
 {
@@ -89,6 +90,21 @@ public class KeyspaceTableOpStatePersisterTest
         assertThat(persister.updateStateInPersistentLocation(
                 ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)))).isFalse();
         assertThat(tmpStateFilePath.toFile().exists()).isFalse();
+        assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
+    }
+
+    @Test
+    public void keyspaceTableOpStatePersisterFixesFileWhenCorrupted() throws IOException
+    {
+        String corruptedFileContent = "{iamcorrupted";
+
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
+        assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
+        Files.write(stateFilePath, corruptedFileContent.getBytes());
+
+        // First read fixes file but returns empty optional
+        assertThat(persister.readStateFromPersistentLocation()).isEmpty();
+        // Second read returns empty map
         assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
     }
 
