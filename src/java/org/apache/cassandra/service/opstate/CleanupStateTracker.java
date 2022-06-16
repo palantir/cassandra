@@ -75,9 +75,7 @@ public class CleanupStateTracker
     {
         KeyspaceTableKey entryKey = KeyspaceTableKey.of(keyspaceName, columnFamily);
         if (!state.entryExists(entryKey))
-        {
             updateTsForEntry(entryKey, MIN_TS);
-        }
     }
 
     /** Updates ts for table entry */
@@ -100,9 +98,7 @@ public class CleanupStateTracker
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
         if (!successfulReadFromPersister || !persister.updateStateInPersistentLocation(updatedEntries))
-        {
             log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
-        }
     }
 
     private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()
