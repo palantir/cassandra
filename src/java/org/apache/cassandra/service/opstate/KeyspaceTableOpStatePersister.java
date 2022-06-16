@@ -140,7 +140,7 @@ public class KeyspaceTableOpStatePersister
         }
     }
 
-    private void atomicWritetoFile(File file, String content) throws IOException
+    private synchronized void atomicWritetoFile(File file, String content) throws IOException
     {
         String tmpFilePath = file.getAbsolutePath() + ".tmp";
         File tmpFile = new File(tmpFilePath);
