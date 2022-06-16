@@ -18,6 +18,10 @@
 
 package org.apache.cassandra.service.opstate;
 
+import java.util.Set;
+
+import com.google.common.collect.ImmutableSet;
+
 import org.codehaus.jackson.map.ObjectMapper;
 
 public class OpStateTestConstants
@@ -35,7 +39,8 @@ public class OpStateTestConstants
     public static final String KEYSPACE2 = "keyspace2";
     public static final String TABLE2 = "table2";
     public static final KeyspaceTableKey KEYSPACE_TABLE_KEY_2 =
-    KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2);
+        KeyspaceTableKey.of(OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2);
 
-
+    public static final Set<KeyspaceTableKey> KEYSPACE_TABLE_VALID_ENTRIES =
+        ImmutableSet.of(KEYSPACE_TABLE_KEY_1, KEYSPACE_TABLE_KEY_2);
 }

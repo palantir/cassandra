@@ -98,12 +98,11 @@ public class CleanupStateTracker
     void updateTsForEntry(KeyspaceTableKey key, Instant value) throws IllegalArgumentException
     {
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
-        if (!persister.updateStateInPersistentLocation(updatedEntries))
+        updateCacheIfHasNotYetSuccessfullyReadFromPersister();
+        if (!successfulReadFromPersister || !persister.updateStateInPersistentLocation(updatedEntries))
         {
             log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
-            return;
         }
-        updateCacheIfHasNotYetSuccessfullyReadFromPersister();
     }
 
     private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()

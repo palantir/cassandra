@@ -22,9 +22,13 @@ import java.time.Instant;
 import java.util.AbstractMap;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
+import org.mockito.Mockito;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
 public class KeyspaceTableOpStateCacheTest
 {
@@ -51,11 +55,23 @@ public class KeyspaceTableOpStateCacheTest
     public void getMinimumTsReturnsExceptedValues()
     {
         KeyspaceTableOpStateCache state =
-            new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+            Mockito.spy(new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
+        doReturn(OpStateTestConstants.KEYSPACE_TABLE_VALID_ENTRIES).when(state).getValidKeyspaceTableEntries();
         assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(10L));
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
         assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(10L));
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
+        assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(20L));
+    }
+
+    @Test
+    public void getMinimumTsIgnoresInvalidEntries()
+    {
+        KeyspaceTableOpStateCache state =
+            Mockito.spy(new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
+        state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
+
+        doReturn(ImmutableSet.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_2)).when(state).getValidKeyspaceTableEntries();
         assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(20L));
     }
 
