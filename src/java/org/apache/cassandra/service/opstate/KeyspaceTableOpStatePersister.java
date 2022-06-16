@@ -20,15 +20,20 @@ package org.apache.cassandra.service.opstate;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 public class KeyspaceTableOpStatePersister
@@ -58,6 +63,11 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
+            if (e instanceof JsonParseException)
+            {
+                log.warn("Persistent file corrupted, wiping content.");
+                writeStateToFile(persistentStateFile, ImmutableMap.of());
+            }
             return Optional.empty();
         }
     }
@@ -117,18 +127,39 @@ public class KeyspaceTableOpStatePersister
         }
     }
 
-    private boolean writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries) throws IOException
+    private boolean writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries)
     {
         try
         {
-            OBJECT_MAPPER.writeValue(file, convertMapTypeToStringLong(updatedEntries));
+            atomicWritetoFile(file, OBJECT_MAPPER.writeValueAsString(convertMapTypeToStringLong(updatedEntries)));
+            return true;
+        }
+        catch (IOException e)
+        {
+            return false;
+        }
+    }
+
+    private synchronized void atomicWritetoFile(File file, String content) throws IOException
+    {
+        String tmpFilePath = file.getAbsolutePath() + ".tmp";
+        File tmpFile = new File(tmpFilePath);
+        try
+        {
+            tmpFile.createNewFile();
+            Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+            Files.move(tmpFile.toPath(), file.toPath(),
+                       StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         }
         catch (IOException e)
         {
             log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
             throw e;
         }
-        return true;
+        finally
+        {
+            Files.delete(tmpFile.toPath());
+        }
     }
 
     private static Map<KeyspaceTableKey, Instant> convertMapTypeToKeyspaceTableKeyInstant(Map<Object, Object> map)
