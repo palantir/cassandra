@@ -80,12 +80,12 @@ public class KeyspaceTableOpStateCache
 
     @VisibleForTesting
     Set<KeyspaceTableKey> getValidKeyspaceTableEntries(){
-        return Schema.instance.getKeyspaces().stream().map(keyspace ->
-                                                           Schema.instance.getKeyspaceInstance(keyspace).getColumnFamilyStores()
-                                                                          .stream()
-                                                                          .map(cf -> KeyspaceTableKey.of(keyspace, cf.getColumnFamilyName()))
-
-                                                                          .collect(Collectors.toSet())).flatMap(Set::stream)
+        return Schema.instance.getKeyspaces().stream()
+                              .map(keyspace -> Schema.instance.getKeyspaceInstance(keyspace).getColumnFamilyStores()
+                                                              .stream()
+                                                              .map(cf -> KeyspaceTableKey.of(keyspace, cf.getColumnFamilyName()))
+                                                              .collect(Collectors.toSet()))
+                              .flatMap(Set::stream)
                               .collect(Collectors.toSet());
     }
 }
