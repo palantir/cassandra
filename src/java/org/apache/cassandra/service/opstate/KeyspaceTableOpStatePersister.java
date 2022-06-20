@@ -77,16 +77,8 @@ public class KeyspaceTableOpStatePersister
         File persistentStateFile = getOrMaybeCreateStateFile();
         if (persistentStateFile == null)
             return false;
-        try
-        {
-            return writeStateToFile(persistentStateFile, updatedEntries);
-        }
-        catch (IOException e)
-        {
-            log.warn("Failed to update persistent location with state.");
-            return false;
-        }
 
+        return writeStateToFile(persistentStateFile, updatedEntries);
     }
 
     private File getOrMaybeCreateStateFile()
