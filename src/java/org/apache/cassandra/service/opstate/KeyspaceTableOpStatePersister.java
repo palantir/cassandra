@@ -79,11 +79,7 @@ public class KeyspaceTableOpStatePersister
             return false;
         try
         {
-            Map<KeyspaceTableKey, Instant> persistentEntries = readStateFromFile(persistentStateFile);
-
-            // We assume inputted entries will always be more up to date compared to the ones from the file
-            persistentEntries.putAll(updatedEntries);
-            return writeStateToFile(persistentStateFile, persistentEntries);
+            return writeStateToFile(persistentStateFile, updatedEntries);
         }
         catch (IOException e)
         {

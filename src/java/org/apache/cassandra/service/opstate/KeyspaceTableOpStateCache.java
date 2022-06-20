@@ -21,12 +21,18 @@ package org.apache.cassandra.service.opstate;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
+
+import org.apache.cassandra.config.Schema;
 
 public class KeyspaceTableOpStateCache
 {
@@ -63,6 +69,23 @@ public class KeyspaceTableOpStateCache
         if (tableEntries.isEmpty())
             return Optional.empty();
 
+        // Remove potentially deleted keyspaces and tables from entries
+        Set<KeyspaceTableKey> invalidEntries =
+            Sets.difference(tableEntries.keySet(), Sets.intersection(tableEntries.keySet(), getValidKeyspaceTableEntries()));
+        invalidEntries.forEach(tableEntries::remove);
+
         return Optional.of(Collections.min(tableEntries.values()));
+    }
+
+
+    @VisibleForTesting
+    Set<KeyspaceTableKey> getValidKeyspaceTableEntries(){
+return Schema.instance.getKeyspaces().stream()
+                              .map(keyspace -> Schema.instance.getKeyspaceInstance(keyspace).getColumnFamilyStores()
+                                                              .stream()
+                                                              .map(cf -> KeyspaceTableKey.of(keyspace, cf.getColumnFamilyName()))
+                                                              .collect(Collectors.toSet()))
+                              .flatMap(Set::stream)
+                              .collect(Collectors.toSet());
     }
 }

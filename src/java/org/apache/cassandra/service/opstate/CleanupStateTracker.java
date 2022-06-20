@@ -75,9 +75,7 @@ public class CleanupStateTracker
     {
         KeyspaceTableKey entryKey = KeyspaceTableKey.of(keyspaceName, columnFamily);
         if (!state.entryExists(entryKey))
-        {
             updateTsForEntry(entryKey, MIN_TS);
-        }
     }
 
     /** Updates ts for table entry */
@@ -88,7 +86,7 @@ public class CleanupStateTracker
     }
 
     /** Returns min ts for this node, null if no entry exists. */
-    public Instant getLastSuccessfulCleanupTsForNode()
+    public synchronized Instant getLastSuccessfulCleanupTsForNode()
     {
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
         return state.getMinimumTsOfAllEntries().orElse(MIN_TS);
@@ -98,12 +96,9 @@ public class CleanupStateTracker
     void updateTsForEntry(KeyspaceTableKey key, Instant value) throws IllegalArgumentException
     {
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
-        if (!persister.updateStateInPersistentLocation(updatedEntries))
-        {
-            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
-            return;
-        }
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
+        if (!successfulReadFromPersister || !persister.updateStateInPersistentLocation(updatedEntries))
+            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
     }
 
     private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()
