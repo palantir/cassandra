@@ -85,8 +85,6 @@ import org.apache.cassandra.thrift.TokenRange;
 import org.apache.cassandra.thrift.cassandraConstants;
 import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.utils.*;
-import org.apache.cassandra.utils.progress.ProgressEvent;
-import org.apache.cassandra.utils.progress.ProgressEventType;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
 
@@ -890,20 +888,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
             bootstrapManager.awaitBootstrappable();
-            boolean previousDataFound = false;
+            boolean previousDataFound = isCommitlogEmptyForBootstrap();
 
             Set<String> userKeyspaces = ImmutableSet.copyOf(Sets.difference(ImmutableSet.copyOf(Schema.instance.getUserKeyspaces()), ImmutableSet.of("system_palantir")));
-
-            if(!userKeyspaces.isEmpty()) {
-                logger.error("Found non-system keyspaces, indicating that this node has previously tried to bootstrap. Please delete both data/commitlog directories before proceeding.", userKeyspaces);
-                previousDataFound = true;
-            }
-
-            if (!CommitLogReplayer.getInvalidColumnFamilyMutations().isEmpty()) {
-                logger.error("Found previous commitlog entries for non-existing CFs {}, indicating we've an old commitlog files from a preivous bootstrap. Please delete before proceeding.",
-                             CommitLogReplayer.getInvalidColumnFamilyMutations());
-                previousDataFound = true;
-            }
 
             for (String keyspaceName : userKeyspaces)
             {
@@ -1103,6 +1090,38 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void joinTokenRing(int delay) throws ConfigurationException
     {
         joinTokenRing(delay, DatabaseDescriptor.isAutoBootstrap(), DatabaseDescriptor.getInitialTokens());
+    }
+
+    /**
+     * Checks to see if any commitlog segments have been replayed for non-system keyspaces.
+     * @return True if no commitlog segments for non-system keyspaces have been replayed, false otherwise.
+     */
+    private static boolean isCommitlogEmptyForBootstrap() {
+        boolean previousDataFound = false;
+        Set<UUID> ignoredKeyspacesInCommitLog = CommitLogReplayer.getSeenColumnFamilies().stream()
+                                                                 .filter(uuid -> Schema.instance.getCFMetaData(uuid) == null)
+                                                                 .collect(Collectors.toSet());
+
+        if (!ignoredKeyspacesInCommitLog.isEmpty()) {
+            logger.info("Tried to replay a commitlog segment with an unknown CF(s) {}, " +
+                        "this indicates data from a previous bootstrap attempt still exists. Please delete before proceeding.", ignoredKeyspacesInCommitLog);
+            previousDataFound = true;
+        }
+
+        Set<String> seenKeyspacesInCommitlog =  CommitLogReplayer.getSeenColumnFamilies().stream()
+                                                                 .map(Schema.instance::getCFMetaData)
+                                                                 .filter(Objects::nonNull)
+                                                                 .map(cf -> cf.ksName)
+                                                                 .filter(keyspace -> !Schema.SYSTEM_KEYSPACES.contains(keyspace))
+                                                                 .collect(Collectors.toSet());
+
+        if (seenKeyspacesInCommitlog.isEmpty()) {
+            logger.error("Found previous commitlog entries for non-existing CFs {}, indicating we've an old commitlog files from a preivous bootstrap. Please delete before proceeding.",
+                         CommitLogReplayer.getSeenColumnFamilies());
+            previousDataFound = true;
+        }
+
+        return previousDataFound;
     }
 
     @VisibleForTesting
