@@ -60,6 +60,7 @@ import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.commitlog.CommitLog;
+import org.apache.cassandra.db.commitlog.CommitLogReplayer;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.dht.*;
 import org.apache.cassandra.dht.Range;
@@ -891,7 +892,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             bootstrapManager.awaitBootstrappable();
             boolean previousDataFound = false;
 
-            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+            Set<String> userKeyspaces = ImmutableSet.copyOf(Sets.difference(ImmutableSet.copyOf(Schema.instance.getUserKeyspaces()), ImmutableSet.of("system_palantir")));
+
+            if(!userKeyspaces.isEmpty()) {
+                logger.error("Found non-system keyspaces, indicating that this node has previously tried to bootstrap. Please delete both data/commitlog directories before proceeding.", userKeyspaces);
+                previousDataFound = true;
+            }
+
+            if (!CommitLogReplayer.getInvalidColumnFamilyMutations().isEmpty()) {
+                logger.error("Found previous commitlog entries for non-existing CFs {}, indicating we've an old commitlog files from a preivous bootstrap. Please delete before proceeding.",
+                             CommitLogReplayer.getInvalidColumnFamilyMutations());
+                previousDataFound = true;
+            }
+
+            for (String keyspaceName : userKeyspaces)
             {
                 Set<Range<Token>> availableRanges = SystemKeyspace.getAvailableRanges(keyspaceName, StorageService.getPartitioner());
 

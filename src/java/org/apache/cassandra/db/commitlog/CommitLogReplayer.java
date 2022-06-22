@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -66,6 +67,7 @@ public class CommitLogReplayer
     private static final int MAX_OUTSTANDING_REPLAY_COUNT = Integer.getInteger("cassandra.commitlog_max_outstanding_replay_count", 1024);
     private static final int LEGACY_END_OF_SEGMENT_MARKER = 0;
 
+    private static final Set<UUID> INVALID_COLUMN_FAMILY_MUTATIONS = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<Keyspace> keyspacesRecovered;
     private final List<Future<?>> futures;
     private final Map<UUID, AtomicInteger> invalidMutations;
@@ -601,6 +603,7 @@ public class CommitLogReplayer
             if (ex.cfId == null)
                 return;
             AtomicInteger i = invalidMutations.get(ex.cfId);
+            INVALID_COLUMN_FAMILY_MUTATIONS.add(ex.cfId);
             if (i == null)
             {
                 i = new AtomicInteger(1);
@@ -707,6 +710,10 @@ public class CommitLogReplayer
                          "on the command line");
             throw e;
         }
+    }
+
+    public static Set<UUID> getInvalidColumnFamilyMutations() {
+        return Collections.unmodifiableSet(INVALID_COLUMN_FAMILY_MUTATIONS);
     }
 
     @SuppressWarnings("serial")

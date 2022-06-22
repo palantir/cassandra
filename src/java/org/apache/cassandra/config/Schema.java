@@ -52,6 +52,8 @@ public class Schema
 
     public static final Schema instance = new Schema();
 
+    public static final Set<String> SYSTEM_KEYSPACES = ImmutableSet.of(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME, "system_palantir");
+
     /**
      * longest permissible KS or CF name.  Our main concern is that filename not be more than 255 characters;
      * the filename will contain both the KS and CF names. Since non-schema-name components only take up
