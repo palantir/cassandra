@@ -117,6 +117,8 @@ public class ColumnFamilyMetrics
     public final Gauge<Long> compressionMetadataOffHeapMemoryUsed;
     /** Key cache hit rate  for this CF */
     public final Gauge<Double> keyCacheHitRate;
+    /** Rate of tombstones read */
+    public final Meter droppableTombstones;
     /** Tombstones scanned in queries on this CF */
     public final ColumnFamilyHistogram tombstoneScannedHistogram;
     /** Live cells scanned in queries on this CF */
@@ -735,6 +737,7 @@ public class ColumnFamilyMetrics
 
         rangeScanBytesRead = Metrics.meter(factory.createMetricName("RangeScanBytesRead"));
         readBytesRead = Metrics.meter(factory.createMetricName("ReadBytesRead"));
+        droppableTombstones = Metrics.meter(factory.createMetricName("DroppableTombstonesRead"));
     }
 
     public void updateSSTableIterated(int count)

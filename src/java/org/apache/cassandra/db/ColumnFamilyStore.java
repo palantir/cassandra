@@ -2079,6 +2079,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     private void recordMetrics(SliceQueryFilter filter) {
+        metric.droppableTombstones.mark(filter.lastReadDroppableTombstones());
         // Log the number of tombstones scanned on single key queries
         metric.tombstoneScannedHistogram.update(filter.lastTombstones());
         metric.liveScannedHistogram.update(filter.lastLive());
@@ -2098,6 +2099,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
             metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
             metric.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
+
+            metric.droppableTombstones.mark(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
         }
 
         if (filter.hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
