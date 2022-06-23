@@ -888,30 +888,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
             bootstrapManager.awaitBootstrappable();
-            boolean previousDataFound = isCommitlogEmptyForBootstrap();
-
-            Set<String> userKeyspaces = ImmutableSet.copyOf(Sets.difference(ImmutableSet.copyOf(Schema.instance.getUserKeyspaces()), ImmutableSet.of("system_palantir")));
-
-            for (String keyspaceName : userKeyspaces)
-            {
-                Set<Range<Token>> availableRanges = SystemKeyspace.getAvailableRanges(keyspaceName, StorageService.getPartitioner());
-
-                if(!availableRanges.isEmpty()) {
-                    logger.error("Found previous ranges available {} for a non-system keyspace.", availableRanges);
-                    previousDataFound = true;
-                }
-
-                Keyspace keyspace = Keyspace.open(keyspaceName);
-                for (ColumnFamilyStore store : keyspace.getColumnFamilyStores())
-                {
-                    Collection<SSTableReader> tables = store.getSSTables();
-                    if (tables.size() > 0)
-                    {
-                        logger.error("Found previous SSTables {} for keyspace {} and cf {}.", tables, keyspaceName, store.name);
-                        previousDataFound = true;
-                    }
-                }
-            }
+            boolean previousDataFound = isCommitlogEmptyForBootstrap() || areKeyspacesEmptyForBootstrap();
 
             if (previousDataFound)
             {
@@ -1090,6 +1067,37 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void joinTokenRing(int delay) throws ConfigurationException
     {
         joinTokenRing(delay, DatabaseDescriptor.isAutoBootstrap(), DatabaseDescriptor.getInitialTokens());
+    }
+
+    /**
+     * Checks and ensures that keyspaces are empty, and no ranges have been marked as streamed before we start a bootstrap.
+     */
+    private static boolean areKeyspacesEmptyForBootstrap() {
+        boolean previousDataFound = false;
+
+        Set<String> userKeyspaces = ImmutableSet.copyOf(Sets.difference(ImmutableSet.copyOf(Schema.instance.getUserKeyspaces()), ImmutableSet.of("system_palantir")));
+
+        for (String keyspaceName : userKeyspaces)
+        {
+            Set<Range<Token>> availableRanges = SystemKeyspace.getAvailableRanges(keyspaceName, StorageService.getPartitioner());
+
+            if(!availableRanges.isEmpty()) {
+                logger.error("Found previous ranges available {} for a non-system keyspace.", availableRanges);
+                previousDataFound = true;
+            }
+
+            Keyspace keyspace = Keyspace.open(keyspaceName);
+            for (ColumnFamilyStore store : keyspace.getColumnFamilyStores())
+            {
+                Collection<SSTableReader> tables = store.getSSTables();
+                if (tables.size() > 0)
+                {
+                    logger.error("Found previous SSTables {} for keyspace {} and cf {}.", tables, keyspaceName, store.name);
+                    previousDataFound = true;
+                }
+            }
+        }
+        return previousDataFound;
     }
 
     /**
