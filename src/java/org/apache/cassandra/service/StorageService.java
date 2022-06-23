@@ -1107,6 +1107,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static boolean isCommitlogEmptyForBootstrap() {
         boolean previousDataFound = false;
         Set<UUID> ignoredKeyspacesInCommitLog = CommitLogReplayer.getSeenColumnFamilies().stream()
+                                                                 .filter(Objects::nonNull) // cfIds for commitlog can sometimes be null
                                                                  .filter(uuid -> Schema.instance.getCFMetaData(uuid) == null)
                                                                  .collect(Collectors.toSet());
 
