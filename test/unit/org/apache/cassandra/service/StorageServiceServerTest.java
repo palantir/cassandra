@@ -26,6 +26,7 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
@@ -42,6 +43,7 @@ import org.junit.runner.RunWith;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
+import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.Schema;
@@ -91,6 +93,22 @@ public class StorageServiceServerTest
         DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
+    }
+
+    @Test
+    public void isCommitlogEmptyForBootstrap_returnsTrueWhenEmpty() {
+        assertThat(StorageService.isCommitlogEmptyForBootstrap(ImmutableSet.of())).isTrue();
+    }
+
+    @Test
+    public void isCommitlogEmptyForBootstrap_returnsFalseWhenNotEmpty() {
+        assertThat(StorageService.isCommitlogEmptyForBootstrap(ImmutableSet.of(UUID.randomUUID()))).isFalse();
+    }
+
+    @Test
+    public void isCommitlogEmptyForBootstrap_returnsTrueIgnoresSystemCfs() {
+        Set<UUID> uuids = Schema.instance.getKeyspaceMetaData(SystemKeyspace.NAME).values().stream().map(cf -> cf.cfId).collect(Collectors.toSet());
+        assertThat(StorageService.isCommitlogEmptyForBootstrap(uuids)).isTrue();
     }
 
     @Test

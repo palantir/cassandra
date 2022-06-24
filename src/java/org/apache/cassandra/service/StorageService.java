@@ -888,9 +888,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
             bootstrapManager.awaitBootstrappable();
-            boolean previousDataFound = isCommitlogEmptyForBootstrap() || areKeyspacesEmptyForBootstrap();
+            boolean noPreviousDataFound = isCommitlogEmptyForBootstrap() && areKeyspacesEmptyForBootstrap();
 
-            if (previousDataFound)
+            if (!noPreviousDataFound)
             {
                 recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR,
                                         ImmutableMap.of("previousDataFound", "true"));
@@ -1073,7 +1073,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * Checks and ensures that keyspaces are empty, and no ranges have been marked as streamed before we start a bootstrap.
      */
     private static boolean areKeyspacesEmptyForBootstrap() {
-        boolean previousDataFound = false;
+        boolean empty = true;
 
         Set<String> userKeyspaces = ImmutableSet.copyOf(Sets.difference(ImmutableSet.copyOf(Schema.instance.getUserKeyspaces()), ImmutableSet.of("system_palantir")));
 
@@ -1083,7 +1083,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
             if(!availableRanges.isEmpty()) {
                 logger.error("Found previous ranges available {} for a non-system keyspace.", availableRanges);
-                previousDataFound = true;
+                empty = false;
             }
 
             Keyspace keyspace = Keyspace.open(keyspaceName);
@@ -1093,20 +1093,24 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 if (tables.size() > 0)
                 {
                     logger.error("Found previous SSTables {} for keyspace {} and cf {}.", tables, keyspaceName, store.name);
-                    previousDataFound = true;
+                    empty = false;
                 }
             }
         }
-        return previousDataFound;
+        return empty;
+    }
+
+    private static boolean isCommitlogEmptyForBootstrap() {
+        return isCommitlogEmptyForBootstrap(CommitLogReplayer.getSeenColumnFamilies());
     }
 
     /**
      * Checks to see if any commitlog segments have been replayed for non-system keyspaces.
      * @return True if no commitlog segments for non-system keyspaces have been replayed, false otherwise.
      */
-    private static boolean isCommitlogEmptyForBootstrap() {
-        boolean previousDataFound = false;
-        Set<UUID> ignoredKeyspacesInCommitLog = CommitLogReplayer.getSeenColumnFamilies().stream()
+    static boolean isCommitlogEmptyForBootstrap(Set<UUID> columnFamiliesWithReplayedMutations) {
+        boolean empty = true;
+        Set<UUID> ignoredKeyspacesInCommitLog = columnFamiliesWithReplayedMutations.stream()
                                                                  .filter(Objects::nonNull) // cfIds for commitlog can sometimes be null
                                                                  .filter(uuid -> Schema.instance.getCFMetaData(uuid) == null)
                                                                  .collect(Collectors.toSet());
@@ -1114,23 +1118,23 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!ignoredKeyspacesInCommitLog.isEmpty()) {
             logger.info("Tried to replay a commitlog segment with an unknown CF(s) {}, " +
                         "this indicates data from a previous bootstrap attempt still exists. Please delete before proceeding.", ignoredKeyspacesInCommitLog);
-            previousDataFound = true;
+            empty = false;
         }
 
-        Set<String> seenKeyspacesInCommitlog =  CommitLogReplayer.getSeenColumnFamilies().stream()
+        Set<String> seenKeyspacesInCommitlog =  columnFamiliesWithReplayedMutations.stream()
                                                                  .map(Schema.instance::getCFMetaData)
                                                                  .filter(Objects::nonNull)
                                                                  .map(cf -> cf.ksName)
                                                                  .filter(keyspace -> !Schema.SYSTEM_KEYSPACES.contains(keyspace))
                                                                  .collect(Collectors.toSet());
 
-        if (seenKeyspacesInCommitlog.isEmpty()) {
+        if (!seenKeyspacesInCommitlog.isEmpty()) {
             logger.error("Found previous commitlog entries for non-existing CFs {}, indicating we've an old commitlog files from a preivous bootstrap. Please delete before proceeding.",
                          CommitLogReplayer.getSeenColumnFamilies());
-            previousDataFound = true;
+            empty = false;
         }
 
-        return previousDataFound;
+        return empty;
     }
 
     @VisibleForTesting
