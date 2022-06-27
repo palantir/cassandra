@@ -71,6 +71,7 @@ import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.locator.*;
+import org.apache.cassandra.metrics.NonTransientErrorMetrics;
 import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.repair.*;
@@ -1626,6 +1627,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
         setMode(Mode.NON_TRANSIENT_ERROR, String.format("Non transient error of type %s", nonTransientError.toString()), true);
+        NonTransientErrorMetrics.instance.record(nonTransientError);
         ImmutableMap<String, String> attributesWithErrorType =
             ImmutableMap.<String, String>builder()
             .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
