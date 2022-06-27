@@ -32,11 +32,12 @@ import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 public class NonTransientErrorMetrics
 {
     public static NonTransientErrorMetrics instance = new NonTransientErrorMetrics();
-    private static final MetricNameFactory factory = new DefaultNameFactory("NonTransientErrors");
+    private final MetricNameFactory factory; 
     private final Map<StorageServiceMBean.NonTransientError, Counter> errorCounters;
 
     private NonTransientErrorMetrics()
     {
+        this.factory = new DefaultNameFactory("NonTransientErrors");
         Map<StorageServiceMBean.NonTransientError, Counter> tmp = new EnumMap<>(StorageServiceMBean.NonTransientError.class);
         Arrays.stream(StorageServiceMBean.NonTransientError.values())
               .forEach(error -> tmp.put(error, Metrics.counter(factory.createMetricName(error.name().toLowerCase()))));
