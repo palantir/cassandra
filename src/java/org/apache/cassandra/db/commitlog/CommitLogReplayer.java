@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,6 +37,7 @@ import com.google.common.collect.Multimap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.github.tjake.ICRC32;
 
 import org.apache.cassandra.concurrent.Stage;
@@ -66,6 +68,7 @@ public class CommitLogReplayer
     private static final int MAX_OUTSTANDING_REPLAY_COUNT = Integer.getInteger("cassandra.commitlog_max_outstanding_replay_count", 1024);
     private static final int LEGACY_END_OF_SEGMENT_MARKER = 0;
 
+    private static final Set<UUID> SEEN_COLUMN_FAMILIES = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<Keyspace> keyspacesRecovered;
     private final List<Future<?>> futures;
     private final Map<UUID, AtomicInteger> invalidMutations;
@@ -584,7 +587,6 @@ public class CommitLogReplayer
     void replayMutation(byte[] inputBuffer, int size,
             final int entryLocation, final CommitLogDescriptor desc, String path) throws IOException
     {
-
         final Mutation mutation;
         try (FastByteArrayInputStream bufIn = new FastByteArrayInputStream(inputBuffer, 0, size))
         {
@@ -593,14 +595,18 @@ public class CommitLogReplayer
                                                        ColumnSerializer.Flag.LOCAL);
             // doublecheck that what we read is [still] valid for the current schema
             for (ColumnFamily cf : mutation.getColumnFamilies())
+            {
+                SEEN_COLUMN_FAMILIES.add(cf.id());
                 for (Cell cell : cf)
                     cf.getComparator().validate(cell.name());
+            }
         }
         catch (UnknownColumnFamilyException ex)
         {
             if (ex.cfId == null)
                 return;
             AtomicInteger i = invalidMutations.get(ex.cfId);
+            SEEN_COLUMN_FAMILIES.add(ex.cfId);
             if (i == null)
             {
                 i = new AtomicInteger(1);
@@ -707,6 +713,10 @@ public class CommitLogReplayer
                          "on the command line");
             throw e;
         }
+    }
+
+    public static Set<UUID> getSeenColumnFamilies() {
+        return Collections.unmodifiableSet(SEEN_COLUMN_FAMILIES);
     }
 
     @SuppressWarnings("serial")
