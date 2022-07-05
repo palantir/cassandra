@@ -63,9 +63,6 @@ public class Keyspace
     private static final String TEST_FAIL_WRITES_KS = System.getProperty("cassandra.test.fail_writes_ks", "");
     private static final boolean TEST_FAIL_WRITES = !TEST_FAIL_WRITES_KS.isEmpty();
 
-
-    private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.valueOf(System.getProperty("palantir_cassandra.verify_keys_on_write", "false"));
-
     public final KeyspaceMetrics metric;
 
     // It is possible to call Keyspace.open without a running daemon, so it makes sense to ensure
@@ -402,21 +399,6 @@ public class Keyspace
      */
     public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
     {
-        if (VERIFY_KEYS_ON_WRITE && getReplicationStrategy() instanceof NetworkTopologyStrategy) {
-            Token tk = StorageService.getPartitioner().getToken(mutation.key());
-            List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
-            Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
-
-            if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
-                logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
-                             FBUtilities.getBroadcastAddress(),
-                             mutation.key(),
-                             naturalEndpoints,
-                             pendingEndpoints);
-                throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
-            }
-        }
-
         if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
             throw new RuntimeException("Testing write failures");
 
