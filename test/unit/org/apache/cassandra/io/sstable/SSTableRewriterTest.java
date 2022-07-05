@@ -37,6 +37,7 @@ import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
+import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
@@ -620,7 +621,7 @@ public class SSTableRewriterTest extends SchemaLoader
         {
             SSTableSplitter splitter = new SSTableSplitter(cfs, txn, 10);
             splitter.split();
-
+            SSTableDeletingTask.waitForDeletions();
             assertFileCounts(s.descriptor.directory.list(), 0, 0);
 
             s.selfRef().release();
