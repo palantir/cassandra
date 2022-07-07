@@ -18,29 +18,17 @@
 package org.apache.cassandra.db;
 
 import java.io.DataInputStream;
-import java.io.IOError;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.Collection;
-import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.apache.cassandra.dht.Token;
+import com.palantir.cassandra.utils.MutationVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
-import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.net.*;
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.tracing.Tracing;
-import org.apache.cassandra.utils.FBUtilities;
 
 public class MutationVerbHandler implements IVerbHandler<Mutation>
 {
     private static final boolean TEST_FAIL_WRITES = System.getProperty("cassandra.test.fail_writes", "false").equalsIgnoreCase("true");
-    private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.valueOf(System.getProperty("palantir_cassandra.verify_keys_on_write", "false"));
-
-    private static final Logger logger = LoggerFactory.getLogger(Keyspace.class);
 
     public void doVerb(MessageIn<Mutation> message, int id)  throws IOException
     {
@@ -59,24 +47,7 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 replyTo = InetAddress.getByAddress(from);
             }
 
-            if (VERIFY_KEYS_ON_WRITE) {
-                Mutation mutation = message.payload;
-                Keyspace keyspace = Keyspace.open(mutation.getKeyspaceName());
-                if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy) {
-                    Token tk = StorageService.getPartitioner().getToken(mutation.key());
-                    List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
-                    Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
-
-                    if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
-                        logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
-                                     FBUtilities.getBroadcastAddress(),
-                                     mutation.key(),
-                                     naturalEndpoints,
-                                     pendingEndpoints);
-                        throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
-                    }
-                }
-            }
+            MutationVerificationUtils.verifyMutation(message.payload);
 
             message.payload.apply();
             WriteResponse response = new WriteResponse();

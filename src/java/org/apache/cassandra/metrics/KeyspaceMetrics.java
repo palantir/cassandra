@@ -19,6 +19,7 @@ package org.apache.cassandra.metrics;
 
 import java.util.Set;
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -27,6 +28,7 @@ import org.apache.cassandra.db.Keyspace;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.palantir.cassandra.utils.CountingCellIterator;
+import org.apache.cassandra.db.Mutation;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
@@ -110,6 +112,8 @@ public class KeyspaceMetrics
     public final LatencyMetrics casPropose;
     /** CAS Commit metrics */
     public final LatencyMetrics casCommit;
+    /** Number of mutation requests which were not for a row this node owned */
+    public final Counter invalidMutations;
     
     public final MetricNameFactory factory;
     private Keyspace keyspace;
@@ -265,6 +269,7 @@ public class KeyspaceMetrics
         casPrepare = new LatencyMetrics(factory, "CasPrepare");
         casPropose = new LatencyMetrics(factory, "CasPropose");
         casCommit = new LatencyMetrics(factory, "CasCommit");
+        invalidMutations = Metrics.counter(factory.createMetricName("InvalidMutations"));
     }
 
     /**
