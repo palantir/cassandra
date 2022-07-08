@@ -40,22 +40,23 @@ public class MutationVerificationUtils
     private MutationVerificationUtils() {}
 
     public static void verifyMutation(Mutation mutation) {
-        if (VERIFY_KEYS_ON_WRITE) {
-            Keyspace keyspace = Keyspace.open(mutation.getKeyspaceName());
-            if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy) {
-                Token tk = StorageService.getPartitioner().getToken(mutation.key());
-                List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
-                Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
+        if (!VERIFY_KEYS_ON_WRITE) {
+            return;
+        }
+        Keyspace keyspace = Keyspace.open(mutation.getKeyspaceName());
+        if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy) {
+            Token tk = StorageService.getPartitioner().getToken(mutation.key());
+            List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+            Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
 
-                if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
-                    keyspace.metric.invalidMutations.inc();
-                    logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
-                                 FBUtilities.getBroadcastAddress(),
-                                 mutation.key(),
-                                 naturalEndpoints,
-                                 pendingEndpoints);
-                    throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
-                }
+            if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
+                keyspace.metric.invalidMutations.inc();
+                logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
+                             FBUtilities.getBroadcastAddress(),
+                             mutation.key(),
+                             naturalEndpoints,
+                             pendingEndpoints);
+                throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
             }
         }
     }
