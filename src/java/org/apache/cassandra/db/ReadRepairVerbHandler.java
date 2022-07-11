@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.db;
 
+import com.palantir.cassandra.utils.MutationVerificationUtils;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
@@ -25,6 +26,7 @@ public class ReadRepairVerbHandler implements IVerbHandler<Mutation>
 {
     public void doVerb(MessageIn<Mutation> message, int id)
     {
+        MutationVerificationUtils.verifyMutation(message.payload);
         message.payload.apply();
         WriteResponse response = new WriteResponse();
         MessagingService.instance().sendReply(response.createMessage(), id, message.from);
