@@ -58,6 +58,8 @@ public class MutationVerificationUtils
                              pendingEndpoints);
                 throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
             }
+
+            keyspace.metric.validMutations.inc();
         }
     }
 
