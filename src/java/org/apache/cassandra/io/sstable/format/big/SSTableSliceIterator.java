@@ -24,6 +24,7 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.OnDiskAtom;
 import org.apache.cassandra.db.RowIndexEntry;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
+import org.apache.cassandra.db.columniterator.SSTableAwareOnDiskAtomIterator;
 import org.apache.cassandra.db.filter.ColumnSlice;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.FileDataInput;
@@ -31,14 +32,17 @@ import org.apache.cassandra.io.util.FileDataInput;
 /**
  *  A Cell Iterator over SSTable
  */
-class SSTableSliceIterator implements OnDiskAtomIterator
+public class SSTableSliceIterator implements SSTableAwareOnDiskAtomIterator
 {
     private final OnDiskAtomIterator reader;
     private final DecoratedKey key;
 
+    private final SSTableReader ssTableReader;
+
     public SSTableSliceIterator(SSTableReader sstable, DecoratedKey key, ColumnSlice[] slices, boolean reversed)
     {
         this.key = key;
+        this.ssTableReader = sstable;
         RowIndexEntry indexEntry = sstable.getPosition(key, SSTableReader.Operator.EQ);
         this.reader = indexEntry == null ? null : createReader(sstable, indexEntry, null, slices, reversed);
     }
@@ -58,6 +62,7 @@ class SSTableSliceIterator implements OnDiskAtomIterator
     public SSTableSliceIterator(SSTableReader sstable, FileDataInput file, DecoratedKey key, ColumnSlice[] slices, boolean reversed, RowIndexEntry indexEntry)
     {
         this.key = key;
+        this.ssTableReader = sstable;
         reader = createReader(sstable, indexEntry, file, slices, reversed);
     }
 
@@ -66,6 +71,10 @@ class SSTableSliceIterator implements OnDiskAtomIterator
         return slices.length == 1 && slices[0].start.isEmpty() && !reversed
              ? new SimpleSliceReader(sstable, indexEntry, file, slices[0].finish)
              : new IndexedSliceReader(sstable, indexEntry, file, slices, reversed);
+    }
+
+    public SSTableReader getSSTableReader() {
+        return this.ssTableReader;
     }
 
     public DecoratedKey getKey()

@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.palantir.cassandra.utils.CountingCellIterator;
 import com.codahale.metrics.*;
+import com.palantir.cassandra.utils.TombstoneCountingIterator;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Memtable;
@@ -131,9 +132,9 @@ public class ColumnFamilyMetrics
     public final ColumnFamilyHistogram liveReadHistogram;
     /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
     public final ColumnFamilyHistogram tombstonesReadHistogram;
-    /** Range tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    /** Range tombstones scanned in queries on this CF per {@link TombstoneCountingIterator} */
     public final ColumnFamilyHistogram rangeTombstonesReadHistogram;
-    /** Droppable range tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    /** Droppable range tombstones scanned in queries on this CF per {@link TombstoneCountingIterator} */
     public final ColumnFamilyHistogram droppableRangeTombstonesReadHistogram;
     /** Range tombstones held in memory when performing a read on this CF */
     public final ColumnFamilyHistogram rangeTombstonesHistogram;

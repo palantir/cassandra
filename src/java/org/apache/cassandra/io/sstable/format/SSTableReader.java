@@ -24,6 +24,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.codahale.metrics.Meter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -220,6 +221,16 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     private final Ref<SSTableReader> selfRef = new Ref<>(this, tidy);
 
     private RestorableMeter readMeter;
+
+    private Meter droppableTombstonesReadMeter;
+
+    public void incrementTombstoneMeter() {
+        droppableTombstonesReadMeter.mark();
+    }
+
+    public double getDroppableTombstonesReadRate() {
+        return droppableTombstonesReadMeter.getOneMinuteRate();
+    }
 
     /**
      * Calculate approximate key count.
@@ -604,6 +615,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         this.maxDataAge = maxDataAge;
         this.openReason = openReason;
         this.rowIndexEntrySerializer = descriptor.version.getSSTableFormat().getIndexSerializer(metadata);
+        this.droppableTombstonesReadMeter = new Meter();
     }
 
     public static long getTotalBytes(Iterable<SSTableReader> sstables)
