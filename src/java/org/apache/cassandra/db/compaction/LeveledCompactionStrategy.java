@@ -97,7 +97,7 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
             LeveledManifest.CompactionCandidate candidate = manifest.getCompactionCandidates();
             if (candidate == null)
             {
-                // if there is no sstable to compact in standard way, try compacting based on droppable tombstone ratio
+                // if there is no sstable to compact in standard way, try compacting based on droppable tombstone read
                 SSTableReader sstable = findDroppableSSTable(gcBefore);
                 if (sstable == null)
                 {
@@ -405,13 +405,13 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
         level:
         for (int i = manifest.getLevelCount(); i >= 0; i--)
         {
-            // sort sstables by droppable ratio in descending order
+            // sort sstables by droppable tombstones read per second in descending order
             SortedSet<SSTableReader> sstables = manifest.getLevelSorted(i, new Comparator<SSTableReader>()
             {
                 public int compare(SSTableReader o1, SSTableReader o2)
                 {
-                    double r1 = o1.getEstimatedDroppableTombstoneRatio(gcBefore);
-                    double r2 = o2.getEstimatedDroppableTombstoneRatio(gcBefore);
+                    double r1 = o1.getDroppableTombstonesReadRate();
+                    double r2 = o2.getDroppableTombstonesReadRate();
                     return -1 * Doubles.compare(r1, r2);
                 }
             });
@@ -421,7 +421,7 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
             Set<SSTableReader> compacting = cfs.getTracker().getCompacting();
             for (SSTableReader sstable : sstables)
             {
-                if (sstable.getEstimatedDroppableTombstoneRatio(gcBefore) <= tombstoneThreshold)
+                if (sstable.getDroppableTombstonesReadRate() <= tombstoneReadThreshold)
                     continue level;
                 else if (!compacting.contains(sstable) && !sstable.isMarkedSuspect() && worthDroppingTombstones(sstable, gcBefore))
                     return sstable;
