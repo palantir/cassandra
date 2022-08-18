@@ -28,12 +28,15 @@ import java.nio.file.StandardOpenOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.fsync.FsyncMetrics;
 import com.sun.jna.LastErrorException;
 import com.sun.jna.Native;
 
 public final class CLibrary
 {
     private static final Logger logger = LoggerFactory.getLogger(CLibrary.class);
+
+    private static final FsyncMetrics FSYNC_METRICS = new FsyncMetrics();
 
     private static final int MCL_CURRENT;
     private static final int MCL_FUTURE;
@@ -275,6 +278,7 @@ public final class CLibrary
         try
         {
             fsync(fd);
+            FSYNC_METRICS.successfulSyncs.inc();
         }
         catch (UnsatisfiedLinkError e)
         {
@@ -285,6 +289,7 @@ public final class CLibrary
             if (!(e instanceof LastErrorException))
                 throw e;
 
+            FSYNC_METRICS.failedSyncs.inc();
             logger.warn(String.format("fsync(%d) failed, errno (%d).", fd, errno(e)));
         }
     }
