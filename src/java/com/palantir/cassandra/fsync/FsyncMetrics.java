@@ -26,7 +26,7 @@ import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
 public class FsyncMetrics
 {
-    private static final MetricNameFactory factory = new DefaultNameFactory("FsyncMetrics");
+    private static final MetricNameFactory factory = new DefaultNameFactory("Fsync");
 
     public final Counter successfulSyncs = Metrics.counter(factory.createMetricName("SuccessfulSyncs"));
     public final Counter failedSyncs = Metrics.counter(factory.createMetricName("FailedSyncs"));
