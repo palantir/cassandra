@@ -872,10 +872,7 @@ service Cassandra {
       https://issues.apache.org/jira/browse/CASSANDRA-4092 */
   map<string, string> describe_token_map()
                     throws (1:InvalidRequestException ire),
-
-  /** returns the list of host ids as seen by this node. */
-  list<string> get_host_ids(),
-
+  
   /** returns the partitioner used by this cluster */
   string describe_partitioner(),
 
