@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -1669,6 +1670,11 @@ public class CassandraServer implements Cassandra.Iface
     public Map<String, String> describe_token_map() throws InvalidRequestException
     {
         return StorageService.instance.getTokenToEndpointMap();
+    }
+
+    public List<String> get_host_ids() throws TException
+    {
+        return StorageService.instance.getHostIdMap().keySet().stream().collect(Collectors.toList());
     }
 
     public String describe_partitioner() throws TException
