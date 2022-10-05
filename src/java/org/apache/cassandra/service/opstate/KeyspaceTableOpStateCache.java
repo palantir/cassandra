@@ -70,17 +70,24 @@ public class KeyspaceTableOpStateCache
             return Optional.empty();
 
         // Remove potentially deleted keyspaces and tables from entries
+        Set<KeyspaceTableKey> validEntries = getValidKeyspaceTableEntries();
         Set<KeyspaceTableKey> invalidEntries =
-            Sets.difference(tableEntries.keySet(), Sets.intersection(tableEntries.keySet(), getValidKeyspaceTableEntries()));
+            Sets.difference(tableEntries.keySet(), Sets.intersection(tableEntries.keySet(), validEntries));
         invalidEntries.forEach(tableEntries::remove);
 
+        // If not all keyspaces/tables have a tracked last cleanup ts, default to empty value
+        Set<KeyspaceTableKey> missingEntries = Sets.difference(validEntries, tableEntries.keySet());
+        if (!missingEntries.isEmpty())
+        {
+            return Optional.empty();
+        }
         return Optional.of(Collections.min(tableEntries.values()));
     }
 
 
     @VisibleForTesting
     Set<KeyspaceTableKey> getValidKeyspaceTableEntries(){
-return Schema.instance.getKeyspaces().stream()
+        return Schema.instance.getNonSystemKeyspaces().stream()
                               .map(keyspace -> Schema.instance.getKeyspaceInstance(keyspace).getColumnFamilyStores()
                                                               .stream()
                                                               .map(cf -> KeyspaceTableKey.of(keyspace, cf.getColumnFamilyName()))
