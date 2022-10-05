@@ -1674,7 +1674,7 @@ public class CassandraServer implements Cassandra.Iface
 
     public List<String> get_host_ids() throws TException
     {
-        return StorageService.instance.getHostIdMap().keySet().stream().collect(Collectors.toList());
+        return StorageService.instance.getHostIdMap().values().stream().collect(Collectors.toList());
     }
 
     public String describe_partitioner() throws TException
