@@ -3012,6 +3012,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return forceKeyspaceCleanup(0, keyspaceName, columnFamilies);
     }
 
+    public void createCleanupEntryForCfIfNotExists(String keyspaceName, String columnFamily, Optional<Instant> cleanupTs)
+    {
+        cleanupState.createCleanupEntryForTableIfNotExists(keyspaceName, columnFamily, cleanupTs);
+    }
+
     public int forceKeyspaceCleanup(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         if (getJoiningNodes().size() > 0 || getLeavingNodes().size() > 0)
@@ -3026,7 +3031,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             CompactionManager.AllSSTableOpStatus status = CompactionManager.AllSSTableOpStatus.SUCCESSFUL;
             for (ColumnFamilyStore cfStore : getValidColumnFamilies(false, false, keyspaceName, columnFamilies))
             {
-                cleanupState.createCleanupEntryForTableIfNotExists(keyspaceName, cfStore.getColumnFamilyName());
+                createCleanupEntryForCfIfNotExists(keyspaceName, cfStore.getColumnFamilyName(), Optional.empty());
                 CompactionManager.AllSSTableOpStatus oneStatus = cfStore.forceCleanup(jobs);
                 if (oneStatus != CompactionManager.AllSSTableOpStatus.SUCCESSFUL)
                     status = oneStatus;

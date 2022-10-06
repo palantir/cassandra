@@ -55,9 +55,10 @@ public class KeyspaceTableOpStateCacheTest
     public void getMinimumTsReturnsExceptedValues()
     {
         KeyspaceTableOpStateCache state =
-            Mockito.spy(new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
+        Mockito.spy(new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
         doReturn(OpStateTestConstants.KEYSPACE_TABLE_VALID_ENTRIES).when(state).getValidKeyspaceTableEntries();
-        assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(10L));
+        // Missing entry for KEYSPACE_TABLE_KEY_2, getMinimumTsOfAllEntries should return an empty value
+        assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isNull();
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
         assertThat(state.getMinimumTsOfAllEntries().orElse(null)).isEqualTo(Instant.ofEpochMilli(10L));
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L));
@@ -68,7 +69,7 @@ public class KeyspaceTableOpStateCacheTest
     public void getMinimumTsIgnoresInvalidEntries()
     {
         KeyspaceTableOpStateCache state =
-            Mockito.spy(new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
+        Mockito.spy(new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L))));
         state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, Instant.ofEpochMilli(20L));
 
         doReturn(ImmutableSet.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_2)).when(state).getValidKeyspaceTableEntries();
@@ -79,7 +80,7 @@ public class KeyspaceTableOpStateCacheTest
     public void throwsWhenTryingToUpdateWithSmallerTs()
     {
         KeyspaceTableOpStateCache state =
-            new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
+        new KeyspaceTableOpStateCache(ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(20L)));
         try
         {
             state.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L));
