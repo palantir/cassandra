@@ -6,7 +6,7 @@
  */
 package org.apache.cassandra.thrift;
 /*
- *
+ * 
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -14,17 +14,18 @@ package org.apache.cassandra.thrift;
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- *
+ * 
  */
+
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.thrift.scheme.IScheme;
@@ -343,6 +344,11 @@ public class Cassandra {
     public Map<String,String> describe_token_map() throws InvalidRequestException, org.apache.thrift.TException;
 
     /**
+     * returns the list of host ids as seen by this node.
+     */
+    public List<String> get_host_ids() throws org.apache.thrift.TException;
+
+    /**
      * returns the partitioner used by this cluster
      */
     public String describe_partitioner() throws org.apache.thrift.TException;
@@ -544,6 +550,8 @@ public class Cassandra {
     public void describe_local_ring(String keyspace, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void describe_token_map(org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
+
+    public void get_host_ids(org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void describe_partitioner(org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
@@ -1460,6 +1468,28 @@ public class Cassandra {
         throw result.ire;
       }
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "describe_token_map failed: unknown result");
+    }
+
+    public List<String> get_host_ids() throws org.apache.thrift.TException
+    {
+      send_get_host_ids();
+      return recv_get_host_ids();
+    }
+
+    public void send_get_host_ids() throws org.apache.thrift.TException
+    {
+      get_host_ids_args args = new get_host_ids_args();
+      sendBase("get_host_ids", args);
+    }
+
+    public List<String> recv_get_host_ids() throws org.apache.thrift.TException
+    {
+      get_host_ids_result result = new get_host_ids_result();
+      receiveBase(result, "get_host_ids");
+      if (result.isSetSuccess()) {
+        return result.success;
+      }
+      throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "get_host_ids failed: unknown result");
     }
 
     public String describe_partitioner() throws org.apache.thrift.TException
@@ -3052,6 +3082,35 @@ public class Cassandra {
       }
     }
 
+    public void get_host_ids(org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      get_host_ids_call method_call = new get_host_ids_call(resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class get_host_ids_call extends org.apache.thrift.async.TAsyncMethodCall {
+      public get_host_ids_call(org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("get_host_ids", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        get_host_ids_args args = new get_host_ids_args();
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public List<String> getResult() throws org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_get_host_ids();
+      }
+    }
+
     public void describe_partitioner(org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
       checkReady();
       describe_partitioner_call method_call = new describe_partitioner_call(resultHandler, this, ___protocolFactory, ___transport);
@@ -3734,6 +3793,7 @@ public class Cassandra {
       processMap.put("describe_ring", new describe_ring());
       processMap.put("describe_local_ring", new describe_local_ring());
       processMap.put("describe_token_map", new describe_token_map());
+      processMap.put("get_host_ids", new get_host_ids());
       processMap.put("describe_partitioner", new describe_partitioner());
       processMap.put("describe_snitch", new describe_snitch());
       processMap.put("describe_keyspace", new describe_keyspace());
@@ -4501,6 +4561,26 @@ public class Cassandra {
       }
     }
 
+    public static class get_host_ids<I extends Iface> extends org.apache.thrift.ProcessFunction<I, get_host_ids_args> {
+      public get_host_ids() {
+        super("get_host_ids");
+      }
+
+      public get_host_ids_args getEmptyArgsInstance() {
+        return new get_host_ids_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public get_host_ids_result getResult(I iface, get_host_ids_args args) throws org.apache.thrift.TException {
+        get_host_ids_result result = new get_host_ids_result();
+        result.success = iface.get_host_ids();
+        return result;
+      }
+    }
+
     public static class describe_partitioner<I extends Iface> extends org.apache.thrift.ProcessFunction<I, describe_partitioner_args> {
       public describe_partitioner() {
         super("describe_partitioner");
@@ -5024,6 +5104,7 @@ public class Cassandra {
       processMap.put("describe_ring", new describe_ring());
       processMap.put("describe_local_ring", new describe_local_ring());
       processMap.put("describe_token_map", new describe_token_map());
+      processMap.put("get_host_ids", new get_host_ids());
       processMap.put("describe_partitioner", new describe_partitioner());
       processMap.put("describe_snitch", new describe_snitch());
       processMap.put("describe_keyspace", new describe_keyspace());
@@ -6819,6 +6900,57 @@ public class Cassandra {
 
       public void start(I iface, describe_token_map_args args, org.apache.thrift.async.AsyncMethodCallback<Map<String,String>> resultHandler) throws TException {
         iface.describe_token_map(resultHandler);
+      }
+    }
+
+    public static class get_host_ids<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, get_host_ids_args, List<String>> {
+      public get_host_ids() {
+        super("get_host_ids");
+      }
+
+      public get_host_ids_args getEmptyArgsInstance() {
+        return new get_host_ids_args();
+      }
+
+      public AsyncMethodCallback<List<String>> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
+        final org.apache.thrift.AsyncProcessFunction fcall = this;
+        return new AsyncMethodCallback<List<String>>() { 
+          public void onComplete(List<String> o) {
+            get_host_ids_result result = new get_host_ids_result();
+            result.success = o;
+            try {
+              fcall.sendResponse(fb,result, org.apache.thrift.protocol.TMessageType.REPLY,seqid);
+              return;
+            } catch (Exception e) {
+              LOGGER.error("Exception writing to internal frame buffer", e);
+            }
+            fb.close();
+          }
+          public void onError(Exception e) {
+            byte msgType = org.apache.thrift.protocol.TMessageType.REPLY;
+            org.apache.thrift.TBase msg;
+            get_host_ids_result result = new get_host_ids_result();
+            {
+              msgType = org.apache.thrift.protocol.TMessageType.EXCEPTION;
+              msg = (org.apache.thrift.TBase)new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, e.getMessage());
+            }
+            try {
+              fcall.sendResponse(fb,msg,msgType,seqid);
+              return;
+            } catch (Exception ex) {
+              LOGGER.error("Exception writing to internal frame buffer", ex);
+            }
+            fb.close();
+          }
+        };
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public void start(I iface, get_host_ids_args args, org.apache.thrift.async.AsyncMethodCallback<List<String>> resultHandler) throws TException {
+        iface.get_host_ids(resultHandler);
       }
     }
 
@@ -40465,6 +40597,664 @@ public class Cassandra {
 
   }
 
+  public static class get_host_ids_args implements org.apache.thrift.TBase<get_host_ids_args, get_host_ids_args._Fields>, java.io.Serializable, Cloneable, Comparable<get_host_ids_args>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("get_host_ids_args");
+
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new get_host_ids_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new get_host_ids_argsTupleSchemeFactory());
+    }
+
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+;
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(get_host_ids_args.class, metaDataMap);
+    }
+
+    public get_host_ids_args() {
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public get_host_ids_args(get_host_ids_args other) {
+    }
+
+    public get_host_ids_args deepCopy() {
+      return new get_host_ids_args(this);
+    }
+
+    @Override
+    public void clear() {
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof get_host_ids_args)
+        return this.equals((get_host_ids_args)that);
+      return false;
+    }
+
+    public boolean equals(get_host_ids_args that) {
+      if (that == null)
+        return false;
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      HashCodeBuilder builder = new HashCodeBuilder();
+
+      return builder.toHashCode();
+    }
+
+    @Override
+    public int compareTo(get_host_ids_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("get_host_ids_args(");
+      boolean first = true;
+
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class get_host_ids_argsStandardSchemeFactory implements SchemeFactory {
+      public get_host_ids_argsStandardScheme getScheme() {
+        return new get_host_ids_argsStandardScheme();
+      }
+    }
+
+    private static class get_host_ids_argsStandardScheme extends StandardScheme<get_host_ids_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, get_host_ids_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, get_host_ids_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class get_host_ids_argsTupleSchemeFactory implements SchemeFactory {
+      public get_host_ids_argsTupleScheme getScheme() {
+        return new get_host_ids_argsTupleScheme();
+      }
+    }
+
+    private static class get_host_ids_argsTupleScheme extends TupleScheme<get_host_ids_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, get_host_ids_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, get_host_ids_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+      }
+    }
+
+  }
+
+  public static class get_host_ids_result implements org.apache.thrift.TBase<get_host_ids_result, get_host_ids_result._Fields>, java.io.Serializable, Cloneable, Comparable<get_host_ids_result>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("get_host_ids_result");
+
+    private static final org.apache.thrift.protocol.TField SUCCESS_FIELD_DESC = new org.apache.thrift.protocol.TField("success", org.apache.thrift.protocol.TType.LIST, (short)0);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new get_host_ids_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new get_host_ids_resultTupleSchemeFactory());
+    }
+
+    public List<String> success; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      SUCCESS((short)0, "success");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
+              new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING))));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(get_host_ids_result.class, metaDataMap);
+    }
+
+    public get_host_ids_result() {
+    }
+
+    public get_host_ids_result(
+      List<String> success)
+    {
+      this();
+      this.success = success;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public get_host_ids_result(get_host_ids_result other) {
+      if (other.isSetSuccess()) {
+        List<String> __this__success = new ArrayList<String>(other.success);
+        this.success = __this__success;
+      }
+    }
+
+    public get_host_ids_result deepCopy() {
+      return new get_host_ids_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.success = null;
+    }
+
+    public int getSuccessSize() {
+      return (this.success == null) ? 0 : this.success.size();
+    }
+
+    public java.util.Iterator<String> getSuccessIterator() {
+      return (this.success == null) ? null : this.success.iterator();
+    }
+
+    public void addToSuccess(String elem) {
+      if (this.success == null) {
+        this.success = new ArrayList<String>();
+      }
+      this.success.add(elem);
+    }
+
+    public List<String> getSuccess() {
+      return this.success;
+    }
+
+    public get_host_ids_result setSuccess(List<String> success) {
+      this.success = success;
+      return this;
+    }
+
+    public void unsetSuccess() {
+      this.success = null;
+    }
+
+    /** Returns true if field success is set (has been assigned a value) and false otherwise */
+    public boolean isSetSuccess() {
+      return this.success != null;
+    }
+
+    public void setSuccessIsSet(boolean value) {
+      if (!value) {
+        this.success = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unsetSuccess();
+        } else {
+          setSuccess((List<String>)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return getSuccess();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case SUCCESS:
+        return isSetSuccess();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof get_host_ids_result)
+        return this.equals((get_host_ids_result)that);
+      return false;
+    }
+
+    public boolean equals(get_host_ids_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true && this.isSetSuccess();
+      boolean that_present_success = true && that.isSetSuccess();
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (!this.success.equals(that.success))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      HashCodeBuilder builder = new HashCodeBuilder();
+
+      boolean present_success = true && (isSetSuccess());
+      builder.append(present_success);
+      if (present_success)
+        builder.append(success);
+
+      return builder.toHashCode();
+    }
+
+    @Override
+    public int compareTo(get_host_ids_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(other.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.success, other.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("get_host_ids_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      if (this.success == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.success);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class get_host_ids_resultStandardSchemeFactory implements SchemeFactory {
+      public get_host_ids_resultStandardScheme getScheme() {
+        return new get_host_ids_resultStandardScheme();
+      }
+    }
+
+    private static class get_host_ids_resultStandardScheme extends StandardScheme<get_host_ids_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, get_host_ids_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 0: // SUCCESS
+              if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
+                {
+                  org.apache.thrift.protocol.TList _list474 = iprot.readListBegin();
+                  struct.success = new ArrayList<String>(_list474.size);
+                  for (int _i475 = 0; _i475 < _list474.size; ++_i475)
+                  {
+                    String _elem476;
+                    _elem476 = iprot.readString();
+                    struct.success.add(_elem476);
+                  }
+                  iprot.readListEnd();
+                }
+                struct.setSuccessIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, get_host_ids_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.success != null) {
+          oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+          {
+            oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.success.size()));
+            for (String _iter477 : struct.success)
+            {
+              oprot.writeString(_iter477);
+            }
+            oprot.writeListEnd();
+          }
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class get_host_ids_resultTupleSchemeFactory implements SchemeFactory {
+      public get_host_ids_resultTupleScheme getScheme() {
+        return new get_host_ids_resultTupleScheme();
+      }
+    }
+
+    private static class get_host_ids_resultTupleScheme extends TupleScheme<get_host_ids_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, get_host_ids_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetSuccess()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetSuccess()) {
+          {
+            oprot.writeI32(struct.success.size());
+            for (String _iter478 : struct.success)
+            {
+              oprot.writeString(_iter478);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, get_host_ids_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          {
+            org.apache.thrift.protocol.TList _list479 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+            struct.success = new ArrayList<String>(_list479.size);
+            for (int _i480 = 0; _i480 < _list479.size; ++_i480)
+            {
+              String _elem481;
+              _elem481 = iprot.readString();
+              struct.success.add(_elem481);
+            }
+          }
+          struct.setSuccessIsSet(true);
+        }
+      }
+    }
+
+  }
+
   public static class describe_partitioner_args implements org.apache.thrift.TBase<describe_partitioner_args, describe_partitioner_args._Fields>, java.io.Serializable, Cloneable, Comparable<describe_partitioner_args>   {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("describe_partitioner_args");
 
@@ -43668,13 +44458,13 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list474 = iprot.readListBegin();
-                  struct.success = new ArrayList<String>(_list474.size);
-                  for (int _i475 = 0; _i475 < _list474.size; ++_i475)
+                  org.apache.thrift.protocol.TList _list482 = iprot.readListBegin();
+                  struct.success = new ArrayList<String>(_list482.size);
+                  for (int _i483 = 0; _i483 < _list482.size; ++_i483)
                   {
-                    String _elem476;
-                    _elem476 = iprot.readString();
-                    struct.success.add(_elem476);
+                    String _elem484;
+                    _elem484 = iprot.readString();
+                    struct.success.add(_elem484);
                   }
                   iprot.readListEnd();
                 }
@@ -43711,9 +44501,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.success.size()));
-            for (String _iter477 : struct.success)
+            for (String _iter485 : struct.success)
             {
-              oprot.writeString(_iter477);
+              oprot.writeString(_iter485);
             }
             oprot.writeListEnd();
           }
@@ -43752,9 +44542,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (String _iter478 : struct.success)
+            for (String _iter486 : struct.success)
             {
-              oprot.writeString(_iter478);
+              oprot.writeString(_iter486);
             }
           }
         }
@@ -43769,13 +44559,13 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list479 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-            struct.success = new ArrayList<String>(_list479.size);
-            for (int _i480 = 0; _i480 < _list479.size; ++_i480)
+            org.apache.thrift.protocol.TList _list487 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+            struct.success = new ArrayList<String>(_list487.size);
+            for (int _i488 = 0; _i488 < _list487.size; ++_i488)
             {
-              String _elem481;
-              _elem481 = iprot.readString();
-              struct.success.add(_elem481);
+              String _elem489;
+              _elem489 = iprot.readString();
+              struct.success.add(_elem489);
             }
           }
           struct.setSuccessIsSet(true);
@@ -45464,14 +46254,14 @@ public class Cassandra {
             case 0: // SUCCESS
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list482 = iprot.readListBegin();
-                  struct.success = new ArrayList<CfSplit>(_list482.size);
-                  for (int _i483 = 0; _i483 < _list482.size; ++_i483)
+                  org.apache.thrift.protocol.TList _list490 = iprot.readListBegin();
+                  struct.success = new ArrayList<CfSplit>(_list490.size);
+                  for (int _i491 = 0; _i491 < _list490.size; ++_i491)
                   {
-                    CfSplit _elem484;
-                    _elem484 = new CfSplit();
-                    _elem484.read(iprot);
-                    struct.success.add(_elem484);
+                    CfSplit _elem492;
+                    _elem492 = new CfSplit();
+                    _elem492.read(iprot);
+                    struct.success.add(_elem492);
                   }
                   iprot.readListEnd();
                 }
@@ -45508,9 +46298,9 @@ public class Cassandra {
           oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.success.size()));
-            for (CfSplit _iter485 : struct.success)
+            for (CfSplit _iter493 : struct.success)
             {
-              _iter485.write(oprot);
+              _iter493.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -45549,9 +46339,9 @@ public class Cassandra {
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
-            for (CfSplit _iter486 : struct.success)
+            for (CfSplit _iter494 : struct.success)
             {
-              _iter486.write(oprot);
+              _iter494.write(oprot);
             }
           }
         }
@@ -45566,14 +46356,14 @@ public class Cassandra {
         BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TList _list487 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-            struct.success = new ArrayList<CfSplit>(_list487.size);
-            for (int _i488 = 0; _i488 < _list487.size; ++_i488)
+            org.apache.thrift.protocol.TList _list495 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.success = new ArrayList<CfSplit>(_list495.size);
+            for (int _i496 = 0; _i496 < _list495.size; ++_i496)
             {
-              CfSplit _elem489;
-              _elem489 = new CfSplit();
-              _elem489.read(iprot);
-              struct.success.add(_elem489);
+              CfSplit _elem497;
+              _elem497 = new CfSplit();
+              _elem497.read(iprot);
+              struct.success.add(_elem497);
             }
           }
           struct.setSuccessIsSet(true);
@@ -56168,13 +56958,13 @@ public class Cassandra {
             case 2: // VALUES
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list490 = iprot.readListBegin();
-                  struct.values = new ArrayList<ByteBuffer>(_list490.size);
-                  for (int _i491 = 0; _i491 < _list490.size; ++_i491)
+                  org.apache.thrift.protocol.TList _list498 = iprot.readListBegin();
+                  struct.values = new ArrayList<ByteBuffer>(_list498.size);
+                  for (int _i499 = 0; _i499 < _list498.size; ++_i499)
                   {
-                    ByteBuffer _elem492;
-                    _elem492 = iprot.readBinary();
-                    struct.values.add(_elem492);
+                    ByteBuffer _elem500;
+                    _elem500 = iprot.readBinary();
+                    struct.values.add(_elem500);
                   }
                   iprot.readListEnd();
                 }
@@ -56208,9 +56998,9 @@ public class Cassandra {
           oprot.writeFieldBegin(VALUES_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.values.size()));
-            for (ByteBuffer _iter493 : struct.values)
+            for (ByteBuffer _iter501 : struct.values)
             {
-              oprot.writeBinary(_iter493);
+              oprot.writeBinary(_iter501);
             }
             oprot.writeListEnd();
           }
@@ -56236,9 +57026,9 @@ public class Cassandra {
         oprot.writeI32(struct.itemId);
         {
           oprot.writeI32(struct.values.size());
-          for (ByteBuffer _iter494 : struct.values)
+          for (ByteBuffer _iter502 : struct.values)
           {
-            oprot.writeBinary(_iter494);
+            oprot.writeBinary(_iter502);
           }
         }
       }
@@ -56249,13 +57039,13 @@ public class Cassandra {
         struct.itemId = iprot.readI32();
         struct.setItemIdIsSet(true);
         {
-          org.apache.thrift.protocol.TList _list495 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.values = new ArrayList<ByteBuffer>(_list495.size);
-          for (int _i496 = 0; _i496 < _list495.size; ++_i496)
+          org.apache.thrift.protocol.TList _list503 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.values = new ArrayList<ByteBuffer>(_list503.size);
+          for (int _i504 = 0; _i504 < _list503.size; ++_i504)
           {
-            ByteBuffer _elem497;
-            _elem497 = iprot.readBinary();
-            struct.values.add(_elem497);
+            ByteBuffer _elem505;
+            _elem505 = iprot.readBinary();
+            struct.values.add(_elem505);
           }
         }
         struct.setValuesIsSet(true);
@@ -57566,13 +58356,13 @@ public class Cassandra {
             case 2: // VALUES
               if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
                 {
-                  org.apache.thrift.protocol.TList _list498 = iprot.readListBegin();
-                  struct.values = new ArrayList<ByteBuffer>(_list498.size);
-                  for (int _i499 = 0; _i499 < _list498.size; ++_i499)
+                  org.apache.thrift.protocol.TList _list506 = iprot.readListBegin();
+                  struct.values = new ArrayList<ByteBuffer>(_list506.size);
+                  for (int _i507 = 0; _i507 < _list506.size; ++_i507)
                   {
-                    ByteBuffer _elem500;
-                    _elem500 = iprot.readBinary();
-                    struct.values.add(_elem500);
+                    ByteBuffer _elem508;
+                    _elem508 = iprot.readBinary();
+                    struct.values.add(_elem508);
                   }
                   iprot.readListEnd();
                 }
@@ -57614,9 +58404,9 @@ public class Cassandra {
           oprot.writeFieldBegin(VALUES_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.values.size()));
-            for (ByteBuffer _iter501 : struct.values)
+            for (ByteBuffer _iter509 : struct.values)
             {
-              oprot.writeBinary(_iter501);
+              oprot.writeBinary(_iter509);
             }
             oprot.writeListEnd();
           }
@@ -57647,9 +58437,9 @@ public class Cassandra {
         oprot.writeI32(struct.itemId);
         {
           oprot.writeI32(struct.values.size());
-          for (ByteBuffer _iter502 : struct.values)
+          for (ByteBuffer _iter510 : struct.values)
           {
-            oprot.writeBinary(_iter502);
+            oprot.writeBinary(_iter510);
           }
         }
         oprot.writeI32(struct.consistency.getValue());
@@ -57661,13 +58451,13 @@ public class Cassandra {
         struct.itemId = iprot.readI32();
         struct.setItemIdIsSet(true);
         {
-          org.apache.thrift.protocol.TList _list503 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.values = new ArrayList<ByteBuffer>(_list503.size);
-          for (int _i504 = 0; _i504 < _list503.size; ++_i504)
+          org.apache.thrift.protocol.TList _list511 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.values = new ArrayList<ByteBuffer>(_list511.size);
+          for (int _i512 = 0; _i512 < _list511.size; ++_i512)
           {
-            ByteBuffer _elem505;
-            _elem505 = iprot.readBinary();
-            struct.values.add(_elem505);
+            ByteBuffer _elem513;
+            _elem513 = iprot.readBinary();
+            struct.values.add(_elem513);
           }
         }
         struct.setValuesIsSet(true);
