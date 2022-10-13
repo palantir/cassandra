@@ -77,11 +77,7 @@ public class KeyspaceTableOpStateCache
 
         // If not all keyspaces/tables have a tracked last cleanup ts, default to empty value
         Set<KeyspaceTableKey> missingEntries = Sets.difference(validEntries, tableEntries.keySet());
-        if (!missingEntries.isEmpty())
-        {
-            return Optional.empty();
-        }
-        return Optional.of(Collections.min(tableEntries.values()));
+        return missingEntries.isEmpty() ? Optional.of(Collections.min(tableEntries.values())) : Optional.empty();
     }
 
 
