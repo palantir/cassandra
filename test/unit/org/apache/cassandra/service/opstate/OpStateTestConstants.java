@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.service.opstate;
 
+import java.time.Instant;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -44,4 +45,6 @@ public class OpStateTestConstants
 
     public static final Set<KeyspaceTableKey> KEYSPACE_TABLE_VALID_ENTRIES =
         ImmutableSet.of(KEYSPACE_TABLE_KEY_1, KEYSPACE_TABLE_KEY_2);
+
+    public static final Instant INSTANT_10 = Instant.EPOCH.plusSeconds(10);
 }

@@ -82,7 +82,7 @@ public class CleanupStateTrackerTest
     }
 
     @Test
-    public void createCleanupEntryForTableSucceedsIfEntryDoesNotExist()
+    public void createCleanupEntryForTableIfNotExistsUsesMinTsIfTsNotProvided()
     {
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
@@ -91,6 +91,19 @@ public class CleanupStateTrackerTest
         tracker.createCleanupEntryForTableIfNotExists(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1, Optional.empty());
         verify(tracker, times(1))
             .updateTsForEntry(eq(OpStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(CleanupStateTracker.MIN_TS));
+    }
+
+    @Test
+    public void createCleanupEntryForTablesUsesProvidedTs()
+    {
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
+        KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
+
+        CleanupStateTracker tracker = spy(new CleanupStateTracker(state, persister));
+        tracker.createCleanupEntryForTableIfNotExists(
+            OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1, Optional.of(OpStateTestConstants.INSTANT_10));
+        verify(tracker, times(1))
+            .updateTsForEntry(eq(OpStateTestConstants.KEYSPACE_TABLE_KEY_1), eq(OpStateTestConstants.INSTANT_10));
     }
 
     @Test
