@@ -20,6 +20,7 @@ package org.apache.cassandra.db;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -358,6 +359,7 @@ public class Keyspace
         if (cfs == null)
         {
             // CFS being created for the first time, either on server startup or new CF being added.
+            StorageService.instance.createCleanupEntryForCfIfNotExists(metadata.ksName, metadata.cfName, Optional.of(Instant.now()));
             // We don't worry about races here; startup is safe, and adding multiple idential CFs
             // simultaneously is a "don't do that" scenario.
             ColumnFamilyStore oldCfs = columnFamilyStores.putIfAbsent(metadata.cfId, ColumnFamilyStore.createColumnFamilyStore(this, metadata, loadSSTables));

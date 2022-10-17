@@ -70,12 +70,12 @@ public class CleanupStateTracker
     }
 
     /** Creates table entry if it does not already exist */
-    public synchronized void createCleanupEntryForTableIfNotExists(String keyspaceName, String columnFamily)
+    public synchronized void createCleanupEntryForTableIfNotExists(String keyspaceName, String columnFamily, Optional<Instant> cleanupTs)
         throws IllegalArgumentException
     {
         KeyspaceTableKey entryKey = KeyspaceTableKey.of(keyspaceName, columnFamily);
         if (!state.entryExists(entryKey))
-            updateTsForEntry(entryKey, MIN_TS);
+            updateTsForEntry(entryKey, cleanupTs.orElse(MIN_TS));
     }
 
     /** Updates ts for table entry */
