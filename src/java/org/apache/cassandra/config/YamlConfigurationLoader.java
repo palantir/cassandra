@@ -129,7 +129,7 @@ public class YamlConfigurationLoader implements ConfigurationLoader
         }
 
         @Override
-        public Property getProperty(Class<? extends Object> type, String name) throws IntrospectionException
+        public Property getProperty(Class<? extends Object> type, String name)
         {
             Property result = super.getProperty(type, name);
             if (result instanceof MissingProperty)
