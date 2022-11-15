@@ -32,6 +32,7 @@ public class ColumnCounter
 {
     protected int live;
     protected int tombstones;
+    protected int k;
     protected final long timestamp;
 
     public ColumnCounter(long timestamp)
@@ -47,8 +48,10 @@ public class ColumnCounter
     {
         // The cell is shadowed by a higher-level deletion, and won't be retained.
         // For the purposes of this counter, we don't care if it's a tombstone or not.
-        if (tester.isDeleted(cell))
+        if (tester.isDeleted(cell)) {
+            k++;
             return false;
+        }
 
         if (cell.isLive(timestamp))
             live++;
@@ -73,6 +76,10 @@ public class ColumnCounter
      */
     public boolean hasSeenAtLeast(int numLiveCellsDesired) {
         return live() >= numLiveCellsDesired;
+    }
+
+    public boolean hasSeenAtLeastIncludingTombstonesAndCoveredValues(int cells) {
+        return live() + tombstones() + k >= cells;
     }
 
     public ColumnCounter countAll(ColumnFamily container)

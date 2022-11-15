@@ -359,6 +359,102 @@ public class SliceQueryFilter implements IDiskAtomFilter
                       warnTombstones ? " (see tombstone_warn_threshold)" : "");
     }
 
+    // container is an output object <3 (and we think the ONLY one)
+    // We need to return some kind of paging token
+    // Currently, Atlas uses succ(last returned value) as how it pages
+    @Override
+    public void collectReducedColumnsIncludingTombstones(AugmentedColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now)
+    {
+        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
+        ColumnFamily cf = container.cf;
+        columnCounter = columnCounter(cf.getComparator(), now);
+        deletionInfo = cf.deletionInfo();
+        DeletionInfo.InOrderTester tester = cf.deletionInfo().inOrderTester(reversed);
+
+        boolean hasBreachedCollectionThreshold = false;
+        long dataSizeCollected = 0;
+        long metadataSizeCollected = 0;
+
+        while (!columnCounter.hasSeenAtLeastIncludingTombstonesAndCoveredValues(count) && reducedCells.hasNext())
+        {
+            Cell cell = reducedCells.next();
+
+            if (logger.isTraceEnabled())
+                logger.trace("collecting {} of {}: {}", columnCounter.live(), count, cell.getString(cf.getComparator()));
+
+            // An expired tombstone will be "immediately" discarded in memory, and needn't be counted.
+            // Neither should be any cell shadowed by a range- or a partition tombstone.
+
+            // Change: We're still counting weird stuff that we might have loaded
+            boolean returnFromCountIDontKnow = columnCounter.count(cell, tester);
+            container.incrementReadCount(1);
+            container.setPagingToken(new DefaultPagingToken(cell.name(), cell.timestamp()));
+            if (cell.getLocalDeletionTime() < gcBefore || !returnFromCountIDontKnow)
+                continue;
+
+            // always safe to exit if we've seen more then we need. this will happen if we're grouping composite columns
+            // (ColumnCounter#hasSeenAtLeast won't return true until we've seen the start of the next group)
+            if (columnCounter.live() + columnCounter.tombstones() + columnCounter.k > count)
+                break;
+
+            if (respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneFailureThreshold())
+            {
+                hitTombstoneFailureThreshold = true;
+                Tracing.trace("Scanned over {} dead cells; query aborted (see tombstone_failure_threshold); slices={}",
+                              DatabaseDescriptor.getTombstoneFailureThreshold(), getSlicesInfo(cf));
+
+                throw new TombstoneOverwhelmingException(reducedCells,
+                                                         count,
+                                                         cf.metadata().ksName,
+                                                         cf.metadata().cfName,
+                                                         cf.getComparator().getString(cell.name()),
+                                                         getSlicesInfo(cf),
+                                                         cf.metadata().getKeyValidator().getString(key.getKey()));
+            }
+
+            cf.appendColumn(cell);
+
+
+            if (LOG_HIGH_MEMORY_COLLECTION)
+            {
+                // only log once per iteration
+                if (!hasBreachedCollectionThreshold)
+                {
+                    dataSizeCollected += cell.cellDataSize();
+                    metadataSizeCollected += cell.unsharedHeapSizeExcludingData();
+                    if (dataSizeCollected + metadataSizeCollected > highMemoryCollectionThreshold)
+                    {
+                        logger.warn("Breached memory threshold while collecting cells for keyspace/cf {} and key {}; data size: {}; metadata size: {}",
+                                    cf.metadata().ksAndCFName, key, dataSizeCollected, metadataSizeCollected);
+                        hasBreachedCollectionThreshold = true;
+                    }
+                }
+            }
+        }
+
+        boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneWarnThreshold();
+        if (warnTombstones)
+        {
+            hitTombstoneWarnThreshold = true;
+            String msg = String.format("Read %d live, %d tombstoned, and %d droppable cells in %s.%s for key: %1.512s (see tombstone_warn_threshold). %d columns were requested, slices=%1.512s",
+                                       reducedCells.live(),
+                                       reducedCells.tombstones(),
+                                       reducedCells.droppableTombstones() + reducedCells.droppableTtls(),
+                                       cf.metadata().ksName,
+                                       cf.metadata().cfName,
+                                       cf.metadata().getKeyValidator().getString(key.getKey()),
+                                       count,
+                                       getSlicesInfo(cf));
+            ClientWarn.instance.warn(msg);
+            logger.warn(msg);
+        }
+        Tracing.trace("Read {} live, {} tombstoned, and {} droppable cells{}",
+                      columnCounter.live(),
+                      reducedCells.tombstones(),
+                      reducedCells.droppableTombstones() + reducedCells.droppableTtls(),
+                      warnTombstones ? " (see tombstone_warn_threshold)" : "");
+    }
+
     private String getSlicesInfo(ColumnFamily container)
     {
         StringBuilder sb = new StringBuilder();

@@ -71,6 +71,11 @@ public interface IDiskAtomFilter
      */
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now);
 
+    // TODO (jkong): Naughty! Relies on using a Java language level of 8, but this project was set to use 7.
+    default void collectReducedColumnsIncludingTombstones(AugmentedColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now) {
+        throw new UnsupportedOperationException("hello");
+    }
+
     public Comparator<Cell> getColumnComparator(CellNameType comparator);
 
     public boolean isReversed();

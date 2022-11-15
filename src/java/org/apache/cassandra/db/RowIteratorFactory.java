@@ -115,6 +115,91 @@ public class RowIteratorFactory
         });
     }
 
+    // This is named weirdly so that we remember where to come back
+    public static CloseableIterator<AugmentedRow> getSuperMagicIterator(final Iterable<Memtable> memtables,
+                                                     final Collection<SSTableReader> sstables,
+                                                     final DataRange range,
+                                                     final ColumnFamilyStore cfs,
+                                                     final long now)
+    {
+        // fetch data from current memtable, historical memtables, and SSTables in the correct order.
+        final List<CloseableIterator<OnDiskAtomIterator>> iterators = new ArrayList<>(Iterables.size(memtables) + sstables.size());
+
+        for (Memtable memtable : memtables)
+            iterators.add(new ConvertToColumnIterator(range, memtable.getEntryIterator(range.startKey(), range.stopKey())));
+
+        for (SSTableReader sstable : sstables)
+            iterators.add(sstable.getScanner(range));
+
+        // reduce rows from all sources into a single row
+        return MergeIterator.get(iterators, COMPARE_BY_KEY, new MergeIterator.Reducer<OnDiskAtomIterator, AugmentedRow>()
+        {
+            private final int gcBefore = cfs.gcBefore(now);
+            private final List<OnDiskAtomIterator> colIters = new ArrayList<>();
+            private DecoratedKey key;
+            private AugmentedColumnFamily returnCF;
+
+            // New and shiny!
+            private long tombstonesReadInPreviousCfs;
+
+            // Need to return (Row, map<UUID, PagingToken>)? Or earliest?
+            // More concretely, what happens if the cluster topology changes during a range scan?
+            // How do we reduce values read from multiple sources?
+
+            // The type of a paging token is PROBABLY a byte[] of some kind
+            // We stop at the last value (live or not)
+            //
+            @Override
+            protected void onKeyChange()
+            {
+                ArrayBackedSortedColumns cf = ArrayBackedSortedColumns.factory.create(cfs.metadata, range.columnFilter.isReversed());
+                this.returnCF = new AugmentedColumnFamily(cf);
+            }
+
+            @Override
+            public void reduce(OnDiskAtomIterator current)
+            {
+                this.colIters.add(current);
+                this.key = current.getKey();
+
+                // I do a read linear in the number of range tombstones in this range :(
+                this.returnCF.cf.delete(current.getColumnFamily());
+            }
+
+            // Need to return (Row, map<UUID, PagingToken>)? Or earliest?
+            // More concretely, what happens if the cluster topology changes during a range scan?
+            // How do we reduce values read from multiple sources?
+
+            // The type of a paging token is PROBABLY a byte[] of some kind
+            // We stop at the last value (live or not)
+            //
+            protected AugmentedRow getReduced()
+            {
+                // First check if this row is in the rowCache. If it is and it covers our filter, we can skip the rest
+                ColumnFamily cached = cfs.getRawCachedRow(key);
+                IDiskAtomFilter filter = range.columnFilter(key.getKey());
+
+                if (cached == null || !cfs.isFilterFullyCoveredBy(filter, cached, now))
+                {
+                    // not cached: collate
+                    QueryFilter.collateOnDiskAtom2(
+                    returnCF, colIters, filter, key, gcBefore, now, FilterExperiment.USE_LEGACY);
+                }
+                else
+                {
+                    QueryFilter keyFilter = new QueryFilter(key, cfs.name, filter, now);
+                    // ???
+                    returnCF = cfs.filterColumnFamily(cached, keyFilter);
+                }
+
+                AugmentedRow ar = new AugmentedRow(key, returnCF);
+                colIters.clear();
+                key = null;
+                return ar;
+            }
+        });
+    }
+
     /**
      * Get a ColumnIterator for a specific key in the memtable.
      */

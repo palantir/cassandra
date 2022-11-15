@@ -38,6 +38,7 @@ import com.google.common.collect.UnmodifiableIterator;
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import com.palantir.cassandra.utils.RangeTombstoneCountingIterator;
 import org.apache.cassandra.FilterExperiment;
+import org.apache.cassandra.db.AugmentedColumnFamily;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.DecoratedKey;
@@ -145,6 +146,48 @@ public class QueryFilter
         }
     }
 
+    public static void collateOnDiskAtom2(AugmentedColumnFamily returnCF,
+                                          List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                          IDiskAtomFilter filter,
+                                          DecoratedKey key,
+                                          int gcBefore,
+                                          long timestamp,
+                                          FilterExperiment experiment)
+    {
+        if (experiment == FilterExperiment.USE_LEGACY || filter.isReversed() || isRowCacheEnabled(returnCF.cf)) {
+            legacyCollateOnDiskAtom2(returnCF, toCollate, filter, key, gcBefore, timestamp);
+        } else {
+            optimizedCollateOnDiskAtom2(returnCF, toCollate, filter, key, gcBefore, timestamp);
+        }
+    }
+
+    private static void optimizedCollateOnDiskAtom2(AugmentedColumnFamily returnCF,
+                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                   IDiskAtomFilter filter,
+                                                   DecoratedKey key,
+                                                   int gcBefore,
+                                                   long timestamp) {
+        Iterator<OnDiskAtom> merged = merge(returnCF.cf.getComparator(), toCollate);
+        Iterator<OnDiskAtom> countRangeTombstones = RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF.cf, merged);
+        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.cf.getComparator(), countRangeTombstones, gcBefore);
+        Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
+        returnCF.cf, filter.getColumnComparator(returnCF.cf.getComparator()), filtered);
+        filter.collectReducedColumnsIncludingTombstones(returnCF, reconciled, key, gcBefore, timestamp);
+    }
+
+    private static void legacyCollateOnDiskAtom2(AugmentedColumnFamily returnCF,
+                                                List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                IDiskAtomFilter filter,
+                                                DecoratedKey key,
+                                                int gcBefore,
+                                                long timestamp)
+    {
+        List<Iterator<Cell>> filteredIterators = new ArrayList<>(toCollate.size());
+        for (Iterator<? extends OnDiskAtom> iter : toCollate)
+            filteredIterators.add(gatherTombstones(returnCF.cf, RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF.cf, iter)));
+        collateColumns2(returnCF, filteredIterators, filter, key, gcBefore, timestamp);
+    }
+
     private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
                                                   IDiskAtomFilter filter,
@@ -241,6 +284,22 @@ public class QueryFilter
                                : MergeIterator.get(toCollate, comparator, getReducer(comparator));
 
         filter.collectReducedColumns(returnCF, reduced, key, gcBefore, timestamp);
+    }
+
+    public static void collateColumns2(AugmentedColumnFamily returnCF,
+                                      List<? extends Iterator<Cell>> toCollate,
+                                      IDiskAtomFilter filter,
+                                      DecoratedKey key,
+                                      int gcBefore,
+                                      long timestamp)
+    {
+        Comparator<Cell> comparator = filter.getColumnComparator(returnCF.cf.getComparator());
+
+        Iterator<Cell> reduced = toCollate.size() == 1
+                                 ? toCollate.get(0)
+                                 : MergeIterator.get(toCollate, comparator, getReducer(comparator));
+
+        filter.collectReducedColumnsIncludingTombstones(returnCF, reduced, key, gcBefore, timestamp);
     }
 
     private static Iterator<OnDiskAtom> merge(CellNameType comparator, List<? extends Iterator<? extends OnDiskAtom>> iterators) {
