@@ -1481,6 +1481,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return !cf.hasColumns() && !cf.isMarkedForDelete() ? null : cf;
     }
 
+    public static AugmentedColumnFamily removeDeletedCF(AugmentedColumnFamily acf, int gcBefore)
+    {
+        ColumnFamily underlying = removeDeletedCF(acf.cf, gcBefore);
+        AugmentedColumnFamily augmentedColumnFamily = new AugmentedColumnFamily(underlying);
+        augmentedColumnFamily.setPagingToken(acf.pagingToken);
+        return augmentedColumnFamily;
+    }
+
     /**
      * Removes deleted columns and purges gc-able tombstones.
      * @return an updated `cf` if any columns or tombstones remain, null otherwise
@@ -2122,6 +2130,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return removeDeletedCF(cf, gcBefore);
     }
 
+    AugmentedColumnFamily filterColumnFamily2(ColumnFamily cached, QueryFilter filter)
+    {
+        if (cached == null)
+            return null;
+
+        AugmentedColumnFamily acf = new AugmentedColumnFamily(cached.cloneMeShallow(ArrayBackedSortedColumns.factory, filter.filter.isReversed()));
+        // acf.setPagingToken(cached.pagingToken); // ??
+        int gcBefore = gcBefore(filter.timestamp);
+        filter.collateOnDiskAtom2(acf, filter.getIterator(cached), gcBefore);
+        return removeDeletedCF(acf, gcBefore);
+    }
+
     public Set<SSTableReader> getUnrepairedSSTables()
     {
         Set<SSTableReader> unRepairedSSTables = new HashSet<>(getSSTables());
@@ -2352,6 +2372,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
+    public static abstract class AugmentedAbstractScanIterator extends AbstractIterator<AugmentedRow> implements CloseableIterator<AugmentedRow>
+    {
+        public boolean needsFiltering()
+        {
+            return true;
+        }
+    }
+
     /**
       * Iterate over a range of rows and columns from memtables/sstables.
       *
@@ -2380,6 +2408,57 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
                     Row current = iterator.next();
                     DecoratedKey key = current.key;
+
+                    if (!range.stopKey().isMinimum() && range.stopKey().compareTo(key) < 0)
+                        return endOfData();
+
+                    // skipping outside of assigned range
+                    if (!range.contains(key))
+                        continue;
+
+                    if (logger.isTraceEnabled())
+                        logger.trace("scanned {}", metadata.getKeyValidator().getString(key.getKey()));
+
+                    return current;
+                }
+            }
+
+            public void close() throws IOException
+            {
+                iterator.close();
+            }
+        };
+    }
+
+    /**
+     * Iterate over a range of rows and columns from memtables/sstables.
+     *
+     * @param augmentedDataRange The range of keys and columns within those keys to fetch
+     */
+    @SuppressWarnings("resource")
+    private AugmentedAbstractScanIterator getSequentialIterator2(final AugmentedDataRange augmentedDataRange, long now)
+    {
+        DataRange range = augmentedDataRange.dataRange;
+        assert !(range.keyRange() instanceof Range) || !((Range<?>)range.keyRange()).isWrapAround() || range.keyRange().right.isMinimum() : range.keyRange();
+
+        final ViewFragment view = select(viewFilter(range.keyRange()));
+        Tracing.trace("Executing seq scan across {} sstables for {}", view.sstables.size(), range.keyRange().getString(metadata.getKeyValidator()));
+
+        final CloseableIterator<AugmentedRow> iterator = RowIteratorFactory.getSuperMagicIterator(view.memtables, view.sstables, augmentedDataRange, this, now);
+
+        // todo this could be pushed into SSTableScanner
+        return new AugmentedAbstractScanIterator()
+        {
+            protected AugmentedRow computeNext()
+            {
+                while (true)
+                {
+                    // pull a row out of the iterator
+                    if (!iterator.hasNext())
+                        return endOfData();
+
+                    AugmentedRow current = iterator.next();
+                    DecoratedKey key = current.dk;
 
                     if (!range.stopKey().isMinimum() && range.stopKey().compareTo(key) < 0)
                         return endOfData();
@@ -2493,6 +2572,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
+    public List<AugmentedRow> getRangeSlice2(ExtendedFilter filter, PagingToken token)
+    {
+        long start = System.nanoTime();
+        try (OpOrder.Group op = readOrdering.start())
+        {
+            return filter(getSequentialIterator2(new AugmentedDataRange(filter.dataRange, token), filter.timestamp), filter);
+        }
+        finally
+        {
+            metric.rangeLatency.addNano(System.nanoTime() - start);
+        }
+    }
+
     @VisibleForTesting
     public List<Row> search(AbstractBounds<RowPosition> range,
                             List<IndexExpression> clause,
@@ -2535,6 +2627,119 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 rawRow = rowIterator.next();
                 total++;
                 ColumnFamily data = rawRow.cf;
+
+                if (rowIterator.needsFiltering())
+                {
+                    IDiskAtomFilter extraFilter = filter.getExtraFilter(rawRow.key, data);
+                    if (extraFilter != null)
+                    {
+                        ColumnFamily cf = filter.cfs.getColumnFamily(new QueryFilter(rawRow.key, name, extraFilter, filter.timestamp));
+                        if (cf != null)
+                            data.addAll(cf);
+                    }
+
+                    removeDroppedColumns(data);
+
+                    if (!filter.isSatisfiedBy(rawRow.key, data, null, null))
+                        continue;
+
+                    logger.trace("{} satisfies all filter expressions", data);
+                    // cut the resultset back to what was requested, if necessary
+                    data = filter.prune(rawRow.key, data);
+
+                    IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
+                    if (queryFilter instanceof SliceQueryFilter) {
+                        recordMetrics((SliceQueryFilter) queryFilter);
+                    }
+                }
+                else
+                {
+                    removeDroppedColumns(data);
+                }
+
+                Row row = new Row(rawRow.key, data);
+                metric.rangeScanBytesRead.mark(Row.serializer.serializedSize(row, MessagingService.current_version));
+                rows.add(row);
+
+                if (!ignoreTombstonedPartitions || !data.hasOnlyTombstones(filter.timestamp))
+                    matched++;
+
+                if (data != null)
+                    columnsCount += filter.lastCounted(data);
+                // Update the underlying filter to avoid querying more columns per slice than necessary and to handle paging
+                filter.updateFilter(columnsCount);
+
+                if (rows.size() > rowCountFailureThreshold)
+                {
+                    metric.rowCountFailures.inc();
+                    int numTombstonedRows = countTombstonedRows(rows, filter);
+                    Tracing.trace("Scanned over {} rows ({} tombstoned); query aborted (see rowcount_failure_threshold)",
+                                  rows.size(), numTombstonedRows);
+
+                    throw new RowCountOverwhelmingException(rows.size(),
+                                                            numTombstonedRows,
+                                                            filter.maxRows(),
+                                                            filter.cfs.metadata.ksName,
+                                                            filter.cfs.metadata.cfName,
+                                                            rawRow.key.toString(),
+                                                            filter.dataRange.toString());
+                }
+            }
+
+            if (logger.isWarnEnabled() && rows.size() > DatabaseDescriptor.getRowCountWarnThreshold())
+            {
+                metric.rowCountWarnings.inc();
+                int numTombstonedRows = countTombstonedRows(rows, filter);
+                String msg = String.format("Scanned over %d rows (%d tombstoned) in %s.%s; " +
+                                           "%d rows were requested (see rowcount_warn_threshold); " +
+                                           "lastRow=%s; dataLimits=%s",
+                                           rows.size(),
+                                           numTombstonedRows,
+                                           filter.cfs.metadata.ksName,
+                                           filter.cfs.metadata.cfName,
+                                           filter.maxRows(),
+                                           rawRow == null ? "null" : rawRow.key.toString(),
+                                           filter.dataRange.toString());
+                Tracing.trace("Scanned over {} rows ({} tombstoned) (see tombstone_warn_threshold)",
+                              rows.size(),
+                              numTombstonedRows);
+                logger.warn(msg);
+            }
+
+            return rows;
+        }
+        finally
+        {
+            try
+            {
+                rowIterator.close();
+                Tracing.trace("Scanned {} rows and matched {}", total, matched);
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public List<AugmentedRow> filter(AugmentedAbstractScanIterator rowIterator, ExtendedFilter filter)
+    {
+        logger.trace("Filtering {} for rows matching {}", rowIterator, filter);
+        List<AugmentedRow> rows = new ArrayList<>();
+        int columnsCount = 0;
+        int total = 0, matched = 0;
+        boolean ignoreTombstonedPartitions = filter.ignoreTombstonedPartitions();
+        int rowCountFailureThreshold = DatabaseDescriptor.getRowCountFailureThreshold();
+
+        try
+        {
+            AugmentedRow rawRow = null;
+            while (rowIterator.hasNext() && matched < filter.maxRows() && columnsCount < filter.maxColumns())
+            {
+                // get the raw columns requested, and additional columns for the expressions if necessary
+                rawRow = rowIterator.next();
+                total++;
+                ColumnFamily data = rawRow.acf.cf;
 
                 if (rowIterator.needsFiltering())
                 {

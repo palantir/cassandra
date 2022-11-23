@@ -395,7 +395,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             // always safe to exit if we've seen more then we need. this will happen if we're grouping composite columns
             // (ColumnCounter#hasSeenAtLeast won't return true until we've seen the start of the next group)
-            if (columnCounter.live() + columnCounter.tombstones() + columnCounter.k > count)
+            if (columnCounter.live() + columnCounter.tombstones() + columnCounter.rangeDeletedValues > count)
                 break;
 
             if (respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneFailureThreshold())

@@ -117,15 +117,15 @@ public class RowIteratorFactory
 
     // This is named weirdly so that we remember where to come back
     // The 'DataRange' object might need to change to account for PagingTokens.
-    // TODO 123123123123123123123123123123123123123123
-    public static CloseableIterator<AugmentedRow> getSuperMagicIterator(final Iterable<Memtable> memtables,
+   public static CloseableIterator<AugmentedRow> getSuperMagicIterator(final Iterable<Memtable> memtables,
                                                      final Collection<SSTableReader> sstables,
-                                                     final DataRange range,
+                                                     final AugmentedDataRange augmentedDataRange,
                                                      final ColumnFamilyStore cfs,
                                                      final long now)
     {
         // fetch data from current memtable, historical memtables, and SSTables in the correct order.
         final List<CloseableIterator<OnDiskAtomIterator>> iterators = new ArrayList<>(Iterables.size(memtables) + sstables.size());
+        DataRange range = augmentedDataRange.dataRange;
 
         // The 'DataRange' object might need to change to account for PagingTokens.
         for (Memtable memtable : memtables)
@@ -185,14 +185,15 @@ public class RowIteratorFactory
                 if (cached == null || !cfs.isFilterFullyCoveredBy(filter, cached, now))
                 {
                     // not cached: collate
+                    // TODO: Check that we use some global read count
                     QueryFilter.collateOnDiskAtom2(
                     returnCF, colIters, filter, key, gcBefore, now, FilterExperiment.USE_LEGACY);
                 }
                 else
                 {
+                    //cached != null && cfs.isFilterFullyCoveredBy(filter, cached, now)
                     QueryFilter keyFilter = new QueryFilter(key, cfs.name, filter, now);
-                    // ???
-                    returnCF = cfs.filterColumnFamily(cached, keyFilter);
+                    returnCF = cfs.filterColumnFamily2(cached, keyFilter);
                 }
 
                 AugmentedRow ar = new AugmentedRow(key, returnCF);

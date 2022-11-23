@@ -265,6 +265,16 @@ public class QueryFilter
             timestamp);
     }
 
+    public void collateOnDiskAtom2(AugmentedColumnFamily returnCF, Iterator<? extends OnDiskAtom> toCollate, int gcBefore)
+    {
+        filter.collectReducedColumnsIncludingTombstones(
+        returnCF,
+        gatherTombstones(returnCF.cf, RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF.cf, toCollate)),
+        this.key,
+        gcBefore,
+        timestamp);
+    }
+
     public void collateColumns(ColumnFamily returnCF, List<? extends Iterator<Cell>> toCollate, int gcBefore)
     {
         collateColumns(returnCF, toCollate, filter, this.key, gcBefore, timestamp);
