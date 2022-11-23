@@ -20,6 +20,12 @@ package org.apache.cassandra.db;
 
 import org.apache.cassandra.db.composites.Composite;
 
+/**
+ * On disk atoms in Cassandra are defined both by their name and a timestamp. Now, if there are a billion values with
+ * the same name but they were written at different timestamps, we still need some mechanism to track partial progress
+ * between different 'copies' wtih the same name - this means we don't have to re-read things at timestamps we've
+ * already passed.
+ */
 public interface PagingToken
 {
     Composite name();

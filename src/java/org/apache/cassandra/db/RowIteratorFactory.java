@@ -116,6 +116,8 @@ public class RowIteratorFactory
     }
 
     // This is named weirdly so that we remember where to come back
+    // The 'DataRange' object might need to change to account for PagingTokens.
+    // TODO 123123123123123123123123123123123123123123
     public static CloseableIterator<AugmentedRow> getSuperMagicIterator(final Iterable<Memtable> memtables,
                                                      final Collection<SSTableReader> sstables,
                                                      final DataRange range,
@@ -125,6 +127,7 @@ public class RowIteratorFactory
         // fetch data from current memtable, historical memtables, and SSTables in the correct order.
         final List<CloseableIterator<OnDiskAtomIterator>> iterators = new ArrayList<>(Iterables.size(memtables) + sstables.size());
 
+        // The 'DataRange' object might need to change to account for PagingTokens.
         for (Memtable memtable : memtables)
             iterators.add(new ConvertToColumnIterator(range, memtable.getEntryIterator(range.startKey(), range.stopKey())));
 

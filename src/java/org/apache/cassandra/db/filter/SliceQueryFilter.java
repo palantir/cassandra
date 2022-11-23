@@ -375,9 +375,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
+        Cell cell = null;
+        
         while (!columnCounter.hasSeenAtLeastIncludingTombstonesAndCoveredValues(count) && reducedCells.hasNext())
         {
-            Cell cell = reducedCells.next();
+            cell = reducedCells.next();
 
             if (logger.isTraceEnabled())
                 logger.trace("collecting {} of {}: {}", columnCounter.live(), count, cell.getString(cf.getComparator()));
@@ -388,7 +390,6 @@ public class SliceQueryFilter implements IDiskAtomFilter
             // Change: We're still counting weird stuff that we might have loaded
             boolean returnFromCountIDontKnow = columnCounter.count(cell, tester);
             container.incrementReadCount(1);
-            container.setPagingToken(new DefaultPagingToken(cell.name(), cell.timestamp()));
             if (cell.getLocalDeletionTime() < gcBefore || !returnFromCountIDontKnow)
                 continue;
 
@@ -447,6 +448,9 @@ public class SliceQueryFilter implements IDiskAtomFilter
                                        getSlicesInfo(cf));
             ClientWarn.instance.warn(msg);
             logger.warn(msg);
+        }
+        if (cell != null) {
+            container.setPagingToken(new DefaultPagingToken(cell.name(), cell.timestamp()));
         }
         Tracing.trace("Read {} live, {} tombstoned, and {} droppable cells{}",
                       columnCounter.live(),
