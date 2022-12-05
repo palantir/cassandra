@@ -1209,11 +1209,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void finishJoiningRing(Collection<Token> tokens)
     {
         // start participating in the ring.
+        logger.info("Attempting to set bootstrap state to COMPLETED and to join token ring");
         SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
         setTokens(tokens);
 
         assert tokenMetadata.sortedTokens().size() > 0;
         doAuthSetup();
+        logger.info("Node has finished joining token ring. Bootstrap state is COMPLETED.");
     }
 
     private void doAuthSetup()
