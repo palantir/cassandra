@@ -92,6 +92,15 @@ public class StartupChecksTest
     }
 
     @Test
+    public void failStartupIfIpMatchesAvoidIp()
+    {
+        startupChecks = startupChecks.withTest(StartupChecks.checkIp);
+        System.setProperty("palantir_cassandra.avoid_ip", "127.0.0.1");
+
+        verifyFailure(startupChecks, "Cannot start as current IP");
+    }
+
+    @Test
     public void compatibilityCheckIgnoresNonDbFiles() throws Exception
     {
         startupChecks = startupChecks.withTest(StartupChecks.checkSSTablesFormat);
