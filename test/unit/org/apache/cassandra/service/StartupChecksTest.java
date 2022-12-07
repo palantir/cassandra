@@ -92,10 +92,10 @@ public class StartupChecksTest
     }
 
     @Test
-    public void failStartupIfIpMatchesAvoidIp()
+    public void failStartupIfIpMatchesRestrictedIp()
     {
         startupChecks = startupChecks.withTest(StartupChecks.checkIp);
-        System.setProperty("palantir_cassandra.avoid_ip", "127.0.0.1");
+        System.setProperty("palantir_cassandra.restricted_ip", "127.0.0.1");
 
         verifyFailure(startupChecks, "Cannot start as current IP");
     }

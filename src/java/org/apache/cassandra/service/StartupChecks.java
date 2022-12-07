@@ -406,17 +406,17 @@ public class StartupChecks
     {
         public void execute() throws StartupException
         {
-            String avoidIp = System.getProperty("palantir_cassandra.avoid_ip", null);
-            if (avoidIp != null)
+            String restrictedIp = System.getProperty("palantir_cassandra.restricted_ip", null);
+            if (restrictedIp != null)
             {
                 String currentIp = FBUtilities.getLocalAddress().getHostAddress();
-                if (currentIp.equals(avoidIp))
+                if (currentIp.equals(restrictedIp))
                 {
                     {
-                        String formatMessage = "Cannot start as current IP {} matches palantir_cassandra.avoid_ip. " +
+                        String message = "Cannot start as current IP {} matches palantir_cassandra.restricted_ip. " +
                                                "If running in Kubernetes, delete the pod to give it a different IP";
 
-                        throw new StartupException(100, String.format(formatMessage, avoidIp));
+                        throw new StartupException(100, String.format(message, restrictedIp));
                     }
                 }
             }
