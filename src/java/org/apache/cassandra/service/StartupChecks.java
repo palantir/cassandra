@@ -80,7 +80,8 @@ public class StartupChecks
                                                                       checkSSTablesFormat,
                                                                       checkSystemKeyspaceState,
                                                                       checkDatacenter,
-                                                                      checkRack);
+                                                                      checkRack,
+                                                                      checkIp);
 
     public StartupChecks withDefaultTests()
     {
@@ -395,6 +396,27 @@ public class StartupChecks
                                                "Please fix the snitch configuration, decommission and rebootstrap this node or use the flag -Dcassandra.ignore_rack=true.";
 
                         throw new StartupException(100, String.format(formatMessage, currentRack, storedRack));
+                    }
+                }
+            }
+        }
+    };
+
+    public static final StartupCheck checkIp = new StartupCheck()
+    {
+        public void execute() throws StartupException
+        {
+            String restrictedIp = System.getProperty("palantir_cassandra.restricted_ip", null);
+            if (restrictedIp != null)
+            {
+                String currentIp = FBUtilities.getLocalAddress().getHostAddress();
+                if (currentIp.equals(restrictedIp))
+                {
+                    {
+                        String message = "Cannot start as current IP {} matches palantir_cassandra.restricted_ip. " +
+                                               "If running in Kubernetes, delete the pod to give it a different IP";
+
+                        throw new StartupException(100, String.format(message, restrictedIp));
                     }
                 }
             }
