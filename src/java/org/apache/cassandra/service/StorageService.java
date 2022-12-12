@@ -2019,9 +2019,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void onChange(InetAddress endpoint, ApplicationState state, VersionedValue value)
     {
         logger.info("Status change for endpoint {} which maps to hostname {} with new state {}. "
-                    + "Currently, endpoint map is {} and tokenMetadata is {}",
+                    + "Currently, endpoint map is {}, tokenMetadata is {} and endpointToHostId is {}",
                     endpoint, endpoint.getHostName(), state, Gossiper.instance.getEndpointStates(),
-                    getTokenMetadata().getNormalAndBootstrappingTokenToEndpointMap());
+                    getTokenMetadata().getNormalAndBootstrappingTokenToEndpointMap(),
+                    getTokenMetadata().getEndpointToHostIdMapForReading());
 
         if (state == ApplicationState.STATUS)
         {
