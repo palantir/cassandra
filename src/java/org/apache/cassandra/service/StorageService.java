@@ -2018,9 +2018,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void onChange(InetAddress endpoint, ApplicationState state, VersionedValue value)
     {
-        logger.info("Status change for endpoint {} with new state {}. "
+        logger.info("Status change for endpoint {} which maps to hostname {} with new state {}. "
                     + "Currently, endpoint map is {} and tokenMetadata is {}",
-                    endpoint, state, Gossiper.instance.getEndpointStates(), getTokenMetadata().getNormalAndBootstrappingTokenToEndpointMap());
+                    endpoint, endpoint.getHostName(), state, Gossiper.instance.getEndpointStates(),
+                    getTokenMetadata().getNormalAndBootstrappingTokenToEndpointMap());
 
         if (state == ApplicationState.STATUS)
         {
@@ -2387,7 +2388,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     }
                     else
                     {
-                        logger.warn("Host ID collision for {} between {} and {}; ignored {}", hostId, existing, endpoint, endpoint);
+                        logger.warn("Host ID collision for {} between {} with hostname {} and {} with hostname {}; ignored {}",
+                                    hostId, existing, existing.getHostName(), endpoint, endpoint.getHostName(), endpoint);
                         tokenMetadata.removeEndpoint(endpoint);
                         endpointsToRemove.add(endpoint);
                     }
