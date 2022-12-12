@@ -2018,6 +2018,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void onChange(InetAddress endpoint, ApplicationState state, VersionedValue value)
     {
+        logger.info("Status change for endpoint {} with new state {}. "
+                    + "Currently, endpoint map is {} and tokenMetadata is {}",
+                    endpoint, state, Gossiper.instance.getEndpointStates(), getTokenMetadata().getNormalAndBootstrappingTokenToEndpointMap());
+
         if (state == ApplicationState.STATUS)
         {
             String[] pieces = splitValue(value);
@@ -2322,8 +2326,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         Set<Token> tokensToUpdateInSystemKeyspace = new HashSet<>();
         Set<InetAddress> endpointsToRemove = new HashSet<>();
 
-        if (logger.isDebugEnabled())
-            logger.debug("Node {} state {}, token {}", endpoint, status, tokens);
+        logger.info("Node {} state {}, token {}", endpoint, status, tokens);
 
         if (tokenMetadata.isMember(endpoint))
             logger.info("Node {} state jump to {}", endpoint, status);
@@ -2511,9 +2514,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         assert pieces.length >= 2;
         Collection<Token> tokens = getTokensFor(endpoint);
-
-        if (logger.isDebugEnabled())
-            logger.debug("Node {} state left, tokens {}", endpoint, tokens);
+        logger.info("Node {} state left, tokens {}", endpoint, tokens);
 
         excise(tokens, endpoint, extractExpireTime(pieces));
     }
