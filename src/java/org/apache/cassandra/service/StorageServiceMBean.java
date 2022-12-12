@@ -336,6 +336,8 @@ public interface StorageServiceMBean extends NotificationEmitter
     public int forceKeyspaceCleanup(String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
     public int forceKeyspaceCleanup(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
 
+    public boolean isNodeFullyClean(int jobs) throws IOException, ExecutionException, InterruptedException;
+
     public boolean isKeyspaceFullyClean(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException;
 
     /**

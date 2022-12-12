@@ -246,6 +246,11 @@ public class NodeProbe implements AutoCloseable
         jmxc.close();
     }
 
+    public boolean isNodeFullyClean(int jobs) throws IOException, ExecutionException, InterruptedException
+    {
+        return ssProxy.isNodeFullyClean(jobs);
+    }
+
     public boolean isKeyspaceFullyClean(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         return ssProxy.isKeyspaceFullyClean(jobs, keyspaceName, columnFamilies);

@@ -3046,6 +3046,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public boolean isNodeFullyClean(int jobs) throws IOException, ExecutionException, InterruptedException
+    {
+        boolean fullyClean = true;
+        for (String keyspaceName : getKeyspaces())
+        {
+            Keyspace keyspace = getValidKeyspace(keyspaceName);
+            String[] cfs = keyspace.getColumnFamilyStores().stream().map(ColumnFamilyStore::getColumnFamilyName).toArray(String[]::new);
+            fullyClean &= isKeyspaceFullyClean(jobs, keyspaceName, cfs);
+        }
+        return fullyClean;
+    }
+
     public boolean isKeyspaceFullyClean(int jobs, String keyspaceName, String... columnFamilies) throws IOException, ExecutionException, InterruptedException
     {
         if (getJoiningNodes().size() > 0 || getLeavingNodes().size() > 0)
