@@ -451,6 +451,7 @@ public class Schema
      */
     public void updateVersion()
     {
+        logger.info("Called updateVersion with stacktrace {}", Arrays.toString(new Throwable().getStackTrace()));
         version = LegacySchemaTables.calculateSchemaDigest();
         SystemKeyspace.updateSchemaVersion(version);
     }
