@@ -98,20 +98,20 @@ public class MigrationManager
         String ourMajorVersion = FBUtilities.getReleaseVersionMajor();
         if (!releaseVersion.startsWith(ourMajorVersion))
         {
-            logger.debug("Not pulling schema because release version in Gossip is not major version {}, it is {}", ourMajorVersion, releaseVersion);
+            logger.info("Not pulling schema because release version in Gossip is not major version {}, it is {}", ourMajorVersion, releaseVersion);
             return;
         }
 
         if ((Schema.instance.getVersion() != null && Schema.instance.getVersion().equals(theirVersion)) || !shouldPullSchemaFrom(endpoint))
         {
-            logger.debug("Not pulling schema because versions match or shouldPullSchemaFrom returned false");
+            logger.info("Not pulling schema because versions match or shouldPullSchemaFrom returned false");
             return;
         }
 
         if (Schema.emptyVersion.equals(Schema.instance.getVersion()) || runtimeMXBean.getUptime() < MIGRATION_DELAY_IN_MS)
         {
             // If we think we may be bootstrapping or have recently started, submit MigrationTask immediately
-            logger.debug("Submitting migration task for {}", endpoint);
+            logger.info("Submitting migration task for {}", endpoint);
             submitMigrationTask(endpoint);
         }
 
@@ -156,7 +156,7 @@ public class MigrationManager
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
                         return;
                     }
-                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
+                    logger.info("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
                             endpoint,
                             currentVersion,
                             Schema.instance.getVersion());
@@ -182,6 +182,8 @@ public class MigrationManager
          * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
          * Don't request schema from fat clients
          */
+        logger.info("isGossipOnlyMember for endpoint {} gives the following result {}",
+                    endpoint, Gossiper.instance.isGossipOnlyMember(endpoint));
         return MessagingService.instance().knowsVersion(endpoint)
                 && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                 && !Gossiper.instance.isGossipOnlyMember(endpoint);
