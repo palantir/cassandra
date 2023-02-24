@@ -645,7 +645,6 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         /* Generate a random number from 0 -> size */
         int index = (size == 1) ? 0 : random.nextInt(size);
         InetAddress to = liveEndpoints.get(index);
-        //if (logger.isTraceEnabled())
         logger.info("Sending a GossipDigestSyn to {} ...", to);
         if (firstSynSendAt == 0)
             firstSynSendAt = System.nanoTime();
@@ -788,7 +787,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                 {
                     if (logger.isDebugEnabled())
                     {
-                        logger.debug("time is expiring for endpoint : {} ({})", endpoint, expireTime);
+                        logger.info("time is expiring for endpoint : {} ({})", endpoint, expireTime);
                     }
                     evictFromMembership(endpoint);
                 }
@@ -801,8 +800,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             {
                 if ((now - entry.getValue()) > QUARANTINE_DELAY)
                 {
-                    if (logger.isDebugEnabled())
-                        logger.debug("{} elapsed, {} gossip quarantine over", QUARANTINE_DELAY, entry.getKey());
+                    logger.info("{} elapsed, {} gossip quarantine over", QUARANTINE_DELAY, entry.getKey());
                     justRemovedEndpoints.remove(entry.getKey());
                 }
             }
