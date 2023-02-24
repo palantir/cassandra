@@ -2405,7 +2405,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 InetAddress currentOwner = tokenMetadata.getEndpoint(token);
                 if (currentOwner == null)
                 {
-                    logger.debug("New node {} at token {}", endpoint, token);
+                    logger.info("New node {} at token {}", endpoint, token);
                     tokensToUpdateInMetadata.add(token);
                     tokensToUpdateInSystemKeyspace.add(token);
                 }
@@ -2485,7 +2485,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         Collection<Token> tokens = getTokensFor(endpoint);
 
         if (logger.isDebugEnabled())
-            logger.debug("Node {} state leaving, tokens {}", endpoint, tokens);
+            logger.info("Node {} state leaving, tokens {}", endpoint, tokens);
 
         // If the node is previously unknown or tokens do not match, update tokenmetadata to
         // have this node as 'normal' (it must have been using this token before the
