@@ -34,8 +34,6 @@
     <property name="basedir" value="."/>
     <property name="build.src" value="${basedir}/src"/>
     <property name="build.src.java" value="${basedir}/src/java"/>
-    <property name="build.src.java8" value="${basedir}/src/java8"/>
-    <property name="build.src.java11" value="${basedir}/src/java11"/>
     <property name="build.src.resources" value="${basedir}/src/resources"/>
     <property name="build.src.gen-java" value="${basedir}/src/gen-java"/>
     <property name="build.lib" value="${basedir}/lib"/>
@@ -753,14 +751,6 @@
       </unzip>
     </target>
 
-    <!-- Need to delete some dependencies from build/lib/jars as non-matching versions may get in there
-      due to transitive dependencies -->
-    <delete>
-        <fileset dir="${build.dir.lib}/jars">
-            <include name="asm-*" />
-        </fileset>
-    </delete>
-
     <target name="maven-ant-tasks-retrieve-test" depends="maven-ant-tasks-init">
       <artifact:dependencies pomRefId="test-deps-pom"
                              filesetId="test-dependency-jars"
@@ -896,25 +886,11 @@
                executable="${env.JAVA_17_HOME}/bin/javac"
                memorymaximumsize="512M">
             <src path="${build.src.java}"/>
-            <src path="${build.src.java8}"/>
             <src path="${build.src.gen-java}"/>
             <compilerarg value="--add-exports"/>
             <compilerarg value="java.base/sun.net.util=ALL-UNNAMED"/>
             <compilerarg value="--add-exports"/>
             <compilerarg value="java.rmi/sun.rmi.registry=ALL-UNNAMED"/>
-            <classpath>
-                <path refid="cassandra.classpath"/>
-            </classpath>
-        </javac>
-        <echo message="Compiling for current java version ..."/>
-        <javac fork="true"
-               debug="true" debuglevel="${debuglevel}" encoding="utf-8"
-               destdir="${build.classes.main}/META-INF/versions/11" includeantruntime="false"
-               memorymaximumsize="512M">
-            <src path="${build.src.java11}"/>
-            <compilerarg value="--release"/>
-            <compilerarg value="${release.version}"/>
-            <compilerarg value="-XDignore.symbol.file"/>
             <classpath>
                 <path refid="cassandra.classpath"/>
             </classpath>
