@@ -31,6 +31,7 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.Hex;
 
 public class MutationVerificationUtils
 {
@@ -53,7 +54,7 @@ public class MutationVerificationUtils
                 keyspace.metric.invalidMutations.inc();
                 logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
                              FBUtilities.getBroadcastAddress(),
-                             mutation.key(),
+                             Hex.bytesToHex(mutation.key().array()),
                              naturalEndpoints,
                              pendingEndpoints);
                 throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
