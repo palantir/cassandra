@@ -53,6 +53,10 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 
 import static org.apache.cassandra.SchemaLoader.standardCFMD;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class MutationVerbHandlerTest
@@ -103,6 +107,8 @@ public class MutationVerbHandlerTest
     {
         MessageIn<Mutation> message = getMutationMessageForKey((byte) 0xf0a);
         HANDLER.doVerb(message, 0);
+
+        verify(message.payload).apply();
     }
 
     @Test(expected = RuntimeException.class)
@@ -110,14 +116,18 @@ public class MutationVerbHandlerTest
     {
         MessageIn<Mutation> message = getMutationMessageForKey((byte) 0xf0b);
         HANDLER.doVerb(message, 0);
+
+        verify(message.payload, times(0)).apply();
     }
 
     private MessageIn<Mutation> getMutationMessageForKey(byte key) throws UnknownHostException
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
         cf.addColumn(Util.column("c1", "v1", 0));
+        Mutation mutation = spy(new Mutation(KEYSPACE, new Row(ByteBuffer.wrap(new byte[]{ key }), cf)));
+        doNothing().when(mutation).apply();
         return MessageIn.create(InetAddress.getByName("127.0.0.2"),
-                                new Mutation(KEYSPACE, new Row(ByteBuffer.wrap(new byte[]{ key }), cf)),
+                                mutation,
                                 new HashMap<>(),
                                 MessagingService.Verb.MUTATION,
                                 MessagingService.current_version);
