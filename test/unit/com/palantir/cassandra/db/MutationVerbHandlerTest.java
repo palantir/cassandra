@@ -93,7 +93,7 @@ public class MutationVerbHandlerTest
                                                  NetworkTopologyStrategy.class,
                                                  ImmutableMap.of("DC1", "1", "DC2", "1"),
                                                  false,
-                                                 Collections.singleton(standardCFMD("Keyspace1", "Standard1")));
+                                                 Collections.singleton(standardCFMD(KEYSPACE, TABLE)));
         Schema.instance.setKeyspaceDefinition(meta);
     }
 
