@@ -20,6 +20,7 @@ package org.apache.cassandra.dht;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -29,7 +30,6 @@ import com.google.common.collect.ImmutableSet;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.sun.tools.javac.util.List;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
@@ -83,7 +83,7 @@ public class RangeStreamerTest
         Token.TokenFactory factory = p.getTokenFactory();
         Range<Token> availableRange = new Range<>(factory.fromString("0"), factory.fromString("100"));
         RangeStreamer streamer = mockRangeStreamer(ImmutableSet.of(availableRange), availableRange);
-        streamer.addRanges(keyspace, List.of(availableRange));
+        streamer.addRanges(keyspace, Arrays.asList(availableRange));
         assertThat(streamer.areAllRangesPresent()).isTrue();
     }
 
