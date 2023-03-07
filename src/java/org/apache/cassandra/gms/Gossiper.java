@@ -645,8 +645,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         /* Generate a random number from 0 -> size */
         int index = (size == 1) ? 0 : random.nextInt(size);
         InetAddress to = liveEndpoints.get(index);
-        if (logger.isTraceEnabled())
-            logger.trace("Sending a GossipDigestSyn to {} ...", to);
+        logger.info("Sending a GossipDigestSyn to {} ...", to);
         if (firstSynSendAt == 0)
             firstSynSendAt = System.nanoTime();
         MessagingService.instance().sendOneWay(message, to);
@@ -1360,7 +1359,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             {
                 if (slept % 5000 == 0)
                 { // CASSANDRA-8072, retry at the beginning and every 5 seconds
-                    logger.trace("Sending shadow round GOSSIP DIGEST SYN to seeds {}", seeds);
+                    logger.info("Sending shadow round GOSSIP DIGEST SYN to seeds {}", seeds);
                     for (InetAddress seed : seeds)
                         MessagingService.instance().sendOneWay(message, seed);
                 }
@@ -1393,6 +1392,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             if (seed.equals(FBUtilities.getBroadcastAddress()))
                 continue;
             seeds.add(seed);
+            logger.info("Adding seed {} to Gossiper seed list", seed);
         }
     }
 

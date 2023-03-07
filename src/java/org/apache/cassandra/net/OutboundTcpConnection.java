@@ -377,8 +377,7 @@ public class OutboundTcpConnection extends Thread
             try
             {
                 socket.close();
-                if (logger.isTraceEnabled())
-                    logger.trace("Socket to {} closed", poolReference.endPoint());
+                logger.info("Socket to {} closed", poolReference.endPoint());
             }
             catch (IOException e)
             {
@@ -393,8 +392,7 @@ public class OutboundTcpConnection extends Thread
     @SuppressWarnings("resource")
     private boolean connect()
     {
-        if (logger.isTraceEnabled())
-            logger.trace("attempting to connect to {}", poolReference.endPoint());
+        logger.info("attempting to connect to {}", poolReference.endPoint());
 
         long start = System.nanoTime();
         long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getRpcTimeout());
@@ -503,7 +501,7 @@ public class OutboundTcpConnection extends Thread
                     }
                 }
 
-                logger.trace("Successfully connected to {}", poolReference.endPoint());
+                logger.info("Successfully connected to {}", poolReference.endPoint());
                 return true;
             }
             catch (SSLHandshakeException e)
@@ -524,8 +522,7 @@ public class OutboundTcpConnection extends Thread
             catch (Exception e)
             {
                 socket = null;
-                if (logger.isTraceEnabled())
-                    logger.trace("unable to connect to " + poolReference.endPoint(), e);
+                logger.info("unable to connect to " + poolReference.endPoint(), e);
                 Uninterruptibles.sleepUninterruptibly(OPEN_RETRY_DELAY, TimeUnit.MILLISECONDS);
             }
         }
