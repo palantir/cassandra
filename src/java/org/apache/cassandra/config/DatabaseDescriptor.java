@@ -572,6 +572,13 @@ public class DatabaseDescriptor
                 throw new ConfigurationException("saved_caches_directory is missing and -Dcassandra.storagedir is not set", false);
             conf.saved_caches_directory += File.separator + "saved_caches";
         }
+        if (conf.persistent_settings_directory == null)
+        {
+            conf.persistent_settings_directory = System.getProperty("cassandra.storagedir", null);
+            if (conf.persistent_settings_directory == null)
+                throw new ConfigurationException("persistent_settings_directory is missing and -Dcassandra.storagedir is not set", false);
+            conf.persistent_settings_directory += File.separator + "persistent_settings";
+        }
         if (conf.data_file_directories == null)
         {
             String defaultDataDir = System.getProperty("cassandra.storagedir", null);
