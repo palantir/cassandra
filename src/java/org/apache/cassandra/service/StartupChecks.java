@@ -252,7 +252,8 @@ public class StartupChecks
             // check all directories(data, commitlog, saved cache) for existence and permission
             Iterable<String> dirs = Iterables.concat(Arrays.asList(DatabaseDescriptor.getAllDataFileLocations()),
                                                      Arrays.asList(DatabaseDescriptor.getCommitLogLocation(),
-                                                                   DatabaseDescriptor.getSavedCachesLocation()));
+                                                                   DatabaseDescriptor.getSavedCachesLocation(),
+                                                                   DatabaseDescriptor.getPersistentSettingsLocation()));
             for (String dataDir : dirs)
             {
                 logger.debug("Checking directory {}", dataDir);
