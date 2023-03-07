@@ -700,7 +700,7 @@ public class DatabaseDescriptor
 
                 if (Files.exists(systemDirectoryPath) && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo))
                     throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
-                        " Please remove this flag from configuration as it could cause split brain.", false);
+                        + " Please remove this flag from configuration as it could cause split brain.", false);
             } catch (IOException e) {
                 logger.info("Unable to verify validity of palantir_cassandra.is_new_cluster flag. Will retry at next restart.");
             }
