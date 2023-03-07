@@ -21,9 +21,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.FileStore;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -685,6 +688,21 @@ public class DatabaseDescriptor
             logger.warn("Please rename encryption_options as server_encryption_options in the yaml");
             //operate under the assumption that server_encryption_options is not set in yaml rather than both
             conf.server_encryption_options = conf.encryption_options;
+        }
+
+        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster")) {
+            if (conf.data_file_directories.length == 0)
+                throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
+
+            try {
+                Path systemDirectoryPath = Paths.get(conf.data_file_directories[0] + "/system");
+                Instant fourDaysAgo = Instant.now().minus(4, ChronoUnit.DAYS);
+
+                if (Files.exists(systemDirectoryPath) && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo))
+                    throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
+            } catch (IOException e) {
+                logger.info("Unable to verify validity of palantir_cassandra.is_new_cluster flag. Will retry at next restart.");
+            }
         }
 
         // load the seeds for node contact points
