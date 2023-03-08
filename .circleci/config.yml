@@ -16,11 +16,15 @@ version: 2
 jobs:
 
   build:
-    docker: [{ image: 'cimg/openjdk:17.0.6-node' }]
+    docker: [{ image: 'cimg/openjdk:17.0.6' }]
     resource_class: large
     steps:
       - checkout
+      - run: java --version
       - restore_cache: { key: 'maven-ant-build-v2-{{ checksum "build.xml" }}' }
+      - run: curl -LO "https://www.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.tar.gz" && tar -xzf apache-ant-1.10.12-bin.tar.gz
+      - run: echo "export PATH=$(pwd)/apache-ant-1.10.12/bin:${PATH}" >> $BASH_ENV
+      - run: echo "$(PATH) and bash env $(BASH_ENV)"
       - run: ant maven-ant-tasks-retrieve-build
       - save_cache:
           key: 'maven-ant-build-v2-{{ checksum "build.xml" }}'
@@ -36,7 +40,7 @@ jobs:
           paths: [ project, .gradle, .m2 ]
 
   test:
-    docker: [{ image: 'cimg/openjdk:17.0.6-node' }]
+    docker: [{ image: 'cimg/openjdk:17.0.6' }]
     resource_class: xlarge
     steps:
       - attach_workspace: { at: /home/circleci }
@@ -45,7 +49,7 @@ jobs:
       - store_artifacts: { path: build/test_output }
 
   artifacts:
-    docker: [{ image: 'cimg/openjdk:17.0.6-node' }]
+    docker: [{ image: 'cimg/openjdk:17.0.6' }]
     resource_class: large
     environment:
       GRADLE_OPTS: -Dorg.gradle.console=plain -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
@@ -60,7 +64,7 @@ jobs:
       - store_artifacts: { path: build/artifacts }
 
   publish:
-    docker: [{ image: 'cimg/openjdk:17.0.6-node' }]
+    docker: [{ image: 'cimg/openjdk:17.0.6' }]
     resource_class: large
     environment:
       GRADLE_OPTS: -Dorg.gradle.console=plain -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false
