@@ -21,7 +21,9 @@ jobs:
     steps:
       - checkout
       - restore_cache: { key: 'maven-ant-build-v2-{{ checksum "build.xml" }}' }
-      - run: curl -LO "https://www.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.tar.gz" && tar -xzf apache-ant-1.10.12-bin.tar.gz && echo "export PATH=$(pwd)/apache-ant-1.10.12/bin:${PATH}" >> $BASH_ENV
+      - run:
+          name: "Install Apache-Ant 1.10.12"
+          command: curl -LO "https://www.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.tar.gz" && tar -xzf apache-ant-1.10.12-bin.tar.gz && echo "export PATH=$(pwd)/apache-ant-1.10.12/bin:${PATH}" >> $BASH_ENV
       - run: echo "export JAVA_17_HOME=${JAVA_HOME}" >> $BASH_ENV
       - run: ant maven-ant-tasks-retrieve-build
       - save_cache:
@@ -42,6 +44,10 @@ jobs:
     resource_class: xlarge
     steps:
       - attach_workspace: { at: /home/circleci }
+      - run:
+          name: "Install Apache-Ant 1.10.12"
+          command: curl -LO "https://www.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.tar.gz" && tar -xzf apache-ant-1.10.12-bin.tar.gz && echo "export PATH=$(pwd)/apache-ant-1.10.12/bin:${PATH}" >> $BASH_ENV
+      - run: echo "export JAVA_17_HOME=${JAVA_HOME}" >> $BASH_ENV
       - run: set -eou pipefail && ant -Dtest.runners=2 test | tee build/test_output
       - store_test_results: { path: build/test/output }
       - store_artifacts: { path: build/test_output }
