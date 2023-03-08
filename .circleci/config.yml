@@ -20,11 +20,9 @@ jobs:
     resource_class: large
     steps:
       - checkout
-      - run: java --version
       - restore_cache: { key: 'maven-ant-build-v2-{{ checksum "build.xml" }}' }
-      - run: curl -LO "https://www.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.tar.gz" && tar -xzf apache-ant-1.10.12-bin.tar.gz
-      - run: echo "export PATH=$(pwd)/apache-ant-1.10.12/bin:${PATH}" >> $BASH_ENV
-      - run: echo "$(PATH) and bash env $(BASH_ENV)"
+      - run: curl -LO "https://www.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.tar.gz" && tar -xzf apache-ant-1.10.12-bin.tar.gz && echo "export PATH=$(pwd)/apache-ant-1.10.12/bin:${PATH}" >> $BASH_ENV
+      - run: echo "export JAVA_17_HOME=${JAVA_HOME}" >> $BASH_ENV
       - run: ant maven-ant-tasks-retrieve-build
       - save_cache:
           key: 'maven-ant-build-v2-{{ checksum "build.xml" }}'
