@@ -201,6 +201,8 @@
         bottom="Copyright &amp;copy; ${YEAR} The Apache Software Foundation"
         useexternalfile="yes"
         maxmemory="256m">
+          <arg value="--add-exports"/>
+          <arg value="java.rmi/sun.rmi.registry=ALL-UNNAMED"/>
         <filesets/>
       </javadoc>
     </sequential>
@@ -1051,7 +1053,7 @@
           <fileset dir="${interface.thrift.dir}/gen-java" defaultexcludes="yes">
             <include name="org/apache/**/*.java"/>
           </fileset>
-          <fileset dir="${build.src.java11}" defaultexcludes="yes">
+          <fileset dir="${build.src}" defaultexcludes="yes">
             <include name="org/apache/**/*.java"/>
           </fileset>
         </filesets>
@@ -1097,7 +1099,7 @@
         <fileset dir="${interface.thrift.dir}/gen-java" defaultexcludes="yes">
           <include name="org/apache/**/*.java"/>
         </fileset>
-        <fileset dir="${build.src.java11}" defaultexcludes="yes">
+        <fileset dir="${build.src}" defaultexcludes="yes">
           <include name="org/apache/**/*.java"/>
         </fileset>
       </jar>
