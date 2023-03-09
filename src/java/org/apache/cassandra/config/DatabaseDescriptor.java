@@ -690,18 +690,22 @@ public class DatabaseDescriptor
             conf.server_encryption_options = conf.encryption_options;
         }
 
-        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster")) {
+        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster"))
+        {
             if (conf.data_file_directories.length == 0)
                 throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
 
-            try {
+            try
+            {
                 Path systemDirectoryPath = Paths.get(conf.data_file_directories[0] + "/system");
                 Instant fourDaysAgo = Instant.now().minus(4, ChronoUnit.DAYS);
 
                 if (Files.exists(systemDirectoryPath) && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo))
                     throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
                         + " Please remove this flag from configuration as it could cause split brain.", false);
-            } catch (IOException e) {
+            }
+            catch (IOException e)
+            {
                 logger.info("Unable to verify validity of palantir_cassandra.is_new_cluster flag. Will retry at next restart.");
             }
         }
