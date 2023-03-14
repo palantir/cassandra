@@ -79,9 +79,14 @@ public class GossipDigestSynVerbHandler implements IVerbHandler<GossipDigestSyn>
         MessageOut<GossipDigestAck> gDigestAckMessage = new MessageOut<GossipDigestAck>(MessagingService.Verb.GOSSIP_DIGEST_ACK,
                                                                                         new GossipDigestAck(deltaGossipDigestList, deltaEpStateMap),
                                                                                         GossipDigestAck.serializer);
-        if (logger.isTraceEnabled())
-            logger.trace("Sending a GossipDigestAckMessage to {}", from);
+        logger.info("Sending a GossipDigestAckMessage to {}", from);
+        String fromAddress = from.getHostAddress();
+        Optional<InetAddress> fromSeed = Gossiper.instance.getSeeds().stream()
+                                                          .filter(seed -> seed.getHostAddress().equals(fromAddress))
+                                                          .findFirst();
+        from = fromSeed.orElse(from);
         MessagingService.instance().sendOneWay(gDigestAckMessage, from);
+        logger.info("Sent a GossipDigestAckMessage to {}", from);
     }
 
     /*
