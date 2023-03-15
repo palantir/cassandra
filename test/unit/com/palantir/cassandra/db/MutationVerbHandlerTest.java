@@ -64,8 +64,8 @@ public class MutationVerbHandlerTest
     private static final String KEYSPACE = "Keyspace1";
     private static final String TABLE = "Standard1";
     private static final MutationVerbHandler HANDLER = new MutationVerbHandler();
-    private static final byte KEY_OWNED_BY_A = 0xf0a;
-    private static final byte KEY_OWNED_BY_B = 0xf0b;
+    private static final byte KEY_OWNED_BY_A = (byte) 0xf0a;
+    private static final byte KEY_OWNED_BY_B = (byte) 0xf0b;
 
     @BeforeClass
     public static void setUp() throws ConfigurationException
