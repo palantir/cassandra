@@ -64,8 +64,8 @@ public class MutationVerbHandlerTest
     private static final String KEYSPACE = "Keyspace1";
     private static final String TABLE = "Standard1";
     private static final MutationVerbHandler HANDLER = new MutationVerbHandler();
-    private static final byte KEY_OWNED_BY_A = (byte) 0xf0a;
-    private static final byte KEY_OWNED_BY_B = (byte) 0xf0b;
+    private static final byte KEY_OWNED_BY_US = (byte) 0xf0a;
+    private static final byte KEY_NOT_OWNED_BY_US = (byte) 0xf0b;
 
     @BeforeClass
     public static void setUp() throws ConfigurationException
@@ -107,7 +107,7 @@ public class MutationVerbHandlerTest
     @Test
     public void doVerb_appliesWriteWhenOwned() throws IOException
     {
-        MessageIn<Mutation> message = getMutationMessageForKey(KEY_OWNED_BY_A);
+        MessageIn<Mutation> message = getMutationMessageForKey(KEY_OWNED_BY_US);
         HANDLER.doVerb(message, 0);
 
         verify(message.payload).apply();
@@ -116,7 +116,7 @@ public class MutationVerbHandlerTest
     @Test(expected = RuntimeException.class)
     public void doVerb_throwsWriteWhenNotOwned() throws IOException
     {
-        MessageIn<Mutation> message = getMutationMessageForKey(KEY_OWNED_BY_B);
+        MessageIn<Mutation> message = getMutationMessageForKey(KEY_NOT_OWNED_BY_US);
         HANDLER.doVerb(message, 0);
 
         verify(message.payload, times(0)).apply();
