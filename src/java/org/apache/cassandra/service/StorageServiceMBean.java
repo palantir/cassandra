@@ -865,4 +865,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void persistentDisableClientInterfaces();
 
     public boolean isMigrating();
+
+    /**
+     * Returns the value of the palantir_cassandra.is_new_cluster system variable or false if not set.
+     */
+    public boolean isNewCluster();
 }

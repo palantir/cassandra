@@ -5114,6 +5114,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    @Override
     public boolean isNewCluster()
     {
         return Boolean.parseBoolean(System.getProperty("palantir_cassandra.is_new_cluster", "false"));
