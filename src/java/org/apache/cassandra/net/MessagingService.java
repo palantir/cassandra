@@ -58,6 +58,7 @@ import org.apache.cassandra.gms.EchoMessage;
 import org.apache.cassandra.gms.GossipDigestAck;
 import org.apache.cassandra.gms.GossipDigestAck2;
 import org.apache.cassandra.gms.GossipDigestSyn;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileUtils;
@@ -570,9 +571,16 @@ public final class MessagingService implements MessagingServiceMBean
 
     public OutboundTcpConnectionPool getConnectionPool(InetAddress to)
     {
+        logger.info("Getting connection pool for address {}", to);
+        String hostAddress = to.getHostAddress();
+        Optional<InetAddress> toSeed = Gossiper.instance.getSeeds().stream()
+                                                        .filter(seed -> seed.getHostAddress().equals(hostAddress))
+                                                        .findFirst();
+        to = toSeed.orElse(to);
         OutboundTcpConnectionPool cp = connectionManagers.get(to);
         if (cp == null)
         {
+            logger.info("Creating connection pool for address {}", to);
             cp = new OutboundTcpConnectionPool(to);
             OutboundTcpConnectionPool existingPool = connectionManagers.putIfAbsent(to, cp);
             if (existingPool != null)

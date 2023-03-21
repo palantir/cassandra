@@ -375,9 +375,14 @@ public class Server implements CassandraDaemon.Server
             String[] suites = SSLFactory.filterCipherSuites(sslEngine.getSupportedCipherSuites(), encryptionOptions.cipher_suites);
             if(encryptionOptions.require_endpoint_verification)
             {
+                logger.info("Endpoint verification required for server");
                 SSLParameters sslParameters = sslEngine.getSSLParameters();
                 sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
                 sslEngine.setSSLParameters(sslParameters);
+            }
+            else
+            {
+                logger.info("Endpoint verification NOT required for server");
             }
             sslEngine.setEnabledCipherSuites(suites);
             sslEngine.setNeedClientAuth(encryptionOptions.require_client_auth);
