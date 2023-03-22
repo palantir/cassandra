@@ -1396,6 +1396,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         }
     }
 
+    public Set<InetAddress> getSeeds()
+    {
+        return new HashSet<>(seeds);
+    }
+
     // initialize local HB state if needed, i.e., if gossiper has never been started before.
     public void maybeInitializeLocalState(int generationNbr)
     {

@@ -58,6 +58,7 @@ import org.apache.cassandra.gms.EchoMessage;
 import org.apache.cassandra.gms.GossipDigestAck;
 import org.apache.cassandra.gms.GossipDigestAck2;
 import org.apache.cassandra.gms.GossipDigestSyn;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileUtils;
@@ -570,6 +571,15 @@ public final class MessagingService implements MessagingServiceMBean
 
     public OutboundTcpConnectionPool getConnectionPool(InetAddress to)
     {
+        // The following InetAddress swap is hacky workaround aimed for tests with 3 nodes cluster
+        // and using docker hostname resolution, which contains unsupported characters. It will only be included
+        // in a rc and should NEVER be used in production.
+        String hostAddress = to.getHostAddress();
+        Optional<InetAddress> toSeed = Gossiper.instance.getSeeds().stream()
+                                                        .filter(seed -> seed.getHostAddress().equals(hostAddress))
+                                                        .findFirst();
+        to = toSeed.orElse(to);
+
         OutboundTcpConnectionPool cp = connectionManagers.get(to);
         if (cp == null)
         {
