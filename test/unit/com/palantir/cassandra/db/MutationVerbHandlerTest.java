@@ -107,7 +107,7 @@ public class MutationVerbHandlerTest
     @Test
     public void doVerb_appliesWriteWhenOwned() throws IOException
     {
-        MessageIn<Mutation> message = getMutationMessageForKey(KEY_OWNED_BY_US);
+        MessageIn<Mutation> message = getMutationMessageForKey(KEY_OWNED_BY_LOCALHOST);
         HANDLER.doVerb(message, 0);
 
         verify(message.payload).apply();
@@ -116,7 +116,7 @@ public class MutationVerbHandlerTest
     @Test(expected = RuntimeException.class)
     public void doVerb_throwsWriteWhenNotOwned() throws IOException
     {
-        MessageIn<Mutation> message = getMutationMessageForKey(KEY_NOT_OWNED_BY_US);
+        MessageIn<Mutation> message = getMutationMessageForKey(KEY_NOT_OWNED_BY_LOCALHOST);
         HANDLER.doVerb(message, 0);
 
         verify(message.payload, times(0)).apply();
