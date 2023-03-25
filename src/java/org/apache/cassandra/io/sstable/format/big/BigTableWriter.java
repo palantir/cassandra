@@ -182,6 +182,7 @@ public class BigTableWriter extends SSTableWriter
         {
             String keyString = metadata.getKeyValidator().getString(key.getKey());
             logger.warn("Writing large partition {}/{}:{} ({} bytes)", metadata.ksName, metadata.cfName, keyString, rowSize);
+            Keyspace.open(metadata.ksName).getColumnFamilyStore(metadata.cfName).metric.largePartitionsCompacted.inc();
         }
     }
 
