@@ -181,10 +181,16 @@ public final class SSLFactory
         List<String> ldesired = Arrays.asList(desired);
         ImmutableSet<String> ssupported = ImmutableSet.copyOf(supported);
 
-        String[] ret = Iterables.toArray(
-        ldesired.stream()
-                .filter(potentialCipher -> ssupported.contains(potentialCipher)
-                                           && !EncryptionOptions.restricted_cipher_suites.contains(potentialCipher))
+        String[] ret = Iterables.toArray(ldesired.stream()
+            .peek(suite -> {
+                if (EncryptionOptions.restricted_cipher_suites.contains(suite)) {
+                    logger.warn("Removing restricted cipher suite {}", suite);
+                } else if (!ssupported.contains(suite)) {
+                    logger.warn("Removing suite that isn't supported by the socket");
+                }
+            })
+                .filter(ssupported::contains)
+                .filter(suite -> !EncryptionOptions.restricted_cipher_suites.contains(suite))
                 .collect(Collectors.toList()),
         String.class);
 
@@ -192,7 +198,7 @@ public final class SSLFactory
         if (desired.length > ret.length && logger.isWarnEnabled())
         {
             Iterable<String> missing = Iterables.filter(ldesired, Predicates.not(Predicates.in(Sets.newHashSet(ret))));
-            logger.warn("Filtering out {} as it isn't supported by the socket", Iterables.toString(missing));
+            logger.warn("Filtering out {} as they aren't supported by the socket or are restricted", Iterables.toString(missing));
         }
         return ret;
     }
