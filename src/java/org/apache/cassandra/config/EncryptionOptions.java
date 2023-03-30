@@ -17,6 +17,8 @@
  */
 package org.apache.cassandra.config;
 
+import com.google.common.collect.ImmutableSet;
+
 public abstract class EncryptionOptions
 {
     public String keystore = "conf/.keystore";
@@ -28,6 +30,8 @@ public abstract class EncryptionOptions
         "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA" 
     };
+    public static ImmutableSet<String> restricted_cipher_suites = ImmutableSet.of(
+        "TLS1_CK_DHE_RSA_WITH_AES_256_CBC_SHA", "TLS1_CK_DHE_RSA_WITH_AES_129_CBC_SHA");
     public String protocol = "TLS";
     public String algorithm = "SunX509";
     public String store_type = "JKS";
