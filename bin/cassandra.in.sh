@@ -16,7 +16,7 @@
 
 SERVICE_HOME=$(cd "$(dirname "$0")/../../" && pwd)
 
-if [ -d "$SERVICE_HOME" ] && [ -z "$USE_CUSTOM_CASSANDRA_DIRS"]; then
+if [ -d "$SERVICE_HOME" ] && [ -z "$USE_CUSTOM_CASSANDRA_DIRS" ]; then
     CASSANDRA_HOME="$SERVICE_HOME/service"
     CASSANDRA_CONF="$SERVICE_HOME/var/conf"
 fi
