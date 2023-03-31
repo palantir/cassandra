@@ -22,16 +22,20 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -88,6 +92,29 @@ public class SSLFactoryTest
 
         desired = new String[]{ "c", "b", "x" };
         assertArrayEquals(desired, SSLFactory.filterCipherSuites(supported, desired));
+        assertArrayEquals(desired, SSLFactory.filterCipherSuites(desired, desired));
+    }
+
+    @Test
+    public void filterCipherSuites_neverAllowsRestrictedSuites() throws IOException
+    {
+        EncryptionOptions options = getServerEncryptionOptions();
+        SSLContext ctx = SSLFactory.createSSLContext(options, false);
+
+        Set<String> supported = new ImmutableSet.Builder<String>()
+                                            .add(ctx.getSupportedSSLParameters().getCipherSuites())
+                                            .addAll(EncryptionOptions.restricted_cipher_suites)
+                                            .build();
+        assertThat(supported).contains("TLS1_CK_DHE_RSA_WITH_AES_256_CBC_SHA", "TLS1_CK_DHE_RSA_WITH_AES_129_CBC_SHA");
+
+        String[] supportedArr = supported.toArray(new String[supported.size()]);
+
+        assertThat(EncryptionOptions.restricted_cipher_suites).contains("TLS1_CK_DHE_RSA_WITH_AES_256_CBC_SHA",
+                                                                        "TLS1_CK_DHE_RSA_WITH_AES_129_CBC_SHA");
+        String[] filtered = SSLFactory.filterCipherSuites(supportedArr, supportedArr);
+
+        assertThat(filtered).isNotEqualTo(supported);
+        assertThat(filtered).doesNotContainAnyElementsOf(EncryptionOptions.restricted_cipher_suites);
     }
 
     @Test

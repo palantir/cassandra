@@ -30,13 +30,12 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -47,9 +46,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.xml.crypto.Data;
 
-import ch.qos.logback.core.net.ssl.SSL;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import com.palantir.cassandra.cvim.InetAddressHostname;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -181,15 +178,27 @@ public final class SSLFactory
 
     public static String[] filterCipherSuites(String[] supported, String[] desired)
     {
-        if (Arrays.equals(supported, desired))
-            return desired;
         List<String> ldesired = Arrays.asList(desired);
         ImmutableSet<String> ssupported = ImmutableSet.copyOf(supported);
-        String[] ret = Iterables.toArray(Iterables.filter(ldesired, Predicates.in(ssupported)), String.class);
+
+        String[] ret = Iterables.toArray(ldesired.stream()
+            .peek(suite -> {
+                if (EncryptionOptions.restricted_cipher_suites.contains(suite)) {
+                    logger.warn("Removing restricted cipher suite {}", suite);
+                } else if (!ssupported.contains(suite)) {
+                    logger.warn("Removing suite that isn't supported by the socket {}", suite);
+                }
+            })
+            .filter(ssupported::contains)
+            .filter(suite -> !EncryptionOptions.restricted_cipher_suites.contains(suite))
+            .collect(Collectors.toList()),
+        String.class);
+
+
         if (desired.length > ret.length && logger.isWarnEnabled())
         {
             Iterable<String> missing = Iterables.filter(ldesired, Predicates.not(Predicates.in(Sets.newHashSet(ret))));
-            logger.warn("Filtering out {} as it isn't supported by the socket", Iterables.toString(missing));
+            logger.warn("Filtering out {} as they aren't supported by the socket or are restricted", Iterables.toString(missing));
         }
         return ret;
     }
