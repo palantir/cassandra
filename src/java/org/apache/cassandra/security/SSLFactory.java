@@ -186,7 +186,7 @@ public final class SSLFactory
                 if (EncryptionOptions.restricted_cipher_suites.contains(suite)) {
                     logger.warn("Removing restricted cipher suite {}", suite);
                 } else if (!ssupported.contains(suite)) {
-                    logger.warn("Removing suite that isn't supported by the socket");
+                    logger.warn("Removing suite that isn't supported by the socket {}", suite);
                 }
             })
             .filter(ssupported::contains)
