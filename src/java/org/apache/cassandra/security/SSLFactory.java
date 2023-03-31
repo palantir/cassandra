@@ -189,9 +189,9 @@ public final class SSLFactory
                     logger.warn("Removing suite that isn't supported by the socket");
                 }
             })
-                .filter(ssupported::contains)
-                .filter(suite -> !EncryptionOptions.restricted_cipher_suites.contains(suite))
-                .collect(Collectors.toList()),
+            .filter(ssupported::contains)
+            .filter(suite -> !EncryptionOptions.restricted_cipher_suites.contains(suite))
+            .collect(Collectors.toList()),
         String.class);
 
 
