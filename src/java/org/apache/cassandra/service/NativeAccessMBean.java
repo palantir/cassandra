@@ -44,6 +44,12 @@ public interface NativeAccessMBean
      */
     void reinitializeFromSstableCorruption() throws IllegalNonTransientErrorStateException;
 
+    /**
+     * Waits for gossip to settle.
+     * See: {@link CassandraDaemon#waitForGossipToSettle()}
+     */
+    void waitForGossipToSettle();
+
     class IllegalNonTransientErrorStateException extends Exception implements Serializable {
         private static final long serialVersionUID = 1068347274649406245L;
 

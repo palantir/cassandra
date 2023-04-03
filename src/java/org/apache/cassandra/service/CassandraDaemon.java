@@ -729,7 +729,6 @@ public class CassandraDaemon
         }
     }
 
-    @VisibleForTesting
     public static void waitForGossipToSettle()
     {
         int forceAfter = Integer.getInteger("cassandra.skip_wait_for_gossip_to_settle", -1);
@@ -845,6 +844,11 @@ public class CassandraDaemon
                 CassandraDaemon.instance.start();
                 enableAutoCompaction();
             }
+        }
+
+        public void waitForGossipToSettle()
+        {
+            CassandraDaemon.waitForGossipToSettle();
         }
 
         private void checkInNonTransientErrorMode() throws IllegalNonTransientErrorStateException
