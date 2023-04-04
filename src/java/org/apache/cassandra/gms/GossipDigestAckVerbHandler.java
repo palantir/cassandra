@@ -54,8 +54,9 @@ public class GossipDigestAckVerbHandler implements IVerbHandler<GossipDigestAck>
         if (Gossiper.instance.isInShadowRound())
         {
             if (logger.isDebugEnabled())
-                logger.debug("Finishing shadow round with {}", from);
-            Gossiper.instance.finishShadowRound(epStateMap);
+                logger.debug("Received an ack from {}, which may trigger exit from shadow round", from);
+            // if the ack is completely empty, then we can infer that the respondent is also in a shadow round
+            Gossiper.instance.maybeFinishShadowRound(epStateMap, from, gDigestList.isEmpty() && epStateMap.isEmpty());
             return; // don't bother doing anything else, we have what we came for
         }
 

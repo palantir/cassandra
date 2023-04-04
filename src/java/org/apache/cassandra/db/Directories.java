@@ -340,7 +340,7 @@ public class Directories
     private static boolean shouldEnableNode(double threshold, double currUtilization)
     {
         boolean underThreshold = threshold - currUtilization >= 0.02;
-        boolean nodeCanBeReEnabled = StorageService.instance.isNodeDisabled() && StorageService.instance.isSetupCompleted();
+        boolean nodeCanBeReEnabled = StorageService.instance.isNodeDisabled() && StorageService.instance.isDaemonSetupCompleted();
         boolean zeroNonTransientErrors = StorageService.instance.getNonTransientErrors().isEmpty();
         boolean onlyExceededDiskThresholdTransientError = StorageService.instance.getPresentTransientErrorTypes()
                                                                                  .equals(ImmutableSet.of(StorageServiceMBean

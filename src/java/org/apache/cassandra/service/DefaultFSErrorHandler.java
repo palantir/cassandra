@@ -43,7 +43,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
     @Override
     public void handleCorruptSSTable(CorruptSSTableException e)
     {
-        if (!StorageService.instance.isSetupCompleted())
+        if (!StorageService.instance.isDaemonSetupCompleted())
             handleStartupFSError(e);
 
         JVMStabilityInspector.inspectThrowable(e);
@@ -67,7 +67,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
     @Override
     public void handleExceededDiskThreshold(ExceededDiskThresholdException e) {
-        if (!StorageService.instance.isSetupCompleted())
+        if (!StorageService.instance.isDaemonSetupCompleted())
             handleStartupFSError(e);
 
         JVMStabilityInspector.inspectThrowable(e);
@@ -108,7 +108,7 @@ public class DefaultFSErrorHandler implements FSErrorHandler
     @Override
     public void handleFSError(FSError e)
     {
-        if (!StorageService.instance.isSetupCompleted())
+        if (!StorageService.instance.isDaemonSetupCompleted())
             handleStartupFSError(e);
 
         JVMStabilityInspector.inspectThrowable(e);

@@ -129,6 +129,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     private final Map<InetAddress, Long> expireTimeEndpointMap = new ConcurrentHashMap<InetAddress, Long>();
 
     private volatile boolean inShadowRound = false;
+    private final Set<InetAddress> seedsInShadowRound = new ConcurrentSkipListSet<>(inetcomparator);
 
     // endpoint states as gathered during shadow round
     private final Map<InetAddress, EndpointState> endpointShadowStateMap = new ConcurrentHashMap<>();
@@ -714,28 +715,46 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     }
 
     /**
-     * Check if this endpoint can safely bootstrap into the cluster.
+     * Check if this node can safely be started and join the ring.
+     * If the node is bootstrapping, examines gossip state for any previous status to decide whether
+     * it's safe to allow this node to start & bootstrap. If not bootstrapping, compares the host ID
+     * that the node itself has (obtained by reading from system.local or generated if not present)
+     * with the host ID obtained from gossip for the endpoint address (if any). This latter case
+     * prevents a non-bootstrapping, new node from being started with the same address of a
+     * previously started, but currently down predecessor.
      *
      * @param endpoint - the endpoint to check
      * @param epStates - endpoint states in the cluster
-     * @return true if the endpoint can join the cluster
+     * @param localHostUUID - the host id to check
+     * @param isBootstrapping - whether the node intends to bootstrap when joining
+     * @return true if it is safe to start the node, false otherwise
      */
-    public boolean isSafeForBootstrap(InetAddress endpoint, Map<InetAddress, EndpointState> epStates)
+    public boolean isSafeForStartup(InetAddress endpoint, Map<InetAddress, EndpointState> epStates, UUID localHostUUID, boolean isBootstrapping)
     {
         EndpointState epState = epStates.get(endpoint);
-
         // if there's no previous state, or the node was previously removed from the cluster, we're good
         if (epState == null || isDeadState(epState))
             return true;
 
-        String status = getGossipStatus(epState);
-
-        // these states are not allowed to join the cluster as it would not be safe
-        final List<String> unsafeStatuses = new ArrayList<String>() {{
-            add(""); // failed bootstrap but we did start gossiping
-            add(VersionedValue.STATUS_NORMAL); // node is legit in the cluster or it was stopped with kill -9
-            add(VersionedValue.SHUTDOWN); }}; // node was shutdown
-        return !unsafeStatuses.contains(status);
+        if (isBootstrapping)
+        {
+            String status = getGossipStatus(epState);
+            // these states are not allowed to join the cluster as it would not be safe
+            final List<String> unsafeStatuses = new ArrayList<String>() {{
+                add("");                           // failed bootstrap but we did start gossiping
+                add(VersionedValue.STATUS_NORMAL); // node is legit in the cluster or it was stopped with kill -9
+                add(VersionedValue.SHUTDOWN);      // node was shutdown
+            }};
+            return !unsafeStatuses.contains(status);
+        }
+        else
+        {
+            // if the previous UUID matches what we currently have (i.e. what was read from
+            // system.local at startup), then we're good to start up. Otherwise, something
+            // is amiss and we need to replace the previous node
+            VersionedValue previous = epState.getApplicationState(ApplicationState.HOST_ID);
+            return UUID.fromString(previous.value).equals(localHostUUID);
+        }
     }
 
     private void doStatusCheck()
@@ -1372,9 +1391,15 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                 slept += 1000;
                 if (slept > StorageService.RING_DELAY)
                 {
-                    logger.error("Unable to gossip with any seeds.  If this is the first time that you are starting the cluster," +
-                                 "ensure that `conf.cassandra-env_sh.is_new_cluster` is set to true");
-                    throw new RuntimeException("Unable to gossip with any seeds");
+                    if (!DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress()))
+                    {
+                        logger.error("Unable to gossip with any seeds.  If this is the first time that you are starting the cluster," +
+                                    "ensure that `conf.cassandra-env_sh.is_new_cluster` is set to true");
+                        throw new RuntimeException("Unable to gossip with any seeds");
+                    }
+                    logger.warn("Unable to gossip with any seeds but continuing since node is in its own seed list");
+                    inShadowRound = false;
+                    break;
                 }
             }
         }
@@ -1505,12 +1530,34 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return (scheduledGossipTask != null) && (!scheduledGossipTask.isCancelled());
     }
 
-    protected void finishShadowRound(Map<InetAddress, EndpointState> epStateMap)
+    protected void maybeFinishShadowRound(Map<InetAddress, EndpointState> epStateMap, InetAddress respondent, boolean isInShadowRound)
     {
         if (inShadowRound)
         {
-            endpointShadowStateMap.putAll(epStateMap);
-            inShadowRound = false;
+            if (!isInShadowRound)
+            {
+                logger.debug("Received a regular ack from {}, can now exit shadow round", respondent);
+                // respondent sent back a full ack, so we can exit our shadow round
+                inShadowRound = false;
+                endpointShadowStateMap.putAll(epStateMap);
+                seedsInShadowRound.clear();
+            }
+            else
+            {
+                // respondent indicates it too is in a shadow round, if all seeds
+                // are in this state then we can exit our shadow round. Otherwise,
+                // we keep retrying the SR until one responds with a full ACK or
+                // we learn that all seeds are in SR.
+                logger.debug("Received an ack from {} indicating it is also in shadow round", respondent);
+                seedsInShadowRound.add(respondent);
+                if (seedsInShadowRound.containsAll(seeds))
+                {
+                    logger.debug("All seeds are in a shadow round, clearing this node to exit its own");
+                    inShadowRound = false;
+                    endpointShadowStateMap.putAll(epStateMap);
+                    seedsInShadowRound.clear();
+                }
+            }
         }
     }
 
