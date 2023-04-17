@@ -920,6 +920,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 }
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
+            while (!isNewCluster() && Schema.instance.getVersion().equals(Schema.emptyVersion))
+            {
+                setMode(Mode.JOINING, "our schema is empty and we are joining an existing cluster, continuing to wait for schema", true);
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+            }
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
             while (!MigrationManager.isReadyForBootstrap())
