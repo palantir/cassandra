@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
+import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.utils.ExecutorUtils;
 import org.apache.cassandra.utils.MBeanWrapper;
 import org.apache.cassandra.utils.Pair;
@@ -1571,5 +1572,21 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         stop();
         ExecutorUtils.shutdownAndWait(timeout, unit, executor);
+    }
+
+    public boolean schemaIsConsistent() {
+        boolean schemaIsConsistent = true;
+        UUID ourSchemaVersion = Schema.instance.getVersion();
+        for (Entry<InetAddress, EndpointState> entry : endpointStateMap.entrySet())
+        {
+            InetAddress endpoint = entry.getKey();
+            String theirSchemaVersion = entry.getValue().getApplicationState(ApplicationState.SCHEMA).value;
+            if (!endpoint.equals(FBUtilities.getBroadcastAddress()) && !theirSchemaVersion.equals(ourSchemaVersion.toString()))
+            {
+                schemaIsConsistent = false;
+                logger.warn("Schema is not consistent. Our version ({}) != version from {} ({})", ourSchemaVersion, endpoint, theirSchemaVersion);
+            }
+        }
+        return schemaIsConsistent;
     }
 }
