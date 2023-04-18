@@ -69,6 +69,7 @@ public class NodeTool
                 NetStats.class,
                 CfStats.class,
                 TableStats.class,
+                TimeSchemaToMutations.class,
                 CfHistograms.class,
                 TableHistograms.class,
                 Cleanup.class,
