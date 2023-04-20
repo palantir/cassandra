@@ -764,6 +764,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public boolean resumeBootstrap();
 
+    /** Returns a map of schema version -> list of endpoints reporting that version that we need schema updates for */
+    public Map<String, Set<InetAddress>> getOutstandingSchemaVersions();
+
     /**
      * Send signal to start the bootstrap process.
      */

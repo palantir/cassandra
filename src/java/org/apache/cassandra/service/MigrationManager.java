@@ -26,13 +26,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.RuntimeMXBean;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
@@ -59,10 +55,6 @@ public class MigrationManager
 
     public static final MigrationManager instance = new MigrationManager();
 
-    private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
-
-    public static final int MIGRATION_DELAY_IN_MS = 60000;
-
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
     
     private MigrationManager() {}
@@ -75,121 +67,6 @@ public class MigrationManager
     public void unregister(MigrationListener listener)
     {
         listeners.remove(listener);
-    }
-
-    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state) {
-        scheduleSchemaPull(endpoint, state, false);
-    }
-
-    public void scheduleSchemaPull(InetAddress endpoint, EndpointState state, boolean onChange)
-    {
-        VersionedValue value = state.getApplicationState(ApplicationState.SCHEMA);
-
-        if (!endpoint.equals(FBUtilities.getBroadcastAddress()) && value != null)
-            maybeScheduleSchemaPull(UUID.fromString(value.value), endpoint, state.getApplicationState(ApplicationState.RELEASE_VERSION).value, onChange);
-    }
-
-    /**
-     * If versions differ this node sends request with local migration list to the endpoint
-     * and expecting to receive a list of migrations to apply locally.
-     */
-    private static void maybeScheduleSchemaPull(final UUID theirVersion, final InetAddress endpoint, String  releaseVersion, boolean onChange)
-    {
-        String ourMajorVersion = FBUtilities.getReleaseVersionMajor();
-        if (!releaseVersion.startsWith(ourMajorVersion))
-        {
-            logger.debug("Not pulling schema because release version in Gossip is not major version {}, it is {}", ourMajorVersion, releaseVersion);
-            return;
-        }
-
-        if ((Schema.instance.getVersion() != null && Schema.instance.getVersion().equals(theirVersion)) || !shouldPullSchemaFrom(endpoint))
-        {
-            logger.debug("Not pulling schema because versions match or shouldPullSchemaFrom returned false");
-            return;
-        }
-
-        if (Schema.emptyVersion.equals(Schema.instance.getVersion()) || runtimeMXBean.getUptime() < MIGRATION_DELAY_IN_MS)
-        {
-            // If we think we may be bootstrapping or have recently started, submit MigrationTask immediately
-            logger.debug("Submitting migration task for {}", endpoint);
-            submitMigrationTask(endpoint);
-        }
-
-        if (onChange && Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
-        {
-            // if we're scheduling due to a schema change (and not because a node is newly alive or joined)
-            // and we're in unsafe_schema_migration mode, then don't submit a MigrationTask
-            logger.warn("Not pulling schema because of schema change while in unsafe schema migration mode");
-            return;
-        }
-        else
-        {
-            // Include a delay to make sure we have a chance to apply any changes being
-            // pushed out simultaneously. See CASSANDRA-5025
-            Runnable runnable = new Runnable()
-            {
-                public void run()
-                {
-                    // grab the latest version of the schema since it may have changed again since the initial scheduling
-                    EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
-                    if (epState == null)
-                    {
-                        logger.debug("epState vanished for {}, not submitting migration task", endpoint);
-                        return;
-                    }
-                    VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
-                    UUID currentVersion = UUID.fromString(value.value);
-
-                    if (!currentVersion.equals(theirVersion))
-                    {
-                        logger.debug("A subsequent change has been made to the other endpoint's schema version and " +
-                                "so we should wait for the subsequently scheduled task instead of trying to do the " +
-                                "work in this one. Endpoint: {}; Former schema version: {}; Current schema version: {}",
-                                endpoint,
-                                theirVersion,
-                                currentVersion);
-                        return;
-                    }
-
-                    if (Schema.instance.getVersion().equals(currentVersion))
-                    {
-                        logger.debug("not submitting migration task for {} because our versions match", endpoint);
-                        return;
-                    }
-                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
-                            endpoint,
-                            currentVersion,
-                            Schema.instance.getVersion());
-                    submitMigrationTask(endpoint);
-                }
-            };
-            ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
-        }
-    }
-
-    private static Future<?> submitMigrationTask(InetAddress endpoint)
-    {
-        /*
-         * Do not de-ref the future because that causes distributed deadlock (CASSANDRA-3832) because we are
-         * running in the gossip stage.
-         */
-        return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint));
-    }
-
-    public static boolean shouldPullSchemaFrom(InetAddress endpoint)
-    {
-        /*
-         * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
-         * Don't request schema from fat clients
-         */
-        return MessagingService.instance().knowsVersion(endpoint)
-                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
-                && !Gossiper.instance.isGossipOnlyMember(endpoint);
-    }
-
-    public static boolean isReadyForBootstrap()
-    {
-        return ((ThreadPoolExecutor) StageManager.getStage(Stage.MIGRATION)).getActiveCount() == 0;
     }
 
     public void notifyCreateKeyspace(KSMetaData ksm)
@@ -552,15 +429,15 @@ public class MigrationManager
         Set<InetAddress> liveEndpoints = Gossiper.instance.getLiveMembers();
         liveEndpoints.remove(FBUtilities.getBroadcastAddress());
 
+        MigrationCoordinator.instance.reset();
+
         // force migration if there are nodes around
         for (InetAddress node : liveEndpoints)
         {
-            if (shouldPullSchemaFrom(node))
-            {
-                logger.debug("Requesting schema from {}", node);
-                FBUtilities.waitOnFuture(submitMigrationTask(node));
-                break;
-            }
+            EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(node);
+            Future<Void> pull = MigrationCoordinator.instance.reportEndpointVersion(node, state);
+            if (pull != null)
+                FBUtilities.waitOnFuture(pull);
         }
 
         logger.info("Local schema reset is complete.");
