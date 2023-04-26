@@ -2092,9 +2092,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         if (maybeDeletionInfo.isPresent()) {
             DeletionInfo deletionInfo = maybeDeletionInfo.get();
-            logger.trace("Ranged tombstones read {} and droppable {}",
+            logger.trace("Ranged tombstones read {} and droppable {} for {}.{}",
                          deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
-                         deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+                         deletionInfo.getRangeTombstoneCounter().getDroppableCount(), keyspace, getColumnFamilyName());
 
             metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
             metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
