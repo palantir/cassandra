@@ -2092,7 +2092,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         if (maybeDeletionInfo.isPresent()) {
             DeletionInfo deletionInfo = maybeDeletionInfo.get();
-            logger.trace("Ranged tombstones read {} and droppable {} for {}.{}",
+            logger.info("Ranged tombstones read {} and droppable {} for {}.{}",
                          deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
                          deletionInfo.getRangeTombstoneCounter().getDroppableCount(), keyspace, getColumnFamilyName());
 
