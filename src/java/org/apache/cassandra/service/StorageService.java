@@ -101,6 +101,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 {
     private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
+    private static final boolean DISABLE_WAIT_TO_JOIN_RING = Boolean.getBoolean("palantir_cassandra.disable_wait_to_join_ring");
+    private static final boolean WAIT_TO_JOIN_RING = !DISABLE_WAIT_TO_JOIN_RING;
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
@@ -1038,7 +1040,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ensureTraceKeyspace();
         maybeAddOrUpdateKeyspace(SystemDistributedKeyspace.definition());
 
-        if (!isSurveyMode)
+        if (WAIT_TO_JOIN_RING)
+        {
+            logger.info("Bootstrapping complete. Waiting to join ring. Use JMX (StorageService->joinRing()) to finalize ring joining." +
+                        "Set palantir_cassandra.disable_wait_to_join_ring=true to bypass this check and join the ring immediately after bootstrapping.");
+        }
+        else if (!isSurveyMode)
         {
             if (dataAvailable)
             {
