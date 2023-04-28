@@ -101,8 +101,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 {
     private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
-    private static final boolean DISABLE_WAIT_TO_JOIN_RING = Boolean.getBoolean("palantir_cassandra.disable_wait_to_join_ring");
-    private static final boolean WAIT_TO_JOIN_RING = !DISABLE_WAIT_TO_JOIN_RING;
+    private static final boolean DISABLE_WAIT_TO_SERVE_REQUESTS = Boolean.getBoolean("palantir_cassandra.disable_wait_to_serve_requests");
+    private static final boolean WAIT_TO_SERVE_REQUESTS = !DISABLE_WAIT_TO_SERVE_REQUESTS;
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
@@ -1040,15 +1040,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ensureTraceKeyspace();
         maybeAddOrUpdateKeyspace(SystemDistributedKeyspace.definition());
 
-        if (WAIT_TO_JOIN_RING)
-        {
-            logger.info("Bootstrapping complete. Waiting to join ring. Use JMX (StorageService->joinRing()) to finalize ring joining." +
-                        "Set palantir_cassandra.disable_wait_to_join_ring=true to bypass this check and join the ring immediately after bootstrapping.");
-        }
-        else if (!isSurveyMode)
+
+        if (!isSurveyMode)
         {
             if (dataAvailable)
             {
+                if (WAIT_TO_SERVE_REQUESTS)
+                {
+                    logger.info("Bootstrapping complete. Not becoming an active ring member. Use JMX (StorageService->joinRing()) " +
+                            "to finalize ring joining. Set palantir_cassandra.disable_wait_to_serve_requests=true to bypass " +
+                            "this check and join the ring immediately after bootstrapping.");
+                    return;
+                }
                 finishJoiningRing(bootstrapTokens);
 
                 // remove the existing info about the replaced node.
@@ -1183,6 +1186,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             catch (ConfigurationException e)
             {
                 throw new IOException(e.getMessage());
+            }
+        }
+        else if (WAIT_TO_SERVE_REQUESTS)
+        {
+            // if WAIT_TO_SERVE_REQUESTS is on, then all successful bootstraps will complete, but will not finish joining the ring.
+            if (!isBootstrapMode())
+            {
+                logger.info("Joining ring and serving requests at operator request");
+                finishJoiningRing(SystemKeyspace.getSavedTokens());
+                daemon.start();
+            }
+            else
+            {
+                logger.warn("Cannot join the ring because palantir_cassandra.disable_wait_to_serve_requests is not set and bootstrap hasn't completed");
             }
         }
         else if (isSurveyMode)
