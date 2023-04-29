@@ -1040,7 +1040,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ensureTraceKeyspace();
         maybeAddOrUpdateKeyspace(SystemDistributedKeyspace.definition());
 
-
         if (!isSurveyMode)
         {
             if (dataAvailable)
@@ -1199,7 +1198,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             else
             {
-                logger.warn("Cannot join the ring because palantir_cassandra.disable_wait_to_serve_requests is not set and bootstrap hasn't completed");
+                logger.warn("Received operator request to finish joining the ring after bootstrapping, but bootstrap hasn't completed. Not joining the ring.");
             }
         }
         else if (isSurveyMode)
