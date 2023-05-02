@@ -38,6 +38,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+import com.palantir.cassandra.concurrent.ConditionAwaiter;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -101,14 +102,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 {
     private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
-    private static final boolean DISABLE_WAIT_TO_SERVE_REQUESTS = Boolean.getBoolean("palantir_cassandra.disable_wait_to_serve_requests");
-    private static final boolean WAIT_TO_SERVE_REQUESTS = !DISABLE_WAIT_TO_SERVE_REQUESTS;
+    private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_serve_requests");
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
-    private final BootstrapManager bootstrapManager = new BootstrapManager();
+    private final ConditionAwaiter startBootstrapGuard = new ConditionAwaiter(DISABLE_WAIT_TO_BOOTSTRAP);
+    private final ConditionAwaiter finishBootstrapGuard = new ConditionAwaiter(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
     private final CleanupStateTracker cleanupState = new CleanupStateTracker();
     private int cleanupOpsInProgress = 0;
 
@@ -890,7 +891,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (shouldBootstrap(autoBootstrap))
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
-            bootstrapManager.awaitBootstrappable();
+            startBootstrapGuard.await();
             boolean noPreviousDataFound = isCommitlogEmptyForBootstrap() && areKeyspacesEmptyForBootstrap();
 
             if (!noPreviousDataFound)
@@ -1044,13 +1045,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             if (dataAvailable)
             {
-                if (WAIT_TO_SERVE_REQUESTS)
-                {
-                    logger.info("Bootstrapping complete. Not becoming an active ring member. Use JMX (StorageService->joinRing()) " +
-                            "to finalize ring joining. Set palantir_cassandra.disable_wait_to_serve_requests=true to bypass " +
-                            "this check and join the ring immediately after bootstrapping.");
-                    return;
-                }
+                logger.info("Bootstrapping complete. Not becoming an active ring member. Use JMX (StorageService->joinRing()) " +
+                        "to finalize ring joining. Set palantir_cassandra.disable_wait_to_serve_requests=true to bypass " +
+                        "this check and join the ring immediately after bootstrapping.");
+                finishBootstrapGuard.await();
                 finishJoiningRing(bootstrapTokens);
 
                 // remove the existing info about the replaced node.
@@ -1185,20 +1183,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             catch (ConfigurationException e)
             {
                 throw new IOException(e.getMessage());
-            }
-        }
-        else if (WAIT_TO_SERVE_REQUESTS)
-        {
-            // if WAIT_TO_SERVE_REQUESTS is on, then all successful bootstraps will complete, but will not finish joining the ring.
-            if (!isBootstrapMode())
-            {
-                logger.info("Joining ring and serving requests at operator request");
-                finishJoiningRing(SystemKeyspace.getSavedTokens());
-                daemon.start();
-            }
-            else
-            {
-                logger.warn("Received operator request to finish joining the ring after bootstrapping, but bootstrap hasn't completed. Not joining the ring.");
             }
         }
         else if (isSurveyMode)
@@ -1624,8 +1608,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public void startBootstrap() {
-        bootstrapManager.allowToBootstrap();
+    public void startBootstrap()
+    {
+        startBootstrapGuard.proceed();
+    }
+
+    @Override
+    public void finalizeBootstrap()
+    {
+        finishBootstrapGuard.proceed();
     }
 
     public void clearNonTransientErrors() {
@@ -5267,40 +5258,5 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void setWriteDelay(int writeDelay) {
         DatabaseDescriptor.setWriteDelay(writeDelay);
         logger.info(String.format("Updated write_delay_in_s to %d", writeDelay));
-    }
-
-    @VisibleForTesting
-    static class BootstrapManager {
-
-        private volatile boolean allowedToBootstrap = false;
-        private final Monitor monitor = new Monitor();
-        private final Monitor.Guard isAllowedToBootstrap = getNewGuard(monitor);
-
-        public void allowToBootstrap() {
-            monitor.enter();
-            try {
-                allowedToBootstrap = true;
-            } finally {
-                monitor.leave();
-            }
-        }
-
-        public void awaitBootstrappable() {
-            try {
-                if (DISABLE_WAIT_TO_BOOTSTRAP)
-                    return;
-                monitor.enterWhen(isAllowedToBootstrap);
-            } catch (InterruptedException | IllegalStateException e) {
-                throw new RuntimeException("Failed to start bootstrap", e);
-            }
-        }
-
-        private Monitor.Guard getNewGuard(Monitor monitor) {
-            return new Monitor.Guard(monitor) {
-                public boolean isSatisfied() {
-                    return allowedToBootstrap;
-                }
-            };
-        }
     }
 }

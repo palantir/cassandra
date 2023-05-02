@@ -193,29 +193,6 @@ public class StorageServiceServerTest
     }
 
     @Test
-    public void testBootstrapManager() throws ConfigurationException, InterruptedException
-    {
-        final StorageService.BootstrapManager bootstrapManager = new StorageService.BootstrapManager();
-        Thread awaitSignalThread = new Thread(bootstrapManager::awaitBootstrappable);
-        Thread allowBootstrapThread = new Thread(bootstrapManager::allowToBootstrap);
-
-        awaitSignalThread.start();
-        waitUntilNotState(awaitSignalThread, Thread.State.RUNNABLE);
-        assertEquals(Thread.State.WAITING, awaitSignalThread.getState());
-
-        allowBootstrapThread.start();
-        waitUntilNotState(awaitSignalThread, Thread.State.WAITING);
-        assertTrue(awaitSignalThread.getState() == Thread.State.RUNNABLE || awaitSignalThread.getState() == Thread.State.TERMINATED);
-    }
-
-    private void waitUntilNotState(Thread thread, Thread.State state) throws InterruptedException
-    {
-        while(thread.getState() == state) {
-            Thread.sleep(100);
-        }
-    }
-
-    @Test
     public void testGetAllRangesEmpty()
     {
         List<Token> toks = Collections.emptyList();
