@@ -772,7 +772,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     /**
      * Send signal to finalize the bootstrap process and finish joining the ring.
      */
-    public void finalizeBootstrap();
+    public void finishBootstrap();
 
     /**
      * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.

@@ -1614,7 +1614,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public void finalizeBootstrap()
+    public void finishBootstrap()
     {
         finishBootstrapGuard.proceed();
     }
