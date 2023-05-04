@@ -1302,6 +1302,7 @@
         <jvmarg value="-Dcassandra.testtag=@{testtag}"/>
         <!-- The first time SecureRandom initializes can be slow if it blocks on /dev/random -->
         <jvmarg value="-Djava.security.egd=file:/dev/urandom" />
+        <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
 	<optjvmargs/>
         <classpath>
           <path refid="cassandra.classpath" />
