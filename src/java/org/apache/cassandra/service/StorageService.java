@@ -1045,7 +1045,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             if (dataAvailable)
             {
-                logger.info("Bootstrap almost complete. Not becoming an active ring member. Use JMX (StorageService->finishBootstrap()) " +
+                logger.warn("Bootstrap almost complete. Not becoming an active ring member. Use JMX (StorageService->finishBootstrap()) " +
                         "to finalize ring joining. Set palantir_cassandra.disable_wait_to_finish_bootstrap=true to bypass " +
                         "this step and join the ring immediately after bootstrapping.");
                 finishBootstrapGuard.await();
