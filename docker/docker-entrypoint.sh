@@ -58,7 +58,7 @@ if [ "$1" = 'cassandra' ]; then
 		: ${CASSANDRA_SEEDS:="cassandra"}
 	fi
 	: ${CASSANDRA_SEEDS:="$CASSANDRA_BROADCAST_ADDRESS"}
-	: ${CASSANDRA_HINTDED_HANDOFF_ENABLED='true'}
+	: ${CASSANDRA_HINTED_HANDOFF_ENABLED='true'}
 
 	_sed-in-place "$CASSANDRA_CONFIG/cassandra.yaml" \
 		-r 's/(- seeds:).*/\1 "'"$CASSANDRA_SEEDS"'"/'
@@ -76,6 +76,7 @@ if [ "$1" = 'cassandra' ]; then
 	; do
 		var="CASSANDRA_${yaml^^}"
 		val="${!var}"
+		echo "Enviornment variable var=${var}=${val}"
 		if [ "$val" ]; then
 			_sed-in-place "$CASSANDRA_CONFIG/cassandra.yaml" \
 				-r 's/^(# )?('"$yaml"':).*/\2 '"$val"'/'
