@@ -1,5 +1,4 @@
 FROM cassandra:2.2
-USER root
 
 ARG BUILD_VERSION
 
