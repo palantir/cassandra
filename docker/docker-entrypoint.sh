@@ -58,6 +58,7 @@ if [ "$1" = 'cassandra' ]; then
 		: ${CASSANDRA_SEEDS:="cassandra"}
 	fi
 	: ${CASSANDRA_SEEDS:="$CASSANDRA_BROADCAST_ADDRESS"}
+	: ${CASSANDRA_HINTDED_HANDOFF='true'}
 
 	_sed-in-place "$CASSANDRA_CONFIG/cassandra.yaml" \
 		-r 's/(- seeds:).*/\1 "'"$CASSANDRA_SEEDS"'"/'
@@ -71,6 +72,7 @@ if [ "$1" = 'cassandra' ]; then
 		num_tokens \
 		rpc_address \
 		start_rpc \
+		hinted_handoff \
 	; do
 		var="CASSANDRA_${yaml^^}"
 		val="${!var}"

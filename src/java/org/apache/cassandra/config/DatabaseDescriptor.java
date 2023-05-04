@@ -875,7 +875,7 @@ public class DatabaseDescriptor
 
             FileUtils.createDirectory(conf.saved_caches_directory);
 
-            if (conf.persistent_settings_directory == null)
+            if (conf.persistent_settings_directoryg == null)
                 throw new ConfigurationException("persistent_settings_directory must be specified", false);
 
             FileUtils.createDirectory(conf.persistent_settings_directory);
