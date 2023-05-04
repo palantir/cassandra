@@ -1335,6 +1335,7 @@
     <junit fork="on" forkmode="perTest" failureproperty="testfailed" maxmemory="1024m" timeout="${test.timeout}">
       <!-- Note that the test pass without that next line, but it prints an ugly error message -->
       <jvmarg value="-Djava.library.path=${build.lib}/sigar-bin"/>
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
       <test name="org.apache.cassandra.serializers.ClientUtilsTest" todir="${build.test.dir}/output"/>
       <formatter type="brief" usefile="false" />
       <formatter type="xml" usefile="true"/>
@@ -1376,6 +1377,7 @@
       <jvmarg value="-Dcassandra.ring_delay_ms=1000"/>
       <jvmarg value="-Dcassandra.tolerate_sstable_size=true"/>
       <jvmarg value="-Dcassandra.skip_sync=true" />
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
     </testmacro>
     <fileset dir="${test.unit.src}">
         <exclude name="**/pig/*.java" />
@@ -1397,6 +1399,7 @@
         <jvmarg value="-Dcassandra.tolerate_sstable_size=true"/>
         <jvmarg value="-Dcassandra.config.loader=org.apache.cassandra.OffsetAwareConfigurationLoader"/>
         <jvmarg value="-Dcassandra.skip_sync=true" />
+        <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
       </testmacrohelper>
     </sequential>
   </macrodef>
@@ -1424,6 +1427,7 @@
         <jvmarg value="-Dcassandra.config=file:///${compressed_yaml}"/>
         <jvmarg value="-Dcassandra.skip_sync=true" />
         <jvmarg value="-Dcassandra.config.loader=org.apache.cassandra.OffsetAwareConfigurationLoader"/>
+        <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
       </testmacrohelper>
     </sequential>
   </macrodef>
@@ -1453,6 +1457,7 @@
       <jvmarg value="-Dcassandra.ring_delay_ms=1000"/>
       <jvmarg value="-Dcassandra.tolerate_sstable_size=true"/>
       <jvmarg value="-Dcassandra.skip_sync=true" />
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
     </testmacro>
   </target>
 
@@ -1507,6 +1512,7 @@
                timeout="${test.long.timeout}">
       <jvmarg value="-Dcassandra.ring_delay_ms=1000"/>
       <jvmarg value="-Dcassandra.tolerate_sstable_size=true"/>
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
     </testmacro>
   </target>
 
@@ -1525,6 +1531,7 @@
         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
         <jvmarg value="-Dcassandra.skip_sync=true" />
+        <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
         <classpath>
           <path refid="cassandra.classpath" />
           <pathelement location="${test.classes}"/>
@@ -1569,6 +1576,7 @@
         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
         <jvmarg value="-Dcassandra.skip_sync=true" />
+        <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
         <classpath>
           <path refid="cassandra.classpath" />
           <pathelement location="${test.classes}"/>
@@ -1847,6 +1855,7 @@
       <jvmarg value="-XX:SoftRefLRUPolicyMSPerMB=0" />
       <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError" />
       <jvmarg value="-XX:HeapDumpPath=build/test/oom.hprof" />
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
     </testmacro>
   </target>
 
@@ -1887,6 +1896,7 @@
       <jvmarg value="-Dcassandra.ring_delay_ms=10000"/>
       <jvmarg value="-Dcassandra.tolerate_sstable_size=true"/>
       <jvmarg value="-Dcassandra.skip_sync=true" />
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
     </testmacro>
   </target>
 
@@ -1900,6 +1910,7 @@
       <jvmarg value="-Dcassandra.ring_delay_ms=10000"/>
       <jvmarg value="-Dcassandra.tolerate_sstable_size=true"/>
       <jvmarg value="-Dcassandra.skip_sync=true" />
+      <jvmarg value="-Dpalantir_cassandra.disable_wait_to_finish_bootstrap=true"/>
     </testmacro>
   </target>
 
