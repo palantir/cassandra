@@ -1524,7 +1524,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             public void onSuccess(StreamState streamState)
             {
                 isBootstrapMode = false;
-                logger.info("Bootstrap completed! for the tokens {}", tokens);
+                logger.info("Bootstrap streaming completed for the tokens {}", tokens);
             }
 
             @Override
