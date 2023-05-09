@@ -1522,7 +1522,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             bootstrapStream.get();
             isBootstrapMode = false;
-            logger.info("Bootstrap completed for tokens {}", tokens);
+            logger.info("Bootstrap streaming completed for tokens {}", tokens);
             return true;
         }
         catch (Throwable e)
