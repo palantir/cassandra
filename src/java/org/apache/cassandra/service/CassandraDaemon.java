@@ -357,11 +357,6 @@ public class CassandraDaemon
             logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", e);
             exitOrFail(1, "Fatal configuration error", e);
         }
-        catch (InterruptedException e)
-        {
-            logger.error("Fatal thread interruption error; unable to start server.  See log for stacktrace.", e);
-            exitOrFail(1, "Fatal configuration error", e);
-        }
 
         Mx4jTool.maybeLoad();
 

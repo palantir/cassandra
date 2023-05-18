@@ -644,12 +644,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             MessagingService.instance().listen();
     }
 
-    public synchronized void initServer() throws ConfigurationException, InterruptedException
+    public synchronized void initServer() throws ConfigurationException
     {
         initServer(RING_DELAY);
     }
 
-    public synchronized void initServer(int delay) throws ConfigurationException, InterruptedException
+    public synchronized void initServer(int delay) throws ConfigurationException
     {
         logger.info("Cassandra version: {}", FBUtilities.getReleaseVersionString());
         logger.info("Thrift API version: {}", cassandraConstants.VERSION);
@@ -876,7 +876,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens) throws InterruptedException
+    private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens)
     {
         joined = true;
 
@@ -908,7 +908,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (shouldBootstrap(autoBootstrap))
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
-            startBootstrapCondition.await();
+            try
+            {
+                startBootstrapCondition.await();
+            }
+            catch (InterruptedException e)
+            {
+                throw new AssertionError(e);
+            }
             boolean noPreviousDataFound = isCommitlogEmptyForBootstrap() && areKeyspacesEmptyForBootstrap();
 
             if (!noPreviousDataFound)
@@ -1026,7 +1033,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.warn("Bootstrap almost complete. Not becoming an active ring member. Use JMX (StorageService->finishBootstrap()) " +
                     "to finalize ring joining. If using sls-cassandra-sidecar, modify the sidecar runtime config to admit this node. " +
                     "Set palantir_cassandra.disable_wait_to_finish_bootstrap=true to bypass this step and join the ring immediately after bootstrapping.");
-            finishBootstrapCondition.await();
+            try
+            {
+                finishBootstrapCondition.await();
+            }
+            catch (InterruptedException e)
+            {
+                throw new AssertionError(e);
+            }
         }
         else
         {
@@ -1089,7 +1103,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    private void joinTokenRing(int delay) throws ConfigurationException, InterruptedException
+    private void joinTokenRing(int delay) throws ConfigurationException
     {
         joinTokenRing(delay, DatabaseDescriptor.isAutoBootstrap(), DatabaseDescriptor.getInitialTokens());
     }
@@ -1197,7 +1211,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     joinTokenRing(0, false, initalTokens);
                 }
             }
-            catch (ConfigurationException | InterruptedException e)
+            catch (ConfigurationException e)
             {
                 throw new IOException(e.getMessage());
             }
