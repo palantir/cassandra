@@ -53,6 +53,7 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingSynVerbHandler;
 import com.palantir.cassandra.dht.SingleRackFilter;
 import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
+import com.palantir.cassandra.utils.concurrent.DisableableCondition;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -105,6 +106,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
     private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_finish_bootstrap");
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
+    private final Condition startBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_BOOTSTRAP);
+    private final Condition finishBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
@@ -219,21 +222,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final AtomicBoolean doneAuthSetup = new AtomicBoolean(false);
 
-    private final Condition startBootstrapCondition = new SimpleCondition();
-    private final Condition finishBootstrapCondition = new SimpleCondition();
-
-    private void initializeBootstrapConditions()
-    {
-        if(DISABLE_WAIT_TO_BOOTSTRAP)
-        {
-            startBootstrapCondition.signalAll();
-        }
-        if(DISABLE_WAIT_TO_FINISH_BOOTSTRAP)
-        {
-            finishBootstrapCondition.signalAll();
-        }
-    }
-
     public boolean isSurveyMode()
     {
         return isSurveyMode;
@@ -269,8 +257,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         // use dedicated executor for sending JMX notifications
         super(Executors.newSingleThreadExecutor());
-
-        initializeBootstrapConditions();
 
         jmxObjectName = "org.apache.cassandra.db:type=StorageService";
         MBeanWrapper.instance.registerMBean(this, jmxObjectName);
