@@ -53,7 +53,6 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingSynVerbHandler;
 import com.palantir.cassandra.dht.SingleRackFilter;
 import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
-import com.palantir.cassandra.utils.concurrent.DisableableCondition;
 import org.apache.cassandra.auth.AuthKeyspace;
 import org.apache.cassandra.auth.AuthMigrationListener;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -115,8 +114,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final RepairTracker repairTracker = new RepairTracker();
 
-    private final Condition startBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_BOOTSTRAP);
-    private final Condition finishBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
+    private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
+    private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     /**
      * @deprecated backward support to previous notification interface
