@@ -106,8 +106,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
     private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_finish_bootstrap");
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
-    private final Condition startBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_BOOTSTRAP);
-    private final Condition finishBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
@@ -116,6 +114,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private int cleanupOpsInProgress = 0;
 
     private final RepairTracker repairTracker = new RepairTracker();
+
+    private final Condition startBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_BOOTSTRAP);
+    private final Condition finishBootstrapCondition = new DisableableCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     /**
      * @deprecated backward support to previous notification interface
