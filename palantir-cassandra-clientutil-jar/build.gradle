@@ -19,7 +19,7 @@ apply plugin: 'com.palantir.external-publish-custom'
 
 externalPublishing {
     publication('maven') {
-        artifactId 'cassandra-tools'
+        artifactId 'cassandra-clientutil'
 
         def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-clientutil-${project.version}"
         artifact(file("${jarFileNameRoot}.jar"))
