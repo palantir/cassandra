@@ -21,7 +21,7 @@ externalPublishing {
     publication('maven') {
         artifactId 'cassandra-clientutil'
 
-        def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-clientutil-${project.version}"
+        def jarFileNameRoot = "${project.rootDir}/build/cassandra-clientutil-${project.version}"
         artifact(file("${jarFileNameRoot}.jar"))
         artifact(file("${jarFileNameRoot}-sources.jar")) {
             classifier 'sources'
@@ -31,7 +31,7 @@ externalPublishing {
         }
 
         pom.withXml {
-            generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-clientutil-${project.version}.pom")
+            generatePomFromExisting(asNode(), "${project.rootDir}/build/cassandra-clientutil-${project.version}.pom")
         }
     }
 }
