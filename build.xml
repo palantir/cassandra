@@ -982,9 +982,9 @@
           <include name="org/apache/cassandra/io/util/*.class" />
           <include name="org/apache/cassandra/utils/SigarLibrary.class" />
           <include name="org/apache/cassandra/utils/concurrent/*.class" />
-          <include name="org/apache/cassandra/utils/progress/*.class" />
-          <include name="org/apache/cassandra/utils/progress/jmx/*.class" />
+          <include name="org/apache/cassandra/utils/progress/**/*.class" />
           <include name="org/apache/cassandra/tools/*.class" />
+          <include name="org/apache/cassandra/streaming/**/*.class" />
         </fileset>
         <manifest>
           <attribute name="Implementation-Title" value="Cassandra"/>
