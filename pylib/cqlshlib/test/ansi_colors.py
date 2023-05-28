@@ -16,7 +16,7 @@
 
 import re
 
-LIGHT = 010
+LIGHT = 0o10
 
 ansi_CSI = '\033['
 ansi_seq = re.compile(re.escape(ansi_CSI) + r'(?P<params>[\x20-\x3f]*)(?P<final>[\x40-\x7e])')
@@ -24,21 +24,21 @@ ansi_cmd_SGR = 'm'  # set graphics rendition
 
 color_defs = (
     (000, 'k', 'black'),
-    (001, 'r', 'dark red'),
-    (002, 'g', 'dark green'),
-    (003, 'w', 'brown', 'dark yellow'),
-    (004, 'b', 'dark blue'),
-    (005, 'm', 'dark magenta', 'dark purple'),
-    (006, 'c', 'dark cyan'),
-    (007, 'n', 'light grey', 'light gray', 'neutral', 'dark white'),
-    (010, 'B', 'dark grey', 'dark gray', 'light black'),
-    (011, 'R', 'red', 'light red'),
-    (012, 'G', 'green', 'light green'),
-    (013, 'Y', 'yellow', 'light yellow'),
-    (014, 'B', 'blue', 'light blue'),
-    (015, 'M', 'magenta', 'purple', 'light magenta', 'light purple'),
-    (016, 'C', 'cyan', 'light cyan'),
-    (017, 'W', 'white', 'light white'),
+    (0o01, 'r', 'dark red'),
+    (0o02, 'g', 'dark green'),
+    (0o03, 'w', 'brown', 'dark yellow'),
+    (0o04, 'b', 'dark blue'),
+    (0o05, 'm', 'dark magenta', 'dark purple'),
+    (0o06, 'c', 'dark cyan'),
+    (0o07, 'n', 'light grey', 'light gray', 'neutral', 'dark white'),
+    (0o10, 'B', 'dark grey', 'dark gray', 'light black'),
+    (0o11, 'R', 'red', 'light red'),
+    (0o12, 'G', 'green', 'light green'),
+    (0o13, 'Y', 'yellow', 'light yellow'),
+    (0o14, 'B', 'blue', 'light blue'),
+    (0o15, 'M', 'magenta', 'purple', 'light magenta', 'light purple'),
+    (0o16, 'C', 'cyan', 'light cyan'),
+    (0o17, 'W', 'white', 'light white'),
 )
 
 colors_by_num = {}
@@ -76,8 +76,8 @@ class ColoredChar:
         return getattr(self.c, name)
 
     def ansi_color(self):
-        clr = str(30 + (07 & self._colorcode))
-        if self._colorcode & 010:
+        clr = str(30 + (0o7 & self._colorcode))
+        if self._colorcode & 0o10:
             clr = '1;' + clr
         return clr
 
@@ -102,9 +102,9 @@ class ColoredChar:
 
 class ColoredText:
     def __init__(self, source=''):
-        if isinstance(source, basestring):
+        if isinstance(source, str):
             plain, colors = self.parse_ansi_colors(source)
-            self.chars = map(ColoredChar, plain, colors)
+            self.chars = list(map(ColoredChar, plain, colors))
         else:
             # expected that source is an iterable of ColoredChars (or duck-typed as such)
             self.chars = tuple(source)
@@ -149,7 +149,7 @@ class ColoredText:
     @staticmethod
     def parse_sgr_param(curclr, paramstr):
         oldclr = curclr
-        args = map(int, paramstr.split(';'))
+        args = list(map(int, paramstr.split(';')))
         for a in args:
             if a == 0:
                 curclr = lookup_colorcode('neutral')
