@@ -32,6 +32,13 @@ public class SimpleCondition implements Condition
     private volatile WaitQueue waiting;
     private volatile boolean signaled = false;
 
+    public SimpleCondition() {}
+
+    public SimpleCondition(boolean disabled)
+    {
+        signaled = disabled;
+    }
+
     public void await() throws InterruptedException
     {
         if (isSignaled())
