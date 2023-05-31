@@ -30,6 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -727,6 +728,16 @@ public class DatabaseDescriptor
         }
         if (seedProvider.getSeeds().size() == 0)
             throw new ConfigurationException("The seed provider lists no seeds.", false);
+        if (Boolean.getBoolean("palantir_cassandra.single_node_cluster"))
+        {
+            try {
+                if (!seedProvider.getSeeds().equals(ImmutableList.of(InetAddress.getLocalHost())))
+                    throw new ConfigurationException("Unexpected seed list when single_node_cluster flag is set to true."
+                        + " For a single node Cassandra cluster, the only seed should be localhost", false);
+            } catch (UnknownHostException e) {
+                throw new RuntimeException("Failed to get localhost");
+            }
+        }
 
         if (conf.otc_coalescing_enough_coalesced_messages > 128)
             throw new ConfigurationException("otc_coalescing_enough_coalesced_messages must be smaller than 128", false);
