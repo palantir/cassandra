@@ -972,19 +972,20 @@
       <!-- TODO: write maven pom here -->
       <jar jarfile="${build.dir}/${ant.project.name}-clientutil-${version}.jar">
         <fileset dir="${build.classes.main}">
-          <include name="org/apache/cassandra/db/TypeSizes.class" />
-          <include name="org/apache/cassandra/exceptions/*.class" />
-          <include name="org/apache/cassandra/io/*.class" />
-          <include name="org/apache/cassandra/io/util/*.class" />
           <include name="org/apache/cassandra/serializers/*" />
+          <include name="org/apache/cassandra/utils/ByteBufferUtil*.class" />
+          <include name="org/apache/cassandra/utils/Hex.class" />
+          <include name="org/apache/cassandra/utils/UUIDGen*.class" />
+          <include name="org/apache/cassandra/utils/FBUtilities*.class" />
+          <include name="org/apache/cassandra/exceptions/*.class" />
+          <include name="org/apache/cassandra/io/util/*.class" />
+          <include name="org/apache/cassandra/db/TypeSizes.class" />
+          <include name="org/apache/cassandra/io/*.class" />
           <include name="org/apache/cassandra/streaming/**/*.class" />
           <include name="org/apache/cassandra/tools/*.class" />
-          <include name="org/apache/cassandra/utils/ByteBufferUtil*.class" />
           <include name="org/apache/cassandra/utils/CloseableIterator.class" />
-          <include name="org/apache/cassandra/utils/FBUtilities*.class" />
-          <include name="org/apache/cassandra/utils/Hex.class" />
           <include name="org/apache/cassandra/utils/SigarLibrary.class" />
-          <include name="org/apache/cassandra/utils/UUID*.class" />
+          <include name="org/apache/cassandra/utils/UUIDSerializer*.class" />
           <include name="org/apache/cassandra/utils/concurrent/*.class" />
           <include name="org/apache/cassandra/utils/progress/**/*.class" />
         </fileset>
