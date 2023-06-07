@@ -981,11 +981,13 @@
           <include name="org/apache/cassandra/utils/CloseableIterator.class" />
           <include name="org/apache/cassandra/io/*.class" />
           <include name="org/apache/cassandra/io/util/*.class" />
+          <include name="org/apache/cassandra/utils/*.class" />
           <include name="org/apache/cassandra/utils/SigarLibrary.class" />
           <include name="org/apache/cassandra/utils/concurrent/*.class" />
           <include name="org/apache/cassandra/utils/progress/**/*.class" />
           <include name="org/apache/cassandra/tools/*.class" />
           <include name="org/apache/cassandra/streaming/**/*.class" />
+          <include name="org/apache/cassandra/db/TypeSizes.class" />
         </fileset>
         <manifest>
           <attribute name="Implementation-Title" value="Cassandra"/>
