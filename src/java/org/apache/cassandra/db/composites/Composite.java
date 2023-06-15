@@ -73,7 +73,10 @@ public interface Composite extends IMeasurableMemory
 
     public ByteBuffer toByteBuffer();
 
-    public int serializedSize();
+    default public int serializedSize() {
+        // expensive fallback, subtypes should ideally override to avoid allocations
+        return toByteBuffer().remaining();
+    }
 
     public int dataSize();
     public Composite copy(CFMetaData cfm, AbstractAllocator allocator);
