@@ -425,6 +425,33 @@ public abstract class AbstractNativeCell extends AbstractCell implements CellNam
         }
     }
 
+    @Override
+    public int serializedSize()
+    {
+        int serializedSize = 0;
+        switch (nametype())
+        {
+            case SIMPLE_DENSE:
+            case SIMPLE_SPARSE:
+                return get(0).remaining();
+            case COMPOUND_DENSE:
+            case COMPOUND_SPARSE_STATIC:
+            case COMPOUND_SPARSE:
+                // This is the legacy format of composites.
+                // See org.apache.cassandra.db.marshal.CompositeType for details.
+                if (isStatic())
+                    serializedSize += Short.BYTES;
+
+                for (int i = 0; i < size(); i++)
+                {
+                    serializedSize += Short.BYTES + get(i).remaining() + 1;
+                }
+                return serializedSize;
+            default:
+                throw new AssertionError();
+        }
+    }
+
     protected void updateWithName(MessageDigest digest)
     {
         // for simple sparse we just return our one name buffer
