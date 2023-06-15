@@ -88,6 +88,21 @@ public abstract class AbstractComposite implements Composite
         return result;
     }
 
+    @Override
+    public int serializedSize()
+    {
+        int serializedSize = 0;
+        if (isStatic())
+        {
+            serializedSize += Short.BYTES;
+        }
+        for (int i = 0; i < size(); i++)
+        {
+            serializedSize += Short.BYTES + get(i).remaining() + 1;
+        }
+        return serializedSize;
+    }
+
     public int dataSize()
     {
         int size = 0;

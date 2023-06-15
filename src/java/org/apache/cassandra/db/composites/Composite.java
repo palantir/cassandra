@@ -73,6 +73,8 @@ public interface Composite extends IMeasurableMemory
 
     public ByteBuffer toByteBuffer();
 
+    public int serializedSize();
+
     public int dataSize();
     public Composite copy(CFMetaData cfm, AbstractAllocator allocator);
 }

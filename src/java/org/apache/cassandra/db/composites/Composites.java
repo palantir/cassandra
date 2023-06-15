@@ -122,6 +122,12 @@ public abstract class Composites
             return ByteBufferUtil.EMPTY_BYTE_BUFFER;
         }
 
+        @Override
+        public int serializedSize()
+        {
+            return 0;
+        }
+
         public boolean isStatic()
         {
             return false;
