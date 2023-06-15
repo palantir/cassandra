@@ -129,6 +129,13 @@ public interface StorageServiceMBean extends NotificationEmitter
     public List<String> getTokens(String endpoint) throws UnknownHostException;
 
     /**
+     * Get all ranges an endpoint is responsible for (by keyspace)
+     * @param ep endpoint we are interested in.
+     * @return ranges for the specified endpoint, with format startToken:endToken
+     */
+    public Collection<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep);
+
+    /**
      * Fetch a string representation of the Cassandra version.
      * @return A string representation of the Cassandra version.
      */

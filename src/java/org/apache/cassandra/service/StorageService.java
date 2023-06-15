@@ -3776,6 +3776,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return localDCPrimaryRanges;
     }
 
+    @Override
+    public Collection<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep)
+    {
+        return getRangesForEndpoint(keyspaceName, ep).stream().map(Range::toString).collect(Collectors.toSet());
+    }
+
     /**
      * Get all ranges an endpoint is responsible for (by keyspace)
      * @param ep endpoint we are interested in.
