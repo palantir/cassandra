@@ -386,7 +386,7 @@ public abstract class AbstractCType implements CType
         {
             // Avoiding conversion to ByteBuffer just to compute serialized size
             int serializedSize = c.serializedSize();
-            return type.sizeof((short)serializedSize) + serializedSize;
+            return type.sizeof((short) serializedSize) + serializedSize;
         }
 
         public void skip(DataInput in) throws IOException
