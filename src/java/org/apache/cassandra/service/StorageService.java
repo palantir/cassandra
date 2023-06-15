@@ -3777,9 +3777,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public Collection<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep)
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep)
     {
-        return getRangesForEndpoint(keyspaceName, ep).stream().map(Range::toString).collect(Collectors.toSet());
+        return getRangesForEndpoint(keyspaceName, ep).stream().map(Range::toString).collect(Collectors.toList());
     }
 
     /**

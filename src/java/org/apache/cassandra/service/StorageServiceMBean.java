@@ -133,7 +133,7 @@ public interface StorageServiceMBean extends NotificationEmitter
      * @param ep endpoint we are interested in.
      * @return ranges for the specified endpoint, with format startToken:endToken
      */
-    public Collection<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep);
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep);
 
     /**
      * Fetch a string representation of the Cassandra version.
