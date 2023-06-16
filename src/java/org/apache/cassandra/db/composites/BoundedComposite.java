@@ -94,7 +94,7 @@ public class BoundedComposite extends AbstractComposite
 
     @Override
     public int serializedSize() {
-        return wrapped.serializedSize();
+        return wrapped.dataSize();
     }
 
     public long unsharedHeapSize()

@@ -389,13 +389,13 @@ public abstract class AbstractCType implements CType
             short shortCompositeSerializedSize = (short) compositeSerializedSize;
             int typeSerializedSize = type.sizeof(shortCompositeSerializedSize);
             int serializedSize = typeSerializedSize + compositeSerializedSize;
-
             int expectedSerializedSize;
             assert (expectedSerializedSize = type.sizeofWithShortLength(c.toByteBuffer())) == serializedSize
                     : "Serialized size mismatch, expected: " + expectedSerializedSize
                     + ", actual: " + serializedSize
-                    + ", type: " + type.getClass().getCanonicalName() + " = " + typeSerializedSize
-                    + ", composite: " + c.getClass().getCanonicalName() + " = " + compositeSerializedSize;
+                    + ", length bytes prefix: " + shortCompositeSerializedSize
+                    + ", composite: " + c.getClass().getCanonicalName() + " = " + compositeSerializedSize
+                    + ", type: " + type.getClass().getCanonicalName() + " = " + typeSerializedSize;
             return serializedSize;
         }
 

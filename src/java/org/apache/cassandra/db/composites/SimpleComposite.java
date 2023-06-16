@@ -67,6 +67,11 @@ public class SimpleComposite extends AbstractComposite
         return element;
     }
 
+    @Override
+    public int serializedSize() {
+        return dataSize();
+    }
+
     public long unsharedHeapSize()
     {
         return EMPTY_SIZE + ObjectSizes.sizeOnHeapOf(element);
