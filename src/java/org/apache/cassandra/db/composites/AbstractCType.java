@@ -385,8 +385,18 @@ public abstract class AbstractCType implements CType
         public long serializedSize(Composite c, TypeSizes type)
         {
             // Avoiding conversion to ByteBuffer just to compute serialized size
-            int serializedSize = c.serializedSize();
-            return type.sizeof((short) serializedSize) + serializedSize;
+            int compositeSerializedSize = c.serializedSize();
+            short shortCompositeSerializedSize = (short) compositeSerializedSize;
+            int typeSerializedSize = type.sizeof(shortCompositeSerializedSize);
+            int serializedSize = typeSerializedSize + compositeSerializedSize;
+
+            int expectedSerializedSize;
+            assert (expectedSerializedSize = type.sizeofWithShortLength(c.toByteBuffer())) == serializedSize
+                    : "Serialized size mismatch, expected: " + expectedSerializedSize
+                    + ", actual: " + serializedSize
+                    + ", type: " + type.getClass().getCanonicalName() + " = " + typeSerializedSize
+                    + ", composite: " + c.getClass().getCanonicalName() + " = " + compositeSerializedSize;
+            return serializedSize;
         }
 
         public void skip(DataInput in) throws IOException
