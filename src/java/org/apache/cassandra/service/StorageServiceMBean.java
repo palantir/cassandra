@@ -131,7 +131,7 @@ public interface StorageServiceMBean extends NotificationEmitter
     /**
      * Get all ranges an endpoint is responsible for (by keyspace)
      * @param ep endpoint we are interested in.
-     * @return ranges for the specified endpoint, with format startToken:endToken
+     * @return ranges for the specified endpoint, with format (startToken,endToken]
      */
     public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep);
 
