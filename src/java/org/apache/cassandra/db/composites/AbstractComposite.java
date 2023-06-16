@@ -73,7 +73,8 @@ public abstract class AbstractComposite implements Composite
     {
         // This is the legacy format of composites.
         // See org.apache.cassandra.db.marshal.CompositeType for details.
-        ByteBuffer result = ByteBuffer.allocate(serializedSize());
+        int serializedSize = defaultCompositeSerializedSize();
+        ByteBuffer result = ByteBuffer.allocate(serializedSize);
         if (isStatic())
             ByteBufferUtil.writeShortLength(result, CompositeType.STATIC_MARKER);
 
@@ -91,7 +92,11 @@ public abstract class AbstractComposite implements Composite
     @Override
     public int serializedSize()
     {
-        return dataSize() + ((Short.BYTES + 1) * size()) + (isStatic() ? Short.BYTES : 0);
+        return defaultCompositeSerializedSize();
+    }
+
+    private int defaultCompositeSerializedSize() {
+        return (isStatic() ? Short.BYTES : 0) + dataSize() + ((Short.BYTES + 1) * size());
     }
 
     public int dataSize()
