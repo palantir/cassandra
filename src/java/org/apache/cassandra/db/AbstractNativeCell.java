@@ -428,7 +428,33 @@ public abstract class AbstractNativeCell extends AbstractCell implements CellNam
     @Override
     public int serializedSize()
     {
-        return valueStartOffset() - nameDeltaOffset(size());
+        int expectedSerializedSize;
+        int maybeSerializedSize;
+        int serializedSize;
+        switch (nametype())
+        {
+            case SIMPLE_DENSE:
+            case SIMPLE_SPARSE:
+                serializedSize = get(0).remaining();
+                assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining()) :
+                        getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize + " for name type " + nametype() + " actual: " + serializedSize;
+                assert serializedSize == (maybeSerializedSize = valueStartOffset() - nameDeltaOffset(size())) :
+                        "Serialized size: " + serializedSize + " did not match maybeSerializedSize:" + maybeSerializedSize;
+                return serializedSize;
+            case COMPOUND_DENSE:
+            case COMPOUND_SPARSE_STATIC:
+            case COMPOUND_SPARSE:
+                // This is the legacy format of composites.
+                // See org.apache.cassandra.db.marshal.CompositeType for details.
+                serializedSize = cellDataSize();
+                assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining()) :
+                        getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize + " for name type " + nametype() + " actual: " + serializedSize;
+                assert serializedSize == (maybeSerializedSize = valueStartOffset() - nameDeltaOffset(size())) :
+                        "Serialized size: " + serializedSize + " did not match maybeSerializedSize:" + maybeSerializedSize;
+                return serializedSize;
+            default:
+                throw new AssertionError();
+        }
     }
 
     protected void updateWithName(MessageDigest digest)
