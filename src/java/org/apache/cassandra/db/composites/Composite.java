@@ -75,7 +75,10 @@ public interface Composite extends IMeasurableMemory
 
     default public int serializedSize() {
         // expensive fallback, subtypes should ideally override to avoid allocations
-        return toByteBuffer().remaining();
+        int serializedSize = toByteBuffer().remaining();
+        assert false : getClass().getCanonicalName()
+                + " fallback to expensive toByteBuffer().remaining() serializedSize: " + serializedSize;
+        return serializedSize;
     }
 
     public int dataSize();
