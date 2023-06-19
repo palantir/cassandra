@@ -18,7 +18,7 @@ RUN mkdir $CASSANDRA_DIR/logs; \
 
 
 # Install java 17
-RUN apt-get update && apt-get -y install openjdk-17-jdk
+RUN apt-get update && apt-get -y install openjdk-17-jdk strace
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/
 ENV PATH=$JAVA_HOME:$PATH
 
