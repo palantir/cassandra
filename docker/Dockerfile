@@ -28,7 +28,7 @@ ENV CASSANDRA_YAML $CASSANDRA_CONFIG/cassandra.yaml
 ENV CASSANDRA_ENV $CASSANDRA_CONFIG/cassandra-env.sh
 COPY cassandra.yaml $CASSANDRA_YAML
 COPY cassandra-env.sh $CASSANDRA_ENV
-COPY logback.xml $CASSANDRA_DIR/logback.xml
+COPY logback.xml $CASSANDRA_CONFIG/logback.xml
 
 ENV _JAVA_OPTIONS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dpalantir_cassandra.is_new_cluster=true"
 
