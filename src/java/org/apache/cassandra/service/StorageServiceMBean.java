@@ -25,7 +25,9 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -131,9 +133,10 @@ public interface StorageServiceMBean extends NotificationEmitter
     /**
      * Get all ranges an endpoint is responsible for (by keyspace)
      * @param ep endpoint we are interested in.
+     * @param hostId optional host id, used for endpoint <-> node mapping verification.
      * @return ranges for the specified endpoint, with format (startToken,endToken]
      */
-    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep);
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, Optional<UUID> hostId);
 
     /**
      * Fetch a string representation of the Cassandra version.
