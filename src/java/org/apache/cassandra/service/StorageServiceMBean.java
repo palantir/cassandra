@@ -31,7 +31,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import javax.annotation.Nullable;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
 
@@ -137,7 +136,7 @@ public interface StorageServiceMBean extends NotificationEmitter
      * @param hostId host id used for endpoint <-> node mapping verification, if non-null.
      * @return ranges for the specified endpoint, with format (startToken,endToken]
      */
-    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, @Nullable UUID hostId);
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, UUID hostId);
 
     /**
      * Fetch a string representation of the Cassandra version.
