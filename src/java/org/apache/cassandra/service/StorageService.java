@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
@@ -3774,6 +3775,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
 
         return localDCPrimaryRanges;
+    }
+
+    @Override
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, UUID hostId)
+    {
+        Preconditions.checkArgument(hostId.equals(StorageService.instance.getTokenMetadata().getHostId(ep)),
+                                    "Endpoint's hostId does not match provided one");
+        return getRangesOwnedByEndpoint(keyspaceName, ep);
+    }
+
+    @Override
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep)
+    {
+        return getRangesForEndpoint(keyspaceName, ep).stream().map(Range::toString).collect(Collectors.toList());
     }
 
     /**
