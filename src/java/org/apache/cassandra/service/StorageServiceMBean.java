@@ -144,7 +144,7 @@ public interface StorageServiceMBean extends NotificationEmitter
      *
      * @param ep endpoint we are interested in.
      * @param keyspaceName keyspace we are interested in.
-     * @param hostId host id used for endpoint <-> node mapping verification.
+     * @param hostId host id used for endpoint verification.
      * @return ranges for the specified endpoint, with format (startToken,endToken]
      */
     public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, UUID hostId);
