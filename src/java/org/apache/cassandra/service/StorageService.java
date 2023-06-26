@@ -3778,11 +3778,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, @Nullable UUID hostId)
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, UUID hostId)
     {
-        Preconditions.checkArgument(Objects.isNull(hostId)
-                                    || hostId.equals(StorageService.instance.getTokenMetadata().getHostId(ep)),
+        Preconditions.checkArgument(hostId.equals(StorageService.instance.getTokenMetadata().getHostId(ep)),
                                     "Endpoint's hostId does not match provided one");
+        return getRangesOwnedByEndpoint(keyspaceName, ep);
+    }
+
+    @Override
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep)
+    {
         return getRangesForEndpoint(keyspaceName, ep).stream().map(Range::toString).collect(Collectors.toList());
     }
 

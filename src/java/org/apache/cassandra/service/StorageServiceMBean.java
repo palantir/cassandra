@@ -25,7 +25,6 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -131,9 +130,21 @@ public interface StorageServiceMBean extends NotificationEmitter
     public List<String> getTokens(String endpoint) throws UnknownHostException;
 
     /**
-     * Get all ranges an endpoint is responsible for (by keyspace)
+     * Get all ranges an endpoint owns for the specified keyspace.
+     *
      * @param ep endpoint we are interested in.
-     * @param hostId host id used for endpoint <-> node mapping verification, if non-null.
+     * @param keyspaceName keyspace we are interested in.
+     * @return ranges for the specified endpoint, with format (startToken,endToken]
+     */
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep);
+
+    /**
+     * Get all ranges an endpoint owns for the specified keyspace. Verify provided hostId matches
+     * the one this node currently maps to the specified endpoint.
+     *
+     * @param ep endpoint we are interested in.
+     * @param keyspaceName keyspace we are interested in.
+     * @param hostId host id used for endpoint <-> node mapping verification.
      * @return ranges for the specified endpoint, with format (startToken,endToken]
      */
     public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, UUID hostId);
