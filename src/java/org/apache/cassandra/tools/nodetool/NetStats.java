@@ -38,6 +38,11 @@ public class NetStats extends NodeToolCmd
             description = "Display bytes in human readable form, i.e. KB, MB, GB, TB")
     private boolean humanReadable = false;
 
+    @Option(title = "all_streams",
+    name = {"-a", "--all"},
+    description = "Display current streams and recently completed streams")
+    private boolean allStreams = false;
+
     @Override
     public void execute(NodeProbe probe)
     {
@@ -45,42 +50,9 @@ public class NetStats extends NodeToolCmd
         Set<StreamState> statuses = probe.getStreamStatus();
         if (statuses.isEmpty())
             System.out.println("Not sending any streams.");
-        for (StreamState status : statuses)
-        {
-            System.out.printf("%s %s%n", status.description, status.planId.toString());
-            for (SessionInfo info : status.sessions)
-            {
-                System.out.printf("    %s", info.peer.toString());
-                // print private IP when it is used
-                if (!info.peer.equals(info.connecting))
-                {
-                    System.out.printf(" (using %s)", info.connecting.toString());
-                }
-                System.out.printf("%n");
-                if (!info.receivingSummaries.isEmpty())
-                {
-                    if (humanReadable)
-                        System.out.printf("        Receiving %d files, %s total. Already received %d files, %s total%n", info.getTotalFilesToReceive(), FileUtils.stringifyFileSize(info.getTotalSizeToReceive()), info.getTotalFilesReceived(), FileUtils.stringifyFileSize(info.getTotalSizeReceived()));
-                    else
-                        System.out.printf("        Receiving %d files, %d bytes total. Already received %d files, %d bytes total%n", info.getTotalFilesToReceive(), info.getTotalSizeToReceive(), info.getTotalFilesReceived(), info.getTotalSizeReceived());
-                    for (ProgressInfo progress : info.getReceivingFiles())
-                    {
-                        System.out.printf("            %s%n", progress.toString());
-                    }
-                }
-                if (!info.sendingSummaries.isEmpty())
-                {
-                    if (humanReadable)
-                        System.out.printf("        Sending %d files, %s total. Already sent %d files, %s total%n", info.getTotalFilesToSend(), FileUtils.stringifyFileSize(info.getTotalSizeToSend()), info.getTotalFilesSent(), FileUtils.stringifyFileSize(info.getTotalSizeSent()));
-                    else
-                        System.out.printf("        Sending %d files, %d bytes total. Already sent %d files, %d bytes total%n", info.getTotalFilesToSend(), info.getTotalSizeToSend(), info.getTotalFilesSent(), info.getTotalSizeSent());
-                    for (ProgressInfo progress : info.getSendingFiles())
-                    {
-                        System.out.printf("            %s%n", progress.toString());
-                    }
-                }
-            }
-        }
+        printStreamStates(statuses, "Current");
+        if (allStreams)
+            printStreamStates(probe.getCompletedStreamStatus(), "Completed");
 
         if (!probe.isStarting())
         {
@@ -129,6 +101,48 @@ public class NetStats extends NodeToolCmd
             for (long n : ms.getGossipMessageDroppedTasks().values())
                 dropped += n;
             System.out.printf("%-25s%10s%10s%15s%10s%n", "Gossip messages", "n/a", pending, completed, dropped);
+        }
+    }
+
+    private void printStreamStates(Set<StreamState> statuses, String name)
+    {
+        if (!statuses.isEmpty())
+            System.out.printf("%s streams:%n", name);
+        for (StreamState status : statuses)
+        {
+            System.out.printf("%s %s%n", status.description, status.planId.toString());
+            for (SessionInfo info : status.sessions)
+            {
+                System.out.printf("    %s", info.peer.toString());
+                // print private IP when it is used
+                if (!info.peer.equals(info.connecting))
+                {
+                    System.out.printf(" (using %s)", info.connecting.toString());
+                }
+                System.out.printf("%n");
+                if (!info.receivingSummaries.isEmpty())
+                {
+                    if (humanReadable)
+                        System.out.printf("        Receiving %d files, %s total. Already received %d files, %s total%n", info.getTotalFilesToReceive(), FileUtils.stringifyFileSize(info.getTotalSizeToReceive()), info.getTotalFilesReceived(), FileUtils.stringifyFileSize(info.getTotalSizeReceived()));
+                    else
+                        System.out.printf("        Receiving %d files, %d bytes total. Already received %d files, %d bytes total%n", info.getTotalFilesToReceive(), info.getTotalSizeToReceive(), info.getTotalFilesReceived(), info.getTotalSizeReceived());
+                    for (ProgressInfo progress : info.getReceivingFiles())
+                    {
+                        System.out.printf("            %s%n", progress.toString());
+                    }
+                }
+                if (!info.sendingSummaries.isEmpty())
+                {
+                    if (humanReadable)
+                        System.out.printf("        Sending %d files, %s total. Already sent %d files, %s total%n", info.getTotalFilesToSend(), FileUtils.stringifyFileSize(info.getTotalSizeToSend()), info.getTotalFilesSent(), FileUtils.stringifyFileSize(info.getTotalSizeSent()));
+                    else
+                        System.out.printf("        Sending %d files, %d bytes total. Already sent %d files, %d bytes total%n", info.getTotalFilesToSend(), info.getTotalSizeToSend(), info.getTotalFilesSent(), info.getTotalSizeSent());
+                    for (ProgressInfo progress : info.getSendingFiles())
+                    {
+                        System.out.printf("            %s%n", progress.toString());
+                    }
+                }
+            }
         }
     }
 }

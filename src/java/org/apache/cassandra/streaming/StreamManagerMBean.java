@@ -29,4 +29,14 @@ public interface StreamManagerMBean extends NotificationEmitter
      * Returns the current state of all ongoing streams.
      */
     Set<CompositeData> getCurrentStreams();
+
+    /**
+     * Returns the current state of all completed streams.
+     */
+    Set<CompositeData> getCompletedStreams();
+
+    /**
+     * Returns the current state of all ongoing and completed streams.
+     */
+    Set<CompositeData> getAllStreams();
 }

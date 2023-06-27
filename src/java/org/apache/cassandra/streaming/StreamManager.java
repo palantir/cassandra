@@ -109,6 +109,7 @@ public class StreamManager implements StreamManagerMBean
      */
     private final Map<UUID, StreamResultFuture> initiatedStreams = new NonBlockingHashMap<>();
     private final Map<UUID, StreamResultFuture> receivingStreams = new NonBlockingHashMap<>();
+    private final Map<UUID, StreamResultFuture> completedStreams = new NonBlockingHashMap<>();
 
     public Set<CompositeData> getCurrentStreams()
     {
@@ -121,6 +122,22 @@ public class StreamManager implements StreamManagerMBean
         }));
     }
 
+    public Set<CompositeData> getCompletedStreams()
+    {
+        return Sets.newHashSet(Iterables.transform(completedStreams.values(), new Function<StreamResultFuture, CompositeData>()
+        {
+            public CompositeData apply(StreamResultFuture input)
+            {
+                return StreamStateCompositeData.toCompositeData(input.getCurrentState());
+            }
+        }));
+    }
+
+    public Set<CompositeData> getAllStreams()
+    {
+        return Sets.union(getCurrentStreams(), getCompletedStreams());
+    }
+
     public void register(final StreamResultFuture result)
     {
         result.addEventListener(notifier);
@@ -129,7 +146,8 @@ public class StreamManager implements StreamManagerMBean
         {
             public void run()
             {
-                initiatedStreams.remove(result.planId);
+                StreamResultFuture completedStream = initiatedStreams.remove(result.planId);
+                completedStreams.put(result.planId, completedStream);
             }
         }, MoreExecutors.sameThreadExecutor());
 
@@ -144,7 +162,8 @@ public class StreamManager implements StreamManagerMBean
         {
             public void run()
             {
-                receivingStreams.remove(result.planId);
+                StreamResultFuture completedStream = receivingStreams.remove(result.planId);
+                completedStreams.put(result.planId, completedStream);
             }
         }, MoreExecutors.sameThreadExecutor());
 
