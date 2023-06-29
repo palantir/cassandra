@@ -25,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
+import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -295,13 +296,16 @@ public class MigrationManager
 
     public static void announceNewKeyspace(KSMetaData ksm, long timestamp, boolean announceLocally) throws ConfigurationException
     {
-        ksm.validate();
+        try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announceNewKeyspace"))
+        {
+            ksm.validate();
 
-        if (Schema.instance.getKSMetaData(ksm.name) != null)
-            throw new AlreadyExistsException(ksm.name);
+            if (Schema.instance.getKSMetaData(ksm.name) != null)
+                throw new AlreadyExistsException(ksm.name);
 
-        logger.info(String.format("Create new Keyspace: %s", ksm));
-        announce(LegacySchemaTables.makeCreateKeyspaceMutation(ksm, timestamp), announceLocally);
+            logger.info(String.format("Create new Keyspace: %s", ksm));
+            announce(LegacySchemaTables.makeCreateKeyspaceMutation(ksm, timestamp), announceLocally);
+        }
     }
 
     public static void announceNewColumnFamily(CFMetaData cfm) throws ConfigurationException
@@ -469,7 +473,7 @@ public class MigrationManager
     {
         if (announceLocally)
         {
-            try
+            try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce local"))
             {
                 LegacySchemaTables.mergeSchema(Collections.singletonList(schema), false);
             }
@@ -480,16 +484,22 @@ public class MigrationManager
         }
         else
         {
-            FBUtilities.waitOnFuture(announce(Collections.singletonList(schema)));
+            try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce not local"))
+            {
+                FBUtilities.waitOnFuture(announce(Collections.singletonList(schema)));
+            }
         }
     }
 
     private static void pushSchemaMutation(InetAddress endpoint, Collection<Mutation> schema)
     {
-        MessageOut<Collection<Mutation>> msg = new MessageOut<>(MessagingService.Verb.DEFINITIONS_UPDATE,
-                                                                schema,
-                                                                MigrationsSerializer.instance);
-        MessagingService.instance().sendOneWay(msg, endpoint);
+        try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#pushSchemaMutation"))
+        {
+            MessageOut<Collection<Mutation>> msg = new MessageOut<>(MessagingService.Verb.DEFINITIONS_UPDATE,
+                                                                    schema,
+                                                                    MigrationsSerializer.instance);
+            MessagingService.instance().sendOneWay(msg, endpoint);
+        }
     }
 
     // Returns a future on the local application of the schema
@@ -499,20 +509,34 @@ public class MigrationManager
         {
             protected void runMayThrow() throws IOException, ConfigurationException
             {
-                LegacySchemaTables.mergeSchema(schema);
+                try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce merge schema")) {
+                    LegacySchemaTables.mergeSchema(schema);
+                }
             }
         });
 
-        for (InetAddress endpoint : Gossiper.instance.getLiveMembers())
+        Set<InetAddress> liveMembers;
+        try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce getLiveMembers")) {
+            liveMembers = Gossiper.instance.getLiveMembers();
+        }
+
+        for (InetAddress endpoint : liveMembers)
         {
-            // only push schema to nodes with known and equal versions
-            if (!endpoint.equals(FBUtilities.getBroadcastAddress()) &&
-                    MessagingService.instance().knowsVersion(endpoint) &&
-                    MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version)
-            {
-                logger.debug("Anouncing schema to endpoint {}", endpoint);
-                logger.trace("Announcing schema {}", schema);
-                pushSchemaMutation(endpoint, schema);
+            try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce announce endpoint")) {
+                boolean condition;
+
+                try (CloseableTracer ignored1 = CloseableTracer.startSpan("MigrationManager#announce compute condition")) {
+                    condition = !endpoint.equals(FBUtilities.getBroadcastAddress()) &&
+                            MessagingService.instance().knowsVersion(endpoint) &&
+                            MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version;
+                }
+
+                // only push schema to nodes with known and equal versions
+                if (condition) {
+                    logger.debug("Anouncing schema to endpoint {}", endpoint);
+                    logger.trace("Announcing schema {}", schema);
+                    pushSchemaMutation(endpoint, schema);
+                }
             }
         }
 
