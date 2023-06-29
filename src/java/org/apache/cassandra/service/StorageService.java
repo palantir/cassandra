@@ -190,7 +190,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, DISABLED, WAITING_TO_FINISH_BOOTSTRAP }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
