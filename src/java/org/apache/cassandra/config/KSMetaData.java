@@ -20,6 +20,7 @@ package org.apache.cassandra.config;
 import java.util.*;
 
 import com.google.common.base.Objects;
+import com.palantir.tracing.CloseableTracer;
 
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.*;
@@ -168,17 +169,20 @@ public final class KSMetaData
 
     public KSMetaData validate() throws ConfigurationException
     {
-        if (!CFMetaData.isNameValid(name))
-            throw new ConfigurationException(String.format("Keyspace name must not be empty, more than %s characters long, or contain non-alphanumeric-underscore characters (got \"%s\")", Schema.NAME_LENGTH, name));
+        try (CloseableTracer ignored = CloseableTracer.startSpan("KSMetaData#validate"))
+        {
+            if (!CFMetaData.isNameValid(name))
+                throw new ConfigurationException(String.format("Keyspace name must not be empty, more than %s characters long, or contain non-alphanumeric-underscore characters (got \"%s\")", Schema.NAME_LENGTH, name));
 
-        // Attempt to instantiate the ARS, which will throw a ConfigException if the strategy_options aren't fully formed
-        TokenMetadata tmd = StorageService.instance.getTokenMetadata();
-        IEndpointSnitch eps = DatabaseDescriptor.getEndpointSnitch();
-        AbstractReplicationStrategy.validateReplicationStrategy(name, strategyClass, tmd, eps, strategyOptions);
+            // Attempt to instantiate the ARS, which will throw a ConfigException if the strategy_options aren't fully formed
+            TokenMetadata tmd = StorageService.instance.getTokenMetadata();
+            IEndpointSnitch eps = DatabaseDescriptor.getEndpointSnitch();
+            AbstractReplicationStrategy.validateReplicationStrategy(name, strategyClass, tmd, eps, strategyOptions);
 
-        for (CFMetaData cfm : cfMetaData.values())
-            cfm.validate();
+            for (CFMetaData cfm : cfMetaData.values())
+                cfm.validate();
 
-        return this;
+            return this;
+        }
     }
 }

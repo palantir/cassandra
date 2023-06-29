@@ -20,6 +20,7 @@ package org.apache.cassandra.config;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -460,8 +461,11 @@ public class Schema
      */
     public void updateVersionAndAnnounce()
     {
-        updateVersion();
-        MigrationManager.passiveAnnounce(version);
+        try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#updateVersionAndAnnounce"))
+        {
+            updateVersion();
+            MigrationManager.passiveAnnounce(version);
+        }
     }
 
     /**
@@ -503,38 +507,41 @@ public class Schema
 
     public void dropKeyspace(String ksName)
     {
-        KSMetaData ksm = Schema.instance.getKSMetaData(ksName);
-        String snapshotName = Keyspace.getTimestampedSnapshotName(ksName);
-
-        CompactionManager.instance.interruptCompactionFor(ksm.cfMetaData().values(), true);
-
-        Keyspace keyspace = Keyspace.open(ksm.name);
-
-        // remove all cfs from the keyspace instance.
-        List<UUID> droppedCfs = new ArrayList<>();
-        for (CFMetaData cfm : ksm.cfMetaData().values())
+        try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#dropKeyspace"))
         {
-            ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfm.cfName);
+            KSMetaData ksm = Schema.instance.getKSMetaData(ksName);
+            String snapshotName = Keyspace.getTimestampedSnapshotName(ksName);
 
-            purge(cfm);
+            CompactionManager.instance.interruptCompactionFor(ksm.cfMetaData().values(), true);
 
-            if (DatabaseDescriptor.isAutoSnapshot())
-                cfs.snapshot(snapshotName);
-            Keyspace.open(ksm.name).dropCf(cfm.cfId);
+            Keyspace keyspace = Keyspace.open(ksm.name);
 
-            droppedCfs.add(cfm.cfId);
+            // remove all cfs from the keyspace instance.
+            List<UUID> droppedCfs = new ArrayList<>();
+            for (CFMetaData cfm : ksm.cfMetaData().values())
+            {
+                ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfm.cfName);
+
+                purge(cfm);
+
+                if (DatabaseDescriptor.isAutoSnapshot())
+                    cfs.snapshot(snapshotName);
+                Keyspace.open(ksm.name).dropCf(cfm.cfId);
+
+                droppedCfs.add(cfm.cfId);
+            }
+
+            // remove the keyspace from the static instances.
+            Keyspace.clear(ksm.name);
+            clearKeyspaceDefinition(ksm);
+
+            keyspace.writeOrder.awaitNewBarrier();
+
+            // force a new segment in the CL
+            CommitLog.instance.forceRecycleAllSegments(droppedCfs, "Dropped keyspace");
+
+            MigrationManager.instance.notifyDropKeyspace(ksm);
         }
-
-        // remove the keyspace from the static instances.
-        Keyspace.clear(ksm.name);
-        clearKeyspaceDefinition(ksm);
-
-        keyspace.writeOrder.awaitNewBarrier();
-
-        // force a new segment in the CL
-        CommitLog.instance.forceRecycleAllSegments(droppedCfs, "Dropped keyspace");
-
-        MigrationManager.instance.notifyDropKeyspace(ksm);
     }
 
     public void addTable(CFMetaData cfm)

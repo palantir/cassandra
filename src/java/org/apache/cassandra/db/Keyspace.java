@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -401,34 +402,38 @@ public class Keyspace
      */
     public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
     {
-        if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
-            throw new RuntimeException("Testing write failures");
-
-        try (OpOrder.Group opGroup = writeOrder.start())
+        try (CloseableTracer ignored = CloseableTracer.startSpan("Keyspace#apply"))
         {
-            // write the mutation to the commitlog and memtables
-            ReplayPosition replayPosition = null;
-            if (writeCommitLog)
-            {
-                Tracing.trace("Appending to commitlog");
-                replayPosition = CommitLog.instance.add(mutation);
-            }
 
-            DecoratedKey key = StorageService.getPartitioner().decorateKey(mutation.key());
-            for (ColumnFamily cf : mutation.getColumnFamilies())
+            if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
+                throw new RuntimeException("Testing write failures");
+
+            try (OpOrder.Group opGroup = writeOrder.start())
             {
-                ColumnFamilyStore cfs = columnFamilyStores.get(cf.id());
-                if (cfs == null)
+                // write the mutation to the commitlog and memtables
+                ReplayPosition replayPosition = null;
+                if (writeCommitLog)
                 {
-                    logger.error("Attempting to mutate non-existant table {}", cf.id());
-                    continue;
+                    Tracing.trace("Appending to commitlog");
+                    replayPosition = CommitLog.instance.add(mutation);
                 }
 
-                Tracing.trace("Adding to {} memtable", cf.metadata().cfName);
-                SecondaryIndexManager.Updater updater = updateIndexes
-                                                      ? cfs.indexManager.updaterFor(key, cf, opGroup)
-                                                      : SecondaryIndexManager.nullUpdater;
-                cfs.apply(key, cf, updater, opGroup, replayPosition);
+                DecoratedKey key = StorageService.getPartitioner().decorateKey(mutation.key());
+                for (ColumnFamily cf : mutation.getColumnFamilies())
+                {
+                    ColumnFamilyStore cfs = columnFamilyStores.get(cf.id());
+                    if (cfs == null)
+                    {
+                        logger.error("Attempting to mutate non-existant table {}", cf.id());
+                        continue;
+                    }
+
+                    Tracing.trace("Adding to {} memtable", cf.metadata().cfName);
+                    SecondaryIndexManager.Updater updater = updateIndexes
+                                                            ? cfs.indexManager.updaterFor(key, cf, opGroup)
+                                                            : SecondaryIndexManager.nullUpdater;
+                    cfs.apply(key, cf, updater, opGroup, replayPosition);
+                }
             }
         }
     }

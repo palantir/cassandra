@@ -399,7 +399,8 @@
           <dependency groupId="junit" artifactId="junit" version="4.6" />
           <dependency groupId="org.mockito" artifactId="mockito-core" version="3.2.4" />
           <dependency groupId="org.apache.cassandra" artifactId="dtest-api" version="0.0.3" />
-          <dependency groupId="org.apache.rat" artifactId="apache-rat" version="0.10">
+            <dependency groupId="com.palantir.tracing" artifactId="tracing" version="6.17.0" />
+            <dependency groupId="org.apache.rat" artifactId="apache-rat" version="0.10">
              <exclusion groupId="commons-lang" artifactId="commons-lang"/>
           </dependency>
           <dependency groupId="org.apache.hadoop" artifactId="hadoop-core" version="1.0.3">
@@ -517,6 +518,7 @@
         <dependency groupId="junit" artifactId="junit"/>
         <dependency groupId="org.mockito" artifactId="mockito-core" />
         <dependency groupId="org.apache.cassandra" artifactId="dtest-api" />
+          <dependency groupId="com.palantir.tracing" artifactId="tracing" />
         <dependency groupId="org.assertj" artifactId="assertj-core"/>
         <dependency groupId="org.apache.rat" artifactId="apache-rat"/>
         <dependency groupId="org.apache.hadoop" artifactId="hadoop-core"/>
@@ -709,22 +711,7 @@
           <mapper type="flatten"/>
       </copy>
       <!-- code coverage tools -->
-      <artifact:dependencies pomRefId="coverage-deps-pom"
-                             filesetId="coverage-dependency-jars"
-                             pathId="cobertura.classpath">
-          <remoteRepository refid="central"/>
-      </artifact:dependencies>
-      <copy todir="${build.dir.lib}/jars">
-          <fileset refid="coverage-dependency-jars"/>
-          <mapper type="flatten"/>
-      </copy>
       <!-- jacoco agent jar comes wrapped in a jar -->
-      <unzip src="${build.dir.lib}/jars/org.jacoco.agent-${jacoco.version}.jar" dest="${build.dir.lib}/jars">
-        <patternset>
-            <include name="*.jar"/>
-        </patternset>
-        <mapper type="flatten"/>
-      </unzip>
     </target>
 
     <target name="maven-ant-tasks-retrieve-test" depends="maven-ant-tasks-init">
