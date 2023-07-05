@@ -44,6 +44,7 @@
     <property name="build.classes" value="${build.dir}/classes"/>
     <property name="build.classes.main" value="${build.classes}/main" />
     <property name="build.classes.thrift" value="${build.classes}/thrift" />
+    <property name="javadoc.jars.dir" value="${build.dir}/javadocs"/>
     <property name="interface.dir" value="${basedir}/interface"/>
     <property name="interface.thrift.dir" value="${interface.dir}/thrift"/>
     <property name="interface.thrift.gen-java" value="${interface.thrift.dir}/gen-java"/>
@@ -165,6 +166,20 @@
 	<path id="cobertura.classpath">
 		<pathelement location="${cobertura.classes.dir}"/>
 	</path>
+
+  <macrodef name="create-javadoc">
+    <attribute name="destdir"/>
+    <element name="filesets"/>
+    <sequential>
+      <javadoc destdir="@{destdir}" author="true" version="true" use="true"
+        windowtitle="${ant.project.name} API" classpathref="cassandra.classpath"
+        bottom="Copyright &amp;copy; ${YEAR} The Apache Software Foundation"
+        useexternalfile="yes"
+        maxmemory="256m">
+        <filesets/>
+      </javadoc>
+    </sequential>
+  </macrodef>
 
     <!--
         Setup the output directories.
@@ -978,6 +993,51 @@
       <jar destfile="${build.dir}/tools/lib/stress.jar" manifest="${stress.manifest}">
         <fileset dir="${stress.build.classes}"/>
       </jar>
+    </target>
+
+    <!--
+        The javadoc-jar target makes cassandra-javadoc.jar output required for publishing to Maven central repository.
+    -->
+    <target name="javadoc-jar" description="Assemble Cassandra JavaDoc JAR file">
+      <mkdir dir="${javadoc.jars.dir}"/>
+      <create-javadoc destdir="${javadoc.jars.dir}/thrift">
+        <filesets>
+          <fileset dir="${interface.thrift.dir}/gen-java" defaultexcludes="yes">
+            <include name="org/apache/**/*.java"/>
+          </fileset>
+        </filesets>
+      </create-javadoc>
+      <jar jarfile="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
+           basedir="${javadoc.jars.dir}/thrift"/>
+
+      <create-javadoc destdir="${javadoc.jars.dir}/main">
+        <filesets>
+          <fileset dir="${build.src.java}" defaultexcludes="yes">
+            <include name="org/apache/**/*.java"/>
+          </fileset>
+          <fileset dir="${build.src.gen-java}" defaultexcludes="yes">
+            <include name="org/apache/**/*.java"/>
+          </fileset>
+        </filesets>
+      </create-javadoc>
+      <jar jarfile="${build.dir}/${final.name}-javadoc.jar"
+           basedir="${javadoc.jars.dir}/main"/>
+
+      <create-javadoc destdir="${javadoc.jars.dir}/clientutil">
+        <filesets>
+          <fileset dir="${build.src.java}" defaultexcludes="yes">
+            <include name="org/apache/cassandra/serializers/*" />
+            <include name="org/apache/cassandra/utils/ByteBufferUtil*.java" />
+            <include name="org/apache/cassandra/utils/Hex.java" />
+            <include name="org/apache/cassandra/utils/UUIDGen*.java" />
+          </fileset>
+        </filesets>
+      </create-javadoc>
+      <jar jarfile="${build.dir}/${ant.project.name}-clientutil-${version}-javadoc.jar"
+           basedir="${javadoc.jars.dir}/clientutil"/>
+      <!-- javadoc task always rebuilds so might as well remove the generated docs to prevent
+           being pulled into the distribution by accident -->
+      <delete quiet="true" dir="${javadoc.jars.dir}"/>
     </target>
 
     <!--
@@ -1982,7 +2042,7 @@
 
   <!-- Installs artifacts to local Maven repository -->
   <target name="mvn-install"
-          depends="maven-declare-dependencies,jar,sources-jar"
+          depends="maven-declare-dependencies,jar,sources-jar,javadoc-jar"
           description="Installs the artifacts in the Maven Local Repository">
 
     <!-- the parent -->
@@ -1996,6 +2056,9 @@
     <install pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
              file="${build.dir}/${ant.project.name}-thrift-${version}-sources.jar"
              classifier="sources"/>
+    <install pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+             file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
+             classifier="javadoc"/>
 
     <!-- the cassandra-clientutil jar -->
     <install pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
@@ -2003,6 +2066,9 @@
     <install pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
              file="${build.dir}/${ant.project.name}-clientutil-${version}-sources.jar"
              classifier="sources"/>
+    <install pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
+             file="${build.dir}/${ant.project.name}-clientutil-${version}-javadoc.jar"
+             classifier="javadoc"/>
 
     <!-- the cassandra-all jar -->
     <install pomFile="${build.dir}/${final.name}.pom"
@@ -2010,6 +2076,9 @@
     <install pomFile="${build.dir}/${final.name}.pom"
              file="${build.dir}/${final.name}-sources.jar"
              classifier="sources"/>
+    <install pomFile="${build.dir}/${final.name}.pom"
+             file="${build.dir}/${final.name}-javadoc.jar"
+             classifier="javadoc"/>
   </target>
 
   <!-- Publish artifacts to remote Maven repository -->
@@ -2029,6 +2098,9 @@
     <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
             file="${build.dir}/${ant.project.name}-thrift-${version}-sources.jar"
             classifier="sources"/>
+    <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+            file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
+            classifier="javadoc"/>
 
     <!-- the cassandra-clientutil jar -->
     <deploy pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
@@ -2036,6 +2108,9 @@
     <deploy pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
              file="${build.dir}/${ant.project.name}-clientutil-${version}-sources.jar"
              classifier="sources"/>
+    <deploy pomFile="${build.dir}/${ant.project.name}-clientutil-${version}.pom"
+             file="${build.dir}/${ant.project.name}-clientutil-${version}-javadoc.jar"
+             classifier="javadoc"/>
 
     <!-- the cassandra-all jar -->
     <deploy pomFile="${build.dir}/${final.name}.pom"
@@ -2043,6 +2118,9 @@
     <deploy pomFile="${build.dir}/${final.name}.pom"
             file="${build.dir}/${final.name}-sources.jar"
             classifier="sources"/>
+    <deploy pomFile="${build.dir}/${final.name}.pom"
+            file="${build.dir}/${final.name}-javadoc.jar"
+            classifier="javadoc"/>
 
     <!-- the distribution -->
     <sign-dist file="${build.dir}/${final.name}-bin.tar.gz" />
