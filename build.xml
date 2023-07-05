@@ -44,6 +44,7 @@
     <property name="build.classes" value="${build.dir}/classes"/>
     <property name="build.classes.main" value="${build.classes}/main" />
     <property name="build.classes.thrift" value="${build.classes}/thrift" />
+    <property name="javadoc.dir" value="${build.dir}"/>
     <property name="javadoc.jars.dir" value="${build.dir}/javadocs"/>
     <property name="interface.dir" value="${basedir}/interface"/>
     <property name="interface.thrift.dir" value="${interface.dir}/thrift"/>
@@ -1068,7 +1069,7 @@
     </target>
 
     <!-- creates release tarballs -->
-    <target name="artifacts" depends="jar"
+    <target name="artifacts" depends="jar,javadoc"
             description="Create Cassandra release artifacts">
       <mkdir dir="${dist.dir}"/>
       <!-- fix the control linefeed so that builds on windows works on linux -->
@@ -1082,6 +1083,9 @@
           <include name="${ant.project.name}-thrift-${version}.jar" />
           <include name="${ant.project.name}-clientutil-${version}.jar" />
         </fileset>
+      </copy>
+      <copy todir="${dist.dir}/javadoc">
+        <fileset dir="${javadoc.dir}"/>
       </copy>
       <copy todir="${dist.dir}/doc">
         <fileset dir="doc">
@@ -1692,6 +1696,19 @@
       <arg value="." />
     </java>
   </target>
+
+  <target name="javadoc" depends="init" description="Create javadoc" unless="no-javadoc">
+    <create-javadoc destdir="${javadoc.dir}">
+      <filesets>
+      <fileset dir="${build.src.java}" defaultexcludes="yes">
+        <include name="org/apache/**/*.java"/>
+      </fileset>
+      <fileset dir="${interface.thrift.gen-java}" defaultexcludes="yes">
+        <include name="org/apache/**/*.java"/>
+      </fileset>
+      </filesets>
+    </create-javadoc>
+   </target>
 
   <!-- Run tests not in parallel and reports errors and generates a junit report after -->
   <macrodef name="testmacro">
