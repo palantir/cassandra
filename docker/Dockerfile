@@ -30,7 +30,7 @@ COPY cassandra.yaml $CASSANDRA_YAML
 COPY cassandra-env.sh $CASSANDRA_ENV
 COPY logback.xml $CASSANDRA_CONFIG/logback.xml
 
-ENV _JAVA_OPTIONS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dpalantir_cassandra.is_new_cluster=true"
+ENV _JAVA_OPTIONS="-Dcassandra.skip_wait_for_gossip_to_settle=0"
 
 # Enable wide JMX access for tests, copied from https://stackoverflow.com/questions/48007037/run-remote-nodetool-commands-on-cassandra-3-without-authentication
 RUN sed -i s/'jmxremote.authenticate=true'/'jmxremote.authenticate=false'/g $CASSANDRA_ENV
