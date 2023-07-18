@@ -1016,11 +1016,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
 
             dataAvailable = bootstrap(bootstrapTokens);
-            if(!DISABLE_WAIT_TO_FINISH_BOOTSTRAP)
-            {
-                logger.warn("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
-                            "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
-            }
+            logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
+                        "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
             try
             {
                 setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
@@ -1030,6 +1027,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             {
                 throw new AssertionError(e);
             }
+            logger.info("Received signal to finish bootstrap");
         }
         else
         {
