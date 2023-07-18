@@ -28,7 +28,9 @@ import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
@@ -38,7 +40,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
-import com.palantir.cassandra.concurrent.ConditionAwaiter;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -87,6 +88,7 @@ import org.apache.cassandra.thrift.TokenRange;
 import org.apache.cassandra.thrift.cassandraConstants;
 import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.utils.*;
+import org.apache.cassandra.utils.concurrent.SimpleCondition;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
 
@@ -108,12 +110,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
-    private final ConditionAwaiter startBootstrapGuard = new ConditionAwaiter(DISABLE_WAIT_TO_BOOTSTRAP);
-    private final ConditionAwaiter finishBootstrapGuard = new ConditionAwaiter(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
     private final CleanupStateTracker cleanupState = new CleanupStateTracker();
     private int cleanupOpsInProgress = 0;
 
     private final RepairTracker repairTracker = new RepairTracker();
+
+    private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
+    private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     /**
      * @deprecated backward support to previous notification interface
@@ -860,7 +863,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens) {
+    private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens)
+    {
         joined = true;
 
         // We bootstrap if we haven't successfully bootstrapped before, as long as we are not a seed.
@@ -891,7 +895,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (shouldBootstrap(autoBootstrap))
         {
             setMode(Mode.WAITING_TO_BOOTSTRAP, "Awaiting start bootstrap call", true);
-            startBootstrapGuard.await();
+            try
+            {
+                startBootstrapCondition.await();
+            }
+            catch (InterruptedException e)
+            {
+                throw new AssertionError(e);
+            }
             boolean noPreviousDataFound = isCommitlogEmptyForBootstrap() && areKeyspacesEmptyForBootstrap();
 
             if (!noPreviousDataFound)
@@ -1006,16 +1017,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
 
             dataAvailable = bootstrap(bootstrapTokens);
-            if(!DISABLE_WAIT_TO_FINISH_BOOTSTRAP)
+            logger.warn("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
+                        "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining. " +
+                        "If using sls-cassandra-sidecar, modify the sidecar runtime config to admit this node. " +
+                        "Set palantir_cassandra.disable_wait_to_finish_bootstrap=true to bypass this step and " +
+                        "join the ring immediately after bootstrapping.");
+            try
             {
-                logger.warn("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
-                            "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining. " +
-                            "If using sls-cassandra-sidecar, modify the sidecar runtime config to admit this node. " +
-                            "Set palantir_cassandra.disable_wait_to_finish_bootstrap=true to bypass this step and " +
-                            "join the ring immediately after bootstrapping.");
+                setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
+                finishBootstrapCondition.await();
             }
-            setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
-            finishBootstrapGuard.await();
+            catch (InterruptedException e)
+            {
+                throw new AssertionError(e);
+            }
         }
         else
         {
@@ -1603,13 +1618,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public void startBootstrap()
     {
-        startBootstrapGuard.proceed();
+        startBootstrapCondition.signalAll();
     }
 
     @Override
     public void finishBootstrap()
     {
-        finishBootstrapGuard.proceed();
+        finishBootstrapCondition.signalAll();
     }
 
     public void clearNonTransientErrors() {
@@ -3763,6 +3778,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
 
         return localDCPrimaryRanges;
+    }
+
+    @Override
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep, UUID hostId)
+    {
+        Preconditions.checkArgument(hostId.equals(StorageService.instance.getTokenMetadata().getHostId(ep)),
+                                    "Endpoint's hostId does not match provided one");
+        return getRangesOwnedByEndpoint(keyspaceName, ep);
+    }
+
+    @Override
+    public List<String> getRangesOwnedByEndpoint(String keyspaceName, InetAddress ep)
+    {
+        return getRangesForEndpoint(keyspaceName, ep).stream().map(Range::toString).collect(Collectors.toList());
     }
 
     /**
