@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
@@ -193,7 +192,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, DISABLED }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
     private Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -1017,17 +1016,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
 
             dataAvailable = bootstrap(bootstrapTokens);
-            logger.warn("Bootstrap almost complete. Not becoming an active ring member. Use JMX (StorageService->finishBootstrap()) " +
-                    "to finalize ring joining. If using sls-cassandra-sidecar, modify the sidecar runtime config to admit this node. " +
-                    "Set palantir_cassandra.disable_wait_to_finish_bootstrap=true to bypass this step and join the ring immediately after bootstrapping.");
+            logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
+                        "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
             try
             {
+                setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
                 finishBootstrapCondition.await();
             }
             catch (InterruptedException e)
             {
                 throw new AssertionError(e);
             }
+            logger.info("Received signal to finish bootstrap");
         }
         else
         {
