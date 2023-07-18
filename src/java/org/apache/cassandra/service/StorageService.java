@@ -1016,11 +1016,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
 
             dataAvailable = bootstrap(bootstrapTokens);
-            logger.warn("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
-                        "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining. " +
-                        "If using sls-cassandra-sidecar, modify the sidecar runtime config to admit this node. " +
-                        "Set palantir_cassandra.disable_wait_to_finish_bootstrap=true to bypass this step and " +
-                        "join the ring immediately after bootstrapping.");
+            if(!DISABLE_WAIT_TO_FINISH_BOOTSTRAP)
+            {
+                logger.warn("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
+                            "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
+            }
             try
             {
                 setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
