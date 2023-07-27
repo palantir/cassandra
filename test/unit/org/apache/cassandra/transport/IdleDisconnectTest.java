@@ -46,7 +46,7 @@ public class IdleDisconnectTest extends CQLTester
         DatabaseDescriptor.setNativeTransportIdleTimeout(TIMEOUT);
         try (SimpleClient client = new SimpleClient(nativeAddr.getHostAddress(), nativePort))
         {
-            client.connect(false, false);
+            client.connect(false);
             Assert.assertTrue(client.channel.isOpen());
             long start = System.currentTimeMillis();
             CompletableFuture.runAsync(() -> {
@@ -63,7 +63,7 @@ public class IdleDisconnectTest extends CQLTester
         long sleepTime = 1000;
         try (SimpleClient client = new SimpleClient(nativeAddr.getHostAddress(), nativePort))
         {
-            client.connect(false, false);
+            client.connect(false);
             Assert.assertTrue(client.channel.isOpen());
             long start = System.currentTimeMillis();
             Thread.sleep(sleepTime);
