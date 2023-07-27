@@ -1052,6 +1052,16 @@ public class DatabaseDescriptor
         return Integer.parseInt(System.getProperty("cassandra.ssl_storage_port", conf.ssl_storage_port.toString()));
     }
 
+    public static long nativeTransportIdleTimeout()
+    {
+        return conf.native_transport_idle_timeout_in_ms;
+    }
+
+    public static void setNativeTransportIdleTimeout(long nativeTransportTimeout)
+    {
+        conf.native_transport_idle_timeout_in_ms = nativeTransportTimeout;
+    }
+
     public static int getRpcPort()
     {
         return Integer.parseInt(System.getProperty("cassandra.rpc_port", conf.rpc_port.toString()));

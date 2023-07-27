@@ -86,6 +86,8 @@ public class Config
     public String initial_token;
     public Integer num_tokens = 1;
 
+    public long native_transport_idle_timeout_in_ms = 0L;
+
     public volatile Long request_timeout_in_ms = 10000L;
 
     public volatile Long read_request_timeout_in_ms = 5000L;
