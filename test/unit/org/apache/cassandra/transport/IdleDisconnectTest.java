@@ -28,6 +28,7 @@ import org.junit.Test;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.CQLTester;
 import org.apache.cassandra.db.ConsistencyLevel;
+import org.apache.cassandra.dht.ByteOrderedPartitioner;
 
 public class IdleDisconnectTest extends CQLTester
 {
@@ -36,6 +37,7 @@ public class IdleDisconnectTest extends CQLTester
     @BeforeClass
     public static void setUp()
     {
+        DatabaseDescriptor.setPartitioner(ByteOrderedPartitioner.instance);
         requireNetwork();
         DatabaseDescriptor.setNativeTransportIdleTimeout(TIMEOUT);
     }
@@ -43,7 +45,6 @@ public class IdleDisconnectTest extends CQLTester
     @Test
     public void testIdleDisconnect() throws Throwable
     {
-        DatabaseDescriptor.setNativeTransportIdleTimeout(TIMEOUT);
         try (SimpleClient client = new SimpleClient(nativeAddr.getHostAddress(), nativePort))
         {
             client.connect(false);
