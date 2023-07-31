@@ -99,6 +99,8 @@ public class StorageProxy implements StorageProxyMBean
 
     private static final double CONCURRENT_SUBREQUESTS_MARGIN = 0.10;
 
+    private static final boolean DISABLE_BLOCKING_READ_REPAIRS = Boolean.getBoolean("palantir_cassandra.disable_blocking_read_repairs");
+
     private StorageProxy() {}
 
     static
@@ -1547,9 +1549,12 @@ public class StorageProxy implements StorageProxyMBean
                         RowDataResolver resolver = (RowDataResolver)handler.resolver;
                         try
                         {
-                            // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
-                            // behind on writes in case the out-of-sync row is read multiple times in quick succession
-                            FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                            if(!DISABLE_BLOCKING_READ_REPAIRS)
+                            {
+                                // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
+                                // behind on writes in case the out-of-sync row is read multiple times in quick succession
+                                FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                            }
                         }
                         catch (TimeoutException e)
                         {
