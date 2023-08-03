@@ -1046,6 +1046,16 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    public CASResult cell_cas(ByteBuffer key,
+                              String column_family,
+                              List<ProposedColumnUpdate> column_updates,
+                              ConsistencyLevel serial_consistency_level,
+                              ConsistencyLevel commit_consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        throw new InvalidRequestException("Not supported yet!");
+    }
+
     private List<IMutation> createMutationList(ConsistencyLevel consistency_level,
                                                Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map,
                                                boolean allowCounterMutations)
