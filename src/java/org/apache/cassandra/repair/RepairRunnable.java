@@ -35,6 +35,7 @@ import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.common.concurrent.WrappedLoggingRunnable;
 import org.apache.cassandra.concurrent.JMXConfigurableThreadPoolExecutor;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -62,7 +63,7 @@ import org.apache.cassandra.utils.progress.ProgressEventNotifier;
 import org.apache.cassandra.utils.progress.ProgressEventType;
 import org.apache.cassandra.utils.progress.ProgressListener;
 
-public class RepairRunnable extends WrappedRunnable implements ProgressEventNotifier
+public class RepairRunnable extends WrappedLoggingRunnable implements ProgressEventNotifier
 {
     private static final Logger logger = LoggerFactory.getLogger(RepairRunnable.class);
 
