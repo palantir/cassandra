@@ -20,16 +20,15 @@ package com.palantir.cassandra.utils;
 
 import java.util.Iterator;
 
+import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.columniterator.SSTableAwareOnDiskAtomIterator;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.io.sstable.format.big.SSTableNamesIterator;
+import org.apache.cassandra.io.sstable.format.big.SSTableSliceIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.db.ColumnFamily;
-import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.DeletionInfo;
-import org.apache.cassandra.db.OnDiskAtom;
-import org.apache.cassandra.db.RangeTombstone;
-
-public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
+public class TombstoneCountingIterator implements Iterator<OnDiskAtom>
 {
     private final Iterator<? extends  OnDiskAtom> delegate;
     private final int gcBefore;
@@ -37,14 +36,14 @@ public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
 
     private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
 
-    private RangeTombstoneCountingIterator(int gcBefore, ColumnFamily returnCF, Iterator<? extends  OnDiskAtom> delegate) {
+    private TombstoneCountingIterator(int gcBefore, ColumnFamily returnCF, Iterator<? extends  OnDiskAtom> delegate) {
         this.delegate = delegate;
         this.gcBefore = gcBefore;
         this.returnCF = returnCF;
     }
 
-    public static RangeTombstoneCountingIterator wrapIterator(int gcBefore, ColumnFamily returnCF, Iterator<? extends OnDiskAtom> delegate) {
-        return new RangeTombstoneCountingIterator(gcBefore, returnCF, delegate);
+    public static TombstoneCountingIterator wrapIterator(int gcBefore, ColumnFamily returnCF, Iterator<? extends OnDiskAtom> delegate) {
+        return new TombstoneCountingIterator(gcBefore, returnCF, delegate);
     }
 
     public boolean hasNext()
@@ -68,6 +67,20 @@ public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
                 deletionInfo.getRangeTombstoneCounter().incrementDroppable();
             } else {
                 deletionInfo.getRangeTombstoneCounter().incrementNonDroppable();
+            }
+        }
+
+        if (delegate instanceof SSTableAwareOnDiskAtomIterator) {
+
+            SSTableReader ssTableReader = ((SSTableAwareOnDiskAtomIterator) delegate).getSSTableReader();
+
+            if (onDiskAtom instanceof Cell)  {
+                Cell cell = (Cell)onDiskAtom;
+                if (!cell.isLive(System.currentTimeMillis())
+                        && !ExpiringCell.class.isAssignableFrom(cell.getClass())
+                        && cell.getLocalDeletionTime() < gcBefore) {
+                    ssTableReader.incrementTombstoneMeter();
+                }
             }
         }
 

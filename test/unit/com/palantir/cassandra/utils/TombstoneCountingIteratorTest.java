@@ -20,24 +20,25 @@ package com.palantir.cassandra.utils;
 
 import java.util.Iterator;
 
+import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.columniterator.SSTableAwareOnDiskAtomIterator;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.io.sstable.format.big.SSTableNamesIterator;
+import org.apache.cassandra.io.sstable.format.big.SSTableSliceIterator;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.apache.cassandra.db.ColumnFamily;
-import org.apache.cassandra.db.DeletionInfo;
-import org.apache.cassandra.db.OnDiskAtom;
-import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.db.composites.Composite;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-public class RangeTombstoneCountingIteratorTest
+public class TombstoneCountingIteratorTest
 {
 
     private static final int GC_GRACE = 2000;
+    private static final int TTL = 5000;
 
     private ColumnFamily columnFamily;
     private DeletionInfo deletionInfo;
@@ -57,14 +58,14 @@ public class RangeTombstoneCountingIteratorTest
     public void delegatesAllMethodCalls()
     {
         Iterator<? extends OnDiskAtom> delegate = mock(Iterator.class);
-        RangeTombstoneCountingIterator iterator =
-            RangeTombstoneCountingIterator.wrapIterator(0, columnFamily, delegate);
+        TombstoneCountingIterator iterator =
+            TombstoneCountingIterator.wrapIterator(0, columnFamily, delegate);
         iterator.hasNext();
-        Mockito.verify(delegate).hasNext();
+        verify(delegate).hasNext();
         iterator.next();
-        Mockito.verify(delegate).next();
+        verify(delegate).next();
         iterator.remove();
-        Mockito.verify(delegate).remove();
+        verify(delegate).remove();
     }
 
     @Test
@@ -78,7 +79,7 @@ public class RangeTombstoneCountingIteratorTest
         when(delegate.next()).thenReturn(tombstone, droppableTombstone, tombstone);
         when(delegate.hasNext()).thenReturn(true, true, true, false);
 
-        RangeTombstoneCountingIterator iterator = RangeTombstoneCountingIterator.wrapIterator(GC_GRACE,
+        TombstoneCountingIterator iterator = TombstoneCountingIterator.wrapIterator(GC_GRACE,
                                                                                               columnFamily,
                                                                                               delegate);
         while(iterator.hasNext()) {
@@ -86,5 +87,32 @@ public class RangeTombstoneCountingIteratorTest
         }
         assertThat(counter.getNonDroppableCount()).isEqualTo(2);
         assertThat(counter.getDroppableCount()).isEqualTo(1);
+    }
+
+    @Test
+    public void incrementsTombstoneMeterForSSTableNamesIterator()
+    {
+
+        Cell tombstone = mock(Cell.class);
+        when(tombstone.isLive(anyLong())).thenReturn(false);
+        when(tombstone.getLocalDeletionTime()).thenReturn(GC_GRACE - 100);
+
+        Cell nonTombstone = mock(Cell.class);
+        when(nonTombstone.isLive(anyLong())).thenReturn(true);
+
+        SSTableAwareOnDiskAtomIterator delegate = mock(SSTableAwareOnDiskAtomIterator.class);
+        SSTableReader reader = mock(SSTableReader.class);
+        when(delegate.getSSTableReader()).thenReturn(reader);
+
+        when(delegate.hasNext()).thenReturn(true, true, true, false);
+        when(delegate.next()).thenReturn(tombstone, tombstone, nonTombstone);
+        TombstoneCountingIterator iterator = TombstoneCountingIterator.wrapIterator(GC_GRACE,
+                columnFamily,
+                delegate);
+
+        while(iterator.hasNext()) {
+            iterator.next();
+        }
+        verify(reader, times(2)).incrementTombstoneMeter();
     }
 }
