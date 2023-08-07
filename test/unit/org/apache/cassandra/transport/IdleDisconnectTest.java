@@ -76,4 +76,25 @@ public class IdleDisconnectTest extends CQLTester
             Assert.assertTrue(System.currentTimeMillis() - start >= TIMEOUT + sleepTime);
         }
     }
+
+    @Test
+    public void testIdleDisconnectProlongedTwice() throws Throwable
+    {
+        long sleepTime = 1000;
+        try (SimpleClient client = new SimpleClient(nativeAddr.getHostAddress(), nativePort))
+        {
+            client.connect(false);
+            Assert.assertTrue(client.channel.isOpen());
+            long start = System.currentTimeMillis();
+            Thread.sleep(sleepTime);
+            client.execute("SELECT * FROM system.peers", ConsistencyLevel.ONE);
+            Thread.sleep(sleepTime);
+            client.execute("SELECT * FROM system.peers", ConsistencyLevel.ONE);
+            CompletableFuture.runAsync(() -> {
+                while (!Thread.currentThread().isInterrupted() && client.channel.isOpen());
+            }).get(30, TimeUnit.SECONDS);
+            Assert.assertFalse(client.channel.isOpen());
+            Assert.assertTrue(System.currentTimeMillis() - start >= TIMEOUT + 2*sleepTime);
+        }
+    }
 }
