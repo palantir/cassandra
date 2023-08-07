@@ -203,8 +203,8 @@
 # hidden behind a check for jvm > 1.7
 # -XX:+CMSParallelInitialMarkEnabled
 # -XX:+CMSEdenChunksRecordAlways
-# some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541
--XX:+CMSClassUnloadingEnabled
+# some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541 - hidden behind a check for jvm < 14
+# -XX:+CMSClassUnloadingEnabled
 
 ### G1 Settings (experimental, comment previous section and uncomment section below to enable)
 
@@ -237,4 +237,3 @@
 ### GC logging options -- uncomment to enable
 
 -Xlog:gc=info,heap*=trace,age*=debug,safepoint=info,promotion*=trace:file=${CASSANDRA_HOME}/logs/gc.log:time,uptime,pid,tid,level:filecount=10,filesize=10485760
-
