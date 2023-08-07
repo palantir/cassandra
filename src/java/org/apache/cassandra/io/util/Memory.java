@@ -213,9 +213,9 @@ public class Memory implements AutoCloseable
         {
             setBytes(memoryOffset, buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
         }
-        else if (buffer instanceof DirectBuffer)
+        else if (buffer.isDirect())
         {
-            unsafe.copyMemory(((DirectBuffer) buffer).address() + buffer.position(), peer + memoryOffset, buffer.remaining());
+            unsafe.copyMemory(MemoryUtil.getAddress(buffer) + buffer.position(), peer + memoryOffset, buffer.remaining());
         }
         else
             throw new IllegalStateException();

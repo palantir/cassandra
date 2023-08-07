@@ -565,6 +565,8 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <!-- some dependencies contain javax.annotation.Generated which was removed in java 9. -->
+        <dependency groupId="javax.annotation" artifactId="javax.annotation-api" version="1.3.1"/>
       </artifact:pom>
       <!-- this build-deps-pom-sources "artifact" is the same as build-deps-pom but only with those
            artifacts that have "-source.jar" files -->

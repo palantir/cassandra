@@ -57,30 +57,30 @@ public class CompressedRandomAccessReaderTest
     public void testResetAndTruncate() throws IOException
     {
         // test reset in current buffer or previous one
-        testResetAndTruncate(File.createTempFile("normal", "1"), false, false, 10);
-        testResetAndTruncate(File.createTempFile("normal", "2"), false, false, CompressionParams.DEFAULT_CHUNK_LENGTH);
+        testResetAndTruncate(FileUtils.createTempFile("normal", "1"), false, false, 10);
+        testResetAndTruncate(FileUtils.createTempFile("normal", "2"), false, false, CompressionParams.DEFAULT_CHUNK_LENGTH);
     }
 
     @Test
     public void testResetAndTruncateCompressed() throws IOException
     {
         // test reset in current buffer or previous one
-        testResetAndTruncate(File.createTempFile("compressed", "1"), true, false, 10);
-        testResetAndTruncate(File.createTempFile("compressed", "2"), true, false, CompressionParams.DEFAULT_CHUNK_LENGTH);
+        testResetAndTruncate(FileUtils.createTempFile("compressed", "1"), true, false, 10);
+        testResetAndTruncate(FileUtils.createTempFile("compressed", "2"), true, false, CompressionParams.DEFAULT_CHUNK_LENGTH);
     }
 
     @Test
     public void testResetAndTruncateCompressedMmap() throws IOException
     {
         // test reset in current buffer or previous one
-        testResetAndTruncate(File.createTempFile("compressed_mmap", "1"), true, true, 10);
-        testResetAndTruncate(File.createTempFile("compressed_mmap", "2"), true, true, CompressionParams.DEFAULT_CHUNK_LENGTH);
+        testResetAndTruncate(FileUtils.createTempFile("compressed_mmap", "1"), true, true, 10);
+        testResetAndTruncate(FileUtils.createTempFile("compressed_mmap", "2"), true, true, CompressionParams.DEFAULT_CHUNK_LENGTH);
     }
 
     @Test
     public void test6791() throws IOException, ConfigurationException
     {
-        File f = File.createTempFile("compressed6791_", "3");
+        File f = FileUtils.createTempFile("compressed6791_", "3");
         String filename = f.getAbsolutePath();
         MetadataCollector sstableMetadataCollector = new MetadataCollector(new ClusteringComparator(BytesType.instance));
         try(CompressedSequentialWriter writer = new CompressedSequentialWriter(f, filename + ".metadata",
@@ -131,7 +131,7 @@ public class CompressedRandomAccessReaderTest
     @Test
     public void testChunkIndexOverflow() throws IOException
     {
-        File file = File.createTempFile("chunk_idx_overflow", "1");
+        File file = FileUtils.createTempFile("chunk_idx_overflow", "1");
         String filename = file.getAbsolutePath();
         int chunkLength = 4096; // 4k
 

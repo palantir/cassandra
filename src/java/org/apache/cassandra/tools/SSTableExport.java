@@ -50,6 +50,10 @@ import org.apache.cassandra.utils.FBUtilities;
  */
 public class SSTableExport
 {
+    static
+    {
+        FBUtilities.preventIllegalAccessWarnings();
+    }
 
     private static final String KEY_OPTION = "k";
     private static final String DEBUG_OUTPUT_OPTION = "d";

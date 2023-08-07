@@ -96,11 +96,6 @@
 # a lower priority to avoid interfering with client workload
 -XX:+UseThreadPriorities
 
-# allows lowering thread priority without being root on linux - probably
-# not necessary on Windows but doesn't harm anything.
-# see http://tech.stolsvik.com/2010/01/linux-java-thread-priorities-workar
--XX:ThreadPriorityPolicy=42
-
 # Enable heap-dump if there's an OOM
 -XX:+HeapDumpOnOutOfMemoryError
 
@@ -200,16 +195,14 @@
 
 ### CMS Settings
 
--XX:+UseParNewGC
--XX:+UseConcMarkSweepGC
--XX:+CMSParallelRemarkEnabled
+-XX:+UseG1GC
+-XX:+ParallelRefProcEnabled
+-XX:MaxGCPauseMillis=500
 -XX:SurvivorRatio=8
 -XX:MaxTenuringThreshold=1
--XX:CMSInitiatingOccupancyFraction=75
--XX:+UseCMSInitiatingOccupancyOnly
--XX:CMSWaitDuration=10000
--XX:+CMSParallelInitialMarkEnabled
--XX:+CMSEdenChunksRecordAlways
+# hidden behind a check for jvm > 1.7
+# -XX:+CMSParallelInitialMarkEnabled
+# -XX:+CMSEdenChunksRecordAlways
 # some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541
 -XX:+CMSClassUnloadingEnabled
 
@@ -243,14 +236,5 @@
 
 ### GC logging options -- uncomment to enable
 
--XX:+PrintGCDetails
--XX:+PrintGCDateStamps
--XX:+PrintHeapAtGC
--XX:+PrintTenuringDistribution
--XX:+PrintGCApplicationStoppedTime
--XX:+PrintPromotionFailure
-#-XX:PrintFLSStatistics=1
-#-Xloggc:/var/log/cassandra/gc.log
--XX:+UseGCLogFileRotation
--XX:NumberOfGCLogFiles=10
--XX:GCLogFileSize=10M
+-Xlog:gc=info,heap*=trace,age*=debug,safepoint=info,promotion*=trace:file=${CASSANDRA_HOME}/logs/gc.log:time,uptime,pid,tid,level:filecount=10,filesize=10485760
+

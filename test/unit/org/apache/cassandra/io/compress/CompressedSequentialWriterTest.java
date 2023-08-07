@@ -57,13 +57,13 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
     private void runTests(String testName) throws IOException
     {
         // Test small < 1 chunk data set
-        testWrite(File.createTempFile(testName + "_small", "1"), 25);
+        testWrite(FileUtils.createTempFile(testName + "_small", "1"), 25);
 
         // Test to confirm pipeline w/chunk-aligned data writes works
-        testWrite(File.createTempFile(testName + "_chunkAligned", "1"), CompressionParams.DEFAULT_CHUNK_LENGTH);
+        testWrite(FileUtils.createTempFile(testName + "_chunkAligned", "1"), CompressionParams.DEFAULT_CHUNK_LENGTH);
 
         // Test to confirm pipeline on non-chunk boundaries works
-        testWrite(File.createTempFile(testName + "_large", "1"), CompressionParams.DEFAULT_CHUNK_LENGTH * 3 + 100);
+        testWrite(FileUtils.createTempFile(testName + "_large", "1"), CompressionParams.DEFAULT_CHUNK_LENGTH * 3 + 100);
     }
 
     @Test
