@@ -136,7 +136,7 @@ public class FBUtilities
             try
             {
                 localInetAddress = DatabaseDescriptor.getListenAddress() == null
-                                    ? InetAddress.getLocalHost()
+                                    ? InetAddress.getByName(InetAddress.getLocalHost().getCanonicalHostName())
                                     : DatabaseDescriptor.getListenAddress();
             }
             catch (UnknownHostException e)
