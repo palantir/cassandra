@@ -127,7 +127,7 @@ if [ "x$CASSANDRA_LOG_DIR" = "x" ] ; then
 fi
 
 #GC log path has to be defined here because it needs to access CASSANDRA_HOME
-JVM_OPTS="$JVM_OPTS -Xloggc:${CASSANDRA_LOG_DIR}/gc.log"
+JVM_OPTS="$JVM_OPTS -Xlog:gc=info,heap*=trace,age*=debug,safepoint=info,promotion*=trace:file=${CASSANDRA_LOG_DIR}/gc.log:time,uptime,pid,tid,level:filecount=10,filesize=10485760"
 
 # Here we create the arguments that will get passed to the jvm when
 # starting cassandra.
