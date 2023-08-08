@@ -147,10 +147,10 @@ public class SharedExecutorPool
     }
 
     public LocalAwareExecutorService newKeyspaceAwareExecutor(
-    int maxConcurrency, int maxQueuedTasks, String jmxPath, String name)
+    int maxConcurrency, String jmxPath, String name)
     {
         SEPExecutor executor = new SEPExecutor(
-        this, new KeyspaceAwareSepQueue(), maxConcurrency, maxQueuedTasks, jmxPath, name);
+        this, new KeyspaceAwareSepQueue(), maxConcurrency, jmxPath, name);
         executors.add(executor);
         return executor;
     }

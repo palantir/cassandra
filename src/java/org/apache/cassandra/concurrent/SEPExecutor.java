@@ -52,11 +52,10 @@ public class SEPExecutor extends AbstractLocalAwareExecutorService
 
     SEPExecutor(SharedExecutorPool pool, int maxWorkers, String jmxPath, String name)
     {
-        this(pool, new ConcurrentLinkedQueue<FutureTask<?>>(), maxWorkers, maxTasksQueued, jmxPath, name);
+        this(pool, new ConcurrentLinkedQueue<FutureTask<?>>(), maxWorkers, jmxPath, name);
     }
 
-    SEPExecutor(SharedExecutorPool pool, Queue<FutureTask<?>> tasks, int maxWorkers,
-                int maxTasksQueued, String jmxPath, String name)
+    SEPExecutor(SharedExecutorPool pool, Queue<FutureTask<?>> tasks, int maxWorkers, String jmxPath, String name)
     {
         this.tasks = tasks;
         this.pool = pool;

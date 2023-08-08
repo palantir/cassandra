@@ -93,7 +93,7 @@ public class StageManager
     private static LocalAwareExecutorService readStage(Stage stage, int numThreads)
     {
         return SharedExecutorPool.SHARED.newKeyspaceAwareExecutor(
-        numThreads, Integer.MAX_VALUE, stage.getJmxType(), stage.getJmxName());
+        numThreads, stage.getJmxType(), stage.getJmxName());
     }
 
     private static LocalAwareExecutorService multiThreadedLowSignalStage(Stage stage, int numThreads)
