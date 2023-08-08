@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ./gradlew --stop
 git clean -fdx
 ant clean
