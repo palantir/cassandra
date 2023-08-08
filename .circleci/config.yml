@@ -40,7 +40,7 @@ jobs:
     resource_class: xlarge
     steps:
       - attach_workspace: { at: /home/circleci }
-      - run: set -eou pipefail && ant -Dtest.runners=4 test | tee build/test_output
+      - run: set -eou pipefail && ant -Dtest.runners=8 test | tee build/test_output
       - store_test_results: { path: build/test/output }
       - store_artifacts: { path: build/test_output }
 
