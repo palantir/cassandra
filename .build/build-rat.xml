@@ -77,6 +77,10 @@
                  <exclude NAME="**/NOTICE.md"/>
                  <!-- LICENSE files -->
                  <exclude NAME="**/LICENSE.md"/>
+                 <!-- Palantir Specific -->
+                 <exclude name="**/publishToMavenLocal.sh"/>
+                 <exclude name="**/docker-entrypoint.sh"/>
+                 <exclude name="**/gradlew.bat"/>
             </fileset>
         </rat:report>
         <exec executable="grep" outputproperty="rat.failed.files" failifexecutionfails="false">
