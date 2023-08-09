@@ -331,7 +331,7 @@ public class Server implements CassandraDaemon.Server
                     public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
                         if (event instanceof IdleStateEvent) {
                             IdleStateEvent idleStateEvent = (IdleStateEvent) event;
-                            if (event.isFirst()) {
+                            if (idleStateEvent.isFirst()) {
                                 return;
                             }
                             ctx.close();
