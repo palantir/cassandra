@@ -80,7 +80,7 @@ public class IdleDisconnectTest extends CQLTester
     @Test
     public void testIdleDisconnectProlongedTwice() throws Throwable
     {
-        long sleepTime = 1000;
+        long sleepTime = 1200;
         try (SimpleClient client = new SimpleClient(nativeAddr.getHostAddress(), nativePort))
         {
             client.connect(false);
