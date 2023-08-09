@@ -334,11 +334,11 @@ public class Server implements CassandraDaemon.Server
             if (idleTimeout > 0)
             {
                 pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS));
-                pipeline.addLast("idleEventHandler", new IdleEventHandler() {
+                pipeline.addLast("idleEventHandler", new ChannelInboundHandlerAdapter() {
                     @Override
                     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
                         if (evt instanceof IdleStateEvent) {
-                            // Channel has been idle for too long, close it
+                            // Channel has been idle for too long, close it:
                             ctx.close();
                         } else {
                             super.userEventTriggered(ctx, evt);
