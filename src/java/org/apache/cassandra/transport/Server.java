@@ -322,6 +322,23 @@ public class Server implements CassandraDaemon.Server
         {
             ChannelPipeline pipeline = channel.pipeline();
 
+            long idleTimeout = DatabaseDescriptor.nativeTransportIdleTimeout();
+            if (idleTimeout > 0)
+            {
+                pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS));
+                pipeline.addLast("idleEventHandler", new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                        if (evt instanceof IdleStateEvent) {
+                            // Channel has been idle for too long, close it:
+                            ctx.close();
+                        } else {
+                            super.userEventTriggered(ctx, evt);
+                        }
+                    }
+                });
+            }
+
             // Add the ConnectionLimitHandler to the pipeline if configured to do so.
             if (DatabaseDescriptor.getNativeTransportMaxConcurrentConnections() > 0
                     || DatabaseDescriptor.getNativeTransportMaxConcurrentConnectionsPerIp() > 0)
@@ -350,23 +367,6 @@ public class Server implements CassandraDaemon.Server
             pipeline.addLast("exceptionHandler", exceptionHandler);
 
             pipeline.addLast(server.eventExecutorGroup, "executor", dispatcher);
-
-            long idleTimeout = DatabaseDescriptor.nativeTransportIdleTimeout();
-            if (idleTimeout > 0)
-            {
-                pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS));
-                pipeline.addLast("idleEventHandler", new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                        if (evt instanceof IdleStateEvent) {
-                            // Channel has been idle for too long, close it:
-                            ctx.close();
-                        } else {
-                            super.userEventTriggered(ctx, evt);
-                        }
-                    }
-                });
-            }
         }
     }
 
