@@ -16,17 +16,14 @@
 
 buildscript {
     repositories {
-        gradlePluginPortal()
-        mavenCentral()
-        jcenter()
-        maven { url "http://palantir.bintray.com/releases" }
-        mavenLocal()
+        mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+        gradlePluginPortal() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
     }
 
     dependencies {
-        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:0.4.8'
-        classpath 'com.palantir.gradle.docker:gradle-docker:0.22.1'
-        classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.11.0'
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.4.0'
+        classpath 'com.palantir.gradle.docker:gradle-docker:0.27.0'
+        classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.13.0'
     }
 }
 
@@ -40,11 +37,7 @@ apply plugin: 'com.palantir.external-publish-custom'
 apply plugin: 'com.palantir.git-version'
 
 repositories {
-    mavenCentral()
-    jcenter()
-    maven {
-        url 'https://dl.bintray.com/palantir/releases/'
-    }
+    mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
 }
 
 allprojects {
