@@ -330,19 +330,6 @@ public class Server implements CassandraDaemon.Server
                 pipeline.addFirst("connectionLimitHandler", connectionLimitHandler);
             }
 
-            long idleTimeout = DatabaseDescriptor.nativeTransportIdleTimeout();
-            if (idleTimeout > 0)
-            {
-                pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS) {
-                    @Override
-                    protected void channelIdle(ChannelHandlerContext ctx, IdleStateEvent evt)
-                    {
-                        logger.info("Closing client connection {} after timeout of {}ms", channel.remoteAddress(), idleTimeout);
-                        ctx.close();
-                    }
-                });
-            }
-
             //pipeline.addLast("debug", new LoggingHandler());
 
             pipeline.addLast("frameDecoder", new Frame.Decoder(server.connectionFactory));
@@ -363,6 +350,23 @@ public class Server implements CassandraDaemon.Server
             pipeline.addLast("exceptionHandler", exceptionHandler);
 
             pipeline.addLast(server.eventExecutorGroup, "executor", dispatcher);
+
+            long idleTimeout = DatabaseDescriptor.nativeTransportIdleTimeout();
+            if (idleTimeout > 0)
+            {
+                pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS));
+                pipeline.addLast("idleEventHandler", new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                        if (evt instanceof IdleStateEvent) {
+                            // Channel has been idle for too long, close it:
+                            ctx.close();
+                        } else {
+                            super.userEventTriggered(ctx, evt);
+                        }
+                    }
+                });
+            }
         }
     }
 
