@@ -322,26 +322,6 @@ public class Server implements CassandraDaemon.Server
         {
             ChannelPipeline pipeline = channel.pipeline();
 
-            long idleTimeout = DatabaseDescriptor.nativeTransportIdleTimeout();
-            if (idleTimeout > 0)
-            {
-                pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS));
-                pipeline.addLast("idleEventHandler", new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
-                        if (event instanceof IdleStateEvent) {
-                            IdleStateEvent idleStateEvent = (IdleStateEvent) event;
-                            if (idleStateEvent.isFirst()) {
-                                return;
-                            }
-                            ctx.close();
-                        } else {
-                            super.userEventTriggered(ctx, event);
-                        }
-                    }
-                });
-            }
-
             // Add the ConnectionLimitHandler to the pipeline if configured to do so.
             if (DatabaseDescriptor.getNativeTransportMaxConcurrentConnections() > 0
                     || DatabaseDescriptor.getNativeTransportMaxConcurrentConnectionsPerIp() > 0)
@@ -370,6 +350,26 @@ public class Server implements CassandraDaemon.Server
             pipeline.addLast("exceptionHandler", exceptionHandler);
 
             pipeline.addLast(server.eventExecutorGroup, "executor", dispatcher);
+
+            long idleTimeout = DatabaseDescriptor.nativeTransportIdleTimeout();
+            if (idleTimeout > 0)
+            {
+                pipeline.addLast("idleStateHandler", new IdleStateHandler(false, 0, 0, idleTimeout, TimeUnit.MILLISECONDS));
+                pipeline.addLast("idleEventHandler", new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
+                        if (event instanceof IdleStateEvent) {
+                            IdleStateEvent idleStateEvent = (IdleStateEvent) event;
+                            if (idleStateEvent.isFirst()) {
+                                return;
+                            }
+                            ctx.close();
+                        } else {
+                            super.userEventTriggered(ctx, event);
+                        }
+                    }
+                });
+            }
         }
     }
 
