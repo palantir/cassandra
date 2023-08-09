@@ -15,25 +15,29 @@
  */
 
 apply from: "${project.rootDir}/gradle/generate-pom-from-existing-file.gradle"
-apply from: "${project.rootDir}/gradle/publish-jar.gradle"
+apply plugin: 'com.palantir.external-publish-custom'
 
-afterEvaluate {
-    publishing {
-        publications {
-            bom(MavenPublication) {
-                artifactId 'cassandra-all-bom'
-                pom.withXml {
-                    generateBomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
-                }
-            }
-            nebula(MavenPublication) {
-                artifacts = []
-                artifact(file("${project.rootDir}/build/palantir-cassandra-${project.version}.jar"))
-                artifactId 'cassandra-all'
-                pom.withXml {
-                    generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
-                }
-            }
+externalPublishing {
+    publication('bom') {
+        artifactId 'cassandra-all-bom'
+        pom.withXml {
+            generateBomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
+        }
+    }
+    publication('pom') {
+        artifactId 'cassandra-all'
+
+        def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-${project.version}"
+        artifact(file("${jarFileNameRoot}.jar"))
+        artifact(file("${jarFileNameRoot}-sources.jar")) {
+            classifier 'sources'
+        }
+        artifact(file("${jarFileNameRoot}-javadoc.jar")) {
+            classifier 'javadoc'
+        }
+
+        pom.withXml {
+            generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-${project.version}.pom")
         }
     }
 }

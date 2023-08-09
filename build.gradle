@@ -16,14 +16,16 @@
 
 buildscript {
     repositories {
+        gradlePluginPortal()
+        mavenCentral()
         jcenter()
         maven { url "http://palantir.bintray.com/releases" }
+        mavenLocal()
     }
 
     dependencies {
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:0.4.8'
         classpath 'com.palantir.gradle.docker:gradle-docker:0.22.1'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
-        classpath 'com.netflix.nebula:nebula-publishing-plugin:9.1.1'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.11.0'
     }
 }
@@ -32,11 +34,13 @@ buildscript {
 // it is up to the user to ensure that the artifacts desired by the varios publish tasks in this
 // repo have already been generated.
 
-apply from: "${project.rootDir}/gradle/publish-dist.gradle"
+apply plugin: 'com.palantir.external-publish'
+apply plugin: 'com.palantir.external-publish-custom'
 
 apply plugin: 'com.palantir.git-version'
 
 repositories {
+    mavenCentral()
     jcenter()
     maven {
         url 'https://dl.bintray.com/palantir/releases/'
@@ -65,6 +69,13 @@ task distTar (type: Tar) {
     compression = Compression.GZIP
 }
 
+externalPublishing {
+    publication('dist') {
+        artifactId 'palantir-cassandra'
+        artifact distTar
+    }
+}
+
 apply plugin: 'com.palantir.docker'
 docker {
     name "palantirtechnologies/${rootProject.name}:${project.version}"
@@ -80,13 +91,4 @@ docker {
 publish.dependsOn dockerPush
 dockerPush.onlyIf {
     versionDetails().isCleanTag
-}
-
-publishing {
-    publications {
-        dist(MavenPublication) {
-            artifact distTar
-            artifactId 'palantir-cassandra'
-        }
-    }
 }
