@@ -109,6 +109,7 @@ public class DefaultFSErrorHandlerTest
         DatabaseDescriptor.setDiskFailurePolicy(testDiskPolicy);
         handler.handleFSError(new FSReadError(new IOException(), "blah"));
         assertEquals(gossipRunningFSError, Gossiper.instance.isEnabled());
+        assertEquals(StorageService.instance.inNonTransientErrorMode(), true);
     }
 
     @Test
@@ -117,5 +118,6 @@ public class DefaultFSErrorHandlerTest
         DatabaseDescriptor.setDiskFailurePolicy(testDiskPolicy);
         handler.handleCorruptSSTable(new CorruptSSTableException(new IOException(), "blah"));
         assertEquals(gossipRunningCorruptedSStableException, Gossiper.instance.isEnabled());
+        assertEquals(StorageService.instance.inNonTransientErrorMode(), true);
     }
 }

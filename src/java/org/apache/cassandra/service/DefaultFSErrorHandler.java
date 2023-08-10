@@ -49,13 +49,13 @@ public class DefaultFSErrorHandler implements FSErrorHandler
 
         switch (DatabaseDescriptor.getDiskFailurePolicy())
         {
-            case die:
             case stop:
                 // recording sstable non transient error
                 StorageService.instance.recordNonTransientError(
                     StorageServiceMBean.NonTransientError.SSTABLE_CORRUPTION,
                     ImmutableMap.of("path", e.path.toString()));
                 break;
+            case die:
             case stop_paranoid:
                 // exception not logged here on purpose as it is already logged
                 logger.error("Stopping transports as disk_failure_policy is " + DatabaseDescriptor.getDiskFailurePolicy());
