@@ -734,8 +734,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public static void loadNewSSTables(String ksName, String cfName)
     {
-        /* ks/cf existence checks will be done by open and getCFS methods for us */
-        Keyspace keyspace = Keyspace.open(ksName);
         loadNewSSTables(ksName, cfName, false);
     }
 

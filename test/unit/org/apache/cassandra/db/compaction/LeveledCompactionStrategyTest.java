@@ -40,6 +40,8 @@ import org.junit.BeforeClass;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import org.apache.commons.io.FileUtils;
+
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -879,8 +881,9 @@ public class LeveledCompactionStrategyTest
     }
 
     @Test
-    public void testLevelSettingOnLoadNewSSTables() throws InterruptedException
+    public void testLevelSettingOnLoadNewSSTables() throws InterruptedException, IOException
     {
+        FileUtils.cleanDirectory(cfs.getDirectories().getDirectoryForNewSSTables());
         byte [] b = new byte[100 * 1024];
         new Random().nextBytes(b);
         ByteBuffer value = ByteBuffer.wrap(b); // 100 KB value, make it easy to have multiple files
