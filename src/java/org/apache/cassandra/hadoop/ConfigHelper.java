@@ -233,9 +233,9 @@ public class ConfigHelper
     {
         assert object != null;
         // this is so awful it's kind of cool!
-        TSerializer serializer = new TSerializer(new TBinaryProtocol.Factory());
         try
         {
+            TSerializer serializer = new TSerializer(new TBinaryProtocol.Factory());
             return Hex.bytesToHex(serializer.serialize(object));
         }
         catch (TException e)
@@ -247,10 +247,10 @@ public class ConfigHelper
     private static SlicePredicate predicateFromString(String st)
     {
         assert st != null;
-        TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
         SlicePredicate predicate = new SlicePredicate();
         try
         {
+            TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
             deserializer.deserialize(predicate, Hex.hexToBytes(st));
         }
         catch (TException e)
@@ -300,10 +300,10 @@ public class ConfigHelper
     private static KeyRange keyRangeFromString(String st)
     {
         assert st != null;
-        TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
         KeyRange keyRange = new KeyRange();
         try
         {
+            TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
             deserializer.deserialize(keyRange, Hex.hexToBytes(st));
         }
         catch (TException e)
