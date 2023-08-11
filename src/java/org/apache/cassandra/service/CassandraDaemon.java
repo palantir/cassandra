@@ -783,6 +783,10 @@ public class CassandraDaemon
 
     public static void main(String[] args)
     {
+        for (CassandraInitializer initializer : java.util.ServiceLoader.load(
+                CassandraInitializer.class, CassandraDaemon.class.getClassLoader())) {
+            initializer.initialize();
+        }
         instance.activate();
     }
 
