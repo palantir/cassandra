@@ -910,7 +910,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                         ImmutableMap.of("previousDataFound", "true"));
                 unsafeDisableNode();
                 // leave node in non-transient error state and prevent it from bootstrapping into the cluster
-                throw new BootstrappingSafetyException("Detected data from previous bootstrap, failling.");
+                throw new BootstrappingSafetyException("Detected data from previous bootstrap, failing.");
             }
 
             if (SystemKeyspace.bootstrapInProgress())
@@ -1016,6 +1016,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
 
             dataAvailable = bootstrap(bootstrapTokens);
+            if (!dataAvailable)
+            {
+                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("streamingFailed", "true"));
+                unsafeDisableNode();
+                // leave node in non-transient error state and prevent it from bootstrapping into the cluster
+                throw new BootstrappingSafetyException("Bootstrap streaming failed.");
+            }
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
                         "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
             try
