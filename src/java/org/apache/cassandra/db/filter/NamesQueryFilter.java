@@ -273,7 +273,7 @@ public class NamesQueryFilter implements IDiskAtomFilter
     public Iterator<RangeTombstone> getRangeTombstoneIterator(final ColumnFamily source)
     {
         if (!source.deletionInfo().hasRanges())
-            return Iterators.emptyIterator();
+            return java.util.Collections.emptyIterator();
 
         return new AbstractIterator<RangeTombstone>()
         {

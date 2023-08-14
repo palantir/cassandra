@@ -136,7 +136,7 @@ public final class StreamResultFuture extends AbstractFuture<StreamState>
 
     public void addEventListener(StreamEventHandler listener)
     {
-        Futures.addCallback(this, listener);
+        Futures.addCallback(this, listener, com.google.common.util.concurrent.MoreExecutors.directExecutor());
         eventListeners.add(listener);
     }
 

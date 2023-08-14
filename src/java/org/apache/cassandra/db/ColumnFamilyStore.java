@@ -1005,7 +1005,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                           {
                                               return (ReplayPosition) input.get(1);
                                           }
-                                      });
+                                      }, com.google.common.util.concurrent.MoreExecutors.directExecutor());
             return future;
         }
     }

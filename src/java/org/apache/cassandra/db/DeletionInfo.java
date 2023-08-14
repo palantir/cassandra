@@ -292,12 +292,12 @@ public class DeletionInfo implements IMeasurableMemory
     // Use sparingly, not the most efficient thing
     public Iterator<RangeTombstone> rangeIterator()
     {
-        return ranges == null ? Iterators.<RangeTombstone>emptyIterator() : ranges.iterator();
+        return ranges == null ? java.util.Collections.<RangeTombstone>emptyIterator() : ranges.iterator();
     }
 
     public Iterator<RangeTombstone> rangeIterator(Composite start, Composite finish)
     {
-        return ranges == null ? Iterators.<RangeTombstone>emptyIterator() : ranges.iterator(start, finish);
+        return ranges == null ? java.util.Collections.<RangeTombstone>emptyIterator() : ranges.iterator(start, finish);
     }
 
     public RangeTombstone rangeCovering(Composite name)

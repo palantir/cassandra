@@ -394,7 +394,7 @@ public class RangeTombstoneList implements Iterable<RangeTombstone>, IMeasurable
         final int start = startIdx < 0 ? -startIdx-1 : startIdx;
 
         if (start >= size)
-            return Iterators.<RangeTombstone>emptyIterator();
+            return java.util.Collections.<RangeTombstone>emptyIterator();
 
         int finishIdx = till.isEmpty() ? size : searchInternal(till, start);
         // if stopIdx is the first range after 'till' we care only until the previous range
@@ -402,7 +402,7 @@ public class RangeTombstoneList implements Iterable<RangeTombstone>, IMeasurable
 
         // Note: the following is true because we know 'from' is before 'till' in sorted order.
         if (start > finish)
-            return Iterators.<RangeTombstone>emptyIterator();
+            return java.util.Collections.<RangeTombstone>emptyIterator();
         else if (start == finish)
             return Iterators.<RangeTombstone>singletonIterator(rangeTombstone(start));
 
