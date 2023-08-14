@@ -1020,7 +1020,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             {
                 recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("streamingFailed", "true"));
                 unsafeDisableNode();
-                // leave node in non-transient error state and prevent it from bootstrapping into the cluster
                 throw new BootstrappingSafetyException("Bootstrap streaming failed.");
             }
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
