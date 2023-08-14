@@ -167,7 +167,7 @@ public abstract class ExtendedFilter
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return com.google.common.base.MoreObjects.toStringHelper(this)
                       .add("dataRange", dataRange)
                       .add("maxResults", maxResults)
                       .add("currentLimit", currentLimit)
@@ -453,7 +453,7 @@ public abstract class ExtendedFilter
         @Override
         public String toString()
         {
-            return Objects.toStringHelper(this)
+            return com.google.common.base.MoreObjects.toStringHelper(this)
                           .add("dataRange", dataRange)
                           .add("timestamp", timestamp)
                           .add("clause", clause)

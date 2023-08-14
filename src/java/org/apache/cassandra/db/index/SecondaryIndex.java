@@ -424,6 +424,6 @@ public abstract class SecondaryIndex
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this).add("columnDefs", columnDefs).toString();
+        return com.google.common.base.MoreObjects.toStringHelper(this).add("columnDefs", columnDefs).toString();
     }
 }

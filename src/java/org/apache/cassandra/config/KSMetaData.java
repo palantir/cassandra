@@ -151,7 +151,7 @@ public final class KSMetaData
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return com.google.common.base.MoreObjects.toStringHelper(this)
                       .add("name", name)
                       .add("strategyClass", strategyClass.getSimpleName())
                       .add("strategyOptions", strategyOptions)

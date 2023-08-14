@@ -1091,7 +1091,7 @@ public class SelectStatement implements CQLStatement
         @Override
         public String toString()
         {
-            return Objects.toStringHelper(this)
+            return com.google.common.base.MoreObjects.toStringHelper(this)
                           .add("name", cfName)
                           .add("selectClause", selectClause)
                           .add("whereClause", whereClause)

@@ -96,7 +96,7 @@ public class ColumnSpecification
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return com.google.common.base.MoreObjects.toStringHelper(this)
                       .add("name", name)
                       .add("type", type)
                       .toString();

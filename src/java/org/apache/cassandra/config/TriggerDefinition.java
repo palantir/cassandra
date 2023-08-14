@@ -64,6 +64,6 @@ public class TriggerDefinition
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this).add("name", name).add("classOption", classOption).toString();
+        return com.google.common.base.MoreObjects.toStringHelper(this).add("name", name).add("classOption", classOption).toString();
     }
 }

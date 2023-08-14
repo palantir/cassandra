@@ -56,7 +56,7 @@ public class SliceByNamesReadCommand extends ReadCommand
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return com.google.common.base.MoreObjects.toStringHelper(this)
                       .add("ksName", ksName)
                       .add("cfName", cfName)
                       .add("key", ByteBufferUtil.bytesToHex(key))

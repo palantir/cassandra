@@ -152,7 +152,7 @@ public class DataRange
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return com.google.common.base.MoreObjects.toStringHelper(this)
                       .add("keyRange", keyRange)
                       .add("columnFilter", columnFilter)
                       .add("selectFullRow", selectFullRow)
@@ -316,7 +316,7 @@ public class DataRange
         @Override
         public String toString()
         {
-            return Objects.toStringHelper(this)
+            return com.google.common.base.MoreObjects.toStringHelper(this)
                           .add("keyRange", keyRange)
                           .add("sliceFilter", sliceFilter)
                           .add("columnFilter", columnFilter)

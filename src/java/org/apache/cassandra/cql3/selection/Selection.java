@@ -294,7 +294,7 @@ public abstract class Selection
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return com.google.common.base.MoreObjects.toStringHelper(this)
                 .add("columns", columns)
                 .add("columnMapping", columnMapping)
                 .add("metadata", metadata)
