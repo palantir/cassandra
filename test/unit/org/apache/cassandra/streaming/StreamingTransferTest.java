@@ -131,7 +131,7 @@ public class StreamingTransferTest
             {
                 fail();
             }
-        });
+        }, com.google.common.util.concurrent.MoreExecutors.directExecutor());
         // should be complete immediately
         futureResult.get(100, TimeUnit.MILLISECONDS);
     }
