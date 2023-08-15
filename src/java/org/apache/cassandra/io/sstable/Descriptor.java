@@ -238,7 +238,7 @@ public class Descriptor
         nexttok = tokenStack.pop();
         // generation OR Type
         SSTableFormat.Type fmt = SSTableFormat.Type.LEGACY;
-        if (!CharMatcher.DIGIT.matchesAllOf(nexttok))
+        if (!CharMatcher.digit().matchesAllOf(nexttok))
         {
             fmt = SSTableFormat.Type.validate(nexttok);
             nexttok = tokenStack.pop();

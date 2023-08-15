@@ -160,7 +160,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
             {
                 sessions.remove(session.getId());
             }
-        }, MoreExecutors.sameThreadExecutor());
+        }, MoreExecutors.directExecutor());
         session.start(executor);
         return session;
     }
@@ -183,7 +183,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
                 failureDetector.unregisterFailureDetectionEventListener(task);
                 gossiper.unregister(task);
             }
-        }, MoreExecutors.sameThreadExecutor());
+        }, MoreExecutors.directExecutor());
     }
 
     public synchronized void terminateSessions()
@@ -470,7 +470,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
             {
                 removeParentRepairSession(parentRepairSession);
             }
-        }, MoreExecutors.sameThreadExecutor());
+        }, MoreExecutors.directExecutor());
 
         return allAntiCompactionResults;
     }

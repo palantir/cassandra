@@ -514,7 +514,7 @@ public class ColumnFamilyRecordReader extends RecordReader<ByteBuffer, SortedMap
                 if (this.rows.hasNext())
                     nextRow();
                 else
-                    columns = Iterators.emptyIterator();
+                    columns = Collections.emptyIterator();
             }
 
             private void nextRow()
