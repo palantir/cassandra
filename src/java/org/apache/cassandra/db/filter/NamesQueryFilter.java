@@ -21,9 +21,11 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import com.palantir.cassandra.utils.DeadThingTracker;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.commons.lang3.StringUtils;
 import com.google.common.collect.AbstractIterator;
@@ -95,6 +97,10 @@ public class NamesQueryFilter implements IDiskAtomFilter
     }
 
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now)
+    {
+        collectReducedColumns(container, reducedColumns, key, gcBefore, now, Optional.empty());
+    }
+    public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now, Optional<DeadThingTracker> tracker)
     {
         DeletionInfo.InOrderTester tester = container.inOrderDeletionTester();
         while (reducedColumns.hasNext())

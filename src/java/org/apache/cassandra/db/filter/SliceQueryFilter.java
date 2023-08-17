@@ -26,6 +26,7 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
+import com.palantir.cassandra.utils.DeadThingTracker;
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
@@ -276,7 +277,12 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now)
     {
-        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
+        collectReducedColumns(container, reducedColumns, key, gcBefore, now, Optional.empty());
+    }
+
+    public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now, Optional<DeadThingTracker> tracker)
+    {
+        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore, tracker);
         columnCounter = columnCounter(container.getComparator(), now);
         deletionInfo = container.deletionInfo();
         DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);

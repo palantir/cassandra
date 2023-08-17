@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -100,7 +101,7 @@ public class QueryFilterTest {
 
     private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
         IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, Integer.MAX_VALUE);
-        QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
+        QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED, Optional.empty());
         return read(returnCf);
     }
 
@@ -208,7 +209,7 @@ public class QueryFilterTest {
         for (int i = 0; i < 25; i++) {
             enhanced.add(value((char) ('z' + i)));
         }
-        List<OnDiskAtom> result = ImmutableList.copyOf(QueryFilter.filterTombstones(metadata.comparator, enhanced.iterator(), WRITE_TIME + 1));
+        List<OnDiskAtom> result = ImmutableList.copyOf(QueryFilter.filterTombstones(metadata.comparator, enhanced.iterator(), WRITE_TIME + 1, Optional.empty()));
         return result.subList(buffering, result.size() - buffering);
     }
 

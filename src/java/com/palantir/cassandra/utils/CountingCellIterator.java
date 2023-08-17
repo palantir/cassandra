@@ -17,6 +17,7 @@
 package com.palantir.cassandra.utils;
 
 import java.util.Iterator;
+import java.util.Optional;
 
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ExpiringCell;
@@ -49,15 +50,17 @@ public class CountingCellIterator implements Iterator<Cell> {
     private int droppableTtls = 0;
     private int liveCells = 0;
     private int tombstones = 0;
+    private Optional<DeadThingTracker> tracker;
 
-    public static CountingCellIterator wrapIterator(Iterator<Cell> delegate, long timestamp, long gcBefore) {
-        return new CountingCellIterator(delegate, timestamp, gcBefore);
+    public static CountingCellIterator wrapIterator(Iterator<Cell> delegate, long timestamp, long gcBefore, Optional<DeadThingTracker> tracker) {
+        return new CountingCellIterator(delegate, timestamp, gcBefore, tracker);
     }
 
-    private CountingCellIterator(Iterator<Cell> delegate, long timestamp, long gcBefore) {
+    private CountingCellIterator(Iterator<Cell> delegate, long timestamp, long gcBefore, Optional<DeadThingTracker> tracker) {
         this.delegate = delegate;
         this.gcBeforeSeconds = gcBefore;
         this.nowMillis = timestamp;
+        this.tracker = tracker;
     }
 
     @Override
@@ -104,8 +107,10 @@ public class CountingCellIterator implements Iterator<Cell> {
             droppableTtls++;
         } else if (cell.getLocalDeletionTime() < gcBeforeSeconds) {
             droppableTombstones++;
+            tracker.ifPresent(DeadThingTracker::increment);
         } else {
             tombstones++;
+            tracker.ifPresent(DeadThingTracker::increment);
         }
     }
 

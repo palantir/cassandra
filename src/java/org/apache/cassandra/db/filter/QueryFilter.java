@@ -24,6 +24,7 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.SortedSet;
@@ -35,6 +36,7 @@ import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Range;
 import com.google.common.collect.UnmodifiableIterator;
 
+import com.palantir.cassandra.utils.DeadThingTracker;
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import com.palantir.cassandra.utils.RangeTombstoneCountingIterator;
 import org.apache.cassandra.FilterExperiment;
@@ -83,7 +85,7 @@ public class QueryFilter
                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
                                   int gcBefore, FilterExperiment experiment)
     {
-        collateOnDiskAtom(returnCF, toCollate, filter, this.key, gcBefore, timestamp, experiment);
+        collateOnDiskAtom(returnCF, toCollate, filter, this.key, gcBefore, timestamp, experiment, Optional.empty());
     }
 
     /**
@@ -136,27 +138,29 @@ public class QueryFilter
                                          DecoratedKey key,
                                          int gcBefore,
                                          long timestamp,
-                                         FilterExperiment experiment)
+                                         FilterExperiment experiment,
+                                         Optional<DeadThingTracker> tracker)
     {
         if (experiment == FilterExperiment.USE_LEGACY || filter.isReversed() || isRowCacheEnabled(returnCF)) {
             legacyCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
         } else {
-            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
+            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp, tracker);
         }
     }
 
     private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
-                                                  List<? extends Iterator<? extends OnDiskAtom>> toCollate,
-                                                  IDiskAtomFilter filter,
-                                                  DecoratedKey key,
-                                                  int gcBefore,
-                                                  long timestamp) {
+                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                   IDiskAtomFilter filter,
+                                                   DecoratedKey key,
+                                                   int gcBefore,
+                                                   long timestamp,
+                                                   Optional<DeadThingTracker> tracker) {
         Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
         Iterator<OnDiskAtom> countRangeTombstones = RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF, merged);
-        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore);
+        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore, tracker);
         Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
             returnCF, filter.getColumnComparator(returnCF.getComparator()), filtered);
-        filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp);
+        filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp, tracker);
     }
 
     private static void legacyCollateOnDiskAtom(ColumnFamily returnCF,
@@ -254,7 +258,7 @@ public class QueryFilter
      */
     @VisibleForTesting
     static Iterator<OnDiskAtom> filterTombstones(
-            final CellNameType comparator, Iterator<? extends OnDiskAtom> backingIterator, int gcBefore) {
+            final CellNameType comparator, Iterator<? extends OnDiskAtom> backingIterator, int gcBefore, Optional<DeadThingTracker> tracker) {
         final PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(backingIterator);
         return new AbstractIterator<OnDiskAtom>()
         {
@@ -281,6 +285,7 @@ public class QueryFilter
 
                         if (nextAtom instanceof RangeTombstone) {
                             maybePendingRangeTombstone = (RangeTombstone) peeking.next();
+                            tracker.ifPresent(DeadThingTracker::increment);
                             continue;
                         } else {
                             maybePendingRangeTombstone = null;
@@ -292,6 +297,7 @@ public class QueryFilter
                         // if the next cell is overwritten by the range tombstone, skip it
                         if (nextAtom.timestamp() < maybePendingRangeTombstone.timestamp()) {
                             peeking.next();
+                            tracker.ifPresent(DeadThingTracker::increment);
                             continue;
                         } else {
                             // must return to make sure we never switch orders of cells in output - we filter only.
@@ -303,6 +309,7 @@ public class QueryFilter
                         RangeTombstone tombstone = (RangeTombstone) nextAtom;
                         if (maybePendingRangeTombstone.supersedes(tombstone, comparator)) {
                             peeking.next();
+                            tracker.ifPresent(DeadThingTracker::increment);
                             continue;
                         } else {
                             // cannot optimize, return, move on

@@ -21,6 +21,7 @@ import java.util.*;
 
 import com.google.common.collect.Iterables;
 
+import com.palantir.cassandra.utils.DeadThingTracker;
 import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.db.columniterator.IColumnIteratorFactory;
 import org.apache.cassandra.db.columniterator.LazyColumnIterator;
@@ -61,7 +62,7 @@ public class RowIteratorFactory
     {
         // fetch data from current memtable, historical memtables, and SSTables in the correct order.
         final List<CloseableIterator<OnDiskAtomIterator>> iterators = new ArrayList<>(Iterables.size(memtables) + sstables.size());
-
+        DeadThingTracker tracker = new DeadThingTracker(1);
         for (Memtable memtable : memtables)
             iterators.add(new ConvertToColumnIterator(range, memtable.getEntryIterator(range.startKey(), range.stopKey())));
 
@@ -99,7 +100,7 @@ public class RowIteratorFactory
                 {
                     // not cached: collate
                     QueryFilter.collateOnDiskAtom(
-                            returnCF, colIters, filter, key, gcBefore, now, FilterExperiment.USE_LEGACY);
+                            returnCF, colIters, filter, key, gcBefore, now, FilterExperiment.USE_LEGACY, Optional.of(tracker));
                 }
                 else
                 {

@@ -21,7 +21,9 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Optional;
 
+import com.palantir.cassandra.utils.DeadThingTracker;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
 import org.apache.cassandra.db.composites.CellNameType;
@@ -70,6 +72,7 @@ public interface IDiskAtomFilter
      * to avoid running out of memory on large rows.
      */
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now);
+    public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now, Optional<DeadThingTracker> tracker);
 
     public Comparator<Cell> getColumnComparator(CellNameType comparator);
 
