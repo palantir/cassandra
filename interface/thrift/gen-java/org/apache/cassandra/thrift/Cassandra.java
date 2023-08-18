@@ -2812,7 +2812,8 @@ public class Cassandra {
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
-        return (new Client(prot)).recv_atomic_batch_mutate();
+        (new Client(prot)).recv_atomic_batch_mutate();
+	return null;
       }
     }
 
