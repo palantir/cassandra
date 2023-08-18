@@ -63,7 +63,8 @@ import com.google.common.util.concurrent.Uninterruptibles;
  * <p/>
  * Newer version of Thrift should make this obsolete.
  */
-public class CustomTThreadPoolServer extends TServer {
+public class CustomTThreadPoolServer extends TServer
+{
 
     private static final Logger logger = LoggerFactory.getLogger(CustomTThreadPoolServer.class.getName());
 
@@ -80,7 +81,8 @@ public class CustomTThreadPoolServer extends TServer {
     private final AtomicInteger activeClients;
 
 
-    public CustomTThreadPoolServer(TThreadPoolServer.Args args, ExecutorService executorService) {
+    public CustomTThreadPoolServer(TThreadPoolServer.Args args, ExecutorService executorService)
+    {
         super(args);
         this.executorService = executorService;
         this.stopped = false;
@@ -90,40 +92,56 @@ public class CustomTThreadPoolServer extends TServer {
     }
 
     @SuppressWarnings("resource")
-    public void serve() {
-        try {
+    public void serve()
+    {
+        try
+        {
             serverTransport_.listen();
-        } catch (TTransportException ttx) {
+        }
+        catch (TTransportException ttx)
+        {
             logger.error("Error occurred during listening.", ttx);
             return;
         }
 
-        while (!stopped) {
+        while (!stopped)
+        {
             // block until we are under max clients
-            while (activeClients.get() >= args.maxWorkerThreads) {
+            while (activeClients.get() >= args.maxWorkerThreads)
+            {
                 Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
             }
 
-            try {
+            try
+            {
                 TTransport client = serverTransport_.accept();
                 activeClients.incrementAndGet();
                 WorkerProcess wp = new WorkerProcess(client);
                 executorService.execute(wp);
-            } catch (TTransportException ttx) {
+            }
+            catch (TTransportException ttx)
+            {
                 if (ttx.getCause() instanceof SocketTimeoutException) // thrift sucks
+                {
                     continue;
+                }
 
-                if (!stopped) {
+                if (!stopped)
+                {
                     logger.warn("Transport error occurred during acceptance of message.", ttx);
                 }
-            } catch (RejectedExecutionException e) {
+            }
+            catch (RejectedExecutionException e)
+            {
                 // worker thread decremented activeClients but hadn't finished exiting
                 logger.trace("Dropping client connection because our limit of {} has been reached", args.maxWorkerThreads);
                 continue;
             }
 
             if (activeClients.get() >= args.maxWorkerThreads)
+            {
                 logger.warn("Maximum number of clients {} reached", args.maxWorkerThreads);
+            }
         }
 
         executorService.shutdown();
@@ -147,12 +165,14 @@ public class CustomTThreadPoolServer extends TServer {
         // See CASSANDRA-3335 and CASSANDRA-3727.
     }
 
-    public void stop() {
+    public void stop()
+    {
         stopped = true;
         serverTransport_.interrupt();
     }
 
-    private class WorkerProcess implements Runnable {
+    private class WorkerProcess implements Runnable
+    {
 
         /**
          * Client that this services.
@@ -164,20 +184,23 @@ public class CustomTThreadPoolServer extends TServer {
          *
          * @param client Transport to process
          */
-        private WorkerProcess(TTransport client) {
+        private WorkerProcess(TTransport client)
+        {
             client_ = client;
         }
 
         /**
          * Loops on processing a client forever
          */
-        public void run() {
+        public void run()
+        {
             TProcessor processor = null;
             TProtocol inputProtocol = null;
             TProtocol outputProtocol = null;
             SocketAddress socket = null;
             try (TTransport inputTransport = inputTransportFactory_.getTransport(client_);
-                 TTransport outputTransport = outputTransportFactory_.getTransport(client_)) {
+                 TTransport outputTransport = outputTransportFactory_.getTransport(client_))
+            {
                 socket = ((TCustomSocket) client_).getSocket().getRemoteSocketAddress();
                 ThriftSessionManager.instance.setCurrentSocket(socket);
                 processor = processorFactory_.getProcessor(client_);
@@ -185,21 +208,32 @@ public class CustomTThreadPoolServer extends TServer {
                 inputProtocol = inputProtocolFactory_.getProtocol(inputTransport);
                 outputProtocol = outputProtocolFactory_.getProtocol(outputTransport);
 
-                while (!stopped) {
+                while (!stopped)
+                {
                     processor.process(inputProtocol, outputProtocol);
                 }
-            } catch (TTransportException ttx) {
+            }
+            catch (TTransportException ttx)
+            {
                 // Assume the client died and continue silently
                 // Log at debug to allow debugging of "frame too large" errors (see CASSANDRA-3142).
                 logger.trace("Thrift transport error occurred during processing of message.", ttx);
-            } catch (TException tx) {
+            }
+            catch (TException tx)
+            {
                 logger.error("Thrift error occurred during processing of message.", tx);
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 JVMStabilityInspector.inspectThrowable(e);
                 logger.error("Error occurred during processing of message.", e);
-            } finally {
+            }
+            finally
+            {
                 if (socket != null)
+                {
                     ThriftSessionManager.instance.connectionComplete(socket);
+                }
 
                 activeClients.decrementAndGet();
             }
@@ -220,23 +254,28 @@ public class CustomTThreadPoolServer extends TServer {
     public static class Factory implements TServerFactory
     {
         @SuppressWarnings("resource")
-        public TServer buildTServer(Args args) {
+        public TServer buildTServer(Args args)
+        {
             final InetSocketAddress addr = args.addr;
             TServerTransport serverTransport;
-            try {
+            try
+            {
                 final ClientEncryptionOptions clientEnc = DatabaseDescriptor.getClientEncryptionOptions();
-                if (clientEnc.enabled) {
+                if (clientEnc.enabled)
+                {
                     logger.info("enabling encrypted thrift connections between client and server");
                     TSSLTransportParameters params = new TSSLTransportParameters(clientEnc.protocol, new String[0]);
                     params.setKeyStore(clientEnc.keystore, clientEnc.keystore_password);
-                    if (clientEnc.require_client_auth) {
+                    if (clientEnc.require_client_auth)
+                    {
                         params.setTrustStore(clientEnc.truststore, clientEnc.truststore_password);
                         params.requireClientAuth(true);
                     }
                     TServerSocket sslServer = TSSLTransportFactory.getServerSocket(addr.getPort(), 0, addr.getAddress(), params);
                     SSLServerSocket sslServerSocket = (SSLServerSocket) sslServer.getServerSocket();
                     String[] suites = SSLFactory.filterCipherSuites(sslServerSocket.getSupportedCipherSuites(), clientEnc.cipher_suites);
-                    if (clientEnc.require_endpoint_verification) {
+                    if (clientEnc.require_endpoint_verification)
+                    {
                         SSLParameters sslParameters = sslServerSocket.getSSLParameters();
                         sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
                         sslServerSocket.setSSLParameters(sslParameters);
@@ -244,10 +283,14 @@ public class CustomTThreadPoolServer extends TServer {
                     sslServerSocket.setEnabledCipherSuites(suites);
                     sslServerSocket.setEnabledProtocols(SSLFactory.ACCEPTED_INCOMING_PROTOCOLS);
                     serverTransport = new TCustomServerSocket(sslServer.getServerSocket(), args.keepAlive, args.sendBufferSize, args.recvBufferSize);
-                } else {
+                }
+                else
+                {
                     serverTransport = new TCustomServerSocket(addr, args.keepAlive, args.sendBufferSize, args.recvBufferSize, args.listenBacklog);
                 }
-            } catch (TTransportException e) {
+            }
+            catch (TTransportException e)
+            {
                 throw new RuntimeException(String.format("Unable to create thrift socket to %s:%s", addr.getAddress(), addr.getPort()), e);
             }
             // ThreadPool Server and will be invocation per connection basis...
