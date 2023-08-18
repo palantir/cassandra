@@ -44,9 +44,9 @@ public class TCustomNonblockingServerSocket extends TNonblockingServerSocket
 
     @Override
     @SuppressWarnings("resource")
-    protected TNonblockingSocket acceptImpl() throws TTransportException
+    public TNonblockingSocket accept() throws TTransportException
     {
-        TNonblockingSocket tsocket = super.acceptImpl();
+        TNonblockingSocket tsocket = super.accept();
         if (tsocket == null || tsocket.getSocketChannel() == null)
             return tsocket;
         Socket socket = tsocket.getSocketChannel().socket();
