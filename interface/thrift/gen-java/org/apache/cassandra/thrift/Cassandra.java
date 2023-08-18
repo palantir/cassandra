@@ -2496,7 +2496,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class insert_call extends org.apache.thrift.async.TAsyncMethodCall<> {
+    public static class insert_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private ByteBuffer key;
       private ColumnParent column_parent;
       private Column column;
