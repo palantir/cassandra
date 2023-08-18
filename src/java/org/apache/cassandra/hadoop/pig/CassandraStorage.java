@@ -893,9 +893,9 @@ public class CassandraStorage extends LoadFunc implements StoreFuncInterface, Lo
         IndexClause indexClause = new IndexClause();
         indexClause.setExpressions(indexExpressions);
         indexClause.setStart_key("".getBytes());
-        TSerializer serializer = new TSerializer(new TBinaryProtocol.Factory());
         try
         {
+            TSerializer serializer = new TSerializer(new TBinaryProtocol.Factory());
             return Hex.bytesToHex(serializer.serialize(indexClause));
         }
         catch (TException e)
@@ -908,10 +908,10 @@ public class CassandraStorage extends LoadFunc implements StoreFuncInterface, Lo
     private static List<IndexExpression> indexExpressionsFromString(String ie) throws IOException
     {
         assert ie != null;
-        TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
         IndexClause indexClause = new IndexClause();
         try
         {
+            TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
             deserializer.deserialize(indexClause, Hex.hexToBytes(ie));
         }
         catch (TException e)
@@ -1289,10 +1289,10 @@ public class CassandraStorage extends LoadFunc implements StoreFuncInterface, Lo
     protected static CfDef cfdefFromString(String st) throws IOException
     {
         assert st != null;
-        TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
         CfDef cfDef = new CfDef();
         try
         {
+            TDeserializer deserializer = new TDeserializer(new TBinaryProtocol.Factory());
             deserializer.deserialize(cfDef, Hex.hexToBytes(st));
         }
         catch (TException e)
@@ -1306,10 +1306,10 @@ public class CassandraStorage extends LoadFunc implements StoreFuncInterface, Lo
     protected static String cfdefToString(CfDef cfDef) throws IOException
     {
         assert cfDef != null;
-        // this is so awful it's kind of cool!
-        TSerializer serializer = new TSerializer(new TBinaryProtocol.Factory());
         try
         {
+            // this is so awful it's kind of cool!
+            TSerializer serializer = new TSerializer(new TBinaryProtocol.Factory());
             return Hex.bytesToHex(serializer.serialize(cfDef));
         }
         catch (TException e)
