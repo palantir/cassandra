@@ -831,6 +831,7 @@
         </classpath>
         <jvmarg value="-Dstorage-config=${test.conf}"/>
         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
+        <jvmarg value="-javaagent:${basedir}/lib/guava-compatibility-agent-0.2.0.jar" />
         <jvmarg value="-ea"/>
       </java>
     </target>
@@ -1528,6 +1529,7 @@
         <jvmarg value="-Dstorage-config=${test.conf}"/>
         <jvmarg value="-Djava.awt.headless=true"/>
         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
+        <jvmarg value="-javaagent:${basedir}/lib/guava-compatibility-agent-0.2.0.jar" />
         <jvmarg value="-ea"/>
         <jvmarg value="-Xss256k"/>
         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
@@ -1572,6 +1574,7 @@
         <jvmarg value="-Dstorage-config=${test.conf}"/>
         <jvmarg value="-Djava.awt.headless=true"/>
         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
+        <jvmarg value="-javaagent:${basedir}/lib/guava-compatibility-agent-0.2.0.jar" />
         <jvmarg value="-ea"/>
         <jvmarg value="-Xss256k"/>
         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>

@@ -187,7 +187,6 @@ esac
 
 launch_service()
 {
-    export JVM_OPTS="$JVM_OPTS -javaagent:$CASSANDRA_HOME/lib/guava-compatibility-agent-0.2.0.jar"
     pidpath="$1"
     foreground="$2"
     props="$3"

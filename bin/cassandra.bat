@@ -55,6 +55,7 @@ REM ----------------------------------------------------------------------------
 REM JVM Opts we'll use in legacy run or installation
 set JAVA_OPTS=-ea^
  -javaagent:"%CASSANDRA_HOME%\lib\jamm-0.3.0.jar"^
+ -javaagent:"%CASSANDRA_HOME%\lib\guava-compatibility-agent-0.2.0.jar"^
  -Xms2G^
  -Xmx2G^
  -XX:+HeapDumpOnOutOfMemoryError^
