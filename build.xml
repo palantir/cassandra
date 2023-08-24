@@ -1292,7 +1292,7 @@
         <jvmarg value="-Djava.awt.headless=true"/>
         <!-- Cassandra 3.0+ needs <jvmarg line="... ${additionalagent}" /> here! (not value=) -->
         <jvmarg line="-javaagent:${basedir}/lib/jamm-0.3.0.jar ${additionalagent}" />
-        <jvmarg line="-javaagent:${basedir}/lib/guava-compatibility-agent-0.1.0-4-g816fcd6.jar" />
+        <jvmarg line="-javaagent:${basedir}/lib/guava-compatibility-agent-0.2.0.jar" />
         <jvmarg value="-ea"/>
         <jvmarg value="-Djava.io.tmpdir=${tmp.dir}"/>
         <jvmarg value="-Dcassandra.debugrefcount=true"/>
