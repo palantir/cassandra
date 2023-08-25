@@ -25,6 +25,7 @@ import org.apache.cassandra.locator.AbstractReplicationStrategy;
 import org.apache.cassandra.service.*;
 import org.apache.cassandra.thrift.ThriftValidation;
 import org.apache.cassandra.transport.Event;
+import com.palantir.tracing.CloseableTracer;
 
 /** A <code>CREATE KEYSPACE</code> statement parsed from a CQL query. */
 public class CreateKeyspaceStatement extends SchemaAlteringStatement
@@ -93,8 +94,7 @@ public class CreateKeyspaceStatement extends SchemaAlteringStatement
 
     public boolean announceMigration(boolean isLocalOnly) throws RequestValidationException
     {
-        try
-        {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CreateKeyspaceStatement#announceMigration")) {
             MigrationManager.announceNewKeyspace(attrs.asKSMetadata(name), isLocalOnly);
             return true;
         }

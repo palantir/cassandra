@@ -39,6 +39,7 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+import com.palantir.tracing.CloseableTracer;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
@@ -1445,26 +1446,30 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public void apply(DecoratedKey key, ColumnFamily columnFamily, SecondaryIndexManager.Updater indexer, OpOrder.Group opGroup, ReplayPosition replayPosition)
     {
-        long start = System.nanoTime();
+        try (CloseableTracer ignored = CloseableTracer.startSpan("ColumnFamilyStore#apply"))
+        {
+            long start = System.nanoTime();
 
-        int writeDelay = DatabaseDescriptor.getWriteDelay();
-        if (writeDelay > 0) {
-            Tracing.trace("Sleeping for delay of {} seconds before performing write", writeDelay);
-            Uninterruptibles.sleepUninterruptibly(writeDelay, TimeUnit.SECONDS);
+            int writeDelay = DatabaseDescriptor.getWriteDelay();
+            if (writeDelay > 0)
+            {
+                Tracing.trace("Sleeping for delay of {} seconds before performing write", writeDelay);
+                Uninterruptibles.sleepUninterruptibly(writeDelay, TimeUnit.SECONDS);
+            }
+
+            Memtable mt = data.getMemtableFor(opGroup, replayPosition);
+            final long timeDelta = mt.put(key, columnFamily, indexer, opGroup);
+            maybeUpdateRowCache(key);
+            metric.samplers.get(Sampler.WRITES).addSample(key.getKey(), key.hashCode(), 1);
+            metric.writeLatency.addNano(System.nanoTime() - start);
+            // CASSANDRA-11117 - certain resolution paths on memtable put can result in very
+            // large time deltas, either through a variety of sentinel timestamps (used for empty values, ensuring
+            // a minimal write, etc). This limits the time delta to the max value the histogram
+            // can bucket correctly. This also filters the Long.MAX_VALUE case where there was no previous value
+            // to update.
+            if (timeDelta < Long.MAX_VALUE)
+                metric.colUpdateTimeDeltaHistogram.update(Math.min(18165375903306L, timeDelta));
         }
-
-        Memtable mt = data.getMemtableFor(opGroup, replayPosition);
-        final long timeDelta = mt.put(key, columnFamily, indexer, opGroup);
-        maybeUpdateRowCache(key);
-        metric.samplers.get(Sampler.WRITES).addSample(key.getKey(), key.hashCode(), 1);
-        metric.writeLatency.addNano(System.nanoTime() - start);
-        // CASSANDRA-11117 - certain resolution paths on memtable put can result in very
-        // large time deltas, either through a variety of sentinel timestamps (used for empty values, ensuring
-        // a minimal write, etc). This limits the time delta to the max value the histogram
-        // can bucket correctly. This also filters the Long.MAX_VALUE case where there was no previous value
-        // to update.
-        if(timeDelta < Long.MAX_VALUE)
-            metric.colUpdateTimeDeltaHistogram.update(Math.min(18165375903306L, timeDelta));
     }
 
     /**

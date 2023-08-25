@@ -30,6 +30,7 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.palantir.tracing.CloseableTracer;
 
 import org.apache.cassandra.cache.CachingOptions;
 import org.apache.cassandra.config.*;
@@ -240,8 +241,11 @@ public class LegacySchemaTables
 
     private static void flushSchemaTables()
     {
-        for (String table : ALL)
-            SystemKeyspace.forceBlockingFlush(table, "Flushing all schema tables for merging schemas");
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#flushSchemaTables"))
+        {
+            for (String table : ALL)
+                SystemKeyspace.forceBlockingFlush(table, "Flushing all schema tables for merging schemas");
+        }
     }
 
     /**
@@ -395,40 +399,44 @@ public class LegacySchemaTables
 
     public static synchronized void mergeSchema(Collection<Mutation> mutations, boolean doFlush) throws IOException
     {
-        // compare before/after schemas of the affected keyspaces only
-        Set<String> keyspaces = new HashSet<>(mutations.size());
-        for (Mutation mutation : mutations)
-            keyspaces.add(ByteBufferUtil.string(mutation.key()));
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeSchema"))
+        {
 
-        // current state of the schema
-        Map<DecoratedKey, ColumnFamily> oldKeyspaces = readSchemaForKeyspaces(KEYSPACES, keyspaces);
-        Map<DecoratedKey, ColumnFamily> oldColumnFamilies = readSchemaForKeyspaces(COLUMNFAMILIES, keyspaces);
-        Map<DecoratedKey, ColumnFamily> oldTypes = readSchemaForKeyspaces(USERTYPES, keyspaces);
-        Map<DecoratedKey, ColumnFamily> oldFunctions = readSchemaForKeyspaces(FUNCTIONS, keyspaces);
-        Map<DecoratedKey, ColumnFamily> oldAggregates = readSchemaForKeyspaces(AGGREGATES, keyspaces);
+            // compare before/after schemas of the affected keyspaces only
+            Set<String> keyspaces = new HashSet<>(mutations.size());
+            for (Mutation mutation : mutations)
+                keyspaces.add(ByteBufferUtil.string(mutation.key()));
 
-        for (Mutation mutation : mutations)
-            mutation.apply();
+            // current state of the schema
+            Map<DecoratedKey, ColumnFamily> oldKeyspaces = readSchemaForKeyspaces(KEYSPACES, keyspaces);
+            Map<DecoratedKey, ColumnFamily> oldColumnFamilies = readSchemaForKeyspaces(COLUMNFAMILIES, keyspaces);
+            Map<DecoratedKey, ColumnFamily> oldTypes = readSchemaForKeyspaces(USERTYPES, keyspaces);
+            Map<DecoratedKey, ColumnFamily> oldFunctions = readSchemaForKeyspaces(FUNCTIONS, keyspaces);
+            Map<DecoratedKey, ColumnFamily> oldAggregates = readSchemaForKeyspaces(AGGREGATES, keyspaces);
 
-        if (doFlush)
-            flushSchemaTables();
+            for (Mutation mutation : mutations)
+                mutation.apply();
 
-        // with new data applied
-        Map<DecoratedKey, ColumnFamily> newKeyspaces = readSchemaForKeyspaces(KEYSPACES, keyspaces);
-        Map<DecoratedKey, ColumnFamily> newColumnFamilies = readSchemaForKeyspaces(COLUMNFAMILIES, keyspaces);
-        Map<DecoratedKey, ColumnFamily> newTypes = readSchemaForKeyspaces(USERTYPES, keyspaces);
-        Map<DecoratedKey, ColumnFamily> newFunctions = readSchemaForKeyspaces(FUNCTIONS, keyspaces);
-        Map<DecoratedKey, ColumnFamily> newAggregates = readSchemaForKeyspaces(AGGREGATES, keyspaces);
+            if (doFlush)
+                flushSchemaTables();
 
-        Set<String> keyspacesToDrop = mergeKeyspaces(oldKeyspaces, newKeyspaces);
-        mergeTables(oldColumnFamilies, newColumnFamilies);
-        mergeTypes(oldTypes, newTypes);
-        mergeFunctions(oldFunctions, newFunctions);
-        mergeAggregates(oldAggregates, newAggregates);
+            // with new data applied
+            Map<DecoratedKey, ColumnFamily> newKeyspaces = readSchemaForKeyspaces(KEYSPACES, keyspaces);
+            Map<DecoratedKey, ColumnFamily> newColumnFamilies = readSchemaForKeyspaces(COLUMNFAMILIES, keyspaces);
+            Map<DecoratedKey, ColumnFamily> newTypes = readSchemaForKeyspaces(USERTYPES, keyspaces);
+            Map<DecoratedKey, ColumnFamily> newFunctions = readSchemaForKeyspaces(FUNCTIONS, keyspaces);
+            Map<DecoratedKey, ColumnFamily> newAggregates = readSchemaForKeyspaces(AGGREGATES, keyspaces);
 
-        // it is safe to drop a keyspace only when all nested ColumnFamilies where deleted
-        for (String keyspaceToDrop : keyspacesToDrop)
-            Schema.instance.dropKeyspace(keyspaceToDrop);
+            Set<String> keyspacesToDrop = mergeKeyspaces(oldKeyspaces, newKeyspaces);
+            mergeTables(oldColumnFamilies, newColumnFamilies);
+            mergeTypes(oldTypes, newTypes);
+            mergeFunctions(oldFunctions, newFunctions);
+            mergeAggregates(oldAggregates, newAggregates);
+
+            // it is safe to drop a keyspace only when all nested ColumnFamilies where deleted
+            for (String keyspaceToDrop : keyspacesToDrop)
+                Schema.instance.dropKeyspace(keyspaceToDrop);
+        }
     }
 
     private static Set<String> mergeKeyspaces(Map<DecoratedKey, ColumnFamily> before, Map<DecoratedKey, ColumnFamily> after)
@@ -701,24 +709,27 @@ public class LegacySchemaTables
 
     private static Mutation makeCreateKeyspaceMutation(KSMetaData keyspace, long timestamp, boolean withTablesAndTypesAndFunctions)
     {
-        Mutation mutation = new Mutation(SystemKeyspace.NAME, getSchemaKSKey(keyspace.name));
-        ColumnFamily cells = mutation.addOrGet(Keyspaces);
-        CFRowAdder adder = new CFRowAdder(cells, Keyspaces.comparator.builder().build(), timestamp);
-
-        adder.add("durable_writes", keyspace.durableWrites);
-        adder.add("strategy_class", keyspace.strategyClass.getName());
-        adder.add("strategy_options", json(keyspace.strategyOptions));
-
-        if (withTablesAndTypesAndFunctions)
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#makeCreateKeyspaceMutation"))
         {
-            for (UserType type : keyspace.userTypes.getAllTypes().values())
-                addTypeToSchemaMutation(type, timestamp, mutation);
+            Mutation mutation = new Mutation(SystemKeyspace.NAME, getSchemaKSKey(keyspace.name));
+            ColumnFamily cells = mutation.addOrGet(Keyspaces);
+            CFRowAdder adder = new CFRowAdder(cells, Keyspaces.comparator.builder().build(), timestamp);
 
-            for (CFMetaData table : keyspace.cfMetaData().values())
-                addTableToSchemaMutation(table, timestamp, true, mutation);
+            adder.add("durable_writes", keyspace.durableWrites);
+            adder.add("strategy_class", keyspace.strategyClass.getName());
+            adder.add("strategy_options", json(keyspace.strategyOptions));
+
+            if (withTablesAndTypesAndFunctions)
+            {
+                for (UserType type : keyspace.userTypes.getAllTypes().values())
+                    addTypeToSchemaMutation(type, timestamp, mutation);
+
+                for (CFMetaData table : keyspace.cfMetaData().values())
+                    addTableToSchemaMutation(table, timestamp, true, mutation);
+            }
+
+            return mutation;
         }
-
-        return mutation;
     }
 
     public static Mutation makeDropKeyspaceMutation(KSMetaData keyspace, long timestamp)
@@ -776,18 +787,21 @@ public class LegacySchemaTables
 
     private static void addTypeToSchemaMutation(UserType type, long timestamp, Mutation mutation)
     {
-        ColumnFamily cells = mutation.addOrGet(Usertypes);
-
-        Composite prefix = Usertypes.comparator.make(type.name);
-        CFRowAdder adder = new CFRowAdder(cells, prefix, timestamp);
-
-        adder.resetCollection("field_names");
-        adder.resetCollection("field_types");
-
-        for (int i = 0; i < type.size(); i++)
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#addTypeToSchemaMutation"))
         {
-            adder.addListEntry("field_names", type.fieldName(i));
-            adder.addListEntry("field_types", type.fieldType(i).toString());
+            ColumnFamily cells = mutation.addOrGet(Usertypes);
+
+            Composite prefix = Usertypes.comparator.make(type.name);
+            CFRowAdder adder = new CFRowAdder(cells, prefix, timestamp);
+
+            adder.resetCollection("field_names");
+            adder.resetCollection("field_types");
+
+            for (int i = 0; i < type.size(); i++)
+            {
+                adder.addListEntry("field_names", type.fieldName(i));
+                adder.addListEntry("field_types", type.fieldType(i).toString());
+            }
         }
     }
 
@@ -849,59 +863,62 @@ public class LegacySchemaTables
 
     private static void addTableToSchemaMutation(CFMetaData table, long timestamp, boolean withColumnsAndTriggers, Mutation mutation)
     {
-        // For property that can be null (and can be changed), we insert tombstones, to make sure
-        // we don't keep a property the user has removed
-        ColumnFamily cells = mutation.addOrGet(Columnfamilies);
-        Composite prefix = Columnfamilies.comparator.make(table.cfName);
-        CFRowAdder adder = new CFRowAdder(cells, prefix, timestamp);
-
-        adder.add("cf_id", table.cfId);
-        adder.add("type", table.cfType.toString());
-
-        if (table.isSuper())
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#addTableToSchemaMutation"))
         {
-            // We need to continue saving the comparator and subcomparator separatly, otherwise
-            // we won't know at deserialization if the subcomparator should be taken into account
-            // TODO: we should implement an on-start migration if we want to get rid of that.
-            adder.add("comparator", table.comparator.subtype(0).toString());
-            adder.add("subcomparator", table.comparator.subtype(1).toString());
-        }
-        else
-        {
-            adder.add("comparator", table.comparator.toString());
-        }
+            // For property that can be null (and can be changed), we insert tombstones, to make sure
+            // we don't keep a property the user has removed
+            ColumnFamily cells = mutation.addOrGet(Columnfamilies);
+            Composite prefix = Columnfamilies.comparator.make(table.cfName);
+            CFRowAdder adder = new CFRowAdder(cells, prefix, timestamp);
 
-        adder.add("bloom_filter_fp_chance", table.getBloomFilterFpChance());
-        adder.add("caching", table.getCaching().toString());
-        adder.add("comment", table.getComment());
-        adder.add("compaction_strategy_class", table.compactionStrategyClass.getName());
-        adder.add("compaction_strategy_options", json(table.compactionStrategyOptions));
-        adder.add("compression_parameters", json(table.compressionParameters.asThriftOptions()));
-        adder.add("default_time_to_live", table.getDefaultTimeToLive());
-        adder.add("default_validator", table.getDefaultValidator().toString());
-        adder.add("gc_grace_seconds", table.getGcGraceSeconds());
-        adder.add("key_validator", table.getKeyValidator().toString());
-        adder.add("local_read_repair_chance", table.getDcLocalReadRepairChance());
-        adder.add("max_compaction_threshold", table.getMaxCompactionThreshold());
-        adder.add("max_index_interval", table.getMaxIndexInterval());
-        adder.add("memtable_flush_period_in_ms", table.getMemtableFlushPeriod());
-        adder.add("min_compaction_threshold", table.getMinCompactionThreshold());
-        adder.add("min_index_interval", table.getMinIndexInterval());
-        adder.add("read_repair_chance", table.getReadRepairChance());
-        adder.add("speculative_retry", table.getSpeculativeRetry().toString());
+            adder.add("cf_id", table.cfId);
+            adder.add("type", table.cfType.toString());
 
-        for (Map.Entry<ColumnIdentifier, Long> entry : table.getDroppedColumns().entrySet())
-            adder.addMapEntry("dropped_columns", entry.getKey().toString(), entry.getValue());
+            if (table.isSuper())
+            {
+                // We need to continue saving the comparator and subcomparator separatly, otherwise
+                // we won't know at deserialization if the subcomparator should be taken into account
+                // TODO: we should implement an on-start migration if we want to get rid of that.
+                adder.add("comparator", table.comparator.subtype(0).toString());
+                adder.add("subcomparator", table.comparator.subtype(1).toString());
+            }
+            else
+            {
+                adder.add("comparator", table.comparator.toString());
+            }
 
-        adder.add("is_dense", table.getIsDense());
+            adder.add("bloom_filter_fp_chance", table.getBloomFilterFpChance());
+            adder.add("caching", table.getCaching().toString());
+            adder.add("comment", table.getComment());
+            adder.add("compaction_strategy_class", table.compactionStrategyClass.getName());
+            adder.add("compaction_strategy_options", json(table.compactionStrategyOptions));
+            adder.add("compression_parameters", json(table.compressionParameters.asThriftOptions()));
+            adder.add("default_time_to_live", table.getDefaultTimeToLive());
+            adder.add("default_validator", table.getDefaultValidator().toString());
+            adder.add("gc_grace_seconds", table.getGcGraceSeconds());
+            adder.add("key_validator", table.getKeyValidator().toString());
+            adder.add("local_read_repair_chance", table.getDcLocalReadRepairChance());
+            adder.add("max_compaction_threshold", table.getMaxCompactionThreshold());
+            adder.add("max_index_interval", table.getMaxIndexInterval());
+            adder.add("memtable_flush_period_in_ms", table.getMemtableFlushPeriod());
+            adder.add("min_compaction_threshold", table.getMinCompactionThreshold());
+            adder.add("min_index_interval", table.getMinIndexInterval());
+            adder.add("read_repair_chance", table.getReadRepairChance());
+            adder.add("speculative_retry", table.getSpeculativeRetry().toString());
 
-        if (withColumnsAndTriggers)
-        {
-            for (ColumnDefinition column : table.allColumns())
-                addColumnToSchemaMutation(table, column, timestamp, mutation);
+            for (Map.Entry<ColumnIdentifier, Long> entry : table.getDroppedColumns().entrySet())
+                adder.addMapEntry("dropped_columns", entry.getKey().toString(), entry.getValue());
 
-            for (TriggerDefinition trigger : table.getTriggers().values())
-                addTriggerToSchemaMutation(table, trigger, timestamp, mutation);
+            adder.add("is_dense", table.getIsDense());
+
+            if (withColumnsAndTriggers)
+            {
+                for (ColumnDefinition column : table.allColumns())
+                    addColumnToSchemaMutation(table, column, timestamp, mutation);
+
+                for (TriggerDefinition trigger : table.getTriggers().values())
+                    addTriggerToSchemaMutation(table, trigger, timestamp, mutation);
+            }
         }
     }
 
