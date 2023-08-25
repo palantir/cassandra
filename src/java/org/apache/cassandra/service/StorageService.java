@@ -2778,7 +2778,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 // We still want to send the notification
                 sendReplicationNotification(notifyEndpoint);
             }
-        });
+        }, MoreExecutors.directExecutor());
     }
 
     // needs to be modified to accept either a keyspace or ARS.

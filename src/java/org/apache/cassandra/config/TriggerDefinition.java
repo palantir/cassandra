@@ -18,6 +18,7 @@
  */
 package org.apache.cassandra.config;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 public class TriggerDefinition
@@ -64,6 +65,6 @@ public class TriggerDefinition
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this).add("name", name).add("classOption", classOption).toString();
+        return MoreObjects.toStringHelper(this).add("name", name).add("classOption", classOption).toString();
     }
 }

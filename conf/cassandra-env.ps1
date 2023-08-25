@@ -361,6 +361,8 @@ Function SetCassandraEnvironment
         $env:JVM_OPTS = "$env:JVM_OPTS -javaagent:""$env:CASSANDRA_HOME\lib\jamm-0.3.0.jar"""
     }
 
+    $env:JVM_OPTS = "$env:JVM_OPTS -javaagent:""$env:CASSANDRA_HOME\lib\guava-compatibility-agent-0.2.0.jar"""
+
     # enable assertions.  disabling this in production will give a modest
     # performance benefit (around 5%).
     $env:JVM_OPTS = "$env:JVM_OPTS -ea"

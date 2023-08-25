@@ -174,8 +174,9 @@ JMX_PORT="7199"
 # performance benefit (around 5%).
 JVM_OPTS="$JVM_OPTS -ea"
 
-# add the jamm javaagent
+# add the javaagents
 JVM_OPTS="$JVM_OPTS -javaagent:$CASSANDRA_HOME/lib/jamm-0.3.0.jar"
+JVM_OPTS="$JVM_OPTS -javaagent:$CASSANDRA_HOME/lib/guava-compatibility-agent-0.2.0.jar"
 
 # some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541
 if [ "$JVM_VERSION" \< "14.0" ] ; then

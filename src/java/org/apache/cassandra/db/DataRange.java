@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.composites.Composite;
@@ -152,7 +152,7 @@ public class DataRange
     @Override
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                       .add("keyRange", keyRange)
                       .add("columnFilter", columnFilter)
                       .add("selectFullRow", selectFullRow)
@@ -316,7 +316,7 @@ public class DataRange
         @Override
         public String toString()
         {
-            return Objects.toStringHelper(this)
+            return MoreObjects.toStringHelper(this)
                           .add("keyRange", keyRange)
                           .add("sliceFilter", sliceFilter)
                           .add("columnFilter", columnFilter)
