@@ -185,8 +185,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* true if node is rebuilding and receiving data */
     private final AtomicBoolean isRebuilding = new AtomicBoolean();
 
-    private boolean initialized;
+    private volatile boolean initialized;
     private volatile boolean joined = false;
+    private volatile boolean gossipActive = false;
 
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
@@ -316,18 +317,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // should only be called via JMX
     public void stopGossiping()
     {
-        if (initialized)
+        if (gossipActive)
         {
             logger.warn("Stopping gossip by operator request");
             Gossiper.instance.stop();
-            initialized = false;
+            gossipActive = false;
         }
     }
 
     // should only be called via JMX
     public void startGossiping()
     {
-        if (!initialized)
+        if (!gossipActive)
         {
             logger.warn("Starting gossip by operator request");
             Collection<Token> tokens = SystemKeyspace.getSavedTokens();
@@ -343,7 +344,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
             Gossiper.instance.forceNewerGeneration();
             Gossiper.instance.start((int) (System.currentTimeMillis() / 1000));
-            initialized = true;
+            gossipActive = true;
         }
     }
 
@@ -470,7 +471,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.error("Stopping RPC server");
             stopRPCServer();
         }
-        if (isInitialized())
+        if (isGossipActive())
         {
             logger.error("Stopping gossiper");
             stopGossiping();
@@ -478,7 +479,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     private void startTransports() {
-        if (!isInitialized() && !Gossiper.instance.isEnabled())
+        if (!isGossipActive() && !Gossiper.instance.isEnabled())
         {
             logger.info("Starting gossiper");
             startGossiping();
@@ -540,7 +541,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return initialized;
     }
 
-    public boolean isSetupCompleted()
+    public boolean isGossipActive()
+    {
+        return gossipActive;
+    }
+
+    public boolean isDaemonSetupCompleted()
     {
         return daemon == null
                ? false
@@ -554,51 +560,58 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         daemon.deactivate();
     }
 
-    public synchronized Collection<Token> prepareReplacementInfo() throws ConfigurationException
+    private synchronized UUID prepareReplacementInfo(InetAddress replaceAddress) throws ConfigurationException
     {
-        logger.info("Gathering node replacement information for {}", DatabaseDescriptor.getReplaceAddress());
-        if (!MessagingService.instance().isListening())
-            MessagingService.instance().listen();
-
-        // make magic happen
+        logger.info("Gathering node replacement information for {}", replaceAddress);
         Map<InetAddress, EndpointState> epStates = Gossiper.instance.doShadowRound();
+        // as we've completed the shadow round of gossip, we should be able to find the node we're replacing
+        if (Gossiper.instance.getEndpointStateForEndpoint(replaceAddress) == null)
+            throw new RuntimeException(String.format("Cannot replace_address %s because it doesn't exist in gossip", replaceAddress));
 
-        // now that we've gossiped at least once, we should be able to find the node we're replacing
-        if (epStates.get(DatabaseDescriptor.getReplaceAddress())== null)
-            throw new RuntimeException("Cannot replace_address " + DatabaseDescriptor.getReplaceAddress() + " because it doesn't exist in gossip");
-        replacingId = Gossiper.instance.getHostId(DatabaseDescriptor.getReplaceAddress(), epStates);
         try
         {
-            VersionedValue tokensVersionedValue = epStates.get(DatabaseDescriptor.getReplaceAddress()).getApplicationState(ApplicationState.TOKENS);
+            VersionedValue tokensVersionedValue = epStates.get(replaceAddress).getApplicationState(ApplicationState.TOKENS);
             if (tokensVersionedValue == null)
-                throw new RuntimeException("Could not find tokens for " + DatabaseDescriptor.getReplaceAddress() + " to replace");
-            Collection<Token> tokens = TokenSerializer.deserialize(getPartitioner(), new DataInputStream(new ByteArrayInputStream(tokensVersionedValue.toBytes())));
+                throw new RuntimeException(String.format("Could not find tokens for %s to replace", replaceAddress));            Collection<Token> tokens = TokenSerializer.deserialize(getPartitioner(), new DataInputStream(new ByteArrayInputStream(tokensVersionedValue.toBytes())));
 
             if (isReplacingSameAddress())
             {
                 SystemKeyspace.setLocalHostId(replacingId); // use the replacee's host Id as our own so we receive hints, etc
             }
-            return tokens;
+            bootstrapTokens = TokenSerializer.deserialize(getPartitioner(), new DataInputStream(new ByteArrayInputStream(tokensVersionedValue.toBytes())));
         }
         catch (IOException e)
         {
             throw new RuntimeException(e);
         }
+
+        // we'll use the replacee's host Id as our own so we receive hints, etc
+        UUID localHostId = Gossiper.instance.getHostId(replaceAddress);
+        SystemKeyspace.setLocalHostId(localHostId);
+        return localHostId;
     }
 
-    public synchronized void checkForEndpointCollision() throws ConfigurationException
+    private synchronized void checkForEndpointCollision(UUID localHostId) throws ConfigurationException
     {
+        if (Boolean.getBoolean("cassandra.allow_unsafe_join"))
+        {
+            logger.warn("Skipping endpoint collision check as cassandra.allow_unsafe_join=true");
+            return;
+        }
+
         logger.debug("Starting shadow gossip round to check for endpoint collision");
-        if (!MessagingService.instance().isListening())
-            MessagingService.instance().listen();
         Map<InetAddress, EndpointState> epStates = Gossiper.instance.doShadowRound();
-        if (!Gossiper.instance.isSafeForBootstrap(FBUtilities.getBroadcastAddress(), epStates))
+        // If bootstrapping, check whether any previously known status for the endpoint makes it unsafe to do so.
+        // If not bootstrapping, compare the host id for this endpoint learned from gossip (if any) with the local
+        // one, which was either read from system.local or generated at startup. If a learned id is present &
+        // doesn't match the local, then the node needs replacing
+        if (!Gossiper.instance.isSafeForStartup(FBUtilities.getBroadcastAddress(), epStates, localHostId, shouldBootstrap()))
         {
             throw new RuntimeException(String.format("A node with address %s already exists, cancelling join. " +
                                                      "Use cassandra.replace_address if you want to replace this node.",
                                                      FBUtilities.getBroadcastAddress()));
         }
-        if (useStrictConsistency && !allowSimultaneousMoves())
+        if (shouldBootstrap() && useStrictConsistency && !allowSimultaneousMoves())
         {
             for (Map.Entry<InetAddress, EndpointState> entry : epStates.entrySet())
             {
@@ -623,6 +636,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void unsafeInitialize() throws ConfigurationException
     {
         initialized = true;
+        gossipActive = true;
         Gossiper.instance.register(this);
         Gossiper.instance.start((int) (System.currentTimeMillis() / 1000)); // needed for node-ring gathering.
         Gossiper.instance.addLocalApplicationState(ApplicationState.NET_VERSION, valueFactory.networkVersion());
@@ -642,8 +656,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("CQL supported versions: {} (default: {})",
                     StringUtils.join(ClientState.getCQLSupportedVersion(), ","), ClientState.DEFAULT_CQL_VERSION);
 
-        initialized = true;
-
         try
         {
             // Ensure StorageProxy is initialized on start-up; see CASSANDRA-3797.
@@ -654,28 +666,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         catch (ClassNotFoundException e)
         {
             throw new AssertionError(e);
-        }
-
-        if (Boolean.parseBoolean(System.getProperty("cassandra.load_ring_state", "true")))
-        {
-            logger.info("Loading persisted ring state");
-            Multimap<InetAddress, Token> loadedTokens = SystemKeyspace.loadTokens();
-            Map<InetAddress, UUID> loadedHostIds = SystemKeyspace.loadHostIds();
-            for (InetAddress ep : loadedTokens.keySet())
-            {
-                if (ep.equals(FBUtilities.getBroadcastAddress()))
-                {
-                    // entry has been mistakenly added, delete it
-                    SystemKeyspace.removeEndpoint(ep);
-                }
-                else
-                {
-                    tokenMetadata.updateNormalTokens(loadedTokens.get(ep), ep);
-                    if (loadedHostIds.containsKey(ep))
-                        tokenMetadata.updateHostId(loadedHostIds.get(ep), ep);
-                    Gossiper.instance.addSavedEndpoint(ep);
-                }
-            }
         }
 
         // daemon threads, like our executors', continue to run while shutdown hooks are invoked
@@ -743,6 +733,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!Boolean.parseBoolean(System.getProperty("cassandra.start_gossip", "true")))
         {
             logger.info("Not starting gossip as requested.");
+            // load ring state in preparation for starting gossip later
+            loadRingState();
+            initialized = true;
             return;
         }
 
@@ -781,6 +774,30 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    private void loadRingState()
+    {
+        if (Boolean.parseBoolean(System.getProperty("cassandra.load_ring_state", "true")))
+        {
+            logger.info("Loading persisted ring state");
+            Multimap<InetAddress, Token> loadedTokens = SystemKeyspace.loadTokens();
+            Map<InetAddress, UUID> loadedHostIds = SystemKeyspace.loadHostIds();
+            for (InetAddress ep : loadedTokens.keySet())
+            {
+                if (ep.equals(FBUtilities.getBroadcastAddress()))
+                {
+                    // entry has been mistakenly added, delete it
+                    SystemKeyspace.removeEndpoint(ep);
+                }
+                else
+                {
+                    if (loadedHostIds.containsKey(ep))
+                        tokenMetadata.updateHostId(loadedHostIds.get(ep), ep);
+                    Gossiper.instance.addSavedEndpoint(ep);
+                }
+            }
+        }
+    }
+
     /**
      * In the event of forceful termination we need to remove the shutdown hook to prevent hanging (OOM for instance)
      */
@@ -809,17 +826,29 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             Map<ApplicationState, VersionedValue> appStates = new EnumMap<>(ApplicationState.class);
 
-            if (replacing && !joinRing)
-                throw new ConfigurationException("Cannot set both join_ring=false and attempt to replace a node");
             if (DatabaseDescriptor.getReplaceTokens().size() > 0 || DatabaseDescriptor.getReplaceNode() != null)
                 throw new RuntimeException("Replace method removed; use cassandra.replace_address instead");
+
+            if (!MessagingService.instance().isListening())
+                MessagingService.instance().listen();
+
+            UUID localHostId = SystemKeyspace.getLocalHostId();
+
             if (replacing)
             {
                 if (SystemKeyspace.bootstrapComplete())
                     throw new RuntimeException("Cannot replace address with a node that is already bootstrapped");
-                if (!DatabaseDescriptor.isAutoBootstrap())
-                    throw new RuntimeException("Trying to replace_address with auto_bootstrap disabled will not work, check your configuration");
-                bootstrapTokens = prepareReplacementInfo();
+                if (!(Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true"))))
+                    throw new ConfigurationException("Cannot set both join_ring=false and attempt to replace a node");
+
+                if (!DatabaseDescriptor.isAutoBootstrap() && !Boolean.getBoolean("cassandra.allow_unsafe_replace"))
+                    throw new RuntimeException("Replacing a node without bootstrapping risks invalidating consistency " +
+                                               "guarantees as the expected data may not be present until repair is run. " +
+                                               "To perform this operation, please restart with " +
+                                               "-Dcassandra.allow_unsafe_replace=true");
+
+                InetAddress replaceAddress = DatabaseDescriptor.getReplaceAddress();
+                localHostId = prepareReplacementInfo(replaceAddress);
                 if (isReplacingSameAddress())
                 {
                     logger.warn("Writes will not be forwarded to this node during replacement because it has the same address as " +
@@ -827,36 +856,46 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                 "repair must be run after the replacement process in order to make this node consistent.",
                                 DatabaseDescriptor.getReplaceAddress());
                     appStates.put(ApplicationState.TOKENS, valueFactory.tokens(bootstrapTokens));
-                    appStates.put(ApplicationState.STATUS, valueFactory.hibernate(true));
-                }
+                    // if want to bootstrap the ranges of the node we're replacing,
+                    // go into hibernate mode while that happens. Otherwise, persist
+                    // the tokens we're taking over locally so that they don't get
+                    // clobbered with auto generated ones in joinTokenRing
+                    if (DatabaseDescriptor.isAutoBootstrap())
+                        appStates.put(ApplicationState.STATUS, valueFactory.hibernate(true));
+                    else
+                        SystemKeyspace.updateTokens(bootstrapTokens);
+                    }
             }
-            else if (shouldBootstrap())
+            else
             {
-                checkForEndpointCollision();
+                checkForEndpointCollision(localHostId);
             }
 
             // have to start the gossip service before we can see any info on other nodes.  this is necessary
             // for bootstrap to get the load info it needs.
             // (we won't be part of the storage ring though until we add a counterId to our state, below.)
             // Seed the host ID-to-endpoint map with our own ID.
-            UUID localHostId = SystemKeyspace.getLocalHostId();
             getTokenMetadata().updateHostId(localHostId, FBUtilities.getBroadcastAddress());
             appStates.put(ApplicationState.NET_VERSION, valueFactory.networkVersion());
             appStates.put(ApplicationState.HOST_ID, valueFactory.hostId(localHostId));
             appStates.put(ApplicationState.RPC_ADDRESS, valueFactory.rpcaddress(FBUtilities.getBroadcastRpcAddress()));
             appStates.put(ApplicationState.RELEASE_VERSION, valueFactory.releaseVersion());
+
+            // load the persisted ring state. This used to be done earlier in the init process,
+            // but now we always perform a shadow round when preparing to join and we have to
+            // clear endpoint states after doing that.
+            loadRingState();
+
             logger.info("Starting up server gossip");
             Gossiper.instance.register(this);
             Gossiper.instance.start(SystemKeyspace.incrementAndGetGeneration(), appStates); // needed for node-ring gathering.
+            gossipActive = true;
             // gossip snitch infos (local DC and rack)
             gossipSnitchInfo();
             // gossip Schema.emptyVersion forcing immediate check for schema updates (see MigrationManager#maybeScheduleSchemaPull)
             Schema.instance.updateVersionAndAnnounce(); // Ensure we know our own actual Schema UUID in preparation for updates
 
-            if (!MessagingService.instance().isListening())
-                MessagingService.instance().listen();
             LoadBroadcaster.instance.startBroadcasting();
-
             HintedHandOffManager.instance.start();
             BatchlogManager.instance.start();
         }
