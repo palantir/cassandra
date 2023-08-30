@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.thrift;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
@@ -91,7 +92,7 @@ public class CustomTThreadPoolServer extends TServer
     @SuppressWarnings("resource")
     public void serve()
     {
-        HashMap<InetSocketAddress, Integer> connections = new HashMap<>();
+        HashMap<InetAddress, Integer> connections = new HashMap<>();
         try
         {
             serverTransport_.listen();
@@ -108,9 +109,10 @@ public class CustomTThreadPoolServer extends TServer
             while (activeClients.get() >= args.maxWorkerThreads)
             {
                 try (TCustomSocket client = (TCustomSocket) serverTransport_.accept()) {
-                    InetSocketAddress clientAddress = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                    InetSocketAddress clientAddressAndIp = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                    InetAddress clientAddress = clientAddressAndIp.getAddress();
                     int clientConnections = connections.getOrDefault(clientAddress, 0);
-                    logger.info("Client {} tried to connect after limit reached and was denied, already has {} connections. There are {} total connections", clientAddress, clientConnections, activeClients.get());
+                    logger.info("Client {} tried to connect after limit reached and was denied, its host already has {} connections. All connections: {}", clientAddressAndIp, clientConnections, connections);
                 } catch (Exception e) {
                     logger.warn("Exception occurred during denying of client due to maximum being reached", e);
                 }
@@ -122,9 +124,10 @@ public class CustomTThreadPoolServer extends TServer
                 TCustomSocket client = (TCustomSocket) serverTransport_.accept();
                 activeClients.incrementAndGet();
 
-                InetSocketAddress clientAddress = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                InetSocketAddress clientAddressAndIp = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                InetAddress clientAddress = clientAddressAndIp.getAddress();
                 int clientConnections = connections.merge(clientAddress, 1, Integer::sum);
-                logger.info("Client {} connected, now has {} connections. There are {} total connections", clientAddress, clientConnections, activeClients.get());
+                logger.info("Client {} connected, its host now has {} connections. There are {} total connections", clientAddressAndIp, clientConnections, activeClients.get());
 
                 WorkerProcess wp = new WorkerProcess(client);
                 executorService.execute(wp);
