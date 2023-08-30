@@ -115,6 +115,8 @@ public class CustomTThreadPoolServer extends TServer
                     InetSocketAddress clientAddress = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
                     int clientConnections = connections.getOrDefault(clientAddress, 0);
                     logger.info("Client {} tried to connect after limit reached and was denied, already has {} connections. There are {} total connections", clientAddress, clientConnections, activeClients.get());
+                } catch (Exception e) {
+                    logger.warn("Exception occurred during denying of client due to maximum being reached", e);
                 }
                 // Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
             }
