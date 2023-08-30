@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.Callable;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -52,7 +53,7 @@ import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.apache.thrift.transport.TSSLTransportFactory.TSSLTransportParameters;
 
-import com.google.common.util.concurrent.Uninterruptibles;
+// import com.google.common.util.concurrent.Uninterruptibles;
 
 
 /**
@@ -94,6 +95,7 @@ public class CustomTThreadPoolServer extends TServer
     @SuppressWarnings("resource")
     public void serve()
     {
+        HashMap<InetSocketAddress, Integer> connections = new HashMap<>();
         try
         {
             serverTransport_.listen();
@@ -109,13 +111,23 @@ public class CustomTThreadPoolServer extends TServer
             // block until we are under max clients
             while (activeClients.get() >= args.maxWorkerThreads)
             {
-                Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+                try (TCustomSocket client = (TCustomSocket) serverTransport_.accept()) {
+                    InetSocketAddress clientAddress = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                    int clientConnections = connections.getOrDefault(clientAddress, 0);
+                    logger.info("Client {} tried to connect after limit reached and was denied, already has {} connections. There are {} total connections", clientAddress, clientConnections, activeClients.get());
+                }
+                // Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
             }
 
             try
             {
-                TTransport client = serverTransport_.accept();
+                TCustomSocket client = (TCustomSocket) serverTransport_.accept();
                 activeClients.incrementAndGet();
+
+                InetSocketAddress clientAddress = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                int clientConnections = connections.merge(clientAddress, 1, Integer::sum);
+                logger.info("Client {} connected, now has {} connections. There are {} total connections", clientAddress, clientConnections, activeClients.get());
+
                 WorkerProcess wp = new WorkerProcess(client);
                 executorService.execute(wp);
             }
