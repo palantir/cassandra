@@ -54,7 +54,7 @@ import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.apache.thrift.transport.TSSLTransportFactory.TSSLTransportParameters;
 
-// import com.google.common.util.concurrent.Uninterruptibles;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 
 /**
@@ -112,15 +112,7 @@ public class CustomTThreadPoolServer extends TServer
             // block until we are under max clients
             while (activeClients.get() >= args.maxWorkerThreads)
             {
-                try (TCustomSocket client = (TCustomSocket) serverTransport_.accept()) {
-                    InetSocketAddress clientAddressAndIp = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
-                    InetAddress clientAddress = clientAddressAndIp.getAddress();
-                    int clientConnections = connections.getOrDefault(clientAddress, 0);
-                    logger.info("Client {} tried to connect after limit reached and was denied, its host already has {} connections. All connections: {}", clientAddressAndIp, clientConnections, connections);
-                } catch (Exception e) {
-                    logger.warn("Exception occurred during denying of client due to maximum being reached", e);
-                }
-                // Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+                Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
             }
 
             try
@@ -156,9 +148,7 @@ public class CustomTThreadPoolServer extends TServer
             }
 
             if (activeClients.get() >= args.maxWorkerThreads)
-            {
-                logger.warn("Maximum number of clients {} reached", args.maxWorkerThreads);
-            }
+                logger.warn("Maximum number of clients {} reached. All connections: {}", args.maxWorkerThreads, connections);
         }
 
         executorService.shutdown();
