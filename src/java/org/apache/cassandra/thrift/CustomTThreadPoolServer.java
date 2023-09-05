@@ -20,6 +20,7 @@ package org.apache.cassandra.thrift;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions.ClientEncryptionOptions;
+import org.apache.cassandra.metrics.ClientMetrics;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.security.SSLFactory;
 import org.apache.thrift.TException;
@@ -85,6 +87,7 @@ public class CustomTThreadPoolServer extends TServer
         this.stopped = false;
         this.args = args;
         this.activeClients = new AtomicInteger(0);
+        registerMetrics();
     }
 
     @SuppressWarnings("resource")
@@ -232,6 +235,17 @@ public class CustomTThreadPoolServer extends TServer
                 activeClients.decrementAndGet();
             }
         }
+    }
+
+    private void registerMetrics() {
+        ClientMetrics.instance.addCounter("activeThriftClientThreads", new Callable<Integer>()
+        {
+            @Override
+            public Integer call() throws Exception
+            {
+                return activeClients.get();
+            }
+        });
     }
 
     public static class Factory implements TServerFactory
