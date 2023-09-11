@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.tjake.ICRC32;
+import com.palantir.tracing.CloseableTracer;
 
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -251,46 +252,49 @@ public class CommitLog implements CommitLogMBean
      */
     public ReplayPosition add(Mutation mutation)
     {
-        assert mutation != null;
-
-        long size = Mutation.serializer.serializedSize(mutation, MessagingService.current_version);
-
-        long totalSize = size + ENTRY_OVERHEAD_SIZE;
-        if (totalSize > MAX_MUTATION_SIZE)
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLog#add"))
         {
-            String keyspaceName = mutation.getKeyspaceName();
-            String columnFamiliesToString = mutation.getColumnFamilies().toString();
-            throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
-                                                             keyspaceName, columnFamiliesToString, totalSize, MAX_MUTATION_SIZE));
-        }
+            assert mutation != null;
 
-        Allocation alloc = allocator.allocate(mutation, (int) totalSize);
-        ICRC32 checksum = CRC32Factory.instance.create();
-        final ByteBuffer buffer = alloc.getBuffer();
-        try (BufferedDataOutputStreamPlus dos = new DataOutputBufferFixed(buffer))
-        {
-            // checksummed length
-            dos.writeInt((int) size);
-            checksum.update(buffer, buffer.position() - 4, 4);
-            buffer.putInt(checksum.getCrc());
+            long size = Mutation.serializer.serializedSize(mutation, MessagingService.current_version);
 
-            int start = buffer.position();
-            // checksummed mutation
-            Mutation.serializer.serialize(mutation, dos, MessagingService.current_version);
-            checksum.update(buffer, start, (int) size);
-            buffer.putInt(checksum.getCrc());
-        }
-        catch (IOException e)
-        {
-            throw new FSWriteError(e, alloc.getSegment().getPath());
-        }
-        finally
-        {
-            alloc.markWritten();
-        }
+            long totalSize = size + ENTRY_OVERHEAD_SIZE;
+            if (totalSize > MAX_MUTATION_SIZE)
+            {
+                String keyspaceName = mutation.getKeyspaceName();
+                String columnFamiliesToString = mutation.getColumnFamilies().toString();
+                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
+                                                                 keyspaceName, columnFamiliesToString, totalSize, MAX_MUTATION_SIZE));
+            }
 
-        executor.finishWriteFor(alloc);
-        return alloc.getReplayPosition();
+            Allocation alloc = allocator.allocate(mutation, (int) totalSize);
+            ICRC32 checksum = CRC32Factory.instance.create();
+            final ByteBuffer buffer = alloc.getBuffer();
+            try (BufferedDataOutputStreamPlus dos = new DataOutputBufferFixed(buffer))
+            {
+                // checksummed length
+                dos.writeInt((int) size);
+                checksum.update(buffer, buffer.position() - 4, 4);
+                buffer.putInt(checksum.getCrc());
+
+                int start = buffer.position();
+                // checksummed mutation
+                Mutation.serializer.serialize(mutation, dos, MessagingService.current_version);
+                checksum.update(buffer, start, (int) size);
+                buffer.putInt(checksum.getCrc());
+            }
+            catch (IOException e)
+            {
+                throw new FSWriteError(e, alloc.getSegment().getPath());
+            }
+            finally
+            {
+                alloc.markWritten();
+            }
+
+            executor.finishWriteFor(alloc);
+            return alloc.getReplayPosition();
+        }
     }
 
     /**
