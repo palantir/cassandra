@@ -266,7 +266,8 @@ public class LegacySchemaTables
 
         for (String table : ALL)
         {
-            try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#calculateSchemaDigest for table")) {
+            try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#calculateSchemaDigest for table"))
+            {
                 for (Row partition : getSchemaPartitionsForTable(table)) {
                     if (isEmptySchemaPartition(partition) || isSystemKeyspaceSchemaPartition(partition))
                         continue;
@@ -442,7 +443,8 @@ public class LegacySchemaTables
 
     private static Set<String> mergeKeyspaces(Map<DecoratedKey, ColumnFamily> before, Map<DecoratedKey, ColumnFamily> after)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeKeyspaces")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeKeyspaces"))
+        {
             List<Row> created = new ArrayList<>();
             List<String> altered = new ArrayList<>();
             Set<String> dropped = new HashSet<>();
@@ -488,7 +490,8 @@ public class LegacySchemaTables
     // see the comments for mergeKeyspaces()
     private static void mergeTables(Map<DecoratedKey, ColumnFamily> before, Map<DecoratedKey, ColumnFamily> after)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeTables")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeTables"))
+        {
             List<CFMetaData> created = new ArrayList<>();
             List<CFMetaData> altered = new ArrayList<>();
             List<CFMetaData> dropped = new ArrayList<>();
@@ -536,7 +539,8 @@ public class LegacySchemaTables
     // see the comments for mergeKeyspaces()
     private static void mergeTypes(Map<DecoratedKey, ColumnFamily> before, Map<DecoratedKey, ColumnFamily> after)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeTypes")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeTypes"))
+        {
             List<UserType> created = new ArrayList<>();
             List<UserType> altered = new ArrayList<>();
             List<UserType> dropped = new ArrayList<>();
@@ -585,7 +589,8 @@ public class LegacySchemaTables
     // see the comments for mergeKeyspaces()
     private static void mergeFunctions(Map<DecoratedKey, ColumnFamily> before, Map<DecoratedKey, ColumnFamily> after)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeFunctions")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeFunctions"))
+        {
             List<UDFunction> created = new ArrayList<>();
             List<UDFunction> altered = new ArrayList<>();
             List<UDFunction> dropped = new ArrayList<>();
@@ -632,7 +637,8 @@ public class LegacySchemaTables
     // see the comments for mergeKeyspaces()
     private static void mergeAggregates(Map<DecoratedKey, ColumnFamily> before, Map<DecoratedKey, ColumnFamily> after)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeAggregates")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#mergeAggregates"))
+        {
             List<UDAggregate> created = new ArrayList<>();
             List<UDAggregate> altered = new ArrayList<>();
             List<UDAggregate> dropped = new ArrayList<>();

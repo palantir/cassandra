@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
-import com.palantir.tracing.CloseableTracer;
 
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;

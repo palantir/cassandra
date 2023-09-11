@@ -509,23 +509,27 @@ public class MigrationManager
         {
             protected void runMayThrow() throws IOException, ConfigurationException
             {
-                try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce merge schema")) {
+                try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce merge schema"))
+                {
                     LegacySchemaTables.mergeSchema(schema);
                 }
             }
         });
 
         Set<InetAddress> liveMembers;
-        try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce getLiveMembers")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce getLiveMembers"))
+        {
             liveMembers = Gossiper.instance.getLiveMembers();
         }
 
         for (InetAddress endpoint : liveMembers)
         {
-            try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce announce endpoint")) {
+            try (CloseableTracer ignored = CloseableTracer.startSpan("MigrationManager#announce announce endpoint"))
+            {
                 boolean condition;
 
-                try (CloseableTracer ignored1 = CloseableTracer.startSpan("MigrationManager#announce compute condition")) {
+                try (CloseableTracer ignored1 = CloseableTracer.startSpan("MigrationManager#announce compute condition"))
+                {
                     condition = !endpoint.equals(FBUtilities.getBroadcastAddress()) &&
                             MessagingService.instance().knowsVersion(endpoint) &&
                             MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version;

@@ -94,7 +94,8 @@ public class CreateKeyspaceStatement extends SchemaAlteringStatement
 
     public boolean announceMigration(boolean isLocalOnly) throws RequestValidationException
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("CreateKeyspaceStatement#announceMigration")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CreateKeyspaceStatement#announceMigration"))
+        {
             MigrationManager.announceNewKeyspace(attrs.asKSMetadata(name), isLocalOnly);
             return true;
         }

@@ -452,10 +452,12 @@ public class Schema
      */
     public void updateVersion()
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#updateVersion calculateSchemaDigest")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#updateVersion calculateSchemaDigest"))
+        {
             version = LegacySchemaTables.calculateSchemaDigest();
         }
-        try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#updateVersion updateSchemaVersion")) {
+        try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#updateVersion updateSchemaVersion"))
+        {
             SystemKeyspace.updateSchemaVersion(version);
         }
     }
@@ -467,10 +469,12 @@ public class Schema
     {
         try (CloseableTracer ignored = CloseableTracer.startSpan("Schema#updateVersionAndAnnounce"))
         {
-            try (CloseableTracer ignored1 = CloseableTracer.startSpan("Schema#updateVersionAndAnnounce updateVersion")) {
+            try (CloseableTracer ignored1 = CloseableTracer.startSpan("Schema#updateVersionAndAnnounce updateVersion"))
+            {
                 updateVersion();
             }
-            try (CloseableTracer ignored2 = CloseableTracer.startSpan("Schema#updateVersionAndAnnounce passiveAnnounce")) {
+            try (CloseableTracer ignored2 = CloseableTracer.startSpan("Schema#updateVersionAndAnnounce passiveAnnounce"))
+            {
                 MigrationManager.passiveAnnounce(version);
             }
         }
