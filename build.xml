@@ -416,7 +416,7 @@
             <exclusion groupId="hsqldb" artifactId="hsqldb"/> <!-- outdated version -->
             <exclusion groupId="antlr" artifactId="antlr"/> <!-- outdated version -->
           </dependency>
-          <dependency groupId="net.java.dev.jna" artifactId="jna" version="5.8.0"/>
+          <dependency groupId="net.java.dev.jna" artifactId="jna" version="5.13.0"/>
 
           <dependency groupId="net.sourceforge.cobertura" artifactId="cobertura" version="${cobertura.version}">
             <exclusion groupId="xerces" artifactId="xercesImpl"/>
