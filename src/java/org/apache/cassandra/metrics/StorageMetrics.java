@@ -30,17 +30,20 @@ public class StorageMetrics
 {
     private static final MetricNameFactory factory = new DefaultNameFactory("Storage");
 
+    /* Tracks the most filled data_file_directory */
+    static
+    {
+        Metrics.register(factory.createMetricName("DiskUsed"), new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return Directories.getMaxPathToUtilization().getValue();
+            }
+        });
+    }
+
     public static final Counter load = Metrics.counter(factory.createMetricName("Load"));
     public static final Counter exceptions = Metrics.counter(factory.createMetricName("Exceptions"));
     public static final Counter totalHintsInProgress  = Metrics.counter(factory.createMetricName("TotalHintsInProgress"));
     public static final Counter totalHints = Metrics.counter(factory.createMetricName("TotalHints"));
-
-    /* Tracks the most filled data_file_directory */
-    public static final Gauge<Double> diskUsed = Metrics.register(factory.createMetricName("DiskUsed"), new Gauge<Double>()
-    {
-        public Double getValue()
-        {
-            return Directories.getMaxPathToUtilization().getValue();
-        }
-    });
 }
