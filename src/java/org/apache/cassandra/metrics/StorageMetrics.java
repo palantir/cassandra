@@ -18,6 +18,8 @@
 package org.apache.cassandra.metrics;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import org.apache.cassandra.db.Directories;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
@@ -27,6 +29,18 @@ import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 public class StorageMetrics
 {
     private static final MetricNameFactory factory = new DefaultNameFactory("Storage");
+
+    /* Tracks the most filled data_file_directory */
+    static
+    {
+        Metrics.register(factory.createMetricName("DiskUsed"), new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return Directories.getMaxPathToUtilization().getValue();
+            }
+        });
+    }
 
     public static final Counter load = Metrics.counter(factory.createMetricName("Load"));
     public static final Counter exceptions = Metrics.counter(factory.createMetricName("Exceptions"));
