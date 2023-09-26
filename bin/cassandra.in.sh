@@ -99,6 +99,10 @@ JAVA_OPTS="$JAVA_OPTS:-Djava.library.path=$CASSANDRA_HOME/lib/sigar-bin"
 CASSANDRA_TEMP_DIR=$SERVICE_HOME/var/data/tmp
 JVM_OPTS="${JVM_OPTS} -Djava.io.tmpdir=$CASSANDRA_TEMP_DIR"
 JVM_OPTS="${JVM_OPTS} -Djna.tmpdir=$CASSANDRA_TEMP_DIR"
+# See https://access.redhat.com/solutions/6991416
+# https://davecturner.github.io/2021/08/30/seven-year-old-segfault.html
+export LIBFFI_TMPDIR="$CASSANDRA_TEMP_DIR"
+export TMPDIR="$CASSANDRA_TEMP_DIR"
 
 # parse the jvm options files and add them to JVM_OPTS
 JVM_OPTS_FILE=$CASSANDRA_CONF/jvm${jvmoptions_variant:--clients}.options
