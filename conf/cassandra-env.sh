@@ -267,6 +267,14 @@ JVM_OPTS="$JVM_OPTS -Xlog:gc=info,heap*=trace,age*=debug,safepoint=info,promotio
 # JVM_OPTS="$JVM_OPTS -XX:+UnlockDiagnosticVMOptions -XX:+LogCompilation"
 # JVM_OPTS="$JVM_OPTS -XX:+UnlockCommercialFeatures -XX:+FlightRecorder"
 
+# AVX-512 is still unreliable, so disabling it.
+# https://bugs.openjdk.org/browse/JDK-8292158
+# https://bugs.openjdk.org/browse/JDK-8317121
+# https://mail.openjdk.org/pipermail/hotspot-compiler-dev/2023-September/068447.html
+# Unfortunately, on other platforms like arm, the UseAVX flag is not recognized so we must additionally
+# use IgnoreUnrecognizedVMOptions for Cassandra to startup there.
+JVM_OPTS="$JVM_OPTS -XX:+IgnoreUnrecognizedVMOptions -XX:UseAVX=2"
+
 # Prefer binding to IPv4 network intefaces (when net.ipv6.bindv6only=1). See
 # http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6342561 (short version:
 # comment out this entry to enable IPv6 support).
