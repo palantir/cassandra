@@ -270,7 +270,7 @@ public class LegacySchemaTables
             {
                 for (Row partition : getSchemaPartitionsForTable(table)) {
                     if (isEmptySchemaPartition(partition) || isSystemKeyspaceSchemaPartition(partition)) {
-                        logger.trace("asdf skipped: "+ partition);
+                        logger.info("asdf skipped: "+ partition);
                         continue;
                     }
 
@@ -278,7 +278,7 @@ public class LegacySchemaTables
                     ColumnFamilyStore.removeDeletedColumnsOnly(partition.cf, Integer.MAX_VALUE, SecondaryIndexManager.nullUpdater);
                     partition.cf.purgeTombstones(Integer.MAX_VALUE);
                     partition.cf.updateDigest(digest);
-                    logger.trace("asdf digested: "+ partition);
+                    logger.info("asdf digested: "+ partition);
                 }
             }
         }
