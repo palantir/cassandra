@@ -269,13 +269,16 @@ public class LegacySchemaTables
             try (CloseableTracer ignored = CloseableTracer.startSpan("LegacySchemaTables#calculateSchemaDigest for table"))
             {
                 for (Row partition : getSchemaPartitionsForTable(table)) {
-                    if (isEmptySchemaPartition(partition) || isSystemKeyspaceSchemaPartition(partition))
+                    if (isEmptySchemaPartition(partition) || isSystemKeyspaceSchemaPartition(partition)) {
+                        logger.trace("asdf skipped: "+ partition);
                         continue;
+                    }
 
                     // we want to digest only live columns
                     ColumnFamilyStore.removeDeletedColumnsOnly(partition.cf, Integer.MAX_VALUE, SecondaryIndexManager.nullUpdater);
                     partition.cf.purgeTombstones(Integer.MAX_VALUE);
                     partition.cf.updateDigest(digest);
+                    logger.trace("asdf digested: "+ partition);
                 }
             }
         }
