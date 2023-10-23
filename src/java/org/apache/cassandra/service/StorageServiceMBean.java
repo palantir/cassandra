@@ -540,7 +540,14 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @param keyspace The keyspace to delete from
      * @param columnFamily The column family to delete data from.
      */
-    public void truncate(String keyspace, String columnFamily)throws TimeoutException, IOException;
+    public void truncate(String keyspace, String columnFamily) throws TimeoutException, IOException;
+
+    /**
+     * Truncates all columnFamilies in all keyspaces
+     * @throws TimeoutException
+     * @throws IOException
+     */
+    public void truncateAll() throws TimeoutException, IOException;
 
     /**
      * given a list of tokens (representing the nodes in the cluster), returns

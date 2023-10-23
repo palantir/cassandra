@@ -4659,6 +4659,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void truncateAll() throws TimeoutException, IOException
+    {
+        for (String keyspace : Schema.instance.getNonSystemKeyspaces()) {
+            for (String columnFamily : Schema.instance.getKSMetaData(keyspace).cfMetaData().keySet()) {
+                truncate(keyspace, columnFamily);
+            }
+        }
+    }
+
     public Map<InetAddress, Float> getOwnership()
     {
         List<Token> sortedTokens = tokenMetadata.sortedTokens();
