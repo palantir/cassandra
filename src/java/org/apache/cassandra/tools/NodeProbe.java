@@ -739,6 +739,18 @@ public class NodeProbe implements AutoCloseable
         }
     }
 
+    public void truncateAll()
+    {
+        try
+        {
+            ssProxy.truncateAll();
+        }
+        catch (TimeoutException | IOException e)
+        {
+            throw new RuntimeException("Error while executing truncateAll", e);
+        }
+    }
+
     public DynamicEndpointSnitchMBean getDynamicEndpointSnitchProxy()
     {
         try
