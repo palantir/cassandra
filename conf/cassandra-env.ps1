@@ -396,8 +396,8 @@ Function SetCassandraEnvironment
     # uncomment the preferred option
     # ExitOnOutOfMemoryError and CrashOnOutOfMemoryError require a JRE greater or equals to 1.7 update 101 or 1.8 update 92
     # $env:JVM_OPTS="$env:JVM_OPTS -XX:+ExitOnOutOfMemoryError"
-    # $env:JVM_OPTS="$env:JVM_OPTS -XX:+CrashOnOutOfMemoryError"
-    $env:JVM_OPTS="$env:JVM_OPTS -XX:OnOutOfMemoryError=""taskkill /F /PID %p"""
+    $env:JVM_OPTS="$env:JVM_OPTS -XX:+CrashOnOutOfMemoryError"
+    # $env:JVM_OPTS="$env:JVM_OPTS -XX:OnOutOfMemoryError=""taskkill /F /PID %p"""
 
     # print an heap histogram on OutOfMemoryError
     # $env:JVM_OPTS="$env:JVM_OPTS -Dcassandra.printHeapHistogramOnOutOfMemoryError=true"
