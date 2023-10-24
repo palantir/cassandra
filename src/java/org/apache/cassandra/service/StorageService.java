@@ -4661,7 +4661,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void truncateAll() throws TimeoutException, IOException
     {
-        for (String keyspace : Schema.instance.getNonSystemKeyspaces()) {
+        for (String keyspace : Schema.instance.getUserKeyspacesPalantir()) {
             for (String columnFamily : Schema.instance.getKSMetaData(keyspace).cfMetaData().keySet()) {
                 truncate(keyspace, columnFamily);
                 logger.info("Completed truncate on {}.{}", keyspace, columnFamily);
