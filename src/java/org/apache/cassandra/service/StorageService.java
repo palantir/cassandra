@@ -4664,6 +4664,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (String keyspace : Schema.instance.getNonSystemKeyspaces()) {
             for (String columnFamily : Schema.instance.getKSMetaData(keyspace).cfMetaData().keySet()) {
                 truncate(keyspace, columnFamily);
+                logger.info("Completed truncate on {}.{}", keyspace, columnFamily);
             }
         }
     }
