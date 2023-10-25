@@ -176,6 +176,7 @@ public class StartupChecks
                 // There is essentially no QA done on OpenJDK builds, and
                 // clusters running OpenJDK have seen many heap and load issues.
                 logger.warn("OpenJDK is not recommended. Please upgrade to the newest Oracle Java release");
+                checkOutOfMemoryHandling();
             }
             else if (!javaVmName.contains("HotSpot"))
             {
