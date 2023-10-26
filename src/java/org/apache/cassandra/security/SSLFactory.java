@@ -249,12 +249,12 @@ public final class SSLFactory
     private static void prepareSocket(SSLServerSocket serverSocket, EncryptionOptions options)
     {
         String[] suites = filterCipherSuites(serverSocket.getSupportedCipherSuites(), options.cipher_suites);
-        if(options.require_endpoint_verification)
-        {
-            SSLParameters sslParameters = serverSocket.getSSLParameters();
-            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
-            serverSocket.setSSLParameters(sslParameters);
-        }
+        //    if(options.require_endpoint_verification)
+        //    {
+        //        SSLParameters sslParameters = serverSocket.getSSLParameters();
+        //        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+        //        serverSocket.setSSLParameters(sslParameters);
+        //    }
         serverSocket.setEnabledCipherSuites(suites);
         serverSocket.setNeedClientAuth(options.require_client_auth);
         serverSocket.setEnabledProtocols(ACCEPTED_INCOMING_PROTOCOLS);
