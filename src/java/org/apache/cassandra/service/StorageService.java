@@ -1107,7 +1107,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static boolean areKeyspacesEmptyForBootstrap() {
         boolean empty = true;
 
-        Set<String> userKeyspaces = ImmutableSet.copyOf(Sets.difference(ImmutableSet.copyOf(Schema.instance.getUserKeyspaces()), ImmutableSet.of("system_palantir")));
+        Set<String> userKeyspaces = ImmutableSet.copyOf(Schema.instance.getNonAdminKeyspaces());
 
         for (String keyspaceName : userKeyspaces)
         {
@@ -4661,7 +4661,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void truncateAll() throws TimeoutException, IOException
     {
-        for (String keyspace : Schema.instance.getUserKeyspacesPalantir()) {
+        for (String keyspace : Schema.instance.getNonAdminKeyspaces()) {
             for (String columnFamily : Schema.instance.getKSMetaData(keyspace).cfMetaData().keySet()) {
                 truncate(keyspace, columnFamily);
                 logger.info("Completed truncate on {}.{}", keyspace, columnFamily);

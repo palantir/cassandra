@@ -334,9 +334,9 @@ public class Schema
     }
 
     /**
-     * @return collection of the user defined keyspaces excluding system_palantir
+     * @return collection of the non-admin keyspaces
      */
-    public List<String> getUserKeyspacesPalantir()
+    public List<String> getNonAdminKeyspaces()
     {
         return ImmutableList.copyOf(Sets.difference(keyspaces.keySet(), SYSTEM_KEYSPACES));
     }
