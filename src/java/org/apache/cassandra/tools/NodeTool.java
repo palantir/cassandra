@@ -150,6 +150,7 @@ public class NodeTool
                 TruncateHints.class,
                 TpStats.class,
                 TopPartitions.class,
+                TruncateAll.class,
                 SetLoggingLevel.class,
                 GetLoggingLevels.class,
                 FailureDetectorInfo.class,

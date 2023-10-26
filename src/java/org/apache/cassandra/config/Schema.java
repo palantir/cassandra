@@ -334,6 +334,14 @@ public class Schema
     }
 
     /**
+     * @return collection of the non-admin keyspaces
+     */
+    public List<String> getNonAdminKeyspaces()
+    {
+        return ImmutableList.copyOf(Sets.difference(keyspaces.keySet(), SYSTEM_KEYSPACES));
+    }
+
+    /**
      * Get metadata about keyspace inner ColumnFamilies
      *
      * @param keyspaceName The name of the keyspace
