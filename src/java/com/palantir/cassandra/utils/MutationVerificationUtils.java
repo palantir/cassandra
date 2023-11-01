@@ -18,6 +18,12 @@
 
 package com.palantir.cassandra.utils;
 
+import java.net.InetAddress;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
+
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.dht.Token;
@@ -27,12 +33,6 @@ import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.InetAddress;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
 
 public class MutationVerificationUtils
 {
