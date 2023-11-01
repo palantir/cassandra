@@ -52,9 +52,10 @@ public class MutationVerificationUtils
 
             if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
                 keyspace.metric.invalidMutations.inc();
-                logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
+                logger.error("Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
                              FBUtilities.getBroadcastAddress(),
                              Hex.bytesToHex(mutation.key().array()),
+                             mutation.getKeyspaceName(),
                              naturalEndpoints,
                              pendingEndpoints);
                 throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
