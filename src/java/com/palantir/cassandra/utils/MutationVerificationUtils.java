@@ -56,8 +56,6 @@ public class MutationVerificationUtils
         if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy)
         {
             Token tk = StorageService.getPartitioner().getToken(mutation.key());
-
-
             List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
             Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
 
