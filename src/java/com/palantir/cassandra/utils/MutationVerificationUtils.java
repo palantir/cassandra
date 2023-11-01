@@ -24,6 +24,9 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.dht.Token;
@@ -31,8 +34,6 @@ import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MutationVerificationUtils
 {
