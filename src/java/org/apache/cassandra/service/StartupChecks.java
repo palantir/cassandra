@@ -164,7 +164,7 @@ public class StartupChecks
 
     public static final StartupCheck inspectJvmOptions = new StartupCheck()
     {
-        public void execute()
+        public void execute() throws StartupException
         {
             // log warnings for different kinds of sub-optimal JVMs.  tldr use 64-bit Oracle >= 1.6u32
             if (!DatabaseDescriptor.hasLargeAddressSpace())
@@ -191,19 +191,19 @@ public class StartupChecks
         /**
          * Checks that the JVM is configured to handle OutOfMemoryError
          */
-        private void checkOutOfMemoryHandling()
+        private void checkOutOfMemoryHandling() throws StartupException
         {
             if (JavaUtils.supportExitOnOutOfMemory(System.getProperty("java.version")))
             {
                 if (!jvmOptionsContainsOneOf("-XX:OnOutOfMemoryError=", "-XX:+ExitOnOutOfMemoryError", "-XX:+CrashOnOutOfMemoryError"))
-                    logger.warn("The JVM is not configured to stop on OutOfMemoryError which can cause data corruption."
+                    throw new StartupException(1, "The JVM is not configured to stop on OutOfMemoryError which can cause data corruption."
                                 + " Use one of the following JVM options to configure the behavior on OutOfMemoryError: "
                                 + " -XX:+ExitOnOutOfMemoryError, -XX:+CrashOnOutOfMemoryError, or -XX:OnOutOfMemoryError=\"<cmd args>;<cmd args>\"");
             }
             else
             {
                 if (!jvmOptionsContainsOneOf("-XX:OnOutOfMemoryError="))
-                    logger.warn("The JVM is not configured to stop on OutOfMemoryError which can cause data corruption."
+                    throw new StartupException(1, "The JVM is not configured to stop on OutOfMemoryError which can cause data corruption."
                             + " Either upgrade your JRE to a version greater or equal to 8u92 and use -XX:+ExitOnOutOfMemoryError/-XX:+CrashOnOutOfMemoryError"
                             + " or use -XX:OnOutOfMemoryError=\"<cmd args>;<cmd args>\" on your current JRE.");
             }
