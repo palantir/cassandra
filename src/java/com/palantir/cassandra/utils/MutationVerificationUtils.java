@@ -73,13 +73,19 @@ public class MutationVerificationUtils
             if (mutationIsInvalid(naturalEndpoints, pendingEndpoints))
             {
                 keyspace.metric.invalidMutations.inc();
-                logger.error("Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+                logger.error("InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
                         FBUtilities.getBroadcastAddress(),
                         Hex.bytesToHex(mutation.key().array()),
                         mutation.getKeyspaceName(),
                         naturalEndpoints,
                         pendingEndpoints);
-                throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
+                throw new RuntimeException("InvalidMutation! Cannot apply mutation as this host does not contain key.");
+            }
+            else
+            {
+                logger.warn("Ignoring InvalidMutation error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}.",
+                        Hex.bytesToHex(mutation.key().array()),
+                        mutation.getKeyspaceName());
             }
 
             keyspace.metric.validMutations.inc();
