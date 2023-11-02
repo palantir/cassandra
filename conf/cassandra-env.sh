@@ -210,8 +210,8 @@ startswith() { [ "${1#$2}" != "$1" ]; }
 # on white spaces without taking quotes into account
 # ExitOnOutOfMemoryError and CrashOnOutOfMemoryError require a JRE greater or equals to 1.7 update 101 or 1.8 update 92
 # JVM_OPTS="$JVM_OPTS -XX:+ExitOnOutOfMemoryError"
-# JVM_OPTS="$JVM_OPTS -XX:+CrashOnOutOfMemoryError"
-JVM_ON_OUT_OF_MEMORY_ERROR_OPT="-XX:OnOutOfMemoryError=kill -9 %p"
+JVM_OPTS="$JVM_OPTS -XX:+CrashOnOutOfMemoryError"
+# JVM_ON_OUT_OF_MEMORY_ERROR_OPT="-XX:OnOutOfMemoryError=kill -9 %p"
 
 # print an heap histogram on OutOfMemoryError
 # JVM_OPTS="$JVM_OPTS -Dcassandra.printHeapHistogramOnOutOfMemoryError=true"

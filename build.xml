@@ -1317,6 +1317,7 @@
         -->
         <jvmarg value="-XX:MaxMetaspaceSize=256M" />
         <jvmarg value="-XX:SoftRefLRUPolicyMSPerMB=0" />
+        <jvmarg value="-XX:+CrashOnOutOfMemoryError" />
         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
 	    <jvmarg value="-Dcassandra.test.offsetseed=@{poffset}"/>
@@ -1868,6 +1869,7 @@
       <jvmarg value="-Dcassandra.skip_sync=true" />
       <jvmarg value="-XX:MaxMetaspaceSize=256M" />
       <jvmarg value="-XX:SoftRefLRUPolicyMSPerMB=0" />
+      <jvmarg value="-XX:+CrashOnOutOfMemoryError" />
       <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError" />
       <jvmarg value="-XX:HeapDumpPath=build/test/oom.hprof" />
     </testmacro>
