@@ -40,7 +40,7 @@ public class MutationVerificationUtils
     private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.valueOf(System.getProperty("palantir_cassandra.verify_keys_on_write", "false"));
     private static final Logger logger = LoggerFactory.getLogger(MutationVerificationUtils.class);
 
-    private static volatile Instant lastNaturalEndpointsCacheUpdate = Instant.MIN;
+    private static volatile Instant lastTokenRingCacheUpdate = Instant.MIN;
 
     private MutationVerificationUtils()
     {
@@ -61,10 +61,10 @@ public class MutationVerificationUtils
 
             if (mutationIsInvalid(naturalEndpoints, pendingEndpoints))
             {
-                if (Duration.between(lastNaturalEndpointsCacheUpdate, Instant.now()).compareTo(Duration.ofMinutes(10)) > 0)
+                if (Duration.between(lastTokenRingCacheUpdate, Instant.now()).compareTo(Duration.ofMinutes(10)) > 0)
                 {
-                    keyspace.getReplicationStrategy().clearCachedEndpoints();
-                    lastNaturalEndpointsCacheUpdate = Instant.now();
+                    StorageService.instance.getTokenMetadata().invalidateCachedRings();
+                    lastTokenRingCacheUpdate = Instant.now();
 
                     naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
                 }

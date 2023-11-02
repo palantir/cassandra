@@ -94,15 +94,6 @@ public abstract class AbstractReplicationStrategy
         return cachedEndpoints.get(t);
     }
 
-    public void clearCachedEndpoints()
-    {
-        synchronized (this)
-        {
-            logger.trace("clearing cached endpoints");
-            cachedEndpoints.clear();
-            lastInvalidatedVersion = tokenMetadata.getRingVersion();
-        }
-    }
 
     /**
      * get the (possibly cached) endpoints that should store the given Token.
