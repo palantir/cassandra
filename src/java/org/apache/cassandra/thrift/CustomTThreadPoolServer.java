@@ -81,7 +81,8 @@ public class CustomTThreadPoolServer extends TServer
     private final AtomicInteger activeClients;
 
 
-    public CustomTThreadPoolServer(TThreadPoolServer.Args args, ExecutorService executorService) {
+    public CustomTThreadPoolServer(TThreadPoolServer.Args args, ExecutorService executorService)
+    {
         super(args);
         this.executorService = executorService;
         this.stopped = false;
@@ -121,7 +122,9 @@ public class CustomTThreadPoolServer extends TServer
             catch (TTransportException ttx)
             {
                 if (ttx.getCause() instanceof SocketTimeoutException) // thrift sucks
+                {
                     continue;
+                }
 
                 if (!stopped)
                 {
@@ -136,7 +139,9 @@ public class CustomTThreadPoolServer extends TServer
             }
 
             if (activeClients.get() >= args.maxWorkerThreads)
+            {
                 logger.warn("Maximum number of clients {} reached", args.maxWorkerThreads);
+            }
         }
 
         executorService.shutdown();
@@ -202,14 +207,10 @@ public class CustomTThreadPoolServer extends TServer
 
                 inputProtocol = inputProtocolFactory_.getProtocol(inputTransport);
                 outputProtocol = outputProtocolFactory_.getProtocol(outputTransport);
-                // we check stopped first to make sure we're not supposed to be shutting
-                // down. this is necessary for graceful shutdown.  (but not sufficient,
-                // since process() can take arbitrarily long waiting for client input.
-                // See comments at the end of serve().)
-                while (!stopped && processor.process(inputProtocol, outputProtocol))
+
+                while (!stopped)
                 {
-                    inputProtocol = inputProtocolFactory_.getProtocol(inputTransport);
-                    outputProtocol = outputProtocolFactory_.getProtocol(outputTransport);
+                    processor.process(inputProtocol, outputProtocol);
                 }
             }
             catch (TTransportException ttx)
@@ -230,7 +231,9 @@ public class CustomTThreadPoolServer extends TServer
             finally
             {
                 if (socket != null)
+                {
                     ThriftSessionManager.instance.connectionComplete(socket);
+                }
 
                 activeClients.decrementAndGet();
             }
@@ -292,19 +295,19 @@ public class CustomTThreadPoolServer extends TServer
             }
             // ThreadPool Server and will be invocation per connection basis...
             TThreadPoolServer.Args serverArgs = new TThreadPoolServer.Args(serverTransport)
-                                                                     .minWorkerThreads(DatabaseDescriptor.getRpcMinThreads())
-                                                                     .maxWorkerThreads(DatabaseDescriptor.getRpcMaxThreads())
-                                                                     .inputTransportFactory(args.inTransportFactory)
-                                                                     .outputTransportFactory(args.outTransportFactory)
-                                                                     .inputProtocolFactory(args.tProtocolFactory)
-                                                                     .outputProtocolFactory(args.tProtocolFactory)
-                                                                     .processor(args.processor);
+                    .minWorkerThreads(DatabaseDescriptor.getRpcMinThreads())
+                    .maxWorkerThreads(DatabaseDescriptor.getRpcMaxThreads())
+                    .inputTransportFactory(args.inTransportFactory)
+                    .outputTransportFactory(args.outTransportFactory)
+                    .inputProtocolFactory(args.tProtocolFactory)
+                    .outputProtocolFactory(args.tProtocolFactory)
+                    .processor(args.processor);
             ExecutorService executorService = new ThreadPoolExecutor(serverArgs.minWorkerThreads,
-                                                                     serverArgs.maxWorkerThreads,
-                                                                     60,
-                                                                     TimeUnit.SECONDS,
-                                                                     new SynchronousQueue<Runnable>(),
-                                                                     new NamedThreadFactory("Thrift"));
+                    serverArgs.maxWorkerThreads,
+                    60,
+                    TimeUnit.SECONDS,
+                    new SynchronousQueue<Runnable>(),
+                    new NamedThreadFactory("Thrift"));
             return new CustomTThreadPoolServer(serverArgs, executorService);
         }
     }
