@@ -19,6 +19,8 @@
 package com.palantir.cassandra.utils;
 
 import java.net.InetAddress;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -38,30 +40,61 @@ public class MutationVerificationUtils
     private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.valueOf(System.getProperty("palantir_cassandra.verify_keys_on_write", "false"));
     private static final Logger logger = LoggerFactory.getLogger(MutationVerificationUtils.class);
 
-    private MutationVerificationUtils() {}
+    private static volatile Instant lastTokenRingCacheUpdate = Instant.MIN;
 
-    public static void verifyMutation(Mutation mutation) {
-        if (!VERIFY_KEYS_ON_WRITE) {
+    private MutationVerificationUtils()
+    {
+    }
+
+    public static void verifyMutation(Mutation mutation)
+    {
+        if (!VERIFY_KEYS_ON_WRITE)
+        {
             return;
         }
         Keyspace keyspace = Keyspace.open(mutation.getKeyspaceName());
-        if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy) {
+        if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy)
+        {
             Token tk = StorageService.getPartitioner().getToken(mutation.key());
             List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
             Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
 
-            if(!naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress())) {
+            if (mutationIsInvalid(naturalEndpoints, pendingEndpoints))
+            {
+                if (Duration.between(lastTokenRingCacheUpdate, Instant.now()).compareTo(Duration.ofMinutes(10)) > 0)
+                {
+                    StorageService.instance.getTokenMetadata().invalidateCachedRings();
+                    lastTokenRingCacheUpdate = Instant.now();
+
+                    naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+                }
+            }
+
+            if (mutationIsInvalid(naturalEndpoints, pendingEndpoints))
+            {
                 keyspace.metric.invalidMutations.inc();
-                logger.error("Cannot apply mutation as this host {} does not contain key {}. Only hosts {} and {} do.",
-                             FBUtilities.getBroadcastAddress(),
-                             Hex.bytesToHex(mutation.key().array()),
-                             naturalEndpoints,
-                             pendingEndpoints);
-                throw new RuntimeException("Cannot apply mutation as this host does not contain key.");
+                logger.error("InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+                        FBUtilities.getBroadcastAddress(),
+                        Hex.bytesToHex(mutation.key().array()),
+                        mutation.getKeyspaceName(),
+                        naturalEndpoints,
+                        pendingEndpoints);
+                throw new RuntimeException("InvalidMutation! Cannot apply mutation as this host does not contain key.");
+            }
+            else
+            {
+                logger.warn("Ignoring InvalidMutation error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}.",
+                        Hex.bytesToHex(mutation.key().array()),
+                        mutation.getKeyspaceName());
             }
 
             keyspace.metric.validMutations.inc();
         }
+    }
+
+    private static boolean mutationIsInvalid(List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
+    {
+        return !naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress());
     }
 
 }
