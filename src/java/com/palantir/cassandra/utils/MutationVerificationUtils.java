@@ -52,44 +52,48 @@ public class MutationVerificationUtils
         {
             return;
         }
+
         Keyspace keyspace = Keyspace.open(mutation.getKeyspaceName());
-        if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy)
+        if (!(keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy))
         {
-            Token tk = StorageService.getPartitioner().getToken(mutation.key());
-            List<InetAddress> cachedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
-            Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
+            return;
+        }
 
-            if (mutationIsInvalid(cachedNaturalEndpoints, pendingEndpoints))
+        Token tk = StorageService.getPartitioner().getToken(mutation.key());
+        List<InetAddress> cachedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+        Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
+
+        if (mutationIsInvalid(cachedNaturalEndpoints, pendingEndpoints))
+        {
+            if (cacheWasRecentlyRefreshed())
             {
-                if (cacheWasRecentlyRefreshed())
-                {
-                    throwInvalidMutationException(mutation, keyspace, cachedNaturalEndpoints, pendingEndpoints);
-                }
-
-                refreshCache();
-
-                List<InetAddress> refreshedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
-
-                if (mutationIsInvalid(refreshedNaturalEndpoints, pendingEndpoints))
-                {
-                    throwInvalidMutationException(mutation, keyspace, refreshedNaturalEndpoints, pendingEndpoints);
-                }
-                else
-                {
-                    logger.warn("Ignoring InvalidMutation error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}."
-                            + " Cached owners {} and {}. Actual owners {} and {}",
-                            Hex.bytesToHex(mutation.key().array()),
-                            mutation.getKeyspaceName(),
-                            cachedNaturalEndpoints,
-                            pendingEndpoints,
-                            refreshedNaturalEndpoints,
-                            pendingEndpoints);
-                }
+                throwInvalidMutationException(mutation, keyspace, cachedNaturalEndpoints, pendingEndpoints);
             }
 
-            keyspace.metric.validMutations.inc();
+            refreshCache();
+
+            List<InetAddress> refreshedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+
+            if (mutationIsInvalid(refreshedNaturalEndpoints, pendingEndpoints))
+            {
+                throwInvalidMutationException(mutation, keyspace, refreshedNaturalEndpoints, pendingEndpoints);
+            }
+            else
+            {
+                logger.warn("Ignoring InvalidMutation error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}."
+                                + " Cached owners {} and {}. Actual owners {} and {}",
+                        Hex.bytesToHex(mutation.key().array()),
+                        mutation.getKeyspaceName(),
+                        cachedNaturalEndpoints,
+                        pendingEndpoints,
+                        refreshedNaturalEndpoints,
+                        pendingEndpoints);
+            }
         }
+
+        keyspace.metric.validMutations.inc();
     }
+
 
     private static void throwInvalidMutationException(Mutation mutation, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
