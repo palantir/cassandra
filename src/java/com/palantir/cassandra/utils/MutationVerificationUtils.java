@@ -56,40 +56,57 @@ public class MutationVerificationUtils
         if (keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy)
         {
             Token tk = StorageService.getPartitioner().getToken(mutation.key());
-            List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+            List<InetAddress> cachedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
             Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, mutation.getKeyspaceName());
 
-            if (mutationIsInvalid(naturalEndpoints, pendingEndpoints))
+            if (mutationIsInvalid(cachedNaturalEndpoints, pendingEndpoints))
             {
-                if (Duration.between(lastTokenRingCacheUpdate, Instant.now()).compareTo(Duration.ofMinutes(10)) > 0)
+                if (cacheWasRecentlyRefreshed())
                 {
-                    StorageService.instance.getTokenMetadata().invalidateCachedRings();
-                    lastTokenRingCacheUpdate = Instant.now();
-
-                    naturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+                    throwInvalidMutationException(mutation, keyspace, cachedNaturalEndpoints, pendingEndpoints);
                 }
-            }
 
-            if (mutationIsInvalid(naturalEndpoints, pendingEndpoints))
-            {
-                keyspace.metric.invalidMutations.inc();
-                logger.error("InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
-                        FBUtilities.getBroadcastAddress(),
-                        Hex.bytesToHex(mutation.key().array()),
-                        mutation.getKeyspaceName(),
-                        naturalEndpoints,
-                        pendingEndpoints);
-                throw new RuntimeException("InvalidMutation! Cannot apply mutation as this host does not contain key.");
-            }
-            else
-            {
-                logger.warn("Ignoring InvalidMutation error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}.",
-                        Hex.bytesToHex(mutation.key().array()),
-                        mutation.getKeyspaceName());
+                refreshCache();
+
+                List<InetAddress> refreshedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(mutation.getKeyspaceName(), tk);
+
+                if (mutationIsInvalid(refreshedNaturalEndpoints, pendingEndpoints))
+                {
+                    throwInvalidMutationException(mutation, keyspace, refreshedNaturalEndpoints, pendingEndpoints);
+                }
+                else
+                {
+                    logger.warn("Ignoring InvalidMutation error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}. "
+                            + "Cached owners {} and {}. Actual owners {} and {}",
+                            Hex.bytesToHex(mutation.key().array()),
+                            mutation.getKeyspaceName(),
+                            cachedNaturalEndpoints,
+                            pendingEndpoints,
+                            refreshedNaturalEndpoints,
+                            pendingEndpoints);
+                }
             }
 
             keyspace.metric.validMutations.inc();
         }
+    }
+
+    private static void throwInvalidMutationException(Mutation mutation, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
+    {
+        keyspace.metric.invalidMutations.inc();
+        logger.error("InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.", FBUtilities.getBroadcastAddress(), Hex.bytesToHex(mutation.key().array()), mutation.getKeyspaceName(), naturalEndpoints, pendingEndpoints);
+        throw new RuntimeException("InvalidMutation! Cannot apply mutation as this host does not contain key.");
+    }
+
+    private static void refreshCache()
+    {
+        StorageService.instance.getTokenMetadata().invalidateCachedRings();
+        lastTokenRingCacheUpdate = Instant.now();
+    }
+
+    private static boolean cacheWasRecentlyRefreshed()
+    {
+        return Duration.between(lastTokenRingCacheUpdate, Instant.now()).compareTo(Duration.ofMinutes(10)) < 0;
     }
 
     private static boolean mutationIsInvalid(List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
