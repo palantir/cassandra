@@ -122,7 +122,8 @@ public class MutationVerificationUtils
     }
 
     @VisibleForTesting
-    static void clearLastTokenRingCacheUpdate() {
+    static void clearLastTokenRingCacheUpdate()
+    {
         lastTokenRingCacheUpdate = Instant.MIN;
     }
 
