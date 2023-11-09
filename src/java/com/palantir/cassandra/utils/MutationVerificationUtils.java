@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,6 +118,11 @@ public class MutationVerificationUtils
     private static boolean mutationIsInvalid(List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
         return !naturalEndpoints.contains(FBUtilities.getBroadcastAddress()) && !pendingEndpoints.contains(FBUtilities.getBroadcastAddress());
+    }
+
+    @VisibleForTesting
+    static void clearLastTokenRingCacheUpdate() {
+        lastTokenRingCacheUpdate = Instant.MIN;
     }
 
 }

@@ -36,6 +36,7 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class MutationVerificationUtilsTest
@@ -77,6 +78,7 @@ public class MutationVerificationUtilsTest
         tmd.clearUnsafe();
         StorageService.instance.setTokens(Collections.singletonList(StorageService.getPartitioner().getToken(ByteBufferUtil.bytes("a"))));
         tmd.updateNormalToken(StorageService.getPartitioner().getToken(ByteBufferUtil.bytes("b")), REMOTE);
+        MutationVerificationUtils.clearLastTokenRingCacheUpdate();
     }
 
     @Test
@@ -93,5 +95,29 @@ public class MutationVerificationUtilsTest
         ByteBuffer key = ByteBufferUtil.bytes("b");
         Mutation mutation = new Mutation(KEYSPACE5, key);
         assertThatThrownBy(() -> MutationVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+    }
+
+    @Test
+    public void testValidMutationDoesNotRefreshCache()
+    {
+        ByteBuffer key = ByteBufferUtil.bytes("a");
+        Mutation mutation = new Mutation(KEYSPACE5, key);
+
+        long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
+        MutationVerificationUtils.verifyMutation(mutation);
+        long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
+        assertThat(initialRingVersion).isEqualTo(finalRingVersion);
+    }
+
+    @Test
+    public void testInvalidMutationDoesRefreshCache()
+    {
+        ByteBuffer key = ByteBufferUtil.bytes("b");
+        Mutation mutation = new Mutation(KEYSPACE5, key);
+
+        long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
+        assertThatThrownBy(() -> MutationVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
+        assertThat(initialRingVersion).isNotEqualTo(finalRingVersion);
     }
 }
