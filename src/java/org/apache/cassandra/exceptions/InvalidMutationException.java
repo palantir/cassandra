@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.utils;
+package org.apache.cassandra.exceptions;
 
 public class InvalidMutationException extends RuntimeException
 {
