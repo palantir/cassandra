@@ -1309,7 +1309,7 @@
         <jvmarg value="-ea"/>
         <jvmarg value="-Djava.io.tmpdir=${tmp.dir}"/>
         <jvmarg value="-Dcassandra.debugrefcount=true"/>
-        <jvmarg value="-Xss256k"/>
+        <jvmarg value="-Xss640k"/>
         <!-- When we do classloader manipulation SoftReferences can cause memory leaks
              that can OOM our test runs. The next two settings informs our GC
              algorithm to limit the metaspace size and clean up SoftReferences
@@ -1544,7 +1544,7 @@
         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
         <jvmarg value="-javaagent:${basedir}/lib/guava-compatibility-agent-0.2.0.jar" />
         <jvmarg value="-ea"/>
-        <jvmarg value="-Xss256k"/>
+        <jvmarg value="-Xss640k"/>
         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
         <jvmarg value="-Dcassandra.skip_sync=true" />
@@ -1589,7 +1589,7 @@
         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
         <jvmarg value="-javaagent:${basedir}/lib/guava-compatibility-agent-0.2.0.jar" />
         <jvmarg value="-ea"/>
-        <jvmarg value="-Xss256k"/>
+        <jvmarg value="-Xss640k"/>
         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
         <jvmarg value="-Dcassandra.skip_sync=true" />
