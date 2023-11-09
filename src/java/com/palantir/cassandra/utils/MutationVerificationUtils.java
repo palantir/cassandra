@@ -37,7 +37,7 @@ import org.apache.cassandra.utils.Hex;
 
 public class MutationVerificationUtils
 {
-    private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.valueOf(System.getProperty("palantir_cassandra.verify_keys_on_write", "false"));
+    private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.getBoolean("palantir_cassandra.verify_keys_on_write");
     private static final Logger logger = LoggerFactory.getLogger(MutationVerificationUtils.class);
 
     private static volatile Instant lastTokenRingCacheUpdate = Instant.MIN;
@@ -100,7 +100,7 @@ public class MutationVerificationUtils
         keyspace.metric.invalidMutations.inc();
         logger.error("InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
                 FBUtilities.getBroadcastAddress(), Hex.bytesToHex(mutation.key().array()), mutation.getKeyspaceName(), naturalEndpoints, pendingEndpoints);
-        throw new RuntimeException("InvalidMutation! Cannot apply mutation as this host does not contain key.");
+        throw new InvalidMutationException();
     }
 
     private static void refreshCache()
