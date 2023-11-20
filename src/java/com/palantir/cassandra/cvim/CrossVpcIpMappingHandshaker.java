@@ -202,7 +202,7 @@ public class CrossVpcIpMappingHandshaker
     synchronized void triggerHandshakeFromSelf(Set<InetAddress> targets)
     {
         lastTriggeredHandshakeMillis = System.currentTimeMillis();
-        InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getLocalAddress().getHostName());
+        InetAddressHostname selfName = new InetAddressHostname(FBUtilities.getBroadcastAddress().getHostName());
         InetAddressIp selfIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
         targets.forEach(target -> {
             try
