@@ -114,7 +114,7 @@ public class CrossVpcIpMappingHandshaker
         }
         if (!resolved.contains(endpoint))
         {
-            logger.warn("DNS-resolved address different than provided endpoint. This should mean that the endpoint " +
+            logger.debug("DNS-resolved address different than provided endpoint. This should mean that the endpoint " +
                         "includes a VPC-internal IP. Swapping. provided: {} resolved: {}",
                          endpoint, resolved);
             return resolved.stream().findFirst().get();
