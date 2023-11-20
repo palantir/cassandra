@@ -82,7 +82,7 @@ public class CrossVpcIpMappingSynVerbHandlerTest
     public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
     {
         InetAddress input = InetAddress.getByName(sourceInternalIp.toString());
-        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeUpdateAddress(input);

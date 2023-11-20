@@ -67,10 +67,11 @@ public class CrossVpcIpMappingAckVerbHandlerTest
     @Test
     public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
     {
-        InetAddress remote = InetAddress.getByName("127.0.0.2");
-        InetAddressHostname targetName = new InetAddressHostname("target");
-        InetAddressIp targetExternalIp = new InetAddressIp("2.2.2.2");
-        InetAddressIp targetInternalIp = new InetAddressIp("127.0.0.1");
+        // localhost/10.100.0.1 -> localhost/127.0.0.1
+        InetAddress remote = InetAddress.getByName("10.100.0.1");
+        InetAddressHostname targetName = new InetAddressHostname("localhost");
+        InetAddressIp targetExternalIp = new InetAddressIp("2.2.2.2"); // some other proxy IP
+        InetAddressIp targetInternalIp = new InetAddressIp("10.100.0.1");
         InetAddress input = InetAddress.getByName(targetInternalIp.toString());
         CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
         MessageIn<CrossVpcIpMappingAck> messageIn = MessageIn.create(remote,
@@ -79,12 +80,12 @@ public class CrossVpcIpMappingAckVerbHandlerTest
                                                                      MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
                                                                      MessagingService.current_version);
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
-        DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
         InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeUpdateAddress(input);
         assertThat(result.getHostAddress()).isNotEqualTo(targetExternalIp.toString());
         handler.doVerb(messageIn, 0);
         result = CrossVpcIpMappingHandshaker.instance.maybeUpdateAddress(input);
-        assertThat(result.getHostAddress()).isEqualTo(targetExternalIp.toString());
+        assertThat(result.getHostAddress()).isEqualTo("127.0.0.1");
     }
 }
