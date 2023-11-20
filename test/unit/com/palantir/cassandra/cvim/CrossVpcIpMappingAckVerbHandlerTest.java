@@ -81,10 +81,10 @@ public class CrossVpcIpMappingAckVerbHandlerTest
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
-        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeUpdateAddress(input);
         assertThat(result.getHostAddress()).isNotEqualTo(targetExternalIp.toString());
         handler.doVerb(messageIn, 0);
-        result = CrossVpcIpMappingHandshaker.instance.maybeSwapAddress(input);
+        result = CrossVpcIpMappingHandshaker.instance.maybeUpdateAddress(input);
         assertThat(result.getHostAddress()).isEqualTo(targetExternalIp.toString());
     }
 }

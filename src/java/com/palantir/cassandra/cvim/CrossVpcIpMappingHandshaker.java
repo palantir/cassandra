@@ -21,6 +21,7 @@ package com.palantir.cassandra.cvim;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -57,70 +58,53 @@ public class CrossVpcIpMappingHandshaker
     public final static Duration scheduledInterval = Duration.ofSeconds(1);
     public final static Duration minHandshakeInterval = Duration.ofMillis(500);
     private static volatile long lastTriggeredHandshakeMillis = 0;
-    private final ConcurrentHashMap<InetAddressIp, InetAddressIp> privatePublicIpMappings;
-    private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> ipHostnameMappings;
+
+    // A map of broadcast address -> hostname, for use when the broadcast address of a given node may be in a different
+    // VPC than this node.
+    private final ConcurrentHashMap<InetAddressIp, InetAddressHostname> privateIpToHostname;
 
     private CrossVpcIpMappingHandshaker()
     {
-        this.privatePublicIpMappings = new ConcurrentHashMap<>();
-        this.ipHostnameMappings = new ConcurrentHashMap<>();
+        this.privateIpToHostname = new ConcurrentHashMap<>();
     }
 
-    public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp, InetAddressIp externalIp)
+    public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp)
     {
         if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
             return;
         }
-        InetAddressIp oldExternalIp = this.privatePublicIpMappings.get(internalIp);
-        if (!externalIp.equals(oldExternalIp))
-        {
-            this.privatePublicIpMappings.put(internalIp, externalIp);
-            logger.trace("Updated private/public IP mapping for {} from {}->{} to {}",
-                         host, internalIp, oldExternalIp, externalIp);
-        }
-
-        InetAddressHostname old = this.ipHostnameMappings.get(internalIp);
+        InetAddressHostname old = this.privateIpToHostname.get(internalIp);
         if (!host.equals(old))
         {
-            this.ipHostnameMappings.put(internalIp, host);
-            logger.trace("Updated private IP/hostname mapping from {}->{} to {}", internalIp, old, host);
-        }
-        old = this.ipHostnameMappings.get(externalIp);
-        if (!host.equals(old))
-        {
-            this.ipHostnameMappings.put(externalIp, host);
-            logger.trace("Updated public IP/hostname mapping from {}->{} to {}", externalIp, old, host);
+            this.privateIpToHostname.put(internalIp, host);
+            logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}", internalIp, old, internalIp, host);
         }
     }
 
     /**
-     * Depending on which cross-vpc flags are enabled/disabled, will check the cross-vpc mappings and either swap the
-     * given endpoint with an endpoint derived from a public IP, or DNS using a hostname. If no mappings are found will
-     * return the original endpoint.
+     * Depending on which cross-vpc flags are enabled/disabled, will check the cross-vpc mappings and update the
+     * endpoint with one derived from DNS using a hostname. If no mappings are found will return the original endpoint.
      */
-    public InetAddress maybeSwapAddress(InetAddress endpoint)
+    public InetAddress maybeUpdateAddress(InetAddress endpoint)
     {
         if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
             return endpoint;
         }
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && ipHostnameMappings.containsKey(proposedAddress)) {
-            return maybeSwapHostname(endpoint);
-        }
-        if (DatabaseDescriptor.isCrossVpcIpSwappingEnabled() && privatePublicIpMappings.containsKey(proposedAddress)) {
-            return maybeSwapIp(endpoint);
+        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && privateIpToHostname.containsKey(proposedAddress)) {
+            return maybeInsertHostname(endpoint);
         }
         return endpoint;
     }
 
-    private InetAddress maybeSwapHostname(InetAddress endpoint)
+    private InetAddress maybeInsertHostname(InetAddress endpoint)
     {
-        InetAddressHostname hostname = ipHostnameMappings.get(new InetAddressIp(endpoint.getHostAddress()));
+        InetAddressHostname hostname = privateIpToHostname.get(new InetAddressIp(endpoint.getHostAddress()));
         logger.trace("Performing DNS lookup for host {}", hostname);
-        InetAddress resolved;
+        Set<InetAddress> resolved;
         try
         {
-            resolved = InetAddress.getByName(hostname.toString());
+            resolved = Arrays.stream(InetAddress.getAllByName(hostname.toString())).collect(Collectors.toSet());
         }
         catch (UnknownHostException e)
         {
@@ -128,40 +112,23 @@ public class CrossVpcIpMappingHandshaker
                          endpoint, hostname);
             return endpoint;
         }
-        if (!resolved.equals(endpoint))
+        if (!resolved.contains(endpoint))
         {
-            logger.trace("DNS-resolved address different than provided endpoint. Swapping. provided: {} resolved: {}",
+            logger.warn("DNS-resolved address different than provided endpoint. This should mean that the endpoint " +
+                        "includes a VPC-internal IP. Swapping. provided: {} resolved: {}",
                          endpoint, resolved);
-            return resolved;
-        }
-        return endpoint;
-    }
-
-    private InetAddress maybeSwapIp(InetAddress endpoint)
-    {
-        InetAddressIp proposedIp = new InetAddressIp(endpoint.getHostAddress());
-        InetAddressIp mappedIp = privatePublicIpMappings.get(proposedIp);
-        if (!mappedIp.equals(proposedIp))
-        {
-            try
-            {
-                InetAddress result = InetAddress.getByName(mappedIp.toString());
-                logger.trace("Swapped address {} for {} via private-public IP mapping", endpoint, result);
-                return result;
-            }
-            catch (UnknownHostException e)
-            {
-                logger.error("Failed to resolve host for externally-mapped IP {}->{}. " +
-                             "Ensure the address mapping does not contain hostnames", endpoint, mappedIp);
-            }
+            return resolved.stream().findFirst().get();
+        } else {
+            logger.trace("Endpoint matches resolved addresses. Not taking any action. provided: {} resolved: {}",
+                         endpoint, resolved);
         }
         return endpoint;
     }
 
     /**
      * Checks cross-vpc mapping to return an associated hostname with the given endpoint if present. Use this method
-     * if you don't want to invoke reverse-DNS like {@link #maybeSwapHostname(InetAddress)} within
-     * {@link #maybeSwapAddress(InetAddress)} does. Additionally note that this method does not _swap_ hostnames, only
+     * if you don't want to invoke reverse-DNS like {@link #maybeInsertHostname(InetAddress)} within
+     * {@link #maybeUpdateAddress(InetAddress)} does. Additionally note that this method does not _swap_ hostnames, only
      * provides the hostname associated with a given endpoint if it is present in the cross-vpc mapping.
      */
     public Optional<InetAddressHostname> getAssociatedHostname(InetAddress endpoint)
@@ -170,7 +137,7 @@ public class CrossVpcIpMappingHandshaker
             return Optional.empty();
         }
         InetAddressIp ip = new InetAddressIp(endpoint.getHostAddress());
-        return Optional.ofNullable(ipHostnameMappings.get(ip));
+        return Optional.ofNullable(privateIpToHostname.get(ip));
     }
 
     public void triggerHandshakeWithAllPeers()
@@ -289,21 +256,14 @@ public class CrossVpcIpMappingHandshaker
     }
 
     @VisibleForTesting
-    Map<InetAddressIp, InetAddressIp> getCrossVpcIpMapping()
-    {
-        return this.privatePublicIpMappings;
-    }
-
-    @VisibleForTesting
     Map<InetAddressIp, InetAddressHostname> getCrossVpcIpHostnameMapping()
     {
-        return this.ipHostnameMappings;
+        return this.privateIpToHostname;
     }
 
     @VisibleForTesting
     void clearMappings()
     {
-        this.ipHostnameMappings.clear();
-        this.privatePublicIpMappings.clear();
+        this.privateIpToHostname.clear();
     }
 }
