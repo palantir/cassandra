@@ -70,7 +70,8 @@ public class CrossVpcIpMappingHandshaker
 
     public void updateCrossVpcMappings(InetAddressHostname host, InetAddressIp internalIp)
     {
-        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
+        {
             return;
         }
         InetAddressHostname old = this.privateIpToHostname.get(internalIp);
@@ -87,11 +88,13 @@ public class CrossVpcIpMappingHandshaker
      */
     public InetAddress maybeUpdateAddress(InetAddress endpoint)
     {
-        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
+        {
             return endpoint;
         }
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
-        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && privateIpToHostname.containsKey(proposedAddress)) {
+        if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && privateIpToHostname.containsKey(proposedAddress))
+        {
             return maybeInsertHostname(endpoint);
         }
         return endpoint;
@@ -118,7 +121,8 @@ public class CrossVpcIpMappingHandshaker
                         "includes a VPC-internal IP. Swapping. provided: {} resolved: {}",
                          endpoint, resolved);
             return resolved.stream().findFirst().get();
-        } else {
+        } else
+        {
             logger.trace("Endpoint matches resolved addresses. Not taking any action. provided: {} resolved: {}",
                          endpoint, resolved);
         }
@@ -133,7 +137,8 @@ public class CrossVpcIpMappingHandshaker
      */
     public Optional<InetAddressHostname> getAssociatedHostname(InetAddress endpoint)
     {
-        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
+        {
             return Optional.empty();
         }
         InetAddressIp ip = new InetAddressIp(endpoint.getHostAddress());
@@ -142,10 +147,12 @@ public class CrossVpcIpMappingHandshaker
 
     public void triggerHandshakeWithAllPeers()
     {
-        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled()) {
+        if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
+        {
             return;
         }
-        try {
+        try
+        {
             if (System.currentTimeMillis() - lastTriggeredHandshakeMillis < minHandshakeInterval.toMillis())
             {
                 logger.trace("Ignoring handshake request as last handshake is too recent");
