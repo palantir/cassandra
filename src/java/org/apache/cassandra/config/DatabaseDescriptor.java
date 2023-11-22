@@ -1398,6 +1398,7 @@ public class DatabaseDescriptor
         conf.cross_vpc_internode_communication_enabled = setting;
     }
 
+    @Deprecated
     public static Boolean isCrossVpcIpSwappingEnabled()
     {
         return conf.cross_vpc_ip_swapping_enabled;

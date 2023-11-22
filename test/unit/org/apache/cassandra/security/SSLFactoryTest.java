@@ -143,10 +143,9 @@ public class SSLFactoryTest
 
         InetAddressHostname name = new InetAddressHostname(localhost.getHostName());
         InetAddressIp internal = new InetAddressIp(addressToReplace.getHostAddress());
-        InetAddressIp external = new InetAddressIp(localhost.getHostAddress());
         // Swap hostname from whatever 10.0.0.1 resolves to with "localhost"
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
 
@@ -175,10 +174,9 @@ public class SSLFactoryTest
 
         InetAddressHostname name = new InetAddressHostname(localhost.getHostName());
         InetAddressIp internal = new InetAddressIp(addressToReplace.getHostAddress());
-        InetAddressIp external = new InetAddressIp(localhost.getHostAddress());
         // Swap hostname from whatever 10.0.0.1 resolves to with "localhost"
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
 
@@ -227,13 +225,12 @@ public class SSLFactoryTest
         InetAddress localhost = InetAddress.getByName("localhost");
         InetAddressHostname name = new InetAddressHostname("test-name");
         InetAddressIp internal = new InetAddressIp(localhost.getHostAddress());
-        InetAddressIp external = new InetAddressIp("10.0.0.1");
 
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         DatabaseDescriptor.setCrossVpcSniSubstitution(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal);
 
         try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
         {
@@ -254,13 +251,12 @@ public class SSLFactoryTest
         InetAddress localhost = InetAddress.getByName("localhost");
         InetAddressHostname name = new InetAddressHostname("test-name");
         InetAddressIp internal = new InetAddressIp(localhost.getHostAddress());
-        InetAddressIp external = new InetAddressIp("10.0.0.1");
 
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         DatabaseDescriptor.setCrossVpcSniSubstitution(false);
         DatabaseDescriptor.setCrossVpcIpSwapping(false);
         DatabaseDescriptor.setCrossVpcHostnameSwapping(false);
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal, external);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(name, internal);
 
         try (SSLServerSocket server = SSLFactory.getServerSocket(getServerEncryptionOptions(), localhost, PORT))
         {

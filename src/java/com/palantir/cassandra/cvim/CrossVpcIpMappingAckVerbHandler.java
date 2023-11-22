@@ -39,6 +39,6 @@ public class CrossVpcIpMappingAckVerbHandler implements IVerbHandler<CrossVpcIpM
                      targetName,
                      targetInternal,
                      targetExternal);
-        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(targetName, targetInternal, targetExternal);
+        CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(targetName, targetInternal);
     }
 }
