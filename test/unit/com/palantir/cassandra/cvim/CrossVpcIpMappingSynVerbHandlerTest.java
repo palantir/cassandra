@@ -119,7 +119,7 @@ public class CrossVpcIpMappingSynVerbHandlerTest
     }
 
     @Test
-    public void doVerb_doesUpdateMappingWhenTargetDoesNotMatchBroadcastAddress() throws UnknownHostException
+    public void doVerb_doesNotUpdateMappingWhenTargetDoesNotMatchBroadcastAddress() throws UnknownHostException
     {
         doReturn(new InetAddressHostname("other")).when(handler).getBroadcastHostname();
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
