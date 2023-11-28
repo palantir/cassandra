@@ -48,6 +48,14 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressHostname targetName = synMessage.getTargetHostname();
         InetAddressIp targetExternalIp = synMessage.getTargetExternalAddress();
 
+        if (!targetName.toString().equals(DatabaseDescriptor.getBroadcastAddress().getHostName()))
+        {
+            logger.warn("Received a cross VPC Syn intended for another host. Ignoring. Intended: {} Actual: {}",
+                        targetName, DatabaseDescriptor.getBroadcastAddress());
+            return;
+        }
+
+
         // InetAddress.getByHostname performs a DNS lookup
         InetAddressIp sourceExternalIp = new InetAddressIp(InetAddress.getByName(sourceName.toString())
                                                                       .getHostAddress());
