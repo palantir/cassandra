@@ -46,7 +46,6 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressIp sourceInternalIp = synMessage.getSourceInternalAddress();
 
         InetAddressHostname proposedTargetName = synMessage.getTargetHostname();
-
         InetAddressIp proposedTargetExternalIp = synMessage.getTargetExternalAddress();
 
         // InetAddress.getByHostname performs a DNS lookup
