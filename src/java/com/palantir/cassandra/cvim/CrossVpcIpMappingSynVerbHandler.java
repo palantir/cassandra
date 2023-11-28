@@ -45,16 +45,9 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressHostname sourceName = synMessage.getSourceHostname();
         InetAddressIp sourceInternalIp = synMessage.getSourceInternalAddress();
 
-        InetAddressHostname targetName = synMessage.getTargetHostname();
-        InetAddressIp targetExternalIp = synMessage.getTargetExternalAddress();
+        InetAddressHostname proposedTargetName = synMessage.getTargetHostname();
 
-        if (!targetName.toString().equals(DatabaseDescriptor.getBroadcastAddress().getHostName()))
-        {
-            logger.warn("Received a cross VPC Syn intended for another host. Ignoring. Intended: {} Actual: {}",
-                        targetName, DatabaseDescriptor.getBroadcastAddress());
-            return;
-        }
-
+        InetAddressIp proposedTargetExternalIp = synMessage.getTargetExternalAddress();
 
         // InetAddress.getByHostname performs a DNS lookup
         InetAddressIp sourceExternalIp = new InetAddressIp(InetAddress.getByName(sourceName.toString())
@@ -71,10 +64,16 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
                          sourceInternalIp,
                          sourceExternalIp,
                          targetInternalIp,
-                         targetExternalIp);
+                         proposedTargetExternalIp);
             return;
         }
 
+        if (!proposedTargetName.equals(getBroadcastHostname()))
+        {
+            logger.warn("Received a cross VPC Syn intended for another host. Ignoring. Intended: {} Actual: {}",
+                        proposedTargetName, DatabaseDescriptor.getBroadcastAddress());
+            return;
+        }
 
         logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {} -> {}",
                      message.from,
@@ -82,18 +81,24 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
                      sourceInternalIp,
                      sourceExternalIp,
                      targetInternalIp,
-                     targetExternalIp);
+                     proposedTargetExternalIp);
 
 
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(sourceName, sourceInternalIp);
 
-        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(targetName, targetInternalIp, targetExternalIp);
+        CrossVpcIpMappingAck ack = new CrossVpcIpMappingAck(proposedTargetName, targetInternalIp, proposedTargetExternalIp);
         MessageOut<CrossVpcIpMappingAck> ackMessage = new MessageOut<>(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK,
                                                                        ack,
                                                                        CrossVpcIpMappingAck.serializer);
 
         logger.trace("Sending CrossVpcIpMappingAck to {}/{}", sourceInternalIp, sourceName);
         reply(ackMessage, sourceInternalIp);
+    }
+
+    @VisibleForTesting
+    InetAddressHostname getBroadcastHostname() {
+        // Supplying broadcast address as a hostname via config avoids a reverse-DNS lookup
+        return new InetAddressHostname(DatabaseDescriptor.getBroadcastAddress().getHostName());
     }
 
     /**

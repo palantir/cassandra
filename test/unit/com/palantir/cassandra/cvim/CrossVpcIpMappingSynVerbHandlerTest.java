@@ -71,7 +71,6 @@ public class CrossVpcIpMappingSynVerbHandlerTest
     @Test
     public void doVerb_invokedByMessagingService() throws UnknownHostException
     {
-
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, handler);
         MessagingService.instance().receive(messageIn, 0, 0, false);
         // Potential race condition since MessageDeliveryTask is run in another executor
@@ -81,6 +80,7 @@ public class CrossVpcIpMappingSynVerbHandlerTest
     @Test
     public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
     {
+        doReturn(targetName).when(handler).getBroadcastHostname();
         InetAddress input = InetAddress.getByName(sourceInternalIp.toString());
         DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
         DatabaseDescriptor.setCrossVpcIpSwapping(true);
@@ -95,6 +95,7 @@ public class CrossVpcIpMappingSynVerbHandlerTest
     @Test
     public void doVerb_sendsAckToSourceInternalIp() throws UnknownHostException
     {
+        doReturn(targetName).when(handler).getBroadcastHostname();
         DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
         handler.doVerb(messageIn, 0);
         verify(handler).reply(any(), eq(sourceInternalIp));
@@ -106,5 +107,26 @@ public class CrossVpcIpMappingSynVerbHandlerTest
         DatabaseDescriptor.setCrossVpcInternodeCommunication(false);
         handler.doVerb(messageIn, 0);
         verify(handler, never()).reply(any(), any());
+    }
+
+    @Test
+    public void doVerb_doesNotReplyWhenTargetDoesNotMatchBroadcastAddress() throws UnknownHostException
+    {
+        doReturn(new InetAddressHostname("other")).when(handler).getBroadcastHostname();
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        handler.doVerb(messageIn, 0);
+        verify(handler, never()).reply(any(), any());
+    }
+
+    @Test
+    public void doVerb_doesUpdateMappingWhenTargetDoesNotMatchBroadcastAddress() throws UnknownHostException
+    {
+        doReturn(new InetAddressHostname("other")).when(handler).getBroadcastHostname();
+        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
+        DatabaseDescriptor.setCrossVpcHostnameSwapping(true);
+        handler.doVerb(messageIn, 0);
+        InetAddress input = InetAddress.getByName(sourceInternalIp.toString());
+        InetAddress result = CrossVpcIpMappingHandshaker.instance.maybeUpdateAddress(input);
+        Assertions.assertThat(result.getHostAddress()).isEqualTo(input.getHostAddress());
     }
 }
