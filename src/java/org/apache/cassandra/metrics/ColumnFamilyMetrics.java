@@ -184,6 +184,7 @@ public class ColumnFamilyMetrics
     public final Meter backgroundReadRepairs;
 
     public final Counter largePartitionsCompacted;
+    public final Counter multiSliceMultiGetRequestQueries;
 
     /** Request rounds in range scan queries on this CF **/
     public final ColumnFamilyHistogram coordinatorScanRequestRounds;
@@ -415,6 +416,7 @@ public class ColumnFamilyMetrics
         backgroundReadRepairs = Metrics.meter(factory.createMetricName("BackgroundReadRepairs"));
         attemptedReadRepairs = Metrics.meter(factory.createMetricName("AttemptedReadRepairs"));
         largePartitionsCompacted = Metrics.counter("LargePartitionsCompacted");
+        multiSliceMultiGetRequestQueries = Metrics.counter("MultiSliceMultiGetRequestQueries");
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
         compactionBytesWritten = createColumnFamilyCounter("CompactionBytesWritten");
