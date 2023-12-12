@@ -443,6 +443,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             ClientState cState = state();
             String keyspace = cState.getKeyspace();
+            Keyspace.open(keyspace).getColumnFamilyStore(column_parent.column_family).metric.multiGetMultiSliceRequestQueries.inc();
             markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
             return multigetMultisliceInternal(keyspace, request, column_parent, System.currentTimeMillis(), consistency_level, cState);
