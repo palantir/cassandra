@@ -114,7 +114,7 @@ public class StartupChecks
         {
             logger.info("Executing preflight check {}", check.getKey());
             check.getValue().execute();
-            logger.info("Startup check {} completed", check.getKey());
+            logger.info("Preflight check {} completed", check.getKey());
         }
     }
 
