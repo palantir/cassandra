@@ -148,7 +148,7 @@ public class CassandraDaemon
             jmxServer.start();
             ((JmxRegistry)registry).setRemoteServerStub(server.toStub());
         }
-        catch (IOException e)
+        catch (Exception e)
         {
             exitOrFail(1, e.getMessage(), e.getCause());
         }
@@ -274,8 +274,12 @@ public class CassandraDaemon
 
     /* This part of setup may throw a CorruptSSTableException. */
     private void completeSetupMayThrowSstableException() {
+        logger.info("Attempting to complete Cassandra setup");
+
         // load schema from disk
         Schema.instance.loadFromDisk();
+
+        logger.debug("Successfully loaded schema from disk");
 
         // clean up compaction leftovers
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
@@ -288,6 +292,8 @@ public class CassandraDaemon
         }
         SystemKeyspace.discardCompactionsInProgress();
 
+        logger.debug("Successfully cleaned up compaction leftovers");
+
         // clean up debris in the rest of the keyspaces
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
@@ -298,6 +304,8 @@ public class CassandraDaemon
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
                 ColumnFamilyStore.scrubDataDirectories(cfm);
         }
+
+        logger.debug("Successfully scrubbed all keyspaces");
 
         Keyspace.setInitialized();
 
@@ -315,6 +323,8 @@ public class CassandraDaemon
                 }
             }
         }
+
+        logger.debug("Successfully initialized all keyspaces");
 
         try
         {
@@ -337,9 +347,12 @@ public class CassandraDaemon
         }
 
         recoverCommitlogAndCompleteSetup();
+
+        logger.debug("Finished recovering commit log and completed setup");
     }
 
     private void recoverCommitlogAndCompleteSetup() {
+        logger.debug("Attempting to recover commit log to complete setup");
         // replay the log if necessary
         try
         {
