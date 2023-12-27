@@ -356,6 +356,8 @@ public class StartupChecks
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(SystemKeyspace.NAME).values())
                 ColumnFamilyStore.scrubDataDirectories(cfm);
 
+            logger.debug("Finished scrubbing data directories for system keyspace. Checking keyspace health");
+
             try
             {
                 SystemKeyspace.checkHealth();
@@ -364,6 +366,8 @@ public class StartupChecks
             {
                 throw new StartupException(100, "Fatal exception during initialization", e);
             }
+
+            logger.debug("System keyspace is healthy");
         }
     };
 
@@ -399,6 +403,7 @@ public class StartupChecks
                 if (storedRack != null)
                 {
                     String currentRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddress());
+                    logger.debug("Successfully grabbed endpoint rack via snitch: {}", currentRack);
                     if (!storedRack.equals(currentRack))
                     {
                         String formatMessage = "Cannot start node if snitch's rack (%s) differs from previous rack (%s). " +
@@ -419,6 +424,7 @@ public class StartupChecks
             if (restrictedIp != null)
             {
                 String currentIp = FBUtilities.getLocalAddress().getHostAddress();
+                logger.debug("Successfully grabbed current IP: {}", currentIp);
                 if (currentIp.equals(restrictedIp))
                 {
                     {
