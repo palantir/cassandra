@@ -121,6 +121,7 @@ public class CassandraDaemon
 
     private void maybeInitJmx()
     {
+        logger.info("Attempting to init JVM");
         if (System.getProperty("com.sun.management.jmxremote.port") != null)
             return;
 
@@ -194,6 +195,12 @@ public class CassandraDaemon
 
         CLibrary.tryMlockall();
 
+        logger.info("Setting default uncaught exception handler.");
+
+        FileUtils.setDefaultUncaughtExceptionHandler();
+
+        logger.info("Starting startup checks.");
+
         try
         {
             startupChecks.verify();
@@ -202,6 +209,8 @@ public class CassandraDaemon
         {
             exitOrFail(e.returnCode, e.getMessage(), e.getCause());
         }
+
+        logger.info("Startup checks completed.");
 
         try
         {
@@ -212,18 +221,29 @@ public class CassandraDaemon
             exitOrFail(3, e.getMessage(), e.getCause());
         }
 
+        logger.info("Snapshot on version change completed.");
+
         // We need to persist this as soon as possible after startup checks.
         // This should be the first write to SystemKeyspace (CASSANDRA-11742)
         SystemKeyspace.persistLocalMetadata();
 
+        logger.info("Persisted local metadata to system keyspace.");
+
         maybeInitJmx();
 
-        FileUtils.setDefaultUncaughtExceptionHandler();
+        logger.info("Finished initializing Jmx.");
 
         Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
 
+        logger.info("Finished scheduling disk threshold checks.");
+
         doNotStartupClientInterfacesIfDisabled();
+
+        logger.info("Finished disabled interfaces checks.");
+
         completeSetupMayThrowSstableException();
+
+        logger.info("Completed Cassandra setup.");
     }
 
     /* This functionality should only be used in a migration mode for a brand new cluster, and ensures that client
@@ -544,7 +564,9 @@ public class CassandraDaemon
      */
     public void init(String[] arguments) throws IOException
     {
+        logger.info("Initializing Cassandra daemon");
         setup();
+        logger.info("Finished initializing Cassandra daemon");
     }
 
     /**
@@ -555,12 +577,15 @@ public class CassandraDaemon
      */
     public void start()
     {
+        logger.info("Starting Cassandra daemon");
         if (DisableClientInterfaceSetting.instance.isTrue())
         {
             logger.warn("Not enabling client interface servers (thrift and native transport) because persistent settings" +
                         " have marked client interfaces as disabled");
             return;
         }
+
+        logger.info("Validating transport can start.");
 
         try
         {

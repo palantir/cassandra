@@ -1102,6 +1102,7 @@ public final class SystemKeyspace
      */
     public static void snapshotOnVersionChange() throws IOException
     {
+        logger.info("Attempting snapshotOnVersionChange");
         String previous = getPreviousVersionString();
         String next = FBUtilities.getReleaseVersionString();
 

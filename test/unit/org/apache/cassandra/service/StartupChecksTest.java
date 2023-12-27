@@ -71,7 +71,7 @@ public class StartupChecksTest
     @Test
     public void failStartupIfInvalidSSTablesFound() throws Exception
     {
-        startupChecks = startupChecks.withTest(StartupChecks.checkSSTablesFormat);
+        startupChecks = startupChecks.withTest("checkSSTablesFormat", StartupChecks.checkSSTablesFormat);
 
         copyInvalidLegacySSTables(sstableDir);
 
@@ -94,7 +94,7 @@ public class StartupChecksTest
     @Test
     public void failStartupIfIpMatchesRestrictedIp()
     {
-        startupChecks = startupChecks.withTest(StartupChecks.checkIp);
+        startupChecks = startupChecks.withTest("checkIp", StartupChecks.checkIp);
         System.setProperty("palantir_cassandra.restricted_ip", "127.0.0.1");
 
         verifyFailure(startupChecks, "Cannot start as current IP");
@@ -103,7 +103,7 @@ public class StartupChecksTest
     @Test
     public void compatibilityCheckIgnoresNonDbFiles() throws Exception
     {
-        startupChecks = startupChecks.withTest(StartupChecks.checkSSTablesFormat);
+        startupChecks = startupChecks.withTest("checkSSTablesFormat", StartupChecks.checkSSTablesFormat);
 
         copyLegacyNonSSTableFiles(sstableDir);
         assertFalse(sstableDir.toFile().listFiles().length == 0);
