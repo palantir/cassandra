@@ -148,7 +148,7 @@ public class CassandraDaemon
             jmxServer.start();
             ((JmxRegistry)registry).setRemoteServerStub(server.toStub());
         }
-        catch (Exception e)
+        catch (IOException e)
         {
             exitOrFail(1, e.getMessage(), e.getCause());
         }
