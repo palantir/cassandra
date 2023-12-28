@@ -205,9 +205,9 @@ public class CassandraDaemon
         {
             startupChecks.verify();
         }
-        catch (StartupException e)
+        catch (Exception e)
         {
-            exitOrFail(e.returnCode, e.getMessage(), e.getCause());
+            exitOrFail(1, e.getMessage(), e.getCause());
         }
 
         logger.info("Startup checks completed.");
