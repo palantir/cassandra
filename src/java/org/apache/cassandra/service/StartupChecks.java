@@ -297,23 +297,38 @@ public class StartupChecks
             {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
                 {
+                    logger.debug("Visiting file {}", file.toString());
+
                     if (!file.toString().endsWith(".db"))
+                    {
+                        logger.debug("Completed non db file {} visit", file.toString());
                         return FileVisitResult.CONTINUE;
+                    }
 
                     try
                     {
+                        logger.debug("Checking db file {} compatibility", file.toString());
                         if (!Descriptor.fromFilename(file.toString()).isCompatible())
+                        {
                             invalid.add(file.toString());
+                            logger.debug("db file {} is incompatible", file.toString());
+                        }
+                        else
+                        {
+                            logger.debug("db file {} is compatible", file.toString());
+                        }
                     }
                     catch (Exception e)
                     {
                         invalid.add(file.toString());
                     }
+                    logger.debug("Completed file {} visit", file.toString());
                     return FileVisitResult.CONTINUE;
                 }
 
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException
                 {
+                    logger.debug("Visiting dir {}", dir.toString());
                     String name = dir.getFileName().toString();
                     return (name.equals("snapshots")
                             || name.equals("backups")
