@@ -65,27 +65,31 @@ public class StartupChecks
     private static final Logger logger = LoggerFactory.getLogger(StartupChecks.class);
 
     // List of checks to run before starting up. If any test reports failure, startup will be halted.
-    private final List<StartupCheck> preFlightChecks = new ArrayList<>();
+    private final Map<String, StartupCheck> preFlightChecks = new LinkedHashMap<>();
 
     // The default set of pre-flight checks to run. Order is somewhat significant in that we probably
     // always want the system keyspace check run last, as this actually loads the schema for that
     // keyspace. All other checks should not require any schema initialization.
-    private final List<StartupCheck> DEFAULT_TESTS = ImmutableList.of(checkJemalloc,
-                                                                      checkValidLaunchDate,
-                                                                      checkJMXPorts,
-                                                                      inspectJvmOptions,
-                                                                      checkJnaInitialization,
-                                                                      initSigarLibrary,
-                                                                      checkDataDirs,
-                                                                      checkSSTablesFormat,
-                                                                      checkSystemKeyspaceState,
-                                                                      checkDatacenter,
-                                                                      checkRack,
-                                                                      checkIp);
+    private final List<Map.Entry<String, StartupCheck>> DEFAULT_TESTS = ImmutableList.of(
+        new AbstractMap.SimpleEntry<>("checkJemalloc", checkJemalloc),
+        new AbstractMap.SimpleEntry<>("checkValidLaunchDate", checkValidLaunchDate),
+        new AbstractMap.SimpleEntry<>("checkJMXPorts", checkJMXPorts),
+        new AbstractMap.SimpleEntry<>("inspectJvmOptions", inspectJvmOptions),
+        new AbstractMap.SimpleEntry<>("checkJnaInitialization", checkJnaInitialization),
+        new AbstractMap.SimpleEntry<>("initSigarLibrary", initSigarLibrary),
+        new AbstractMap.SimpleEntry<>("checkDataDirs", checkDataDirs),
+        new AbstractMap.SimpleEntry<>("checkSSTablesFormat", checkSSTablesFormat),
+        new AbstractMap.SimpleEntry<>("checkSystemKeyspaceState", checkSystemKeyspaceState),
+        new AbstractMap.SimpleEntry<>("checkDatacenter", checkDatacenter),
+        new AbstractMap.SimpleEntry<>("checkRack", checkRack),
+        new AbstractMap.SimpleEntry<>("checkIp", checkIp));
 
     public StartupChecks withDefaultTests()
     {
-        preFlightChecks.addAll(DEFAULT_TESTS);
+        for (Map.Entry<String, StartupCheck> test : DEFAULT_TESTS)
+        {
+            preFlightChecks.put(test.getKey(), test.getValue());
+        }
         return this;
     }
 
@@ -93,9 +97,9 @@ public class StartupChecks
      * Add system test to be run before schema is loaded during startup
      * @param test the system test to include
      */
-    public StartupChecks withTest(StartupCheck test)
+    public StartupChecks withTest(String name, StartupCheck test)
     {
-        preFlightChecks.add(test);
+        preFlightChecks.put(name, test);
         return this;
     }
 
@@ -106,8 +110,12 @@ public class StartupChecks
      */
     public void verify() throws StartupException
     {
-        for (StartupCheck test : preFlightChecks)
-            test.execute();
+        for (Map.Entry<String, StartupCheck> check : preFlightChecks.entrySet())
+        {
+            logger.info("Executing preflight check {}", check.getKey());
+            check.getValue().execute();
+            logger.info("Preflight check {} completed", check.getKey());
+        }
     }
 
     public static final StartupCheck checkJemalloc = new StartupCheck()
@@ -289,23 +297,38 @@ public class StartupChecks
             {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
                 {
+                    logger.debug("Visiting file {}", file.toString());
+
                     if (!file.toString().endsWith(".db"))
+                    {
+                        logger.debug("Completed non db file {} visit", file.toString());
                         return FileVisitResult.CONTINUE;
+                    }
 
                     try
                     {
+                        logger.debug("Checking db file {} compatibility", file.toString());
                         if (!Descriptor.fromFilename(file.toString()).isCompatible())
+                        {
                             invalid.add(file.toString());
+                            logger.debug("db file {} is incompatible", file.toString());
+                        }
+                        else
+                        {
+                            logger.debug("db file {} is compatible", file.toString());
+                        }
                     }
                     catch (Exception e)
                     {
                         invalid.add(file.toString());
                     }
+                    logger.debug("Completed file {} visit", file.toString());
                     return FileVisitResult.CONTINUE;
                 }
 
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException
                 {
+                    logger.debug("Visiting dir {}", dir.toString());
                     String name = dir.getFileName().toString();
                     return (name.equals("snapshots")
                             || name.equals("backups")
@@ -348,6 +371,8 @@ public class StartupChecks
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(SystemKeyspace.NAME).values())
                 ColumnFamilyStore.scrubDataDirectories(cfm);
 
+            logger.debug("Finished scrubbing data directories for system keyspace. Checking keyspace health");
+
             try
             {
                 SystemKeyspace.checkHealth();
@@ -356,6 +381,8 @@ public class StartupChecks
             {
                 throw new StartupException(100, "Fatal exception during initialization", e);
             }
+
+            logger.debug("System keyspace is healthy");
         }
     };
 
@@ -391,6 +418,7 @@ public class StartupChecks
                 if (storedRack != null)
                 {
                     String currentRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddress());
+                    logger.debug("Successfully grabbed endpoint rack via snitch: {}", currentRack);
                     if (!storedRack.equals(currentRack))
                     {
                         String formatMessage = "Cannot start node if snitch's rack (%s) differs from previous rack (%s). " +
@@ -411,6 +439,7 @@ public class StartupChecks
             if (restrictedIp != null)
             {
                 String currentIp = FBUtilities.getLocalAddress().getHostAddress();
+                logger.debug("Successfully grabbed current IP: {}", currentIp);
                 if (currentIp.equals(restrictedIp))
                 {
                     {
