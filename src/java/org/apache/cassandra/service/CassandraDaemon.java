@@ -194,6 +194,8 @@ public class CassandraDaemon
 
         CLibrary.tryMlockall();
 
+        FileUtils.setDefaultUncaughtExceptionHandler();
+
         try
         {
             startupChecks.verify();
@@ -217,8 +219,6 @@ public class CassandraDaemon
         SystemKeyspace.persistLocalMetadata();
 
         maybeInitJmx();
-
-        FileUtils.setDefaultUncaughtExceptionHandler();
 
         Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
 
