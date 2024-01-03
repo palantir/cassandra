@@ -289,6 +289,7 @@ public class StartupChecks
             {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
                 {
+                    assert !file.toString().contains("broken-file");
                     if (!file.toString().endsWith(".db"))
                         return FileVisitResult.CONTINUE;
 
