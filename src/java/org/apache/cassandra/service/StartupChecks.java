@@ -280,6 +280,7 @@ public class StartupChecks
     {
         public void execute() throws StartupException
         {
+            logger.info("Executing startup check checkSSTablesFormat");
             final Set<String> invalid = new HashSet<>();
             final Set<String> nonSSTablePaths = new HashSet<>();
             nonSSTablePaths.add(FileUtils.getCanonicalPath(DatabaseDescriptor.getCommitLogLocation()));
@@ -334,7 +335,8 @@ public class StartupChecks
                                                             "all required intermediate versions, running " +
                                                             "upgradesstables",
                                                             Joiner.on(",").join(invalid)));
-
+            
+            logger.info("Finished executing startup check checkSSTablesFormat");
         }
     };
 
