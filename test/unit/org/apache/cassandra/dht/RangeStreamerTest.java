@@ -121,6 +121,7 @@ public class RangeStreamerTest
                                  false,
                                  DatabaseDescriptor.getEndpointSnitch(),
                                  streamStateStore,
-                                 false);
+                                 false,
+                                 DatabaseDescriptor.getStreamingConnectionsPerHost());
     }
 }
