@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.lang.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
@@ -290,7 +291,11 @@ public class StartupChecks
             {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
                 {
-                    assert !file.toString().contains("broken-file");
+                    logger.info("Visiting file {}", file.toString());
+                    if(file.toString().contains("broken-file")) {
+                        logger.warn("Throwing assertion error for file {}", file.toString());
+                        throw new AssertionError("Broken file");
+                    }
                     if (!file.toString().endsWith(".db"))
                         return FileVisitResult.CONTINUE;
 
