@@ -292,6 +292,9 @@ public class StartupChecks
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
                 {
                     logger.info("Visiting file {}", file.toString());
+                    assert !file.toString().contains("broken-file");
+                    logger.info("Assertion passed for file {}", file.toString());
+
                     if(file.toString().contains("broken-file")) {
                         logger.warn("Throwing assertion error for file {}", file.toString());
                         throw new AssertionError("Broken file");
