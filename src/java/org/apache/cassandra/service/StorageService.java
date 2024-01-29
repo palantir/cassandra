@@ -650,7 +650,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Thrift API version: {}", cassandraConstants.VERSION);
         logger.info("CQL supported versions: {} (default: {})",
                     StringUtils.join(ClientState.getCQLSupportedVersion(), ","), ClientState.DEFAULT_CQL_VERSION);
-        isBootstrapMode = SystemKeyspace.getBootstrapState() == SystemKeyspace.BootstrapState.IN_PROGRESS;
+        isBootstrapMode = SystemKeyspace.bootstrapInProgress();
 
         initialized = true;
 
