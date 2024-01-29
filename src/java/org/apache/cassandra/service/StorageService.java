@@ -247,6 +247,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void setGossipTokens(Collection<Token> tokens)
     {
+        if (DatabaseDescriptor.isAutoBootstrap() && !bootstrapComplete())
+        {
+            throw new BootstrappingSafetyException("Cannot set tokens for a non-bootstrapped node");
+        }
         List<Pair<ApplicationState, VersionedValue>> states = new ArrayList<Pair<ApplicationState, VersionedValue>>();
         states.add(Pair.create(ApplicationState.TOKENS, valueFactory.tokens(tokens)));
         states.add(Pair.create(ApplicationState.STATUS, valueFactory.normal(tokens)));
@@ -327,7 +331,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // should only be called via JMX
     public void startGossiping()
     {
-        if (!initialized)
+        if (!isInitialized())
         {
             logger.warn("Starting gossip by operator request");
             Collection<Token> tokens = SystemKeyspace.getSavedTokens();
@@ -478,6 +482,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     private void startTransports() {
+        if (!bootstrapComplete())
+        {
+            throw new IllegalStateException("Node is not yet bootstrapped completely. Refusing operator request to "
+                                           + "start transports.");
+        }
         if (!isInitialized() && !Gossiper.instance.isEnabled())
         {
             logger.info("Starting gossiper");
@@ -641,6 +650,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Thrift API version: {}", cassandraConstants.VERSION);
         logger.info("CQL supported versions: {} (default: {})",
                     StringUtils.join(ClientState.getCQLSupportedVersion(), ","), ClientState.DEFAULT_CQL_VERSION);
+        isBootstrapMode = SystemKeyspace.bootstrapInProgress();
 
         initialized = true;
 
@@ -1486,7 +1496,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(m, null, log);
     }
 
-    private void setMode(Mode m, String msg, boolean log)
+    @VisibleForTesting
+    void setMode(Mode m, String msg, boolean log)
     {
         operationMode = m;
         String logMsg = msg == null ? m.toString() : String.format("%s: %s", m, msg);
@@ -1697,6 +1708,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public boolean isBootstrapMode()
     {
         return isBootstrapMode;
+    }
+
+    @VisibleForTesting
+    boolean bootstrapComplete()
+    {
+        return SystemKeyspace.bootstrapComplete();
     }
 
     public TokenMetadata getTokenMetadata()
@@ -5067,7 +5084,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    public static void disableAutoCompaction() {
+    public void disableAutoCompaction() {
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
             for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
@@ -5096,7 +5113,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // Unsafe as does not check state before disabling the node
     public void unsafeDisableNode() {
         logger.info("Stopping transports, disabling auto compactions, stopping in-progress compactions");
-        instance.stopTransports();
+        stopTransports();
         disableAutoCompaction();
         CompactionManager.instance.stopAllCompactions();
     }
@@ -5151,6 +5168,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public void persistentEnableClientInterfaces() {
+        if (!bootstrapComplete())
+        {
+            throw new IllegalStateException("Node is not yet bootstrapped completely. Refusing operator request to "
+                    + "enable client interfaces.");
+        }
         DisableClientInterfaceSetting.instance.setFalse();
         instance.startTransports();
     }

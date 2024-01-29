@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
+import org.apache.cassandra.db.*;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,10 +33,6 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
-import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.DecoratedKey;
-import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
@@ -90,6 +87,7 @@ public class ActiveRepairServiceTest
 
         TokenMetadata tmd = StorageService.instance.getTokenMetadata();
         tmd.clearUnsafe();
+        SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
         StorageService.instance.setTokens(Collections.singleton(StorageService.getPartitioner().getRandomToken()));
         tmd.updateNormalToken(StorageService.getPartitioner().getMinimumToken(), REMOTE);
         assert tmd.isMember(REMOTE);

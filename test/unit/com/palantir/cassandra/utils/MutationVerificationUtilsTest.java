@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Mutation;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.InvalidMutationException;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
@@ -77,6 +78,7 @@ public class MutationVerificationUtilsTest
 
         TokenMetadata tmd = StorageService.instance.getTokenMetadata();
         tmd.clearUnsafe();
+        SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
         StorageService.instance.setTokens(Collections.singletonList(StorageService.getPartitioner().getToken(ByteBufferUtil.bytes("a"))));
         tmd.updateNormalToken(StorageService.getPartitioner().getToken(ByteBufferUtil.bytes("b")), REMOTE);
         MutationVerificationUtils.clearLastTokenRingCacheUpdate();

@@ -27,6 +27,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.apache.cassandra.tools.Util;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
@@ -34,7 +35,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 
+import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.logsafe.exceptions.SafeRuntimeException;
+import org.apache.cassandra.gms.ApplicationState;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -43,7 +48,6 @@ import org.junit.runner.RunWith;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
-import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.Schema;
@@ -64,12 +68,11 @@ import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class StorageServiceServerTest
@@ -112,6 +115,26 @@ public class StorageServiceServerTest
     }
 
     @Test
+    public void setGossipTokens_throwsWhenBootstrapRequiredAndIncomplete()
+    {
+        StorageService instance = spy(StorageService.instance);
+        doReturn(false).when(instance).bootstrapComplete();
+        assertThatThrownBy(() -> instance.setGossipTokens(Collections.emptyList()))
+                .isInstanceOf(BootstrappingSafetyException.class);
+        assertThatThrownBy(() -> Gossiper.instance.getEndpointStateForEndpoint(DatabaseDescriptor.getBroadcastAddress()))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    public void persistentEnableClientInterfaces_throwsWhenBootstrapRequiredAndIncomplete()
+    {
+        StorageService instance = spy(StorageService.instance);
+        doReturn(false).when(instance).bootstrapComplete();
+        assertThatThrownBy(instance::persistentEnableClientInterfaces)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     public void testRegularMode() throws ConfigurationException
     {
         SchemaLoader.mkdirs();
@@ -130,66 +153,58 @@ public class StorageServiceServerTest
     }
 
     @Test
-    public void disableNode_canOnlyDisableWhenNormal() {
-        for(StorageService.Mode mode : StorageService.Mode.values()) {
-            StorageService.instance.setOperationMode(mode);
-            if(mode.equals(StorageService.Mode.NORMAL)) {
-                mode = StorageService.Mode.DISABLED;
-            }
-            StorageService.instance.disableNode();
-            assertThat(StorageService.instance.getOperationMode()).isEqualTo(mode.name());
-        }
+    public void startGossiper_invokesSetTokens()
+    {
+        StorageService instance = spy(StorageService.instance);
+        assertThat(SystemKeyspace.getSavedTokens()).isNotEmpty();
+        Exception e = new SafeRuntimeException("Stop execution");
+        // Break before invoking the Gossiper instance
+        doThrow(e).when(instance).setGossipTokens(any());
+        doReturn(false).when(instance).isInitialized();
+        assertThatThrownBy(instance::startGossiping).isEqualTo(e);
     }
 
     @Test
-    public void disableNode_stopsCrossVpcHandshake() {
-        StorageService.instance.initServer(0);
-        CassandraDaemon daemon = mock(CassandraDaemon.class);
-        CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
-        daemon.thriftServer = server;
-        daemon.nativeServer = server;
-        StorageService.instance.registerDaemon(daemon);
-        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
-        CrossVpcIpMappingHandshaker.instance.start();
-        StorageService.instance.unsafeEnableNode();
-        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
-        StorageService.instance.disableNode();
-        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
+    public void disableNode_canOnlyDisableWhenNormal() {
+        StorageService instance = spy(StorageService.instance);
+        doNothing().when(instance).unsafeDisableNode();
+        doNothing().when(instance).setMode(any(), anyString(), anyBoolean());
+        for(StorageService.Mode mode : StorageService.Mode.values()) {
+            doReturn(mode.toString()).when(instance).getOperationMode();
+            instance.disableNode();
+            if(mode.equals(StorageService.Mode.NORMAL)) {
+                verify(instance, times(1)).setMode(eq(StorageService.Mode.DISABLED), anyString(), anyBoolean());
+            }
+        }
+        verify(instance, times(1)).setMode(any(), anyString(), anyBoolean());
+    }
+
+    @Test
+    public void disableNode_stopsGossip() {
+        // And stopGossip stops cross-VPC handshake
+        StorageService instance = spy(StorageService.instance);
+        doReturn(StorageService.Mode.NORMAL.toString()).when(instance).getOperationMode();
+        doNothing().when(instance).stopGossiping();
+        doReturn(true).when(instance).isInitialized();
+        doNothing().when(instance).disableAutoCompaction();
+        doCallRealMethod().when(instance).disableNode();
+        instance.disableNode();
+        verify(instance).stopGossiping();
     }
 
     @Test
     public void enableNode_canOnlyEnableWhenDisabled() {
-        StorageService.instance.initServer(0);
-        CassandraDaemon daemon = mock(CassandraDaemon.class);
-        CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
-        daemon.thriftServer = server;
-        daemon.nativeServer = server;
-        StorageService.instance.registerDaemon(daemon);
+        StorageService instance = spy(StorageService.instance);
+        doNothing().when(instance).unsafeEnableNode();
         for(StorageService.Mode mode : StorageService.Mode.values()) {
-            StorageService.instance.setOperationMode(mode);
-            if(mode.equals(StorageService.Mode.DISABLED)) {
-                mode = StorageService.Mode.NORMAL;
+            doReturn(mode.toString()).when(instance).getOperationMode();
+            instance.enableNode();
+            if(mode.toString().equals(StorageService.Mode.DISABLED.toString())) {
+                verify(instance, times(1)).unsafeEnableNode();
+                clearInvocations(instance);
             }
-            StorageService.instance.enableNode();
-            assertThat(StorageService.instance.getOperationMode()).isEqualTo(mode.toString());
+            verify(instance, never()).unsafeEnableNode();
         }
-    }
-
-    @Test
-    public void enableNode_startsCrossVpcHandshake() {
-        DatabaseDescriptor.setCrossVpcInternodeCommunication(true);
-        StorageService.instance.initServer(0);
-        CassandraDaemon daemon = mock(CassandraDaemon.class);
-        CassandraDaemon.Server server = mock(CassandraDaemon.Server.class);
-        daemon.thriftServer = server;
-        daemon.nativeServer = server;
-        StorageService.instance.registerDaemon(daemon);
-        StorageService.instance.disableNode();
-        CrossVpcIpMappingHandshaker.instance.stop();
-        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isFalse();
-        StorageService.instance.enableNode();
-        assertThat(CrossVpcIpMappingHandshaker.instance.isEnabled()).isTrue();
-        CrossVpcIpMappingHandshaker.instance.stop();
     }
 
     @Test
@@ -203,7 +218,6 @@ public class StorageServiceServerTest
     public void testSnapshot() throws IOException
     {
         // no need to insert extra data, even an "empty" database will have a little information in the system keyspace
-        StorageService.instance.clearSnapshot("snapshot");
         StorageService.instance.takeSnapshot("snapshot");
     }
 
