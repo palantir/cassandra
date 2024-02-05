@@ -28,7 +28,7 @@ import org.apache.cassandra.io.ISerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.ObjectSizes;
-import org.codehaus.jackson.annotate.JsonIgnore;
+import com.fasterxml.jackson.core.annotate.JsonIgnore;
 
 /**
  * A top-level (row) tombstone.

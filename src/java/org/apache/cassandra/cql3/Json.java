@@ -27,8 +27,8 @@ import org.apache.cassandra.cql3.functions.Function;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.serializers.MarshalException;
-import org.codehaus.jackson.io.JsonStringEncoder;
-import org.codehaus.jackson.map.ObjectMapper;
+import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.fasterxml.jackson.core.map.ObjectMapper;
 
 /** Term-related classes for INSERT JSON support. */
 public class Json

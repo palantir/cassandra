@@ -23,7 +23,7 @@ import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
 
-import org.codehaus.jackson.map.ObjectMapper;
+import com.fasterxml.jackson.core.map.ObjectMapper;
 
 public class OpStateTestConstants
 {
