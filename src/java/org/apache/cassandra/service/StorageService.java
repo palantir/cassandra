@@ -923,6 +923,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 throw new BootstrappingSafetyException("Detected data from previous bootstrap, failing.");
             }
 
+            if (isCleanupRunning())
+            {
+                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR,
+                        ImmutableMap.of("cleanupInProgress", "true"));
+                unsafeDisableNode();
+                // leave node in non-transient error state and prevent it from bootstrapping into the cluster
+                throw new BootstrappingSafetyException("Cleanup is running, cannot bootstrap");
+            }
+
             if (SystemKeyspace.bootstrapInProgress())
             {
                 logger.warn("Detected previous bootstrap failure; retrying");
@@ -1632,6 +1641,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public void startBootstrap()
     {
+        Preconditions.checkState(!StorageService.instance.isCleanupRunning(), "Cleanup is running. Refusing to start bootstrap.");
         startBootstrapCondition.signalAll();
     }
 
