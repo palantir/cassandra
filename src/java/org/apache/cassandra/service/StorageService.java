@@ -1641,7 +1641,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public void startBootstrap()
     {
-        Preconditions.checkState(!StorageService.instance.isCleanupRunning(), "Cleanup is running. Refusing to start bootstrap.");
+        Preconditions.checkState(!isCleanupRunning(), "Cleanup is running. Refusing to start bootstrap.");
         startBootstrapCondition.signalAll();
     }
 
