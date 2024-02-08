@@ -74,6 +74,9 @@ public class CrossVpcIpMappingHandshaker
         {
             return;
         }
+        if (host == null || internalIp == null) {
+            logger.warn("Received null host {}/{}", host, internalIp);
+        }
         InetAddressHostname old = this.privateIpToHostname.get(internalIp);
         if (!host.equals(old))
         {
@@ -93,6 +96,9 @@ public class CrossVpcIpMappingHandshaker
             return endpoint;
         }
         InetAddressIp proposedAddress = new InetAddressIp(endpoint.getHostAddress());
+        if (proposedAddress == null) {
+            logger.warn("null proposed address {}!", endpoint);
+        }
         if (DatabaseDescriptor.isCrossVpcHostnameSwappingEnabled() && privateIpToHostname.containsKey(proposedAddress))
         {
             return maybeInsertHostname(endpoint);
@@ -103,6 +109,9 @@ public class CrossVpcIpMappingHandshaker
     private InetAddress maybeInsertHostname(InetAddress endpoint)
     {
         InetAddressHostname hostname = privateIpToHostname.get(new InetAddressIp(endpoint.getHostAddress()));
+        if (hostname == null) {
+            logger.warn("Trying to insert null hostname for endpoint {}!", endpoint);
+        }
         logger.trace("Performing DNS lookup for host {}", hostname);
         Set<InetAddress> resolved;
         try
