@@ -36,7 +36,7 @@ import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.map.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Export SSTables to JSON format.

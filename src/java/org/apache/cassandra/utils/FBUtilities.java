@@ -59,7 +59,7 @@ import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.AsyncOneResponse;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.map.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FBUtilities
 {

@@ -51,7 +51,7 @@ import org.apache.cassandra.utils.JVMStabilityInspector;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.map.MappingJsonFactory;
+import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
@@ -71,7 +71,7 @@ public class SSTableImport
     private final boolean isSorted;
 
     private static final JsonFactory factory = new MappingJsonFactory().configure(
-                                                                                 JsonParser.Feature.INTERN_FIELD_NAMES, false);
+                                                                                 JsonFactory.Feature.INTERN_FIELD_NAMES, false);
 
     static
     {
