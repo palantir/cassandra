@@ -17,10 +17,10 @@
 # to configure behavior, define $CQL_TEST_HOST to the destination address
 # for Thrift connections, and $CQL_TEST_PORT to the associated port.
 
-from __future__ import with_statement
+
 
 import re
-from itertools import izip
+
 from .basecase import (BaseTestCase, cqlshlog, dedent, at_a_time, cqlsh,
                        TEST_HOST, TEST_PORT)
 from .cassconnect import (get_keyspace, testrun_cqlsh, testcall_cqlsh,
@@ -45,7 +45,7 @@ class TestCqlshOutput(BaseTestCase):
         self.assertNotRegexpMatches(text, ansi_seq, msg='ANSI CSI sequence found in %r' % text)
 
     def assertHasColors(self, text, msg=None):
-        self.assertRegexpMatches(text, ansi_seq, msg=msg)
+        self.assertRegex(text, ansi_seq, msg=msg)
 
     def assertColored(self, coloredtext, colorname):
         wanted_colorcode = lookup_colorcode(colorname)
@@ -57,7 +57,7 @@ class TestCqlshOutput(BaseTestCase):
                                      % (coloredtext, num, lookup_colorname(ccolor), colorname))
 
     def assertColorFromTags(self, coloredtext, tags):
-        for (char, tag) in izip(coloredtext, tags):
+        for (char, tag) in zip(coloredtext, tags):
             if char.isspace():
                 continue
             if tag.isspace():
@@ -478,7 +478,7 @@ class TestCqlshOutput(BaseTestCase):
         # it as one character, so those won't seem to line up visually either.
 
         self.assertCqlverQueriesGiveColoredOutput((
-            ("select * from utf8_with_special_chars where k in (0, 1, 2, 3, 4, 5, 6);", u"""
+            ("select * from utf8_with_special_chars where k in (0, 1, 2, 3, 4, 5, 6);", """
              k | val
              R   MMM
             ---+-------------------------------
@@ -592,7 +592,7 @@ class TestCqlshOutput(BaseTestCase):
                          r';\s*$',
                          r'\breplication = {\'class\':']
         for expr in expected_bits:
-            self.assertRegexpMatches(output, expr)
+            self.assertRegex(output, expr)
 
     def test_describe_columnfamily_output(self):
         # we can change these to regular expressions if/when it makes sense
@@ -660,7 +660,7 @@ class TestCqlshOutput(BaseTestCase):
                     ksnames = []
                     output = c.cmd_and_response(cmdword + semicolon)
                     self.assertNoHasColors(output)
-                    self.assertRegexpMatches(output, '(?xs) ^ ( %s )+ $' % output_re)
+                    self.assertRegex(output, '(?xs) ^ ( %s )+ $' % output_re)
 
                     for section in re.finditer('(?xs)' + output_re, output):
                         ksname = section.group('ksname')
@@ -709,7 +709,7 @@ class TestCqlshOutput(BaseTestCase):
             for semicolon in ('', ';'):
                 output = c.cmd_and_response('describe cluster' + semicolon)
                 self.assertNoHasColors(output)
-                self.assertRegexpMatches(output, output_re + '$')
+                self.assertRegex(output, output_re + '$')
 
             c.send('USE %s;\n' % quote_name(get_keyspace()))
             c.read_to_next_prompt()
@@ -717,27 +717,27 @@ class TestCqlshOutput(BaseTestCase):
             for semicolon in ('', ';'):
                 output = c.cmd_and_response('describe cluster' + semicolon)
                 self.assertNoHasColors(output)
-                self.assertRegexpMatches(output, output_re + ringinfo_re + '$')
+                self.assertRegex(output, output_re + ringinfo_re + '$')
 
     def test_describe_schema_output(self):
         with testrun_cqlsh(tty=True) as c:
             for semicolon in ('', ';'):
                 output = c.cmd_and_response('desc full schema' + semicolon)
                 self.assertNoHasColors(output)
-                self.assertRegexpMatches(output, '^\nCREATE KEYSPACE')
+                self.assertRegex(output, '^\nCREATE KEYSPACE')
                 self.assertIn("\nCREATE KEYSPACE system WITH replication = {'class': 'LocalStrategy'}  AND durable_writes = true;\n",
                               output)
-                self.assertRegexpMatches(output, ';\s*$')
+                self.assertRegex(output, ';\s*$')
 
     def test_show_output(self):
         with testrun_cqlsh(tty=True) as c:
             output = c.cmd_and_response('show version;')
-            self.assertRegexpMatches(output,
+            self.assertRegex(output,
                     '^\[cqlsh \S+ \| Cassandra \S+ \| CQL spec \S+ \| Native protocol \S+\]$')
 
             output = c.cmd_and_response('show host;')
             self.assertHasColors(output)
-            self.assertRegexpMatches(output, '^Connected to .* at %s:%d\.$'
+            self.assertRegex(output, '^Connected to .* at %s:%d\.$'
                                              % (re.escape(TEST_HOST), TEST_PORT))
 
     @unittest.skipIf(sys.platform == "win32", 'EOF signaling not supported on Windows')

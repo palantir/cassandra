@@ -20,13 +20,13 @@ import math
 import re
 import sys
 import platform
-import wcwidth
+from . import wcwidth
 
 from collections import defaultdict
-from displaying import colorme, get_str, FormattedValue, DEFAULT_VALUE_COLORS, NO_COLOR_MAP
+from .displaying import colorme, get_str, FormattedValue, DEFAULT_VALUE_COLORS, NO_COLOR_MAP
 from cassandra.cqltypes import EMPTY
 from cassandra.util import datetime_from_timestamp
-from util import UTC
+from .util import UTC
 
 is_win = platform.system() == 'Windows'
 
@@ -276,7 +276,7 @@ def format_value_time(val, colormap, **_):
 
 @formatter_for('str')
 def format_value_text(val, encoding, colormap, quote=False, **_):
-    escapedval = val.replace(u'\\', u'\\\\')
+    escapedval = val.replace('\\', '\\\\')
     if quote:
         escapedval = escapedval.replace("'", "''")
     escapedval = unicode_controlchars_re.sub(_show_control_chars, escapedval)
@@ -380,7 +380,7 @@ def format_value_utype(val, encoding, colormap, date_time_format, float_precisio
     def format_field_name(name):
         return format_value_text(name, encoding=encoding, colormap=colormap, quote=False)
 
-    subs = [(format_field_name(k), format_field_value(v)) for (k, v) in val._asdict().items()]
+    subs = [(format_field_name(k), format_field_value(v)) for (k, v) in list(val._asdict().items())]
     bval = '{' + ', '.join(get_str(k) + ': ' + get_str(v) for (k, v) in subs) + '}'
     if colormap is NO_COLOR_MAP:
         return bval
