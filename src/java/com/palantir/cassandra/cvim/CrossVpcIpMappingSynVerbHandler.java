@@ -52,7 +52,8 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressIp sourceExternalIp = new InetAddressIp(InetAddress.getByName(sourceName.toString())
                                                                       .getHostAddress());
 
-        InetAddressIp targetInternalIp = new InetAddressIp(FBUtilities.getBroadcastAddress().getHostAddress());
+        InetAddress broadcastAddress = FBUtilities.getBroadcastAddress();
+        InetAddressIp targetInternalIp = new InetAddressIp(broadcastAddress.getHostAddress());
 
         if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
         {
@@ -70,7 +71,7 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         if (!proposedTargetName.equals(getBroadcastHostname()))
         {
             logger.warn("Received a cross VPC Syn intended for another host. Ignoring. Intended: {} Actual: {}",
-                        proposedTargetName, DatabaseDescriptor.getBroadcastAddress());
+                        proposedTargetName, broadcastAddress);
             return;
         }
 
@@ -97,7 +98,7 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
     @VisibleForTesting
     InetAddressHostname getBroadcastHostname() {
         // Supplying broadcast address as a hostname via config avoids a reverse-DNS lookup
-        return new InetAddressHostname(DatabaseDescriptor.getBroadcastAddress().getHostName());
+        return new InetAddressHostname(FBUtilities.getBroadcastAddress().getHostName());
     }
 
     /**
