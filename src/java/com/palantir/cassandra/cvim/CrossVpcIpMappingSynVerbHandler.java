@@ -97,7 +97,7 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
     @VisibleForTesting
     InetAddressHostname getBroadcastHostname() {
         // Supplying broadcast address as a hostname via config avoids a reverse-DNS lookup
-        return new InetAddressHostname(DatabaseDescriptor.getBroadcastAddress().getHostName());
+        return new InetAddressHostname(FBUtilities.getBroadcastAddress().getHostName());
     }
 
     /**
