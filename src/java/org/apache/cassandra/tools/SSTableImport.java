@@ -48,11 +48,11 @@ import org.apache.cassandra.serializers.MarshalException;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.JVMStabilityInspector;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonToken;
-import org.codehaus.jackson.map.MappingJsonFactory;
-import org.codehaus.jackson.type.TypeReference;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.MappingJsonFactory;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * Create SSTables from JSON input
@@ -71,7 +71,7 @@ public class SSTableImport
     private final boolean isSorted;
 
     private static final JsonFactory factory = new MappingJsonFactory().configure(
-                                                                                 JsonParser.Feature.INTERN_FIELD_NAMES, false);
+                                                                                 JsonFactory.Feature.INTERN_FIELD_NAMES, false);
 
     static
     {
