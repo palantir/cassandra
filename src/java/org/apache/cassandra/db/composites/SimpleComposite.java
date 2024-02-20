@@ -69,11 +69,7 @@ public class SimpleComposite extends AbstractComposite
 
     @Override
     public int serializedSize() {
-        int serializedSize = dataSize();
-        int expectedSerializedSize;
-        assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining()) :
-                getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize + " actual: " + serializedSize;
-        return serializedSize;
+        return assertSerializedSize(element.remaining(), "simple composite");
     }
 
     public long unsharedHeapSize()
