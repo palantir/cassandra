@@ -425,33 +425,30 @@ public abstract class AbstractNativeCell extends AbstractCell implements CellNam
         }
     }
 
+    private int serializedCompoundSize()
+    {
+        int size = (isStatic() ? Short.BYTES : 0);
+        for (int i = 0; i < size(); i++)
+        {
+            size += Short.BYTES + get(i).remaining() + 1;
+        }
+        return size;
+    }
+
     @Override
     public int serializedSize()
     {
-        int expectedSerializedSize;
-        int maybeSerializedSize;
-        int serializedSize;
         switch (nametype())
         {
             case SIMPLE_DENSE:
             case SIMPLE_SPARSE:
-                serializedSize = get(0).remaining();
-                assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining()) :
-                        getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize + " for name type " + nametype() + " actual: " + serializedSize;
-                assert serializedSize == (maybeSerializedSize = valueStartOffset() - nameDeltaOffset(size())) :
-                        "Serialized size: " + serializedSize + " did not match maybeSerializedSize:" + maybeSerializedSize;
-                return serializedSize;
+                return assertSerializedSize(get(0).remaining(), nametype());
             case COMPOUND_DENSE:
             case COMPOUND_SPARSE_STATIC:
             case COMPOUND_SPARSE:
                 // This is the legacy format of composites.
                 // See org.apache.cassandra.db.marshal.CompositeType for details.
-                serializedSize = cellDataSize();
-                assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining()) :
-                        getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize + " for name type " + nametype() + " actual: " + serializedSize;
-                assert serializedSize == (maybeSerializedSize = valueStartOffset() - nameDeltaOffset(size())) :
-                        "Serialized size: " + serializedSize + " did not match maybeSerializedSize:" + maybeSerializedSize;
-                return serializedSize;
+                return assertSerializedSize(serializedCompoundSize(), nametype());
             default:
                 throw new AssertionError();
         }

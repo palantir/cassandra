@@ -98,7 +98,7 @@ public abstract class AbstractComposite implements Composite
         return defaultCompositeSerializedSize();
     }
 
-    private int defaultCompositeSerializedSize() {
+    protected int defaultCompositeSerializedSize() {
         return (isStatic() ? Short.BYTES : 0) + dataSize() + ((Short.BYTES + 1) * size());
     }
 

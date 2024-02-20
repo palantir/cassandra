@@ -78,6 +78,16 @@ public interface Composite extends IMeasurableMemory
         int serializedSize = toByteBuffer().remaining();
         assert false : getClass().getCanonicalName()
                 + " fallback to expensive toByteBuffer().remaining() serializedSize: " + serializedSize;
+        return assertSerializedSize(serializedSize, "");
+    }
+
+    default int assertSerializedSize(int serializedSize, Object context)
+    {
+        int expectedSerializedSize;
+        assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining())
+        : getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize
+          + " for " + context
+          + ", actual: " + serializedSize;
         return serializedSize;
     }
 

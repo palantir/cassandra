@@ -94,11 +94,7 @@ public class BoundedComposite extends AbstractComposite
 
     @Override
     public int serializedSize() {
-        int serializedSize = wrapped.serializedSize();
-        int expectedSerializedSize;
-        assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining()) :
-                getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize + " actual: " + serializedSize;
-        return serializedSize;
+        return assertSerializedSize(wrapped.serializedSize(), wrapped.getClass().getCanonicalName());
     }
 
     public long unsharedHeapSize()
