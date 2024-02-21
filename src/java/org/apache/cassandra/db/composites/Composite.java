@@ -73,21 +73,32 @@ public interface Composite extends IMeasurableMemory
 
     public ByteBuffer toByteBuffer();
 
-    default public int serializedSize() {
+    default int serializedSize()
+    {
         // expensive fallback, subtypes should ideally override to avoid allocations
         int serializedSize = toByteBuffer().remaining();
-        assert false : getClass().getCanonicalName()
-                + " fallback to expensive toByteBuffer().remaining() serializedSize: " + serializedSize;
-        return assertSerializedSize(serializedSize, "");
+        if (getClass().desiredAssertionStatus())
+        {
+            throw new AssertionError(getClass().getCanonicalName()
+                                     + " fallback to expensive toByteBuffer().remaining() serializedSize: "
+                                     + serializedSize);
+        }
+        return assertSerializedSize(serializedSize, "base composite");
     }
 
     default int assertSerializedSize(int serializedSize, Object context)
     {
-        int expectedSerializedSize;
-        assert serializedSize == (expectedSerializedSize = toByteBuffer().remaining())
-        : getClass().getCanonicalName() + " expected serialized size: " + expectedSerializedSize
-          + " for " + context
-          + ", actual: " + serializedSize;
+        if (getClass().desiredAssertionStatus())
+        {
+            // only perform expensive `toByteBuffer()` when assertions enabled for testing
+            int expectedSerializedSize = toByteBuffer().remaining();
+            if (serializedSize != expectedSerializedSize)
+            {
+                throw new AssertionError(getClass().getCanonicalName()
+                                         + " expected serialized size: " + expectedSerializedSize
+                                         + " for " + context + ", actual: " + serializedSize);
+            }
+        }
         return serializedSize;
     }
 

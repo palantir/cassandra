@@ -85,9 +85,6 @@ public abstract class AbstractComposite implements Composite
             result.put(bb.duplicate());
             result.put((byte)0);
         }
-        assert result.remaining() == 0 : "Remaining should be 0, was: " + result.remaining()
-                + ", position: " + result.position()
-                + ", limit: " + result.limit();
         result.flip();
         return result;
     }
