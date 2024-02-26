@@ -21,6 +21,7 @@ buildscript {
     }
 
     dependencies {
+        classpath 'com.palantir.gradle.failure-reports:gradle-failure-reports:1.6.0'
         classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.4.0'
         classpath 'com.palantir.gradle.docker:gradle-docker:0.27.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.13.0'
@@ -70,6 +71,7 @@ externalPublishing {
 }
 
 apply plugin: 'com.palantir.docker'
+apply plugin: 'com.palantir.failure-reports'
 docker {
     name "palantirtechnologies/${rootProject.name}:${project.version}"
     dockerfile file("${project.rootDir}/docker/Dockerfile")
