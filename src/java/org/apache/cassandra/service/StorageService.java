@@ -1037,7 +1037,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             try
             {
                 setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
-                boolean timeoutExceeded = !finishBootstrapCondition.await(10, MINUTES);
+                boolean timeoutExceeded = !finishBootstrapCondition.await(30, MINUTES);
                 if (timeoutExceeded)
                 {
                     recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("bootstrapSafetyCheckFailed", "true"));
