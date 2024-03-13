@@ -595,13 +595,14 @@ public class OutboundTcpConnection extends Thread
         final int id;
         final long timestampNanos;
         final boolean droppable;
+        private final int retries = 0;
 
         QueuedMessage(MessageOut<?> message, int id)
         {
             this.message = message;
             this.id = id;
             this.timestampNanos = System.nanoTime();
-            this.droppable = MessagingService.DROPPABLE_VERBS.contains(message.verb);
+            this.droppable = false;
         }
 
         /** don't drop a non-droppable message just because it's timestamp is expired */
@@ -619,18 +620,30 @@ public class OutboundTcpConnection extends Thread
         {
             return timestampNanos;
         }
+
+        protected int getRetries() {
+            return retries;
+        }
     }
 
     private static class RetriedQueuedMessage extends QueuedMessage
     {
+        private final int retries;
+
         RetriedQueuedMessage(QueuedMessage msg)
         {
             super(msg.message, msg.id);
+            retries = msg.getRetries() + 1;
         }
 
         boolean shouldRetry()
         {
-            return false;
+            return retries <= 5;
+        }
+
+        @Override
+        protected int getRetries() {
+            return retries;
         }
     }
 }
