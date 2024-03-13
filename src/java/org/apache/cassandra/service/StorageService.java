@@ -91,8 +91,6 @@ import org.apache.cassandra.utils.concurrent.SimpleCondition;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
-
 /**
  * This abstraction contains the token/identifier of this node
  * on the identifier space. This token gets gossiped around.
@@ -1037,7 +1035,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             try
             {
                 setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
-                finishBootstrapCondition.await();
+                boolean timeoutExceeded = !finishBootstrapCondition.await(10, TimeUnit.MINUTES);
+                if (timeoutExceeded)
+                {
+                    recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("bootstrapSafetyCheckFailed", "true"));
+                    unsafeDisableNode();
+                    throw new BootstrappingSafetyException("Bootstrap safety check failed.");
+                }
             }
             catch (InterruptedException e)
             {
