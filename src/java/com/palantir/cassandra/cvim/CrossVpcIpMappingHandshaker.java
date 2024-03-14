@@ -77,14 +77,10 @@ public class CrossVpcIpMappingHandshaker
         {
             return;
         }
-        privateIpToHostname.compute(internalIp, (_internalIp, old) -> {
-            if (!host.equals(old))
-            {
-                logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}", internalIp, old, internalIp, host);
-                return host;
-            }
-            return old;
-        });
+        InetAddressHostname old = privateIpToHostname.forcePut(internalIp, host);
+        if (!host.equals(old)) {
+            logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}", internalIp, old, internalIp, host);
+        }
     }
 
     /**
