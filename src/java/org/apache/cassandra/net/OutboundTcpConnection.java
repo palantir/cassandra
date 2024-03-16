@@ -334,6 +334,7 @@ public class OutboundTcpConnection extends Thread
 //                    }
 
                     if (connect()) {
+                        logger.trace("successfully re-established connection, retrying");
                         continue; // retry
                     }
                 }
@@ -343,7 +344,8 @@ public class OutboundTcpConnection extends Thread
                     logger.error("error writing to {}", poolReference.endPoint(), e);
                 }
             }
-            break;
+            logger.trace("exiting writeConnected");
+            return;
         }
     }
 
