@@ -279,64 +279,71 @@ public class OutboundTcpConnection extends Thread
 
     private void writeConnected(QueuedMessage qm, boolean flush)
     {
-        try
-        {
-            byte[] sessionBytes = qm.message.parameters.get(Tracing.TRACE_HEADER);
-            if (sessionBytes != null)
+        for (int retries = 0; retries <= 5; retries++) {
+            try
             {
-                UUID sessionId = UUIDGen.getUUID(ByteBuffer.wrap(sessionBytes));
-                TraceState state = Tracing.instance.get(sessionId);
-                String message = String.format("Sending %s message to %s", qm.message.verb, poolReference.endPoint());
-                // session may have already finished; see CASSANDRA-5668
-                if (state == null)
+                byte[] sessionBytes = qm.message.parameters.get(Tracing.TRACE_HEADER);
+                if (sessionBytes != null)
                 {
-                    byte[] traceTypeBytes = qm.message.parameters.get(Tracing.TRACE_TYPE);
-                    Tracing.TraceType traceType = traceTypeBytes == null ? Tracing.TraceType.QUERY : Tracing.TraceType.deserialize(traceTypeBytes[0]);
-                    TraceState.mutateWithTracing(ByteBuffer.wrap(sessionBytes), message, -1, traceType.getTTL());
+                    UUID sessionId = UUIDGen.getUUID(ByteBuffer.wrap(sessionBytes));
+                    TraceState state = Tracing.instance.get(sessionId);
+                    String message = String.format("Sending %s message to %s", qm.message.verb, poolReference.endPoint());
+                    // session may have already finished; see CASSANDRA-5668
+                    if (state == null)
+                    {
+                        byte[] traceTypeBytes = qm.message.parameters.get(Tracing.TRACE_TYPE);
+                        Tracing.TraceType traceType = traceTypeBytes == null ? Tracing.TraceType.QUERY : Tracing.TraceType.deserialize(traceTypeBytes[0]);
+                        TraceState.mutateWithTracing(ByteBuffer.wrap(sessionBytes), message, -1, traceType.getTTL());
+                    }
+                    else
+                    {
+                        state.trace(message);
+                        if (qm.message.verb == MessagingService.Verb.REQUEST_RESPONSE)
+                            Tracing.instance.doneWithNonLocalSession(state);
+                    }
+                }
+
+                long timestampMillis = NanoTimeToCurrentTimeMillis.convert(qm.timestampNanos);
+                writeInternal(qm.message, qm.id, timestampMillis);
+
+                completed++;
+                if (flush)
+                    out.flush();
+            }
+            catch (Throwable e)
+            {
+                JVMStabilityInspector.inspectThrowable(e);
+                disconnect();
+                if (e instanceof IOException || e.getCause() instanceof IOException)
+                {
+                    if (logger.isTraceEnabled())
+                        logger.trace("error writing to {}, retry {}", poolReference.endPoint(), retries, e);
+
+                    // if the message was important, such as a repair acknowledgement, put it back on the queue
+                    // to retry after re-connecting.  See CASSANDRA-5393
+//                    if (qm.shouldRetry())
+//                    {
+//                        try
+//                        {
+//                            backlog.put(new RetriedQueuedMessage(qm));
+//                        }
+//                        catch (InterruptedException e1)
+//                        {
+//                            throw new AssertionError(e1);
+//                        }
+//                    }
+
+                    if (connect()) {
+                        continue; // retry
+                    }
                 }
                 else
                 {
-                    state.trace(message);
-                    if (qm.message.verb == MessagingService.Verb.REQUEST_RESPONSE)
-                        Tracing.instance.doneWithNonLocalSession(state);
+                    // Non IO exceptions are likely a programming error so let's not silence them
+                    logger.error("error writing to {}", poolReference.endPoint(), e);
                 }
             }
-
-            long timestampMillis = NanoTimeToCurrentTimeMillis.convert(qm.timestampNanos);
-            writeInternal(qm.message, qm.id, timestampMillis);
-
-            completed++;
-            if (flush)
-                out.flush();
-        }
-        catch (Throwable e)
-        {
-            JVMStabilityInspector.inspectThrowable(e);
-            disconnect();
-            if (e instanceof IOException || e.getCause() instanceof IOException)
-            {
-                if (logger.isTraceEnabled())
-                    logger.trace("error writing to {}", poolReference.endPoint(), e);
-
-                // if the message was important, such as a repair acknowledgement, put it back on the queue
-                // to retry after re-connecting.  See CASSANDRA-5393
-                if (qm.shouldRetry())
-                {
-                    try
-                    {
-                        backlog.put(new RetriedQueuedMessage(qm));
-                    }
-                    catch (InterruptedException e1)
-                    {
-                        throw new AssertionError(e1);
-                    }
-                }
-            }
-            else
-            {
-                // Non IO exceptions are likely a programming error so let's not silence them
-                logger.error("error writing to {}", poolReference.endPoint(), e);
-            }
+            break;
         }
     }
 
