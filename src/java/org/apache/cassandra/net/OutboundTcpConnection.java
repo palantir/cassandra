@@ -279,73 +279,74 @@ public class OutboundTcpConnection extends Thread
 
     private void writeConnected(QueuedMessage qm, boolean flush)
     {
-        for (int retries = 0; retries <= 5; retries++) {
-            try
+        writeConnected(qm, flush, true);
+    }
+
+    private void writeConnected(QueuedMessage qm, boolean flush, boolean retry)
+    {
+        try
+        {
+            byte[] sessionBytes = qm.message.parameters.get(Tracing.TRACE_HEADER);
+            if (sessionBytes != null)
             {
-                byte[] sessionBytes = qm.message.parameters.get(Tracing.TRACE_HEADER);
-                if (sessionBytes != null)
+                UUID sessionId = UUIDGen.getUUID(ByteBuffer.wrap(sessionBytes));
+                TraceState state = Tracing.instance.get(sessionId);
+                String message = String.format("Sending %s message to %s", qm.message.verb, poolReference.endPoint());
+                // session may have already finished; see CASSANDRA-5668
+                if (state == null)
                 {
-                    UUID sessionId = UUIDGen.getUUID(ByteBuffer.wrap(sessionBytes));
-                    TraceState state = Tracing.instance.get(sessionId);
-                    String message = String.format("Sending %s message to %s", qm.message.verb, poolReference.endPoint());
-                    // session may have already finished; see CASSANDRA-5668
-                    if (state == null)
-                    {
-                        byte[] traceTypeBytes = qm.message.parameters.get(Tracing.TRACE_TYPE);
-                        Tracing.TraceType traceType = traceTypeBytes == null ? Tracing.TraceType.QUERY : Tracing.TraceType.deserialize(traceTypeBytes[0]);
-                        TraceState.mutateWithTracing(ByteBuffer.wrap(sessionBytes), message, -1, traceType.getTTL());
-                    }
-                    else
-                    {
-                        state.trace(message);
-                        if (qm.message.verb == MessagingService.Verb.REQUEST_RESPONSE)
-                            Tracing.instance.doneWithNonLocalSession(state);
-                    }
-                }
-
-                long timestampMillis = NanoTimeToCurrentTimeMillis.convert(qm.timestampNanos);
-                writeInternal(qm.message, qm.id, timestampMillis);
-
-                completed++;
-                if (flush)
-                    out.flush();
-            }
-            catch (Throwable e)
-            {
-                JVMStabilityInspector.inspectThrowable(e);
-                disconnect();
-                if (e instanceof IOException || e.getCause() instanceof IOException)
-                {
-                    if (logger.isTraceEnabled())
-                        logger.trace("error writing to {}, retry {}", poolReference.endPoint(), retries, e);
-
-                    // if the message was important, such as a repair acknowledgement, put it back on the queue
-                    // to retry after re-connecting.  See CASSANDRA-5393
-//                    if (qm.shouldRetry())
-//                    {
-//                        try
-//                        {
-//                            backlog.put(new RetriedQueuedMessage(qm));
-//                        }
-//                        catch (InterruptedException e1)
-//                        {
-//                            throw new AssertionError(e1);
-//                        }
-//                    }
-
-                    if (connect()) {
-                        logger.trace("successfully re-established connection, retrying");
-                        continue; // retry
-                    }
+                    byte[] traceTypeBytes = qm.message.parameters.get(Tracing.TRACE_TYPE);
+                    Tracing.TraceType traceType = traceTypeBytes == null ? Tracing.TraceType.QUERY : Tracing.TraceType.deserialize(traceTypeBytes[0]);
+                    TraceState.mutateWithTracing(ByteBuffer.wrap(sessionBytes), message, -1, traceType.getTTL());
                 }
                 else
                 {
-                    // Non IO exceptions are likely a programming error so let's not silence them
-                    logger.error("error writing to {}", poolReference.endPoint(), e);
+                    state.trace(message);
+                    if (qm.message.verb == MessagingService.Verb.REQUEST_RESPONSE)
+                        Tracing.instance.doneWithNonLocalSession(state);
                 }
             }
-            logger.trace("exiting writeConnected");
-            return;
+
+            long timestampMillis = NanoTimeToCurrentTimeMillis.convert(qm.timestampNanos);
+            writeInternal(qm.message, qm.id, timestampMillis);
+
+            completed++;
+            if (flush)
+                out.flush();
+        }
+        catch (Throwable e)
+        {
+            JVMStabilityInspector.inspectThrowable(e);
+            disconnect();
+            if (e instanceof IOException || e.getCause() instanceof IOException)
+            {
+                if (logger.isTraceEnabled())
+                    logger.trace("error writing to {}", poolReference.endPoint(), e);
+
+                if (retry && connect()) {
+                    writeConnected(qm, flush, false);
+                    return;
+                }
+
+                // if the message was important, such as a repair acknowledgement, put it back on the queue
+                // to retry after re-connecting.  See CASSANDRA-5393
+                if (qm.shouldRetry())
+                {
+                    try
+                    {
+                        backlog.put(new RetriedQueuedMessage(qm));
+                    }
+                    catch (InterruptedException e1)
+                    {
+                        throw new AssertionError(e1);
+                    }
+                }
+            }
+            else
+            {
+                // Non IO exceptions are likely a programming error so let's not silence them
+                logger.error("error writing to {}", poolReference.endPoint(), e);
+            }
         }
     }
 
@@ -604,14 +605,13 @@ public class OutboundTcpConnection extends Thread
         final int id;
         final long timestampNanos;
         final boolean droppable;
-        private final int retries = 0;
 
         QueuedMessage(MessageOut<?> message, int id)
         {
             this.message = message;
             this.id = id;
             this.timestampNanos = System.nanoTime();
-            this.droppable = false;
+            this.droppable = MessagingService.DROPPABLE_VERBS.contains(message.verb);
         }
 
         /** don't drop a non-droppable message just because it's timestamp is expired */
@@ -629,30 +629,18 @@ public class OutboundTcpConnection extends Thread
         {
             return timestampNanos;
         }
-
-        protected int getRetries() {
-            return retries;
-        }
     }
 
     private static class RetriedQueuedMessage extends QueuedMessage
     {
-        private final int retries;
-
         RetriedQueuedMessage(QueuedMessage msg)
         {
             super(msg.message, msg.id);
-            retries = msg.getRetries() + 1;
         }
 
         boolean shouldRetry()
         {
-            return retries <= 5;
-        }
-
-        @Override
-        protected int getRetries() {
-            return retries;
+            return false;
         }
     }
 }
