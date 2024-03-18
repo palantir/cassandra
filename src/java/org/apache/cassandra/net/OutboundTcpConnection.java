@@ -323,7 +323,8 @@ public class OutboundTcpConnection extends Thread
                 if (logger.isTraceEnabled())
                     logger.trace("error writing to {}", poolReference.endPoint(), e);
 
-                if (retry && connect()) {
+                if (retry && connect())
+                {
                     writeConnected(qm, flush, false);
                     return;
                 }
