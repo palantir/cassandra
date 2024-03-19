@@ -42,6 +42,8 @@ import javax.net.ssl.SSLSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.Safe;
+import com.palantir.logsafe.SafeArg;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -176,6 +178,7 @@ public class OutboundTcpConnection extends Thread
     {
         isStopped = destroyThread; // Exit loop to stop the thread
         backlog.clear();
+        logger.warn("backlog cleared due to socket closing");
         // in the "destroyThread = true" case, enqueuing the sentinel is important mostly to unblock the backlog.take()
         // (via the CoalescingStrategy) in case there's a data race between this method enqueuing the sentinel
         // and run() clearing the backlog on connection failure.
@@ -238,6 +241,7 @@ public class OutboundTcpConnection extends Thread
                         // clear out the queue, else gossip messages back up.
                         drainedMessages.clear();
                         backlog.clear();
+                        logger.warn("backlog cleared due to unable to connect to socket");
                         currentMsgBufferCount = 0;
                         break inner;
                     }
@@ -540,6 +544,7 @@ public class OutboundTcpConnection extends Thread
                 Uninterruptibles.sleepUninterruptibly(OPEN_RETRY_DELAY, TimeUnit.MILLISECONDS);
             }
         }
+        logger.warn("connect() exceeded RPC timeout", SafeArg.of("timeInNs", System.nanoTime() - start), SafeArg.of("timeoutInNs", timeout));
         return false;
     }
 
