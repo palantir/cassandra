@@ -593,6 +593,7 @@ public class OutboundTcpConnection extends Thread
 
     private void expireMessages()
     {
+        logger.warn("expiring messages in backlog of size {}", SafeArg.of("backlogSize", backlog.size()));
         Iterator<QueuedMessage> iter = backlog.iterator();
         while (iter.hasNext())
         {
