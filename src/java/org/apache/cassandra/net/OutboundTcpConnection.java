@@ -177,8 +177,9 @@ public class OutboundTcpConnection extends Thread
     void closeSocket(boolean destroyThread)
     {
         isStopped = destroyThread; // Exit loop to stop the thread
+        long backlogSize = backlog.size();
         backlog.clear();
-        logger.warn("backlog cleared due to socket closing");
+        logger.warn("backlog of size {} cleared due to socket closing", SafeArg.of("backlogSize", backlogSize));
         // in the "destroyThread = true" case, enqueuing the sentinel is important mostly to unblock the backlog.take()
         // (via the CoalescingStrategy) in case there's a data race between this method enqueuing the sentinel
         // and run() clearing the backlog on connection failure.
@@ -240,8 +241,9 @@ public class OutboundTcpConnection extends Thread
                     {
                         // clear out the queue, else gossip messages back up.
                         drainedMessages.clear();
+                        long backlogSize = backlog.size();
                         backlog.clear();
-                        logger.warn("backlog cleared due to unable to connect to socket");
+                        logger.warn("backlog of size {} cleared due to unable to connect to socket", SafeArg.of("backlogSize", backlogSize));
                         currentMsgBufferCount = 0;
                         break inner;
                     }
