@@ -39,6 +39,8 @@ import java.util.zip.Checksum;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
 
+import com.google.common.collect.EnumMultiset;
+import com.google.common.collect.Multiset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -285,11 +287,6 @@ public class OutboundTcpConnection extends Thread
 
     private void writeConnected(QueuedMessage qm, boolean flush)
     {
-        writeConnected(qm, flush, true);
-    }
-
-    private void writeConnected(QueuedMessage qm, boolean flush, boolean retry)
-    {
         try
         {
             byte[] sessionBytes = qm.message.parameters.get(Tracing.TRACE_HEADER);
@@ -328,12 +325,6 @@ public class OutboundTcpConnection extends Thread
             {
                 if (logger.isTraceEnabled())
                     logger.trace("error writing to {}", poolReference.endPoint(), e);
-
-                if (retry && connect())
-                {
-                    writeConnected(qm, flush, false);
-                    return;
-                }
 
                 // if the message was important, such as a repair acknowledgement, put it back on the queue
                 // to retry after re-connecting.  See CASSANDRA-5393
@@ -595,16 +586,19 @@ public class OutboundTcpConnection extends Thread
     {
         logger.warn("expiring messages in backlog of size {}", SafeArg.of("backlogSize", backlog.size()));
         Iterator<QueuedMessage> iter = backlog.iterator();
+        EnumMultiset<MessagingService.Verb> verbFrequencies = EnumMultiset.create(MessagingService.Verb.class);
         while (iter.hasNext())
         {
             QueuedMessage qm = iter.next();
+            verbFrequencies.add(qm.message.verb);
             if (!qm.droppable)
                 continue;
             if (!qm.isTimedOut())
-                return;
+                continue;
             iter.remove();
             dropped.incrementAndGet();
         }
+        logger.warn("frequencies of verbs in the current backlog: {}", SafeArg.of("verbFrequencies", verbFrequencies));
     }
 
     /** messages that have not been retried yet */
