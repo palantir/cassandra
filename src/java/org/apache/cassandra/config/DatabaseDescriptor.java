@@ -691,7 +691,8 @@ public class DatabaseDescriptor
             conf.server_encryption_options = conf.encryption_options;
         }
 
-        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster"))
+        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster")
+                && !Boolean.getBoolean("palantir_cassandra.dangerous_disable_is_new_cluster_validation"))
         {
             if (conf.data_file_directories.length == 0)
                 throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
