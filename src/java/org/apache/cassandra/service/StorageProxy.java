@@ -273,6 +273,7 @@ public class StorageProxy implements StorageProxyMBean
         catch (WriteTimeoutException|ReadTimeoutException e)
         {
             casWriteMetrics.timeouts.mark();
+            logger.warn("cas timeout; received {} of {} required replies", e.received, e.blockFor);
             throw e;
         }
         catch (WriteFailureException|ReadFailureException e)
@@ -609,6 +610,7 @@ public class StorageProxy implements StorageProxyMBean
                     writeMetrics.timeouts.mark();
                     WriteTimeoutException te = (WriteTimeoutException)ex;
                     Tracing.trace("Write timeout; received {} of {} required replies", te.received, te.blockFor);
+                    logger.warn("Write timeout; received {} of {} required replies", te.received, te.blockFor);
                 }
                 throw ex;
             }
