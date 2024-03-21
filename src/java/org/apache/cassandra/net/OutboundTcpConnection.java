@@ -39,9 +39,13 @@ import java.util.zip.Checksum;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
 
+import com.google.common.collect.EnumMultiset;
+import com.google.common.collect.Multiset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.Safe;
+import com.palantir.logsafe.SafeArg;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -175,7 +179,9 @@ public class OutboundTcpConnection extends Thread
     void closeSocket(boolean destroyThread)
     {
         isStopped = destroyThread; // Exit loop to stop the thread
+        long backlogSize = backlog.size();
         backlog.clear();
+        logger.warn("backlog of size {} cleared due to socket closing", SafeArg.of("backlogSize", backlogSize));
         // in the "destroyThread = true" case, enqueuing the sentinel is important mostly to unblock the backlog.take()
         // (via the CoalescingStrategy) in case there's a data race between this method enqueuing the sentinel
         // and run() clearing the backlog on connection failure.
@@ -237,7 +243,9 @@ public class OutboundTcpConnection extends Thread
                     {
                         // clear out the queue, else gossip messages back up.
                         drainedMessages.clear();
+                        long backlogSize = backlog.size();
                         backlog.clear();
+                        logger.warn("backlog of size {} cleared due to unable to connect to socket", SafeArg.of("backlogSize", backlogSize));
                         currentMsgBufferCount = 0;
                         break inner;
                     }
@@ -529,6 +537,7 @@ public class OutboundTcpConnection extends Thread
                 Uninterruptibles.sleepUninterruptibly(OPEN_RETRY_DELAY, TimeUnit.MILLISECONDS);
             }
         }
+        logger.warn("connect() exceeded RPC timeout", SafeArg.of("timeInNs", System.nanoTime() - start), SafeArg.of("timeoutInNs", timeout));
         return false;
     }
 
@@ -575,17 +584,21 @@ public class OutboundTcpConnection extends Thread
 
     private void expireMessages()
     {
+        logger.warn("expiring messages in backlog of size {}", SafeArg.of("backlogSize", backlog.size()));
         Iterator<QueuedMessage> iter = backlog.iterator();
+        EnumMultiset<MessagingService.Verb> verbFrequencies = EnumMultiset.create(MessagingService.Verb.class);
         while (iter.hasNext())
         {
             QueuedMessage qm = iter.next();
+            verbFrequencies.add(qm.message.verb);
             if (!qm.droppable)
                 continue;
             if (!qm.isTimedOut())
-                return;
+                continue;
             iter.remove();
             dropped.incrementAndGet();
         }
+        logger.warn("frequencies of verbs in the current backlog: {}", SafeArg.of("verbFrequencies", verbFrequencies));
     }
 
     /** messages that have not been retried yet */

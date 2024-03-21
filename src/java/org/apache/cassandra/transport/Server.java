@@ -38,6 +38,7 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.group.ChannelGroup;
@@ -162,12 +163,15 @@ public class Server implements CassandraDaemon.Server
         ServerBootstrap bootstrap = new ServerBootstrap()
                                     .group(workerGroup)
                                     .channel(hasEpoll ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
+                                    .childOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 2000)
                                     .childOption(ChannelOption.TCP_NODELAY, true)
                                     .childOption(ChannelOption.SO_LINGER, 0)
                                     .childOption(ChannelOption.SO_KEEPALIVE, DatabaseDescriptor.getRpcKeepAlive())
                                     .childOption(ChannelOption.ALLOCATOR, CBUtil.allocator)
                                     .childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 32 * 1024)
                                     .childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, 8 * 1024);
+        if (hasEpoll)
+            bootstrap.option(EpollChannelOption.TCP_USER_TIMEOUT, 30000);
 
         final EncryptionOptions.ClientEncryptionOptions clientEnc = DatabaseDescriptor.getClientEncryptionOptions();
         if (clientEnc.enabled)
