@@ -55,7 +55,7 @@ public class Schema
     public static final Schema instance = new Schema();
 
     private static final List<String> additionalSystemKeyspaces = ImmutableList.copyOf(
-                        Splitter.on(",").splitToList(System.getProperty("palantir_cassandra.additional_system_keyspace", "")));
+                        Splitter.on(",").splitToList(System.getProperty("palantir_cassandra.additional_system_keyspaces", "")));
     public static final Set<String> SYSTEM_KEYSPACES = new ImmutableSet.Builder<String>()
                                                        .add(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME)
                                                        .add("system_palantir")
