@@ -27,6 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
@@ -450,7 +451,6 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     public void replacementQuarantine(InetAddress endpoint)
     {
         // remember, quarantineEndpoint will effectively already add QUARANTINE_DELAY, so this is 2x
-        logger.debug("");
         quarantineEndpoint(endpoint, System.currentTimeMillis() + QUARANTINE_DELAY);
     }
 
@@ -665,6 +665,12 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     /* Sends a Gossip message to an unreachable member */
     private void maybeGossipToUnreachableMember(MessageOut<GossipDigestSyn> message)
     {
+        Set<InetAddress> unreachableRemovedEndpoints =
+                Sets.intersection(unreachableEndpoints.keySet(), justRemovedEndpoints.keySet());
+        if (unreachableRemovedEndpoints.size() > 0) {
+            logger.warn("Found common inet addresses between unreachable and just removed list: {}",
+                    unreachableRemovedEndpoints);
+        }
         double liveEndpointCount = liveEndpoints.size();
         double unreachableEndpointCount = unreachableEndpoints.size();
         if (unreachableEndpointCount > 0)
@@ -673,7 +679,10 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             double prob = unreachableEndpointCount / (liveEndpointCount + 1);
             double randDbl = random.nextDouble();
             if (randDbl < prob)
-                sendGossip(message, unreachableEndpoints.keySet());
+                // Theoritically justRemoved endpoints should never be added unreachableEndpoints
+                // but the Gossiper is prone to races
+                sendGossip(message, Sets.filter(unreachableEndpoints.keySet(),
+                                            ep -> justRemovedEndpoints.containsKey(ep)));
         }
     }
 
