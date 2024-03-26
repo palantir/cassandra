@@ -466,6 +466,16 @@ native_transport_port: 9042
 # The default is -1, which means unlimited.
 # native_transport_max_concurrent_connections_per_ip: -1
 
+# Controls when idle client connections are closed. Idle connections are ones that had neither reads
+# nor writes for a time period.
+#
+# Clients may implement heartbeats by sending OPTIONS native protocol message after a timeout, which
+# will reset idle timeout timer on the server side. To close idle client connections, corresponding
+# values for heartbeat intervals have to be set on the client side.
+#
+# Idle connection timeouts are disabled by default.
+# native_transport_idle_timeout_in_ms: 60000
+
 # Whether to start the thrift rpc server.
 start_rpc: false
 
