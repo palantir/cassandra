@@ -56,10 +56,11 @@ public class Schema
 
     private static final List<String> additionalSystemKeyspaces = ImmutableList.copyOf(
                         Splitter.on(",").splitToList(System.getProperty("palantir_cassandra.additional_system_keyspaces", "")));
-    public static final Set<String> SYSTEM_KEYSPACES = new ImmutableSet.Builder<String>()
-                                                       .add(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME)
-                                                       .add("system_palantir")
-                                                       .addAll(additionalSystemKeyspaces).build();
+    public static final Set<String> SYSTEM_KEYSPACES = ImmutableSet.<String>builder()
+            .add(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME)
+            .add("system_palantir")
+            .addAll(additionalSystemKeyspaces)
+            .build();
 
     /**
      * longest permissible KS or CF name.  Our main concern is that filename not be more than 255 characters;
