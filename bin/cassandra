@@ -225,7 +225,7 @@ launch_service()
 }
 
 # Parse any command line options.
-args=`getopt vfhp:bD:H:E: "$@"`
+args=`getopt vfhp:bD:H:E:c: "$@"`
 eval set -- "$args"
 
 classname="org.apache.cassandra.service.CassandraDaemon"
@@ -241,7 +241,7 @@ while true; do
             shift
         ;;
         -h)
-            echo "Usage: $0 [-f] [-h] [-p pidfile] [-H dumpfile] [-E errorfile]"
+            echo "Usage: $0 [-f] [-h] [-p pidfile] [-H dumpfile] [-E errorfile] [-c classname]"
             exit 0
         ;;
         -v)
@@ -258,6 +258,10 @@ while true; do
         ;;
         -E)
             properties="$properties -XX:ErrorFile=$2"
+            shift 2
+        ;;
+        -c)
+            classname=$2
             shift 2
         ;;
         --)

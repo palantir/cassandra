@@ -22,6 +22,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import com.palantir.tracing.CloseableTracer;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -53,7 +54,13 @@ public class Schema
 
     public static final Schema instance = new Schema();
 
-    public static final Set<String> SYSTEM_KEYSPACES = ImmutableSet.of(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME, "system_palantir");
+    private static final List<String> additionalSystemKeyspaces = ImmutableList.copyOf(
+                        Splitter.on(",").splitToList(System.getProperty("palantir_cassandra.additional_system_keyspaces", "")));
+    public static final Set<String> SYSTEM_KEYSPACES = ImmutableSet.<String>builder()
+            .add(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME)
+            .add("system_palantir")
+            .addAll(additionalSystemKeyspaces)
+            .build();
 
     /**
      * longest permissible KS or CF name.  Our main concern is that filename not be more than 255 characters;
@@ -312,7 +319,7 @@ public class Schema
 
     private Set<String> getNonSystemKeyspacesSet()
     {
-        return Sets.difference(keyspaces.keySet(), Collections.singleton(SystemKeyspace.NAME));
+        return Sets.difference(keyspaces.keySet(), new ImmutableSet.Builder<String>().add(SystemKeyspace.NAME).addAll(additionalSystemKeyspaces).build());
     }
 
     /**
