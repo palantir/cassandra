@@ -27,12 +27,16 @@ import java.util.concurrent.TimeUnit;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.*;
 
+import com.google.common.collect.ImmutableMap;
+import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.MBeanWrapper;
 
@@ -262,6 +266,18 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
             logger.trace("Average for {} is {}", ep, heartbeatWindow.mean());
     }
 
+    private void safeguardBootstrapTimeout()
+    {
+        if (StorageService.instance.isJoining())
+        {
+            StorageService.instance.unsafeDisableNode();
+            logger.error("Detected local pause longer than MAX_LOCAL_PAUSE_IN_NANOS {} whilst bootstrapping", MAX_LOCAL_PAUSE_IN_NANOS);
+            StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR,
+                                                            ImmutableMap.of("timeoutDuringBootstrap", "true"));
+            throw new BootstrappingSafetyException("Bootstrap failed due to gossip timeout");
+        }
+    }
+
     public void interpret(InetAddress ep)
     {
         ArrivalWindow hbWnd = arrivalSamples.get(ep);
@@ -276,6 +292,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         {
             logger.warn("Not marking nodes down due to local pause of {} > {}", diff, MAX_LOCAL_PAUSE_IN_NANOS);
             lastPause = now;
+            safeguardBootstrapTimeout();
             return;
         }
         if (System.nanoTime() - lastPause < MAX_LOCAL_PAUSE_IN_NANOS)
