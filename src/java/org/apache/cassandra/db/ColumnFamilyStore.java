@@ -39,6 +39,8 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+
+import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
@@ -1112,6 +1114,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public ReplayPosition forceBlockingFlush(String reason)
     {
+        logger.info("Flushing memtables on cf {} due to {}", name, reason);
         return FBUtilities.waitOnFuture(forceFlush(reason));
     }
 
@@ -2663,6 +2666,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public Set<SSTableReader> snapshotWithoutFlush(String snapshotName, Predicate<SSTableReader> predicate, boolean ephemeral)
     {
+        logger.info("Taking snapshot without flush for {}", name);
         Set<SSTableReader> snapshottedSSTables = new HashSet<>();
         final JSONArray filesJSONArr = new JSONArray();
         for (ColumnFamilyStore cfs : concatWithIndexes())
