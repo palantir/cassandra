@@ -665,12 +665,6 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     /* Sends a Gossip message to an unreachable member */
     private void maybeGossipToUnreachableMember(MessageOut<GossipDigestSyn> message)
     {
-        Set<InetAddress> unreachableRemovedEndpoints =
-                Sets.intersection(unreachableEndpoints.keySet(), justRemovedEndpoints.keySet());
-        if (unreachableRemovedEndpoints.size() > 0) {
-            logger.warn("Found common inet addresses between unreachable and just removed list: {}",
-                    unreachableRemovedEndpoints);
-        }
         double liveEndpointCount = liveEndpoints.size();
         double unreachableEndpointCount = unreachableEndpoints.size();
         if (unreachableEndpointCount > 0)
@@ -679,7 +673,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             double prob = unreachableEndpointCount / (liveEndpointCount + 1);
             double randDbl = random.nextDouble();
             if (randDbl < prob)
-                // Theoritically justRemoved endpoints should never be added unreachableEndpoints
+                // Theoritically justRemoved endpoints should not be added unreachableEndpoints
                 // but the Gossiper is prone to races
                 sendGossip(message, Sets.filter(unreachableEndpoints.keySet(),
                                             ep -> justRemovedEndpoints.containsKey(ep)));
