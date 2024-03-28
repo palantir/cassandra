@@ -1112,6 +1112,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public ReplayPosition forceBlockingFlush(String reason)
     {
+        logger.debug("Flushing memtables on cf {} due to {}", name, reason);
         return FBUtilities.waitOnFuture(forceFlush(reason));
     }
 
@@ -2663,6 +2664,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public Set<SSTableReader> snapshotWithoutFlush(String snapshotName, Predicate<SSTableReader> predicate, boolean ephemeral)
     {
+        logger.debug("Taking snapshot without flush for {}", name);
         Set<SSTableReader> snapshottedSSTables = new HashSet<>();
         final JSONArray filesJSONArr = new JSONArray();
         for (ColumnFamilyStore cfs : concatWithIndexes())
