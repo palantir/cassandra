@@ -673,7 +673,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             double prob = unreachableEndpointCount / (liveEndpointCount + 1);
             double randDbl = random.nextDouble();
             if (randDbl < prob)
-                // Theoritically justRemoved endpoints should not be added unreachableEndpoints
+                // Theoritically justRemovedEndpoints and unreachableEndpoints should have no intersections
                 // but the Gossiper is prone to races
                 sendGossip(message, Sets.filter(unreachableEndpoints.keySet(),
                                             ep -> justRemovedEndpoints.containsKey(ep)));
