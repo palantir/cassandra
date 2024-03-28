@@ -30,10 +30,10 @@ externalPublishing {
         def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-${project.version}"
         artifact(file("${jarFileNameRoot}.jar"))
         artifact(file("${jarFileNameRoot}-sources.jar")) {
-            classifier 'sources'
+            archiveClassifier = 'sources'
         }
         artifact(file("${jarFileNameRoot}-javadoc.jar")) {
-            classifier 'javadoc'
+            archiveClassifier = 'javadoc'
         }
 
         pom.withXml {
