@@ -1558,7 +1558,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             bootstrapStream.get();
             isBootstrapMode = false;
             logger.info("Bootstrap streaming completed for tokens {}", tokens);
-            return nonTransientErrors.stream().anyMatch(nte -> nte.containsKey(NonTransientError.BOOTSTRAP_ERROR.toString()));
+            return StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
         }
         catch (Throwable e)
         {
@@ -4541,9 +4541,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return operationMode == Mode.STARTING;
     }
 
-    public boolean isJoining()
+    public boolean isJoiningOrWaitingToFinishBootstrap()
     {
-        return operationMode == Mode.JOINING;
+        return operationMode == Mode.JOINING || operationMode == Mode.WAITING_TO_FINISH_BOOTSTRAP;
     }
 
     public boolean inNonTransientErrorMode()

@@ -54,6 +54,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     private static final int DEBUG_PERCENTAGE = 80; // if the phi is larger than this percentage of the max, log a debug message
     private static final long DEFAULT_MAX_PAUSE = 5000L * 1000000L; // 5 seconds
     private static final long MAX_LOCAL_PAUSE_IN_NANOS = getMaxLocalPause();
+    private static final long BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS = Long.getLong("palantir_cassandra.boostrap_safeguard_pause_in_ms", 30000L) * 1000000L;
     private long lastInterpret = System.nanoTime();
     private long lastPause = 0L;
 
@@ -268,7 +269,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
 
     private void safeguardBootstrapTimeout()
     {
-        if (StorageService.instance.isJoining())
+        if (StorageService.instance.isJoiningOrWaitingToFinishBootstrap())
         {
             StorageService.instance.unsafeDisableNode();
             logger.error("Detected local pause longer than MAX_LOCAL_PAUSE_IN_NANOS {} whilst bootstrapping", MAX_LOCAL_PAUSE_IN_NANOS);
@@ -288,11 +289,14 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         long now = System.nanoTime();
         long diff = now - lastInterpret;
         lastInterpret = now;
+        if (diff > BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS)
+        {
+            safeguardBootstrapTimeout();
+        }
         if (diff > MAX_LOCAL_PAUSE_IN_NANOS)
         {
             logger.warn("Not marking nodes down due to local pause of {} > {}", diff, MAX_LOCAL_PAUSE_IN_NANOS);
             lastPause = now;
-            safeguardBootstrapTimeout();
             return;
         }
         if (System.nanoTime() - lastPause < MAX_LOCAL_PAUSE_IN_NANOS)
