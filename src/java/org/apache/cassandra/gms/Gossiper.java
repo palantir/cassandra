@@ -676,7 +676,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                 // Theoritically justRemovedEndpoints and unreachableEndpoints should have no intersections
                 // but the Gossiper is prone to races
                 sendGossip(message, Sets.filter(unreachableEndpoints.keySet(),
-                                            ep -> justRemovedEndpoints.containsKey(ep)));
+                                            ep -> !justRemovedEndpoints.containsKey(ep)));
         }
     }
 
