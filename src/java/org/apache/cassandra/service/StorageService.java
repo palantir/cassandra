@@ -193,7 +193,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @VisibleForTesting
     static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
-    private Mode operationMode = Mode.STARTING;
+    private volatile Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
     private volatile int totalCFs, remainingCFs;
@@ -1558,7 +1558,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             bootstrapStream.get();
             isBootstrapMode = false;
             logger.info("Bootstrap streaming completed for tokens {}", tokens);
-            return true;
+            return StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
         }
         catch (Throwable e)
         {
@@ -4539,6 +4539,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public boolean isStarting()
     {
         return operationMode == Mode.STARTING;
+    }
+
+    public boolean isJoiningOrWaitingToFinishBootstrap()
+    {
+        return operationMode == Mode.JOINING || operationMode == Mode.WAITING_TO_FINISH_BOOTSTRAP;
     }
 
     public boolean inNonTransientErrorMode()
