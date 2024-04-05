@@ -217,8 +217,10 @@ public class Keyspace
         {
             if (columnFamilyName == null || cfStore.name.equals(columnFamilyName))
             {
+                logger.debug("Attempting snapshot with snapshotName {} of cf {}", snapshotName, columnFamilyName);
                 tookSnapShot = true;
                 cfStore.snapshot(snapshotName, null, ephemeral);
+                logger.debug("Finished snapshot with snapshotName {} of cf {}", snapshotName, columnFamilyName);
             }
         }
 
