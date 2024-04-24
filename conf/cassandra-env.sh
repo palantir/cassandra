@@ -164,7 +164,7 @@ fi
 # Specifies the default port over which Cassandra will be available for
 # JMX connections.
 # For security reasons, you should not expose this port to the internet.  Firewall it if needed.
-JMX_PORT="7199"
+JMX_PORT="${JMX_PORT:-7199}"
 
 
 # Here we create the arguments that will get passed to the jvm when
@@ -311,8 +311,11 @@ JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.compact_small_tables=true"
 JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.consider_concurrent_compactions=true"
 JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.bootstrap_disk_usage_threshold_percentage=30"
 
+MIGRATION_MODE="${MIGRATION_MODE:-false}"
 JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.migration_mode=$MIGRATION_MODE"
-JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.all_hosts=$ALL_HOSTS"
+if [ -n "$ALL_HOSTS" ]; then
+    JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.all_hosts=$ALL_HOSTS"
+fi
 JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.verify_keys_on_write=true"
 # JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.restricted_ip=$RESTRICTED_IP"
 
