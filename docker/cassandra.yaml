@@ -1,4 +1,4 @@
-cluster_name: 'pc-570'
+cluster_name: 'antithesis-migration-test'
 num_tokens: 512
 hinted_handoff_enabled: true
 max_hint_window_in_ms: 1200000
