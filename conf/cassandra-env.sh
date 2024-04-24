@@ -319,9 +319,4 @@ JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.verify_keys_on_write=true"
 JVM_OPTS="$JVM_OPTS -XX:+IgnoreUnrecognizedVMOptions -XX:UseAVX=2"
 JVM_OPTS="$JVM_OPTS -Djdk.tls.maxHandshakeMessageSize=65536"
 
-
-
-
-
-
 JVM_OPTS="$JVM_OPTS $JVM_EXTRA_OPTS"
