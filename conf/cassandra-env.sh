@@ -172,16 +172,12 @@ JMX_PORT="7199"
 
 # enable assertions.  disabling this in production will give a modest
 # performance benefit (around 5%).
-JVM_OPTS="$JVM_OPTS -ea"
+# JVM_OPTS="$JVM_OPTS -ea"
 
 # add the javaagents
 JVM_OPTS="$JVM_OPTS -javaagent:$CASSANDRA_HOME/lib/jamm-0.3.0.jar"
 JVM_OPTS="$JVM_OPTS -javaagent:$CASSANDRA_HOME/lib/guava-compatibility-agent-0.2.0.jar"
 
-# some JVMs will fill up their heap when accessed via JMX, see CASSANDRA-6541
-if [ "$JVM_VERSION" \< "14.0" ] ; then
-    JVM_OPTS="$JVM_OPTS -XX:+CMSClassUnloadingEnabled"
-fi
 
 # enable thread priorities, primarily so we can give periodic tasks
 # a lower priority to avoid interfering with client workload
@@ -193,7 +189,7 @@ JVM_OPTS="$JVM_OPTS -XX:+UseThreadPriorities"
 # out.
 JVM_OPTS="$JVM_OPTS -Xms${MAX_HEAP_SIZE}"
 JVM_OPTS="$JVM_OPTS -Xmx${MAX_HEAP_SIZE}"
-JVM_OPTS="$JVM_OPTS -Xmn${HEAP_NEWSIZE}"
+# JVM_OPTS="$JVM_OPTS -Xmn${HEAP_NEWSIZE}"
 JVM_OPTS="$JVM_OPTS -XX:+HeapDumpOnOutOfMemoryError"
 
 # set jvm HeapDumpPath with CASSANDRA_HEAPDUMP_DIR
@@ -214,7 +210,7 @@ JVM_OPTS="$JVM_OPTS -XX:+CrashOnOutOfMemoryError"
 # JVM_ON_OUT_OF_MEMORY_ERROR_OPT="-XX:OnOutOfMemoryError=kill -9 %p"
 
 # print an heap histogram on OutOfMemoryError
-# JVM_OPTS="$JVM_OPTS -Dcassandra.printHeapHistogramOnOutOfMemoryError=true"
+JVM_OPTS="$JVM_OPTS -Dcassandra.printHeapHistogramOnOutOfMemoryError=true"
 
 # Per-thread stack size.
 JVM_OPTS="$JVM_OPTS -Xss256k"
@@ -222,27 +218,14 @@ JVM_OPTS="$JVM_OPTS -Xss256k"
 # Larger interned string table, for gossip's benefit (CASSANDRA-6410)
 JVM_OPTS="$JVM_OPTS -XX:StringTableSize=1000003"
 
-# GC tuning options
-JVM_OPTS="$JVM_OPTS -XX:+UseG1GC"
-JVM_OPTS="$JVM_OPTS -XX:+ParallelRefProcEnabled"
-JVM_OPTS="$JVM_OPTS -XX:MaxGCPauseMillis=500"
-# JVM_OPTS="$JVM_OPTS -XX:G1RSetUpdatingPauseTimePercent"
-# JVM_OPTS="$JVM_OPTS -XX:-UseTransparentHugePages"
-# JVM_OPTS="$JVM_OPTS -XX:+AlwaysPreTouch"
-# JVM_OPTS="$JVM_OPTS -XX:+UseNUMA"
-# JVM_OPTS="$JVM_OPTS -XX:G1NewSizePercent"
-# JVM_OPTS="$JVM_OPTS -XX:G1MaxNewSizePercent"
-# JVM_OPTS="$JVM_OPTS -XX:G1HeapRegionSize"
-# JVM_OPTS="$JVM_OPTS -XX:G1MixedGCCountTarget"
-# JVM_OPTS="$JVM_OPTS -XX:G1MixedGCLiveThresholdPercent"
-# JVM_OPTS="$JVM_OPTS -XX:G1HeapWastePercent"
-# JVM_OPTS="$JVM_OPTS -XX:InitiatingHeapOccupancyPercent"
-# JVM_OPTS="$JVM_OPTS -XX:G1OldCSetRegionThresholdPercent"
+JVM_OPTS="$JVM_OPTS -XX:MaxGCPauseMillis=1000"
+JVM_OPTS="$JVM_OPTS -XX:G1RSetUpdatingPauseTimePercent=10"
 
-JVM_OPTS="$JVM_OPTS -XX:SurvivorRatio=8" 
 JVM_OPTS="$JVM_OPTS -XX:MaxTenuringThreshold=1"
 JVM_OPTS="$JVM_OPTS -XX:+UseTLAB"
-JVM_OPTS="$JVM_OPTS -XX:+PerfDisableSharedMem"
+JVM_OPTS="$JVM_OPTS -XX:+AlwaysPreTouch"
+JVM_OPTS="$JVM_OPTS -XX:-UseBiasedLocking"
+JVM_OPTS="$JVM_OPTS -XX:+ResizeTLAB"
 JVM_OPTS="$JVM_OPTS -XX:CompileCommandFile=$CASSANDRA_CONF/hotspot_compiler"
 
 # note: bash evals '1.7.x' as > '1.7' so this is really a >= 1.7 jvm check
@@ -286,17 +269,11 @@ JVM_OPTS="$JVM_OPTS -Djava.net.preferIPv4Stack=true"
 # To enable remote JMX connections, uncomment lines below
 # with authentication and/or ssl enabled. See https://wiki.apache.org/cassandra/JmxSecurity 
 #
-if [ "x$LOCAL_JMX" = "x" ]; then
-    LOCAL_JMX=yes
-fi
 
-if [ "$LOCAL_JMX" = "yes" ]; then
-  JVM_OPTS="$JVM_OPTS -Dcassandra.jmx.local.port=$JMX_PORT -XX:+DisableExplicitGC"
-else
-  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.port=$JMX_PORT"
-  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT"
-  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.ssl=false"
-  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false"
+JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.port=$JMX_PORT"
+JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT"
+JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.ssl=false"
+JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false"
 #  JVM_OPTS="$JVM_OPTS -Djavax.net.ssl.keyStore=/path/to/keystore"
 #  JVM_OPTS="$JVM_OPTS -Djavax.net.ssl.keyStorePassword=<keystore-password>"
 #  JVM_OPTS="$JVM_OPTS -Djavax.net.ssl.trustStore=/path/to/truststore"
@@ -322,4 +299,29 @@ JVM_OPTS="$JVM_OPTS -Djava.library.path=$CASSANDRA_HOME/lib/sigar-bin"
 
 JVM_OPTS="$JVM_OPTS $MX4J_ADDRESS"
 JVM_OPTS="$JVM_OPTS $MX4J_PORT"
+
+JVM_OPTS="${JVM_OPTS} -XX:+PreserveFramePointer"
+JVM_OPTS="${JVM_OPTS} -Dcassandra.size_recorder_interval=0"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.coalesce_cip_flushes=true"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.cip_stcs_max_threshold=1024"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.max_compaction_disk_usage=0.95"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.use_stcs_always_in_l0=true"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.disable_sstablerewrite_keycache=true"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.compact_small_tables=true"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.consider_concurrent_compactions=true"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.bootstrap_disk_usage_threshold_percentage=30"
+
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.migration_mode=$MIGRATION_MODE"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.all_hosts=$ALL_HOSTS"
+JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.verify_keys_on_write=true"
+# JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.restricted_ip=$RESTRICTED_IP"
+
+JVM_OPTS="$JVM_OPTS -XX:+IgnoreUnrecognizedVMOptions -XX:UseAVX=2"
+JVM_OPTS="$JVM_OPTS -Djdk.tls.maxHandshakeMessageSize=65536"
+
+
+
+
+
+
 JVM_OPTS="$JVM_OPTS $JVM_EXTRA_OPTS"
