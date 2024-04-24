@@ -7,7 +7,7 @@
 
 # The name of the cluster. This is mainly used to prevent machines in
 # one logical cluster from joining another.
-cluster_name: 'pc-570'
+cluster_name: 'rx-554-1'
 
 # This defines the number of tokens randomly assigned to this node on the ring
 # The more tokens, relative to other nodes, the larger the proportion of data
@@ -546,7 +546,7 @@ rpc_server_type: sync
 # rpc_max_threads represents the maximum number of client requests this server may execute concurrently.
 #
 # rpc_min_threads: 16
-rpc_max_threads: 27000
+rpc_max_threads: 50000
 
 # uncomment to set socket buffer sizes on rpc connections
 # rpc_send_buff_size_in_bytes:
@@ -637,7 +637,7 @@ unlogged_batch_across_partitions_warn_threshold: 10
 # 
 # If your data directories are backed by SSD, you should increase this
 # to the number of cores.
-concurrent_compactors: 2
+concurrent_compactors: 4
 
 # Throttles compaction to the given total throughput across the entire
 # system. The faster you insert data, the faster you need to compact in
@@ -671,11 +671,11 @@ sstable_preemptive_open_interval_in_mb: 50
 # inter_dc_stream_throughput_outbound_megabits_per_sec: 200
 
 # How long the coordinator should wait for read operations to complete
-read_request_timeout_in_ms: 10000
+read_request_timeout_in_ms: 5000
 # How long the coordinator should wait for seq or index scans to complete
-range_request_timeout_in_ms: 20000
+range_request_timeout_in_ms: 5000
 # How long the coordinator should wait for writes to complete
-write_request_timeout_in_ms: 20000
+write_request_timeout_in_ms: 5000
 # How long the coordinator should wait for counter writes to complete
 counter_write_request_timeout_in_ms: 5000
 # How long a coordinator should continue to retry a CAS operation

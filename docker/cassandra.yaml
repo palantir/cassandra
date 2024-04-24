@@ -1,4 +1,4 @@
-cluster_name: 'pc-570'
+cluster_name: 'rx-554-1'
 num_tokens: 512
 hinted_handoff_enabled: true
 max_hint_window_in_ms: 1200000
@@ -49,7 +49,7 @@ start_rpc: true
 rpc_port: 9160
 rpc_keepalive: true
 rpc_server_type: sync
-rpc_max_threads: 27000
+rpc_max_threads: 50000
 thrift_framed_transport_size_in_mb: 100
 incremental_backups: false
 snapshot_before_compaction: false
@@ -66,9 +66,9 @@ unlogged_batch_across_partitions_warn_threshold: 10
 compaction_throughput_mb_per_sec: 160
 compaction_large_partition_warning_threshold_mb: 100
 sstable_preemptive_open_interval_in_mb: 50
-read_request_timeout_in_ms: 10000
-range_request_timeout_in_ms: 20000
-write_request_timeout_in_ms: 20000
+read_request_timeout_in_ms: 5000
+range_request_timeout_in_ms: 5000
+write_request_timeout_in_ms: 5000
 counter_write_request_timeout_in_ms: 5000
 cas_contention_timeout_in_ms: 5000
 truncate_request_timeout_in_ms: 60000
@@ -77,7 +77,7 @@ cross_node_timeout: false
 streaming_socket_timeout_in_ms: 86400000
 auto_bootstrap: false
 listen_on_broadcast_address: true
-concurrent_compactors: 2
+concurrent_compactors: 4
 endpoint_snitch: PropertyFileSnitch
 dynamic_snitch_update_interval_in_ms: 100
 dynamic_snitch_reset_interval_in_ms: 600000

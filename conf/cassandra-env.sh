@@ -218,7 +218,7 @@ JVM_OPTS="$JVM_OPTS -Xss256k"
 # Larger interned string table, for gossip's benefit (CASSANDRA-6410)
 JVM_OPTS="$JVM_OPTS -XX:StringTableSize=1000003"
 
-JVM_OPTS="$JVM_OPTS -XX:MaxGCPauseMillis=1000"
+# JVM_OPTS="$JVM_OPTS -XX:MaxGCPauseMillis=500"
 JVM_OPTS="$JVM_OPTS -XX:G1RSetUpdatingPauseTimePercent=10"
 
 JVM_OPTS="$JVM_OPTS -XX:MaxTenuringThreshold=1"
@@ -320,6 +320,5 @@ JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.verify_keys_on_write=true"
 # JVM_OPTS="${JVM_OPTS} -Dpalantir_cassandra.restricted_ip=$RESTRICTED_IP"
 
 JVM_OPTS="$JVM_OPTS -XX:+IgnoreUnrecognizedVMOptions -XX:UseAVX=2"
-JVM_OPTS="$JVM_OPTS -Djdk.tls.maxHandshakeMessageSize=65536"
 
 JVM_OPTS="$JVM_OPTS $JVM_EXTRA_OPTS"
