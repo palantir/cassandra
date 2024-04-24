@@ -1,5 +1,5 @@
 cluster_name: 'antithesis-migration-test'
-num_tokens: 512
+num_tokens: 32
 hinted_handoff_enabled: true
 max_hint_window_in_ms: 1200000
 hinted_handoff_throttle_in_kb: 1024
