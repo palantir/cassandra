@@ -54,7 +54,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     private static final int DEBUG_PERCENTAGE = 80; // if the phi is larger than this percentage of the max, log a debug message
     private static final long DEFAULT_MAX_PAUSE = 5000L * 1000000L; // 5 seconds
     private static final long MAX_LOCAL_PAUSE_IN_NANOS = getMaxLocalPause();
-    private static final long BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS = Long.getLong("palantir_cassandra.boostrap_safeguard_pause_in_ms", 30000L) * 1000000L;
+    private static final long BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS = Long.getLong("palantir_cassandra.boostrap_safeguard_pause_in_ms", 120000L) * 1000000L;
     private long lastInterpret = System.nanoTime();
     private long lastPause = 0L;
 
