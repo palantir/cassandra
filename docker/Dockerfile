@@ -11,6 +11,7 @@ ADD palantir-cassandra-*tgz /
 RUN mkdir $CASSANDRA_DIR/logs; \
   mkdir -p $CASSANDRA_DIR/data/saved_caches; \
   mkdir -p /var/lib/cassandra/persistent_settings; \
+  touch /var/lib/cassandra/persistent_settings/disable_client_interface \
   mkdir -p /var/lib/cassandra/data; \
   mkdir -p /var/lib/cassandra/commitlog; \
   mkdir -p /var/data/tmp; \
