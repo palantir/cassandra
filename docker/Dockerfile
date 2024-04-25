@@ -11,7 +11,6 @@ ADD palantir-cassandra-*tgz /
 RUN mkdir $CASSANDRA_DIR/logs; \
   mkdir -p $CASSANDRA_DIR/data/saved_caches; \
   mkdir -p /var/lib/cassandra/persistent_settings; \
-  touch /var/lib/cassandra/persistent_settings/disable_client_interface; \
   mkdir -p /var/lib/cassandra/data; \
   mkdir -p /var/lib/cassandra/commitlog; \
   mkdir -p /var/data/tmp; \
@@ -24,12 +23,13 @@ ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/
 ENV PATH=$JAVA_HOME:$PATH
 
 # Configs set up
-ENV CASSANDRA_CONFIG $CASSANDRA_DIR/conf/
+ENV CASSANDRA_CONFIG $CASSANDRA_DIR/conf
 ENV CASSANDRA_YAML $CASSANDRA_CONFIG/cassandra.yaml
 ENV CASSANDRA_ENV $CASSANDRA_CONFIG/cassandra-env.sh
 COPY cassandra.yaml $CASSANDRA_YAML
 COPY cassandra-env.sh $CASSANDRA_ENV
 COPY logback.xml $CASSANDRA_CONFIG/logback.xml
+COPY disable_client_interface /var/lib/cassandra/persistent_settings/disable_client_interface
 
 ENV _JAVA_OPTIONS="-Dcassandra.skip_wait_for_gossip_to_settle=0"
 
