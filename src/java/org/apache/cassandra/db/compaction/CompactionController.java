@@ -82,7 +82,7 @@ public class CompactionController implements AutoCloseable
             return;
         }
 
-        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+        if (isStreamingData(cfs.keyspace.getName())) {
             logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
             return;
         }
@@ -102,7 +102,7 @@ public class CompactionController implements AutoCloseable
         if (NEVER_PURGE_TOMBSTONES)
             return;
 
-        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
+        if (isStreamingData(cfs.keyspace.getName())) {
             logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
             return;
         }
@@ -145,7 +145,7 @@ public class CompactionController implements AutoCloseable
         if (compacting == null || NEVER_PURGE_TOMBSTONES)
             return Collections.<SSTableReader>emptySet();
 
-        if (pendingRangesExistForKeyspace(cfStore.keyspace.getName())) {
+        if (isStreamingData(cfStore.keyspace.getName())) {
             logger.debug("not looking for droppable sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
             return Collections.<SSTableReader>emptySet();
         }
@@ -217,7 +217,7 @@ public class CompactionController implements AutoCloseable
         if (NEVER_PURGE_TOMBSTONES)
             return Predicates.alwaysFalse();
 
-        if (pendingRangesExistForKeyspace(getKeyspace())) {
+        if (isStreamingData(getKeyspace())) {
             logger.debug("Purge evaluator always returning false - there are pending ranges for keyspace {}", getKeyspace());
             return Predicates.alwaysFalse();
         }
@@ -275,7 +275,18 @@ public class CompactionController implements AutoCloseable
 
     /**
      * @param keyspace
-     * @return true if this node is currently receiving data as part of a range movement (e.g., bootstrap, decommission, move)
+     * @return true if this node may be streaming data for this keyspace, either due to a range movement or a cross-DC rebuild.
+     * If we are streaming, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds.
+     *
+     * Note that this node may receive data without streaming, e.g. during a repair.
+     */
+    private static boolean isStreamingData(String keyspace) {
+        return StorageService.instance.isRebuilding() || pendingRangesExistForKeyspace(keyspace);
+    }
+
+    /**
+     * @param keyspace
+     * @return true if this node is currently streaming data as part of a range movement (e.g., bootstrap, decommission, move)
      * If pending ranges exist, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds
      */
     public static boolean pendingRangesExistForKeyspace(String keyspace) {
