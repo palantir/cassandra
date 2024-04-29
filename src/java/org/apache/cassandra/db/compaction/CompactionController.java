@@ -25,6 +25,7 @@ import com.google.common.base.Predicates;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.streaming.StreamManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,7 +159,7 @@ public class CompactionController implements AutoCloseable
         for (SSTableReader sstable : overlappingSSTables)
         {
             // Overlapping might include fully expired sstables. What we care about here is
-            // the min timestamp of the overlappingSSTables sstables that actually contain live data.
+            // the min timestamp of the overlapping sstables that actually contain live data.
             if (sstable.getSSTableMetadata().maxLocalDeletionTime >= gcBefore)
             {
                 minTimestamp = Math.min(minTimestamp, sstable.getMinTimestamp());
@@ -319,13 +320,20 @@ public class CompactionController implements AutoCloseable
      */
     private boolean isStreamingData(String keyspace)
     {
-        return getStorageService().isRebuilding() || pendingRangesExistForKeyspace(getStorageService(), keyspace);
+        return getStorageService().isRebuilding()
+                || pendingRangesExistForKeyspace(getStorageService(), keyspace)
+                || getStreamManager().getTotalReceivingStreams() > 0;
     }
 
     @VisibleForTesting
     StorageService getStorageService()
     {
         return StorageService.instance;
+    }
+
+    @VisibleForTesting
+    StreamManager getStreamManager() {
+        return StreamManager.instance;
     }
 
     /**
