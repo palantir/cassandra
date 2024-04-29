@@ -1558,7 +1558,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             bootstrapStream.get();
             isBootstrapMode = false;
             logger.info("Bootstrap streaming completed for tokens {}", tokens);
-            return StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
+            return !StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
         }
         catch (Throwable e)
         {
