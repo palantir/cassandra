@@ -17,10 +17,12 @@
  */
 package org.apache.cassandra.db.compaction;
 
+import java.io.Closeable;
 import java.util.*;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
@@ -52,7 +54,8 @@ public class CompactionController implements AutoCloseable
     // note that overlapIterator and overlappingSSTables will be null if NEVER_PURGE_TOMBSTONES is set - this is a
     // good thing so that noone starts using them and thinks that if overlappingSSTables is empty, there
     // is no overlap.
-    private Refs<SSTableReader> overlappingSSTables;
+    private Iterable<SSTableReader> overlappingSSTables;
+    private Refs<SSTableReader> overlappingSSTablesRefs;
     private OverlapIterator<RowPosition, SSTableReader> overlapIterator;
     private final Iterable<SSTableReader> compacting;
 
@@ -65,13 +68,18 @@ public class CompactionController implements AutoCloseable
 
     public CompactionController(ColumnFamilyStore cfs, Set<SSTableReader> compacting, int gcBefore)
     {
+        this(cfs, compacting, gcBefore, null);
+        refreshOverlaps();
+        if (NEVER_PURGE_TOMBSTONES)
+            logger.warn("You are running with -Dcassandra.never_purge_tombstones=true, this is dangerous!");
+    }
+
+    CompactionController(ColumnFamilyStore cfs, Iterable<SSTableReader> compacting, int gcBefore, Iterable<SSTableReader> overlappingSSTables) {
         assert cfs != null;
         this.cfs = cfs;
         this.gcBefore = gcBefore;
         this.compacting = compacting;
-        refreshOverlaps();
-        if (NEVER_PURGE_TOMBSTONES)
-            logger.warn("You are running with -Dcassandra.never_purge_tombstones=true, this is dangerous!");
+        this.overlappingSSTables = overlappingSSTables;
     }
 
     void maybeRefreshOverlaps()
@@ -83,7 +91,7 @@ public class CompactionController implements AutoCloseable
         }
 
         if (isStreamingData(cfs.keyspace.getName())) {
-            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            logger.debug("not refreshing overlaps - data may be streaming for keyspace {}", cfs.keyspace.getName());
             return;
         }
 
@@ -103,50 +111,29 @@ public class CompactionController implements AutoCloseable
             return;
 
         if (isStreamingData(cfs.keyspace.getName())) {
-            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            logger.debug("not refreshing overlaps - data may be streaming for keyspace {}", cfs.keyspace.getName());
             return;
         }
 
-        if (this.overlappingSSTables != null)
-            overlappingSSTables.release();
+        close();
 
         if (compacting == null)
-            overlappingSSTables = Refs.tryRef(Collections.<SSTableReader>emptyList());
+            overlappingSSTablesRefs = Refs.tryRef(Collections.<SSTableReader>emptyList());
         else
-            overlappingSSTables = cfs.getAndReferenceOverlappingSSTables(compacting);
+            overlappingSSTablesRefs = cfs.getAndReferenceOverlappingSSTables(compacting);
+        overlappingSSTables = overlappingSSTablesRefs;
         this.overlapIterator = new OverlapIterator<>(buildIntervals(overlappingSSTables));
     }
 
     public Set<SSTableReader> getFullyExpiredSSTables()
     {
-        return getFullyExpiredSSTables(cfs, compacting, overlappingSSTables, gcBefore);
-    }
-
-    /**
-     * Finds expired sstables
-     *
-     * works something like this;
-     * 1. find "global" minTimestamp of overlapping sstables, compacting sstables and memtables containing any non-expired data
-     * 2. build a list of fully expired candidates
-     * 3. check if the candidates to be dropped actually can be dropped (maxTimestamp < global minTimestamp)
-     *    - if not droppable, remove from candidates
-     * 4. return candidates.
-     *
-     * @param cfStore
-     * @param compacting we take the drop-candidates from this set, it is usually the sstables included in the compaction
-     * @param overlapping the sstables that overlap the ones in compacting.
-     * @param gcBefore
-     * @return
-     */
-    public static Set<SSTableReader> getFullyExpiredSSTables(ColumnFamilyStore cfStore, Iterable<SSTableReader> compacting, Iterable<SSTableReader> overlapping, int gcBefore)
-    {
-        logger.trace("Checking droppable sstables in {}", cfStore);
+        logger.trace("Checking droppable sstables in {}", cfs);
 
         if (compacting == null || NEVER_PURGE_TOMBSTONES)
             return Collections.<SSTableReader>emptySet();
 
-        if (isStreamingData(cfStore.keyspace.getName())) {
-            logger.debug("not looking for droppable sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
+        if (isStreamingData(cfs.keyspace.getName())) {
+            logger.debug("not looking for droppable sstables - data may be streaming for keyspace {}", cfs.keyspace.getName());
             return Collections.<SSTableReader>emptySet();
         }
 
@@ -154,10 +141,10 @@ public class CompactionController implements AutoCloseable
 
         long minTimestamp = Long.MAX_VALUE;
 
-        for (SSTableReader sstable : overlapping)
+        for (SSTableReader sstable : overlappingSSTables)
         {
             // Overlapping might include fully expired sstables. What we care about here is
-            // the min timestamp of the overlapping sstables that actually contain live data.
+            // the min timestamp of the overlappingSSTables sstables that actually contain live data.
             if (sstable.getSSTableMetadata().maxLocalDeletionTime >= gcBefore)
                 minTimestamp = Math.min(minTimestamp, sstable.getMinTimestamp());
         }
@@ -170,7 +157,7 @@ public class CompactionController implements AutoCloseable
                 minTimestamp = Math.min(minTimestamp, candidate.getMinTimestamp());
         }
 
-        for (Memtable memtable : cfStore.getTracker().getView().getAllMemtables())
+        for (Memtable memtable : cfs.getTracker().getView().getAllMemtables())
             minTimestamp = Math.min(minTimestamp, memtable.getMinTimestamp());
 
         // At this point, minTimestamp denotes the lowest timestamp of any relevant
@@ -188,11 +175,32 @@ public class CompactionController implements AutoCloseable
             }
             else
             {
-               logger.trace("Dropping expired SSTable {} (maxLocalDeletionTime={}, gcBefore={})",
+                logger.trace("Dropping expired SSTable {} (maxLocalDeletionTime={}, gcBefore={})",
                         candidate, candidate.getSSTableMetadata().maxLocalDeletionTime, gcBefore);
             }
         }
         return new HashSet<>(candidates);
+    }
+
+    /**
+     * Finds expired sstables
+     *
+     * works something like this;
+     * 1. find "global" minTimestamp of overlapping sstables, compacting sstables and memtables containing any non-expired data
+     * 2. build a list of fully expired candidates
+     * 3. check if the candidates to be dropped actually can be dropped (maxTimestamp < global minTimestamp)
+     *    - if not droppable, remove from candidates
+     * 4. return candidates.
+     *
+     * @param cfs
+     * @param compacting we take the drop-candidates from this set, it is usually the sstables included in the compaction
+     * @param overlappingSSTables the sstables that overlap the ones in compacting.
+     * @param gcBefore
+     * @return
+     */
+    public static Set<SSTableReader> getFullyExpiredSSTables(ColumnFamilyStore cfs, Iterable<SSTableReader> compacting, Iterable<SSTableReader> overlappingSSTables, int gcBefore)
+    {
+        return new CompactionController(cfs, compacting, gcBefore, overlappingSSTables).getFullyExpiredSSTables();
     }
 
     public String getKeyspace()
@@ -218,7 +226,7 @@ public class CompactionController implements AutoCloseable
             return Predicates.alwaysFalse();
 
         if (isStreamingData(getKeyspace())) {
-            logger.debug("Purge evaluator always returning false - there are pending ranges for keyspace {}", getKeyspace());
+            logger.debug("Purge evaluator always returning false - data may be streaming for keyspace {}", getKeyspace());
             return Predicates.alwaysFalse();
         }
 
@@ -269,8 +277,8 @@ public class CompactionController implements AutoCloseable
 
     public void close()
     {
-        if (overlappingSSTables != null)
-            overlappingSSTables.release();
+        if (overlappingSSTablesRefs != null)
+            overlappingSSTablesRefs.release();
     }
 
     /**
@@ -280,8 +288,13 @@ public class CompactionController implements AutoCloseable
      *
      * Note that this node may receive data without streaming, e.g. during a repair.
      */
-    private static boolean isStreamingData(String keyspace) {
-        return StorageService.instance.isRebuilding() || pendingRangesExistForKeyspace(keyspace);
+    private boolean isStreamingData(String keyspace) {
+        return getStorageService().isRebuilding() || pendingRangesExistForKeyspace(getStorageService(), keyspace);
+    }
+
+    @VisibleForTesting
+    StorageService getStorageService() {
+        return StorageService.instance;
     }
 
     /**
@@ -290,6 +303,10 @@ public class CompactionController implements AutoCloseable
      * If pending ranges exist, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds
      */
     public static boolean pendingRangesExistForKeyspace(String keyspace) {
-        return StorageService.instance.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
+        return pendingRangesExistForKeyspace(StorageService.instance, keyspace);
+    }
+
+    private static boolean pendingRangesExistForKeyspace(StorageService storageService, String keyspace) {
+        return storageService.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
     }
 }
