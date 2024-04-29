@@ -62,10 +62,10 @@ public class CompactionControllerTest extends SchemaLoader
     {
         SchemaLoader.prepareServer();
         SchemaLoader.createKeyspace(KEYSPACE,
-                                    SimpleStrategy.class,
-                                    KSMetaData.optsWithRF(1),
-                                    SchemaLoader.standardCFMD(KEYSPACE, CF1),
-                                    SchemaLoader.standardCFMD(KEYSPACE, CF2));
+                SimpleStrategy.class,
+                KSMetaData.optsWithRF(1),
+                SchemaLoader.standardCFMD(KEYSPACE, CF1),
+                SchemaLoader.standardCFMD(KEYSPACE, CF2));
     }
 
     @Test
@@ -86,7 +86,7 @@ public class CompactionControllerTest extends SchemaLoader
         applyMutation(CF1, rowKey, timestamp1);
 
         // check max purgeable timestamp without any sstables
-        try(CompactionController controller = new CompactionController(cfs, null, 0))
+        try (CompactionController controller = new CompactionController(cfs, null, 0))
         {
             assertPurgeBoundary(controller.getPurgeEvaluator(key), timestamp1); //memtable only
 
