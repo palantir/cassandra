@@ -332,7 +332,8 @@ public class CompactionController implements AutoCloseable
     }
 
     @VisibleForTesting
-    StreamManager getStreamManager() {
+    StreamManager getStreamManager()
+    {
         return StreamManager.instance;
     }
 
