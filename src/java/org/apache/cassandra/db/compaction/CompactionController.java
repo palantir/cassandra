@@ -17,7 +17,6 @@
  */
 package org.apache.cassandra.db.compaction;
 
-import java.io.Closeable;
 import java.util.*;
 
 import com.google.common.base.Predicate;
