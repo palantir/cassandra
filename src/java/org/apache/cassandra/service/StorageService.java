@@ -1367,6 +1367,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return isRebuilding.get();
     }
 
+    /** Controls {@link #isRebuilding()}. Do not use outside of unit tests. */
+    @VisibleForTesting
+    public void unsafeSetRebuilding(boolean rebuilding)
+    {
+        isRebuilding.set(rebuilding);
+    }
+
     public Set<String> getKeyspacesWithAllRangesAvailable(String sourceDc)
     {
         Set<String> keyspaces = Schema.instance.getNonSystemKeyspaces().stream()
