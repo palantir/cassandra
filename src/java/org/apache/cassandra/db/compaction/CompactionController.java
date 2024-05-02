@@ -32,7 +32,6 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
 import org.apache.cassandra.service.StorageService;
-import org.apache.cassandra.streaming.StreamManager;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
 import org.apache.cassandra.utils.FBUtilities;
@@ -276,8 +275,7 @@ public class CompactionController implements AutoCloseable
     {
         return NEVER_PURGE_TOMBSTONES
                 || StorageService.instance.isRebuilding()
-                || pendingRangesExistForKeyspace(keyspace)
-                || StreamManager.instance.getTotalReceivingStreams() > 0;
+                || pendingRangesExistForKeyspace(keyspace);
     }
 
     /**
