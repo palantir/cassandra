@@ -19,6 +19,7 @@
 package org.apache.cassandra.db.compaction;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Set;
 
 import com.google.common.base.Predicate;
@@ -37,6 +38,9 @@ import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.locator.SimpleStrategy;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.streaming.StreamManager;
+import org.apache.cassandra.streaming.StreamResultFuture;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -45,6 +49,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 public class CompactionControllerTest extends SchemaLoader
 {
@@ -170,6 +175,40 @@ public class CompactionControllerTest extends SchemaLoader
         expired = CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore);
         assertNotNull(expired);
         assertEquals(0, expired.size());
+    }
+
+    @Test
+    public void testTombstonesNotPurgedWhenStreaming()
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF2);
+        cfs.truncateBlocking();
+
+        ByteBuffer rowKey = ByteBufferUtil.bytes("k1");
+
+        long timestamp1 = FBUtilities.timestampMicros(); // latest timestamp
+        long timestamp2 = timestamp1 - 5;
+
+        // create sstable with tombstone that should be expired in no older timestamps
+        applyDeleteMutation(CF2, rowKey, timestamp2);
+        cfs.forceBlockingFlush();
+
+        // first sstable with tombstone is compacting
+        Set<SSTableReader> compacting = Sets.newHashSet(cfs.getSSTables());
+
+        // create another sstable with more recent timestamp
+        applyMutation(CF2, rowKey, timestamp1);
+        cfs.forceBlockingFlush();
+
+        // second sstable is overlapping
+        Set<SSTableReader> overlapping = Sets.difference(Sets.newHashSet(cfs.getSSTables()), compacting);
+
+        // the first sstable should be expired because the overlapping sstable is newer and the gc period is later
+        int gcBefore = (int) (System.currentTimeMillis() / 1000) + 5;
+
+        StreamManager.instance.registerReceiving(mock(StreamResultFuture.class));
+
+        assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), Collections.emptySet());
     }
 
     private void applyMutation(String cf, ByteBuffer rowKey, long timestamp)

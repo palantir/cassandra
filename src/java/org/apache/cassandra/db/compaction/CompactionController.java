@@ -32,6 +32,7 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.streaming.StreamManager;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
 import org.apache.cassandra.utils.FBUtilities;
@@ -76,17 +77,6 @@ public class CompactionController implements AutoCloseable
 
     void maybeRefreshOverlaps()
     {
-        if (NEVER_PURGE_TOMBSTONES)
-        {
-            logger.debug("not refreshing overlaps - running with -Dcassandra.never_purge_tombstones=true");
-            return;
-        }
-
-        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
-            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
-            return;
-        }
-
         for (SSTableReader reader : overlappingSSTables)
         {
             if (reader.isMarkedCompacted())
@@ -99,11 +89,9 @@ public class CompactionController implements AutoCloseable
 
     private void refreshOverlaps()
     {
-        if (NEVER_PURGE_TOMBSTONES)
-            return;
-
-        if (pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
-            logger.debug("not refreshing overlaps - there are pending ranges for keyspace {}", cfs.keyspace.getName());
+        if (doNotPurgeTombstones(cfs.keyspace.getName()))
+        {
+            logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}", cfs.keyspace.getName());
             return;
         }
 
@@ -142,11 +130,11 @@ public class CompactionController implements AutoCloseable
     {
         logger.trace("Checking droppable sstables in {}", cfStore);
 
-        if (compacting == null || NEVER_PURGE_TOMBSTONES)
+        if (compacting == null)
             return Collections.<SSTableReader>emptySet();
 
-        if (pendingRangesExistForKeyspace(cfStore.keyspace.getName())) {
-            logger.debug("not looking for droppable sstables - there are pending ranges for keyspace {}", cfStore.keyspace.getName());
+        if (doNotPurgeTombstones(cfStore.keyspace.getName())) {
+            logger.debug("not looking for droppable sstables - doNotPurgeTombstones retunred true for keyspace {}", cfStore.keyspace.getName());
             return Collections.<SSTableReader>emptySet();
         }
 
@@ -214,11 +202,9 @@ public class CompactionController implements AutoCloseable
      */
     public Predicate<Long> getPurgeEvaluator(DecoratedKey key)
     {
-        if (NEVER_PURGE_TOMBSTONES)
-            return Predicates.alwaysFalse();
-
-        if (pendingRangesExistForKeyspace(getKeyspace())) {
-            logger.debug("Purge evaluator always returning false - there are pending ranges for keyspace {}", getKeyspace());
+        if (doNotPurgeTombstones(getKeyspace()))
+        {
+            logger.debug("Purge evaluator always returning false - doNotPurgeTombstones returned true for keyspace {}", getKeyspace());
             return Predicates.alwaysFalse();
         }
 
@@ -275,10 +261,26 @@ public class CompactionController implements AutoCloseable
 
     /**
      * @param keyspace
-     * @return true if this node is currently receiving data as part of a range movement (e.g., bootstrap, decommission, move)
+     * @return true if this node may be streaming data for this keyspace, or if cassandra.never_purge_tombstones is set
+     * If we are streaming, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds.
+     * <p>
+     * Note that this node may receive data without streaming, e.g. during a repair.
+     */
+    private static boolean doNotPurgeTombstones(String keyspace)
+    {
+        return NEVER_PURGE_TOMBSTONES
+                || StorageService.instance.isRebuilding()
+                || pendingRangesExistForKeyspace(keyspace)
+                || StreamManager.instance.getTotalReceivingStreams() > 0;
+    }
+
+    /**
+     * @param keyspace
+     * @return true if this node is currently streaming data as part of a range movement (e.g., bootstrap, decommission, move)
      * If pending ranges exist, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds
      */
-    public static boolean pendingRangesExistForKeyspace(String keyspace) {
+    public static boolean pendingRangesExistForKeyspace(String keyspace)
+    {
         return StorageService.instance.getTokenMetadata().getPendingRanges(keyspace, FBUtilities.getBroadcastAddress()).size() > 0;
     }
 }
