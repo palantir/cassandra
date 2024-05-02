@@ -77,6 +77,12 @@ public class CompactionController implements AutoCloseable
 
     void maybeRefreshOverlaps()
     {
+        if (doNotPurgeTombstones(cfs.keyspace.getName()))
+        {
+            logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}", cfs.keyspace.getName());
+            return;
+        }
+
         for (SSTableReader reader : overlappingSSTables)
         {
             if (reader.isMarkedCompacted())
@@ -134,7 +140,7 @@ public class CompactionController implements AutoCloseable
             return Collections.<SSTableReader>emptySet();
 
         if (doNotPurgeTombstones(cfStore.keyspace.getName())) {
-            logger.debug("not looking for droppable sstables - doNotPurgeTombstones retunred true for keyspace {}", cfStore.keyspace.getName());
+            logger.debug("not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}", cfStore.keyspace.getName());
             return Collections.<SSTableReader>emptySet();
         }
 
