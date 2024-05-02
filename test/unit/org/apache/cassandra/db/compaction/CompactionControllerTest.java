@@ -39,8 +39,6 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.service.StorageService;
-import org.apache.cassandra.streaming.StreamManager;
-import org.apache.cassandra.streaming.StreamResultFuture;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
@@ -49,7 +47,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
 
 public class CompactionControllerTest extends SchemaLoader
 {
@@ -206,7 +203,7 @@ public class CompactionControllerTest extends SchemaLoader
         // the first sstable should be expired because the overlapping sstable is newer and the gc period is later
         int gcBefore = (int) (System.currentTimeMillis() / 1000) + 5;
 
-        StreamManager.instance.registerReceiving(mock(StreamResultFuture.class));
+        StorageService.instance.unsafeSetRebuilding(true);
 
         assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), Collections.emptySet());
     }
