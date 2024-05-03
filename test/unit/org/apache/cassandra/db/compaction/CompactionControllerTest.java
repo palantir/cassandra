@@ -203,9 +203,12 @@ public class CompactionControllerTest extends SchemaLoader
         // the first sstable should be expired because the overlapping sstable is newer and the gc period is later
         int gcBefore = (int) (System.currentTimeMillis() / 1000) + 5;
 
-        StorageService.instance.unsafeSetRebuilding(true);
-
-        assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), Collections.emptySet());
+        try {
+            StorageService.instance.unsafeSetRebuilding(true);
+            assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), Collections.emptySet());
+        } finally {
+            StorageService.instance.unsafeSetRebuilding(false);
+        }
     }
 
     private void applyMutation(String cf, ByteBuffer rowKey, long timestamp)
