@@ -5207,6 +5207,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
+    public InetAddress getBroadcastAddress()
+    {
+        return FBUtilities.getBroadcastAddress();
+    }
+
+    @Override
     public boolean isMigrating()
     {
         return Boolean.getBoolean("palantir_cassandra.migration_mode");
