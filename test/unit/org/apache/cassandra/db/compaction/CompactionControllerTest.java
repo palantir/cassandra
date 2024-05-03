@@ -206,6 +206,8 @@ public class CompactionControllerTest extends SchemaLoader
         StorageService.instance.unsafeSetRebuilding(true);
 
         assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), Collections.emptySet());
+
+        StorageService.instance.unsafeSetRebuilding(true);
     }
 
     private void applyMutation(String cf, ByteBuffer rowKey, long timestamp)
