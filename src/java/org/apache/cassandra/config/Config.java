@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.EncryptionOptions.ClientEncryptionOptions;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.supercsv.io.CsvListReader;
 import org.supercsv.prefs.CsvPreference;
@@ -188,6 +189,10 @@ public class Config
 
     public volatile Integer stream_throughput_outbound_megabits_per_sec = 200;
     public volatile Integer inter_dc_stream_throughput_outbound_megabits_per_sec = 200;
+
+    // Datacenter migrations may prefer to override the precondition phase of LWT depending on which stage of the
+    // cutover and rebuild they are at, and which coordinators are exposed to clients
+    public ConsistencyLevel serial_precondition_consistency_level = ConsistencyLevel.QUORUM;
 
     public String[] data_file_directories = new String[0];
 

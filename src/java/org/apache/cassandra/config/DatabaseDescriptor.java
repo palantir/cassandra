@@ -45,6 +45,7 @@ import org.apache.cassandra.config.Config.RequestSchedulerId;
 import org.apache.cassandra.config.EncryptionOptions.ClientEncryptionOptions;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
 import org.apache.cassandra.db.ColumnFamilyStore;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -1663,6 +1664,10 @@ public class DatabaseDescriptor
 
     public static boolean isAutoSnapshot() {
         return conf.auto_snapshot;
+    }
+
+    public static ConsistencyLevel serialPreconditionConsistencyLevel() {
+        return conf.serial_precondition_consistency_level;
     }
 
     @VisibleForTesting
