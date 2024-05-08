@@ -216,6 +216,10 @@ JVM_OPTS="$JVM_OPTS -XX:+CrashOnOutOfMemoryError"
 # print an heap histogram on OutOfMemoryError
 # JVM_OPTS="$JVM_OPTS -Dcassandra.printHeapHistogramOnOutOfMemoryError=true"
 
+# Allows overriding the timeout after which an unresponsive bootstrapping node is considered failed
+# and is removed from gossip state and bootstrapTokens. (Default: cassandra.ring_delay * 10)
+# JVM_OPTS="$JVM_OPTS -Dcassandra.failed_bootstrap_timeout_ms=ms"
+
 # Per-thread stack size.
 JVM_OPTS="$JVM_OPTS -Xss256k"
 
