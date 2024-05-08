@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
+import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -227,7 +228,7 @@ public class StorageProxy implements StorageProxyMBean
                 ReadCommand readCommand = ReadCommand.create(keyspaceName, key, cfName, timestamp, request.readFilter());
                 ConsistencyLevel consistencyForPrecondition = consistencyForPaxos == ConsistencyLevel.LOCAL_SERIAL
                                                               ? ConsistencyLevel.LOCAL_QUORUM
-                                                              : DatabaseDescriptor.serialPreconditionConsistencyLevel();
+                                                              : LocalQuorumReadForSerialCasSetting.instance.consistencyLevelForSerialCas();
                 List<Row> rows = read(Arrays.asList(readCommand), consistencyForPrecondition);
                 ColumnFamily current = rows.get(0).cf;
                 if (current == null)

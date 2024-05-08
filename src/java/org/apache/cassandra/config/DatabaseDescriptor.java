@@ -1666,10 +1666,6 @@ public class DatabaseDescriptor
         return conf.auto_snapshot;
     }
 
-    public static ConsistencyLevel serialPreconditionConsistencyLevel() {
-        return conf.serial_precondition_consistency_level;
-    }
-
     @VisibleForTesting
     public static void setAutoSnapshot(boolean autoSnapshot) {
         conf.auto_snapshot = autoSnapshot;
