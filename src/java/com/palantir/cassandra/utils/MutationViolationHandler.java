@@ -19,7 +19,7 @@
 package com.palantir.cassandra.utils;
 
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.exceptions.InvalidOwnershipException;
+import org.apache.cassandra.exceptions.InvalidMutationException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
 import org.slf4j.Logger;
@@ -41,7 +41,7 @@ public class MutationViolationHandler implements OwnershipViolationHandler
         keyspace.metric.invalidMutations.inc();
         logger.error("InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
                 FBUtilities.getBroadcastAddress(), Hex.bytesToHex(key.array()),keyspace.getName(), naturalEndpoints, pendingEndpoints);
-        throw new InvalidOwnershipException();
+        throw new InvalidMutationException();
     }
 
     @Override

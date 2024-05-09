@@ -19,7 +19,6 @@
 package com.palantir.cassandra.utils;
 
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.exceptions.InvalidOwnershipException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
 import org.slf4j.Logger;

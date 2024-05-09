@@ -24,7 +24,7 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.exceptions.InvalidOwnershipException;
+import org.apache.cassandra.exceptions.InvalidMutationException;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.service.StorageService;
@@ -97,7 +97,7 @@ public class OwnershipVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("b");
         Mutation mutation = new Mutation(KEYSPACE5, key);
-        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidOwnershipException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
     }
 
     @Test
@@ -119,7 +119,7 @@ public class OwnershipVerificationUtilsTest
         Mutation mutation = new Mutation(KEYSPACE5, key);
 
         long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
-        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidOwnershipException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
         long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
         assertThat(initialRingVersion).isNotEqualTo(finalRingVersion);
     }

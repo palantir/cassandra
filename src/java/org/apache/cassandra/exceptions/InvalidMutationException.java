@@ -18,10 +18,10 @@
 
 package org.apache.cassandra.exceptions;
 
-public class InvalidOwnershipException extends RuntimeException
+public class InvalidMutationException extends RuntimeException
 {
-    public InvalidOwnershipException()
+    public InvalidMutationException()
     {
-        super("InvalidOwnership! Cannot execute this operation as this host does not contain key.");
+        super("InvalidMutation! Cannot apply mutation as this host does not contain key.");
     }
 }
