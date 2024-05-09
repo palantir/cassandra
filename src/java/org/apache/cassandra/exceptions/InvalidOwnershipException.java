@@ -15,20 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.cassandra.db;
 
-import com.palantir.cassandra.utils.OwnershipVerificationUtils;
-import org.apache.cassandra.net.IVerbHandler;
-import org.apache.cassandra.net.MessageIn;
-import org.apache.cassandra.net.MessagingService;
+package org.apache.cassandra.exceptions;
 
-public class ReadRepairVerbHandler implements IVerbHandler<Mutation>
+public class InvalidOwnershipException extends RuntimeException
 {
-    public void doVerb(MessageIn<Mutation> message, int id)
+    public InvalidOwnershipException()
     {
-        OwnershipVerificationUtils.verifyMutation(message.payload);
-        message.payload.apply();
-        WriteResponse response = new WriteResponse();
-        MessagingService.instance().sendReply(response.createMessage(), id, message.from);
+        super("InvalidOwnership! Cannot execute this operation as this host does not contain key.");
     }
 }
