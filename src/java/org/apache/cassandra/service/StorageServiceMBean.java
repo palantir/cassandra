@@ -897,6 +897,12 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public void persistentDisableClientInterfaces();
 
+    public void disableLocalQuorumReadsForSerialCas();
+
+    public void enableLocalQuorumReadsForSerialCas();
+
+    public boolean localQuorumReadsForSerialCasEnabled();
+
     public boolean isMigrating();
 
     /**

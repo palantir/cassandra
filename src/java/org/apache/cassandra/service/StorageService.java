@@ -40,6 +40,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -5198,6 +5199,27 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         } catch (IOException e) {
             throw new RuntimeException("Failed to persistently disable client interfaces due to IO Exception", e);
         }
+    }
+
+    @Override
+    public void disableLocalQuorumReadsForSerialCas() {
+        LocalQuorumReadForSerialCasSetting.instance.setFalse();
+    }
+
+    @Override
+    public void enableLocalQuorumReadsForSerialCas() {
+        try
+        {
+            LocalQuorumReadForSerialCasSetting.instance.setTrue();
+        } catch (IOException e)
+        {
+            throw new RuntimeException("Failed to persistently enable local quorum reads for serial CAS due to IO Exception", e);
+        }
+    }
+
+    @Override
+    public boolean localQuorumReadsForSerialCasEnabled() {
+        return LocalQuorumReadForSerialCasSetting.instance.isTrue();
     }
 
     @Override
