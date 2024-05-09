@@ -5208,7 +5208,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     @Override
     public void enableLocalQuorumReadsForSerialCas() {
-        try {
+        try
+        {
             LocalQuorumReadForSerialCasSetting.instance.setTrue();
         } catch (IOException e)
         {
@@ -5217,7 +5218,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
-    public boolean areLocalQuorumReadsForSerialCasEnabled() {
+    public boolean localQuorumReadsForSerialCasEnabled() {
         return LocalQuorumReadForSerialCasSetting.instance.isTrue();
     }
 

@@ -901,8 +901,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
 
     public void enableLocalQuorumReadsForSerialCas();
 
-    public boolean areLocalQuorumReadsForSerialCasEnabled();
-
+    public boolean localQuorumReadsForSerialCasEnabled();
 
     public boolean isMigrating();
 
