@@ -927,7 +927,7 @@
         The jar target makes cassandra.jar output.
     -->
     <target name="jar"
-            depends="build, build-test, stress-build, write-poms"
+            depends="build, build, stress-build, write-poms"
             description="Assemble Cassandra JAR files">
       <mkdir dir="${build.classes.main}/META-INF" />
       <mkdir dir="${build.classes.thrift}/META-INF" />
@@ -1354,7 +1354,7 @@
     reason we use the classes from the jar, and a carefully constructed
     classpath which only contains what we expect users to need.
   -->
-  <target name="test-clientutil-jar" depends="build-test,jar" description="Test clientutil jar">
+  <target name="test-clientutil-jar" depends="build,jar" description="Test clientutil jar">
     <mkdir dir="${build.test.dir}/output"/>
     <junit fork="on" forkmode="perTest" failureproperty="testfailed" maxmemory="1024m" timeout="${test.timeout}">
       <!-- Note that the test pass without that next line, but it prints an ugly error message -->
@@ -1392,7 +1392,7 @@
       </fail>
   </target>
 
-  <target name="testold" depends="build-test" description="Execute unit tests">
+  <target name="testold" depends="build" description="Execute unit tests">
     <testmacro inputdir="${test.unit.src}" exclude="**/pig/*.java" timeout="${test.timeout}">
       <jvmarg value="-Dlegacy-sstable-root=${test.data}/legacy-sstables"/>
       <jvmarg value="-Dinvalid-legacy-sstable-root=${test.data}/invalid-legacy-sstables"/>
@@ -1468,7 +1468,7 @@
   <!-- Use this with an FQDN for test class, and a csv list of methods like this:
     ant testsome -Dtest.name=org.apache.cassandra.service.StorageServiceServerTest -Dtest.methods=testRegularMode,testGetAllRangesEmpty
   -->
-  <target name="testsome" depends="build-test" description="Execute specific unit tests" >
+  <target name="testsome" depends="build" description="Execute specific unit tests" >
     <testmacro inputdir="${test.unit.src}" exclude="**/pig/*.java" timeout="${test.timeout}">
       <test name="${test.name}" methods="${test.methods}" outfile="build/test/output/TEST-${test.name}-${test.methods}"/>
       <jvmarg value="-Dlegacy-sstable-root=${test.data}/legacy-sstables"/>
@@ -1481,7 +1481,7 @@
     </testmacro>
   </target>
 
-  <target name="test-compression" depends="build-test" description="Execute unit tests with sstable compression enabled">
+  <target name="test-compression" depends="build" description="Execute unit tests with sstable compression enabled">
     <property name="compressed_yaml" value="${build.test.dir}/cassandra.compressed.yaml"/>
     <concat destfile="${compressed_yaml}">
       <fileset file="${test.conf}/cassandra.yaml"/>
@@ -1495,39 +1495,39 @@
     <testparallel testdelegate="testlist-compression" />
   </target>
 
-  <target name="msg-ser-gen-test" depends="build-test" description="Generates message serializations">
+  <target name="msg-ser-gen-test" depends="build" description="Generates message serializations">
     <testmacro inputdir="${test.unit.src}"
         timeout="${test.timeout}" filter="**/SerializationsTest.java">
       <jvmarg value="-Dcassandra.test-serialization-writes=True"/>
     </testmacro>
   </target>
 
-  <target name="msg-ser-test" depends="build-test" description="Tests message serializations">
+  <target name="msg-ser-test" depends="build" description="Tests message serializations">
       <testmacro inputdir="${test.unit.src}" timeout="${test.timeout}"
                filter="**/SerializationsTest.java"/>
   </target>
 
-  <target name="msg-ser-test-7" depends="build-test" description="Generates message serializations">
+  <target name="msg-ser-test-7" depends="build" description="Generates message serializations">
     <testmacro inputdir="${test.unit.src}"
         timeout="${test.timeout}" filter="**/SerializationsTest.java">
       <jvmarg value="-Dcassandra.version=0.7"/>
     </testmacro>
   </target>
 
-  <target name="msg-ser-test-10" depends="build-test" description="Tests message serializations on 1.0 messages">
+  <target name="msg-ser-test-10" depends="build" description="Tests message serializations on 1.0 messages">
     <testmacro inputdir="${test.unit.src}"
         timeout="${test.timeout}" filter="**/SerializationsTest.java">
       <jvmarg value="-Dcassandra.version=1.0"/>
     </testmacro>
   </target>
 
-  <target name="test-burn" depends="build-test" description="Execute functional tests">
+  <target name="test-burn" depends="build" description="Execute functional tests">
     <testmacro inputdir="${test.burn.src}"
                timeout="${test.burn.timeout}">
     </testmacro>
   </target>
 
-  <target name="long-test" depends="build-test" description="Execute functional tests">
+  <target name="long-test" depends="build" description="Execute functional tests">
     <testmacro inputdir="${test.long.src}"
                timeout="${test.long.timeout}">
       <jvmarg value="-Dcassandra.ring_delay_ms=1000"/>
@@ -1535,7 +1535,7 @@
     </testmacro>
   </target>
 
-  <target name="cql-test" depends="build-test" description="Execute CQL tests">
+  <target name="cql-test" depends="build" description="Execute CQL tests">
     <sequential>
       <echo message="running CQL tests"/>
       <mkdir dir="${build.test.dir}/cassandra"/>
@@ -1579,7 +1579,7 @@
     </sequential>
   </target>
 
-  <target name="cql-test-some" depends="build-test" description="Execute specific CQL tests" >
+  <target name="cql-test-some" depends="build" description="Execute specific CQL tests" >
     <sequential>
       <echo message="running ${test.methods} tests from ${test.name}"/>
       <mkdir dir="${build.test.dir}/cassandra"/>
@@ -1610,7 +1610,7 @@
     </sequential>
   </target>
 
-  <target name="pig-test" depends="build-test,maven-ant-tasks-retrieve-pig-test" description="Excute Pig tests">
+  <target name="pig-test" depends="build,maven-ant-tasks-retrieve-pig-test" description="Excute Pig tests">
     <testmacro inputdir="${test.pig.src}"
                timeout="1200000">
     </testmacro>
@@ -1661,7 +1661,7 @@
   </target>
 
   <!-- instruments the classes to later create code coverage reports -->
-  <target name="cobertura-instrument" depends="build,build-test">
+  <target name="cobertura-instrument" depends="build,build">
     <taskdef resource="tasks.properties">
       <classpath refid="cobertura.classpath"/>
       <classpath refid="cassandra.classpath"/>
@@ -1838,7 +1838,7 @@
     ]]>
   </scriptdef>
 
-  <target name="test" depends="eclipse-warnings,build-test" description="Parallel Test Runner">
+  <target name="test" depends="eclipse-warnings,build" description="Parallel Test Runner">
     <path id="all-test-classes-path">
       <fileset dir="${test.unit.src}" includes="**/${test.name}.java" excludes="**/pig/*.java **/distributed/test/UpgradeTest*.java" />
     </path>
@@ -1849,14 +1849,14 @@
   <!-- run a list of tests as provided in -Dtest.classlistfile (or default of 'testnames.txt')
   The class list file should be one test class per line, with the path starting after test/unit
   e.g. org/apache/cassandra/hints/HintMessageTest.java -->
-  <target name="testclasslist" depends="build-test" description="Parallel-run tests given in file -Dtest.classlistfile (one-class-per-line, e.g. org/apache/cassandra/db/SomeTest.java)">
+  <target name="testclasslist" depends="build" description="Parallel-run tests given in file -Dtest.classlistfile (one-class-per-line, e.g. org/apache/cassandra/db/SomeTest.java)">
     <path id="all-test-classes-path">
       <fileset dir="${test.dir}/${test.classlistprefix}" includesfile="${test.classlistfile}"/>
     </path>
     <property name="all-test-classes" refid="all-test-classes-path"/>
     <testparallel testdelegate="testlist"/>
   </target>
-  <target name="testclasslist-compression" depends="build-test" description="Parallel-run compression tests given in file -Dtest.classlistfile (one-class-per-line, e.g. org/apache/cassandra/db/SomeTest.java)">
+  <target name="testclasslist-compression" depends="build" description="Parallel-run compression tests given in file -Dtest.classlistfile (one-class-per-line, e.g. org/apache/cassandra/db/SomeTest.java)">
     <path id="all-test-classes-path">
       <fileset dir="${test.unit.src}" includesfile="${test.classlistfile}"/>
     </path>
@@ -1864,7 +1864,7 @@
     <testparallel testdelegate="testlist-compression"/>
   </target>
 
-  <target name="test-distributed" depends="build-test" description="Execute unit tests">
+  <target name="test-distributed" depends="build" description="Execute unit tests">
     <testmacro inputdir="${test.distributed.src}" timeout="${test.distributed.timeout}" forkmode="once" showoutput="true" filter="**/test/*Test.java">
       <jvmarg value="-Dlogback.configurationFile=test/conf/logback-dtest.xml"/>
       <jvmarg value="-Dcassandra.ring_delay_ms=1000"/>
@@ -1879,7 +1879,7 @@
   </target>
 
   <!-- In-JVM dtest targets -->
-  <target name="list-jvm-dtests" depends="build-test">
+  <target name="list-jvm-dtests" depends="build">
     <java classname="org.apache.cassandra.distributed.test.TestLocator" fork="no">
           <classpath>
               <path refid="cassandra.classpath"/>
@@ -1899,7 +1899,7 @@
     <delete file="${test.distributed.listfile}"/>
   </target>
 
-  <target name="dtest-jar" depends="build-test, build" description="Create dtest-compatible jar, including all dependencies">
+  <target name="dtest-jar" depends="build, build" description="Create dtest-compatible jar, including all dependencies">
       <jar jarfile="${build.dir}/dtest-${base.version}.jar">
           <zipgroupfileset dir="${build.lib}" includes="*.jar" excludes="META-INF/*.SF"/>
           <fileset dir="${build.classes.main}"/>
@@ -1909,7 +1909,7 @@
       </jar>
   </target>
 
-  <target name="test-jvm-dtest" depends="build-test" description="Execute in-jvm dtests">
+  <target name="test-jvm-dtest" depends="build" description="Execute in-jvm dtests">
     <testmacro inputdir="${test.distributed.src}" timeout="${test.distributed.timeout}" forkmode="once" showoutput="true" filter="**/test/*Test.java">
       <jvmarg value="-Dlogback.configurationFile=test/conf/logback-dtest.xml"/>
       <jvmarg value="-Dcassandra.ring_delay_ms=10000"/>
@@ -1921,7 +1921,7 @@
   <!-- Use this with an FQDN for test class, and a csv list of methods like this:
       ant test-jvm-dtest-some -Dtest.name=org.apache.cassandra.distributed.test.ResourceLeakTest -Dtest.methods=looperTest
     -->
-  <target name="test-jvm-dtest-some" depends="build-test" description="Execute some in-jvm dtests">
+  <target name="test-jvm-dtest-some" depends="build" description="Execute some in-jvm dtests">
     <testmacro inputdir="${test.distributed.src}" timeout="${test.distributed.timeout}" forkmode="once" showoutput="true">
       <test name="${test.name}" methods="${test.methods}" outfile="build/test/output/TEST-${test.name}-${test.methods}"/>
       <jvmarg value="-Dlogback.configurationFile=test/conf/logback-dtest.xml"/>
@@ -1932,7 +1932,7 @@
   </target>
 
   <!-- run microbenchmarks suite -->
-  <target name="microbench" depends="build-test">
+  <target name="microbench" depends="build">
       <java classname="org.openjdk.jmh.Main"
             fork="true"
             failonerror="true">
@@ -1950,7 +1950,7 @@
   </target>
 
   <!-- Generate IDEA project description files -->
-  <target name="generate-idea-files" depends="build-test" description="Generate IDEA files">
+  <target name="generate-idea-files" depends="build" description="Generate IDEA files">
     <mkdir dir=".idea"/>
     <mkdir dir=".idea/libraries"/>
     <copy todir=".idea">
@@ -1969,7 +1969,7 @@
   </target>
 
   <!-- Generate Eclipse project description files -->
-  <target name="generate-eclipse-files" depends="build-test" description="Generate eclipse files">
+  <target name="generate-eclipse-files" depends="build" description="Generate eclipse files">
     <echo file=".project"><![CDATA[<?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
   <name>${eclipse.project.name}</name>

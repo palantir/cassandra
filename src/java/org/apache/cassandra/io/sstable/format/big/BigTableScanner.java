@@ -125,26 +125,28 @@ public class BigTableScanner implements ISSTableScanner
     {
         if (requested instanceof Range && ((Range)requested).isWrapAround())
         {
-            if (requested.right.compareTo(sstable.first) >= 0)
-            {
-                // since we wrap, we must contain the whole sstable prior to stopKey()
-                Boundary<RowPosition> left = new Boundary<RowPosition>(sstable.first, true);
-                Boundary<RowPosition> right;
-                right = requested.rightBoundary();
-                right = minRight(right, sstable.last, true);
-                if (!isEmpty(left, right))
-                    boundsList.add(AbstractBounds.bounds(left, right));
-            }
-            if (requested.left.compareTo(sstable.last) <= 0)
-            {
-                // since we wrap, we must contain the whole sstable after dataRange.startKey()
-                Boundary<RowPosition> right = new Boundary<RowPosition>(sstable.last, true);
-                Boundary<RowPosition> left;
-                left = requested.leftBoundary();
-                left = maxLeft(left, sstable.first, true);
-                if (!isEmpty(left, right))
-                    boundsList.add(AbstractBounds.bounds(left, right));
-            }
+            boundsList.add(AbstractBounds.bounds(requested.leftBoundary(), requested.rightBoundary()));
+            return;
+//            if (requested.right.compareTo(sstable.first) >= 0)
+//            {
+//                // since we wrap, we must contain the whole sstable prior to stopKey()
+//                Boundary<RowPosition> left = new Boundary<RowPosition>(sstable.first, true);
+//                Boundary<RowPosition> right;
+//                right = requested.rightBoundary();
+//                right = minRight(right, sstable.last, true);
+//                if (!isEmpty(left, right))
+//                    boundsList.add(AbstractBounds.bounds(left, right));
+//            }
+//            if (requested.left.compareTo(sstable.last) <= 0)
+//            {
+//                // since we wrap, we must contain the whole sstable after dataRange.startKey()
+//                Boundary<RowPosition> right = new Boundary<RowPosition>(sstable.last, true);
+//                Boundary<RowPosition> left;
+//                left = requested.leftBoundary();
+//                left = maxLeft(left, sstable.first, true);
+//                if (!isEmpty(left, right))
+//                    boundsList.add(AbstractBounds.bounds(left, right));
+//            }
         }
         else
         {
@@ -163,13 +165,15 @@ public class BigTableScanner implements ISSTableScanner
 
     private void seekToCurrentRangeStart()
     {
-        long indexPosition = sstable.getIndexScanPosition(currentRange.left);
+//        long indexPosition = sstable.getIndexScanPosition(currentRange.left);
+        long indexPosition = 0;
         ifile.seek(indexPosition);
         try
         {
 
             while (!ifile.isEOF())
             {
+
                 indexPosition = ifile.getFilePointer();
                 DecoratedKey indexDecoratedKey = sstable.partitioner.decorateKey(ByteBufferUtil.readWithShortLength(ifile));
                 if (indexDecoratedKey.compareTo(currentRange.left) > 0 || currentRange.contains(indexDecoratedKey))
