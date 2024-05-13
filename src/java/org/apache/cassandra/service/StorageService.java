@@ -1458,13 +1458,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return DatabaseDescriptor.getStreamThroughputOutboundMegabitsPerSec();
     }
 
-    public void setInterDCStreamThroughputMbPerSec(int value)
+    public void setInterDCStreamThroughputMbPerSec(double value)
     {
         DatabaseDescriptor.setInterDCStreamThroughputOutboundMegabitsPerSec(value);
         logger.info("setinterdcstreamthroughput: throttle set to {}", value);
     }
 
-    public int getInterDCStreamThroughputMbPerSec()
+    public double getInterDCStreamThroughputMbPerSec()
     {
         return DatabaseDescriptor.getInterDCStreamThroughputOutboundMegabitsPerSec();
     }

@@ -86,7 +86,7 @@ public class BulkLoader
                 handler,
                 options.connectionsPerHost);
         DatabaseDescriptor.setStreamThroughputOutboundMegabitsPerSec(options.throttle);
-        DatabaseDescriptor.setInterDCStreamThroughputOutboundMegabitsPerSec(options.interDcThrottle);
+        DatabaseDescriptor.setInterDCStreamThroughputOutboundMegabitsPerSec(1.0* options.interDcThrottle);
         StreamResultFuture future = null;
 
         ProgressIndicator indicator = new ProgressIndicator();
@@ -435,10 +435,10 @@ public class BulkLoader
                     config = new Config();
                     // unthrottle stream by default
                     config.stream_throughput_outbound_megabits_per_sec = 0;
-                    config.inter_dc_stream_throughput_outbound_megabits_per_sec = 0;
+                    config.inter_dc_stream_throughput_outbound_megabits_per_sec = 0.0;
                 }
                 opts.throttle = config.stream_throughput_outbound_megabits_per_sec;
-                opts.interDcThrottle = config.inter_dc_stream_throughput_outbound_megabits_per_sec;
+                opts.interDcThrottle = (int) config.inter_dc_stream_throughput_outbound_megabits_per_sec;
                 opts.clientEncOptions = config.client_encryption_options;
                 opts.serverEncOptions = config.server_encryption_options;
 
