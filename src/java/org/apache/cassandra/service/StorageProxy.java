@@ -1309,6 +1309,9 @@ public class StorageProxy implements StorageProxyMBean
             final ConsistencyLevel consistencyForCommitOrFetch = consistencyLevel == ConsistencyLevel.LOCAL_SERIAL
                                                                                    ? ConsistencyLevel.LOCAL_QUORUM
                                                                                    : ConsistencyLevel.QUORUM;
+            logger.debug("Reading with paxos: key {}, ks {}, cf {}, endpoints {}, required participants: {}",
+                    command.key.duplicate().asCharBuffer().chars().mapToObj(c -> Integer.toHexString(c)).collect(Collectors.joining()),
+                    command.ksName, command.cfName, liveEndpoints, requiredParticipants);
             try
             {
                 final Pair<UUID, Integer> pair = beginAndRepairPaxos(start, command.key, metadata, liveEndpoints, requiredParticipants, consistencyLevel, consistencyForCommitOrFetch, false, state);
