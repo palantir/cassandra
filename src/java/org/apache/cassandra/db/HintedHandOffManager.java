@@ -517,6 +517,15 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         // to deliver to).
         compact();
 
+        try
+        {
+            Thread.sleep(5 * 60 * 1000); // 5 mins
+        }
+        catch (InterruptedException e)
+        {
+            throw new RuntimeException(e);
+        }
+
         IPartitioner p = StorageService.getPartitioner();
         RowPosition minPos = p.getMinimumToken().minKeyBound();
         Range<RowPosition> range = new Range<>(minPos, minPos);
