@@ -466,6 +466,18 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
                     }
                 };
                 WriteResponseHandler<Mutation> responseHandler = new WriteResponseHandler<>(endpoint, WriteType.SIMPLE, callback);
+
+                logger.info("Pausing right before sending hint.", to);
+
+                try
+                {
+                    Thread.sleep(5 * 60 * 1000); // 5 mins
+                }
+                catch (InterruptedException e)
+                {
+                    throw new RuntimeException(e);
+                }
+
                 MessagingService.instance().sendRR(message, endpoint, responseHandler, false);
                 responseHandlers.add(responseHandler);
             }
@@ -510,7 +522,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
      */
     private void scheduleAllDeliveries()
     {
-        logger.info("Started scheduleAllDeliveries");
+        logger.trace("Started scheduleAllDeliveries");
 
         // Force a major compaction to get rid of the tombstones and expired hints. Do it once, before we schedule any
         // individual replay, to avoid N - 1 redundant individual compactions (when N is the number of nodes with hints
@@ -522,32 +534,16 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         Range<RowPosition> range = new Range<>(minPos, minPos);
         IDiskAtomFilter filter = new NamesQueryFilter(ImmutableSortedSet.<CellName>of());
         List<Row> rows = hintStore.getRangeSlice(range, null, filter, Integer.MAX_VALUE, System.currentTimeMillis());
-
-        for (Row row : rows) {
-            UUID hostId = UUIDGen.getUUID(row.key.getKey());
-            InetAddress target = StorageService.instance.getTokenMetadata().getEndpointForHostId(hostId);
-            logger.info("Hint exists for row %s to target %s", row, target);
-        }
-        try
-        {
-            Thread.sleep(5 * 60 * 1000); // 5 mins
-        }
-        catch (InterruptedException e)
-        {
-            throw new RuntimeException(e);
-        }
-
         for (Row row : rows)
         {
             UUID hostId = UUIDGen.getUUID(row.key.getKey());
             InetAddress target = StorageService.instance.getTokenMetadata().getEndpointForHostId(hostId);
             // token may have since been removed (in which case we have just read back a tombstone)
-            logger.info("Sending hint for row %s to target %s", row, target);
             if (target != null)
                 scheduleHintDelivery(target, false);
         }
 
-        logger.info("Finished scheduleAllDeliveries");
+        logger.trace("Finished scheduleAllDeliveries");
     }
 
     /*
@@ -561,7 +557,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         if (!queuedDeliveries.add(to))
             return;
 
-        logger.trace("Scheduling delivery of Hints to {}", to);
+        logger.info("Scheduling delivery of Hints to {}", to);
 
         hintDeliveryExecutor.execute(new Runnable()
         {
