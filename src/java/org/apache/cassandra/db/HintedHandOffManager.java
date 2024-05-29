@@ -467,7 +467,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
                 };
                 WriteResponseHandler<Mutation> responseHandler = new WriteResponseHandler<>(endpoint, WriteType.SIMPLE, callback);
 
-                logger.info("Pausing right before sending hint {} to {}.", message, endpoint);
+                logger.info("Pausing right before sending message {} with hint {} to {}.", message, hint, endpoint);
 
                 try
                 {
