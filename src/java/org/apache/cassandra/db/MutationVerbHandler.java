@@ -20,6 +20,8 @@ package org.apache.cassandra.db;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.palantir.cassandra.utils.MutationVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
@@ -45,6 +47,19 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
             else
             {
                 replyTo = InetAddress.getByAddress(from);
+            }
+
+            Logger.getLogger("blahhh").log(Level.INFO, "received message from: " + message.from.getHostName());
+
+            if (message.from.getHostName().equals("il-pg-alpha-5225383.use1.palantir.global")) {
+                try
+                {
+                    Thread.sleep(5 * 60 * 1000); // 5 mins
+                }
+                catch (InterruptedException e)
+                {
+                    throw new RuntimeException(e);
+                }
             }
 
             MutationVerificationUtils.verifyMutation(message.payload);

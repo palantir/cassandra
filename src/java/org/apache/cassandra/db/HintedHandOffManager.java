@@ -466,18 +466,6 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
                     }
                 };
                 WriteResponseHandler<Mutation> responseHandler = new WriteResponseHandler<>(endpoint, WriteType.SIMPLE, callback);
-
-                logger.info("Pausing right before sending message {} with hint {} to {}.", message, hint.name(), endpoint);
-
-                try
-                {
-                    Thread.sleep(5 * 60 * 1000); // 5 mins
-                }
-                catch (InterruptedException e)
-                {
-                    throw new RuntimeException(e);
-                }
-
                 MessagingService.instance().sendRR(message, endpoint, responseHandler, false);
                 responseHandlers.add(responseHandler);
             }
@@ -557,7 +545,7 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         if (!queuedDeliveries.add(to))
             return;
 
-        logger.info("Scheduling delivery of Hints to {}", to);
+        logger.trace("Scheduling delivery of Hints to {}", to);
 
         hintDeliveryExecutor.execute(new Runnable()
         {
