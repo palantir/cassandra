@@ -23,6 +23,8 @@ import java.net.InetAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.slf4j.LoggerFactory;
+
 import com.palantir.cassandra.utils.MutationVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.*;
@@ -30,6 +32,7 @@ import org.apache.cassandra.tracing.Tracing;
 
 public class MutationVerbHandler implements IVerbHandler<Mutation>
 {
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(MutationVerbHandler.class);
     private static final boolean TEST_FAIL_WRITES = System.getProperty("cassandra.test.fail_writes", "false").equalsIgnoreCase("true");
 
     public void doVerb(MessageIn<Mutation> message, int id)  throws IOException
@@ -49,10 +52,10 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 replyTo = InetAddress.getByAddress(from);
             }
 
-            Logger.getLogger("blahhh").log(Level.INFO, "received message from: " + message.from.getHostName());
+        logger.info("received message from {}", message.from.getHostName());
 
-            if (message.from.getHostName().equals("il-pg-alpha-5225383.use1.palantir.global")) {
-                Logger.getLogger("blahhh").log(Level.INFO, "sleeping");
+            if (message.from.getHostName().contains("il-pg-alpha-5225383")) {
+                logger.info("sleeping");
                 try
                 {
                     Thread.sleep(5 * 60 * 1000); // 5 mins
@@ -61,7 +64,7 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 {
                     throw new RuntimeException(e);
                 }
-                Logger.getLogger("blahhh").log(Level.INFO, "sleep done");
+                logger.info("sleep done");
             }
 
             MutationVerificationUtils.verifyMutation(message.payload);
