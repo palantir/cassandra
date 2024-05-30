@@ -53,21 +53,6 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 replyTo = InetAddress.getByAddress(from);
             }
 
-            logger.info("received message from {} about keyspace {}", message.from.getHostName(), message.payload.getKeyspaceName());
-
-            if (message.from.getHostName().contains("5225383") && FBUtilities.getBroadcastAddress().getHostName().contains("5225385")) {
-                    logger.info("sleeping");
-                    try
-                    {
-                        Thread.sleep(5 * 60 * 1000); // 5 mins
-                    }
-                    catch (InterruptedException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
-                    logger.info("sleep done");
-            }
-
             MutationVerificationUtils.verifyMutation(message.payload);
 
             message.payload.apply();

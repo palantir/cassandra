@@ -466,6 +466,18 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
                     }
                 };
                 WriteResponseHandler<Mutation> responseHandler = new WriteResponseHandler<>(endpoint, WriteType.SIMPLE, callback);
+                if (message.payload.getKeyspaceName().contains("test_hints_keyspace")) {
+                    logger.info("sleeping");
+                    try
+                    {
+                        Thread.sleep(5 * 60 * 1000); // 5 mins
+                    }
+                    catch (InterruptedException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                    logger.info("sleep done");
+                }
                 MessagingService.instance().sendRR(message, endpoint, responseHandler, false);
                 responseHandlers.add(responseHandler);
             }
