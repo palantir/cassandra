@@ -52,6 +52,7 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
             Logger.getLogger("blahhh").log(Level.INFO, "received message from: " + message.from.getHostName());
 
             if (message.from.getHostName().equals("il-pg-alpha-5225383.use1.palantir.global")) {
+                Logger.getLogger("blahhh").log(Level.INFO, "sleeping");
                 try
                 {
                     Thread.sleep(5 * 60 * 1000); // 5 mins
