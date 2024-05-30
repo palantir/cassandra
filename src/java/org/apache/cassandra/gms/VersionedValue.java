@@ -20,13 +20,11 @@ package org.apache.cassandra.gms;
 import java.io.*;
 
 import java.net.InetAddress;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 import org.apache.cassandra.db.TypeSizes;
@@ -81,8 +79,8 @@ public class VersionedValue implements Comparable<VersionedValue>
 
     // values for ApplicationState.REMOVAL_COORDINATOR
     public final static String REMOVAL_COORDINATOR = "REMOVER";
-    public final static List<String> BOOTSTRAPPING_STATES = Arrays.asList(VersionedValue.STATUS_BOOTSTRAPPING,
-            VersionedValue.STATUS_BOOTSTRAPPING_REPLACE);
+    public final static Set<String> BOOTSTRAPPING_STATUS = ImmutableSet.of(STATUS_BOOTSTRAPPING, STATUS_BOOTSTRAPPING_REPLACE);
+
 
     public final int version;
     public final String value;

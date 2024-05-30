@@ -848,7 +848,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             return false;
         }
 
-        return VersionedValue.BOOTSTRAPPING_STATES.contains(status);
+        return VersionedValue.BOOTSTRAPPING_STATUS.contains(status);
     }
 
     protected long getExpireTimeForEndpoint(InetAddress endpoint)
