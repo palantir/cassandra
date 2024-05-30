@@ -1042,7 +1042,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 {
                     recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("bootstrapSafetyCheckFailed", "true"));
                     unsafeDisableNode();
-                    throw new BootstrappingSafetyException("Bootstrap safety check failed.");
+                    String message = "Finish bootstrap was not called within 30 minutes. Bootstrap safety check failed.";
+                    logger.error(message);
+                    throw new BootstrappingSafetyException(message);
                 }
             }
             catch (InterruptedException e)
