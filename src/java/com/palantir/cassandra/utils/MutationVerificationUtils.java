@@ -23,9 +23,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.palantir.cassandra.concurrent.NamespacedSweepProgressStateStore;
+import com.palantir.cassandra.concurrent.SweepProgressStateStore;
+import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.exceptions.InvalidMutationException;
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +46,7 @@ public class MutationVerificationUtils
 {
     private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.getBoolean("palantir_cassandra.verify_keys_on_write");
     private static final Logger logger = LoggerFactory.getLogger(MutationVerificationUtils.class);
+    private static final SweepProgressStateStore sweepProgressStateStore = new SweepProgressStateStore();
 
     private static volatile Instant lastTokenRingCacheUpdate = Instant.MIN;
 
@@ -54,6 +60,8 @@ public class MutationVerificationUtils
         {
             return;
         }
+
+        verifySweepPermit(mutation);
 
         Keyspace keyspace = Keyspace.open(mutation.getKeyspaceName());
         if (!(keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy))
@@ -94,6 +102,31 @@ public class MutationVerificationUtils
         }
 
         keyspace.metric.validMutations.inc();
+    }
+
+    private static void verifySweepPermit(Mutation mutation)
+    {
+        String keyspaceName = mutation.getKeyspaceName();
+        NamespacedSweepProgressStateStore store = sweepProgressStateStore.forNamespace(keyspaceName);
+        store.readLock().lock();
+        try
+        {
+            long noWriteTs = store.getNoWriteTs();
+            long startTs = getStartTsForMutation(mutation);
+            if (startTs > noWriteTs)
+            {
+                throw new RuntimeException("Sweep rejected write");
+            }
+        }
+        finally
+        {
+            store.readLock().unlock();
+        }
+    }
+
+    private static long getStartTsForMutation(Mutation _mutation)
+    {
+        throw new NotImplementedException();
     }
 
 
