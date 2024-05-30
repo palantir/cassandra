@@ -29,6 +29,7 @@ import com.palantir.cassandra.utils.MutationVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
+import org.apache.cassandra.utils.FBUtilities;
 
 public class MutationVerbHandler implements IVerbHandler<Mutation>
 {
@@ -52,19 +53,19 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 replyTo = InetAddress.getByAddress(from);
             }
 
-        logger.info("received message from {}", message.from.getHostName());
+            logger.info("received message from {} about keyspace {}", message.from.getHostName(), message.payload.getKeyspaceName());
 
-            if (message.from.getHostName().contains("il-pg-alpha-5225383")) {
-                logger.info("sleeping");
-                try
-                {
-                    Thread.sleep(5 * 60 * 1000); // 5 mins
-                }
-                catch (InterruptedException e)
-                {
-                    throw new RuntimeException(e);
-                }
-                logger.info("sleep done");
+            if (message.from.getHostName().contains("5225383") && FBUtilities.getBroadcastAddress().getHostName().contains("5225385")) {
+                    logger.info("sleeping");
+                    try
+                    {
+                        Thread.sleep(5 * 60 * 1000); // 5 mins
+                    }
+                    catch (InterruptedException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                    logger.info("sleep done");
             }
 
             MutationVerificationUtils.verifyMutation(message.payload);
