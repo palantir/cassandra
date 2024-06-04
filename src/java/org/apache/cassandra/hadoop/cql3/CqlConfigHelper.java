@@ -326,9 +326,6 @@ public class CqlConfigHelper
                 .withPort(port)
                 .withCompression(ProtocolOptions.Compression.NONE);
 
-        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
-                    .inDomain(cluster.getClusterName() + "-metrics")
-                    .build().start();
 
         if (authProvider.isPresent())
             builder.withAuthProvider(authProvider.get());
@@ -343,7 +340,12 @@ public class CqlConfigHelper
                 .withQueryOptions(queryOptions)
                 .withPoolingOptions(poolingOptions);
 
-        return builder.build();
+        Cluster cluster = builder.build();
+
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                .inDomain(cluster.getClusterName() + "-metrics")
+                .build().start();
+        return cluster;
     }
 
     public static void setInputCoreConnections(Configuration conf, String connections)
