@@ -45,7 +45,7 @@ public class NativeProtocolTest extends TestBaseImpl
                                               .withConfig(config -> config.with(GOSSIP, NETWORK, NATIVE_PROTOCOL))
                                               .start()))
         {
-w
+
             try (com.datastax.driver.core.Cluster cluster = com.datastax.driver.core.Cluster.builder().addContactPoint("127.0.0.1").build();
                  Session session = cluster.connect())
             {
