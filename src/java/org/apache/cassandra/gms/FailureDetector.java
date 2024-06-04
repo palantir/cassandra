@@ -74,9 +74,9 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
 
     private static long getBootstrappingNodeMaxLocalPauseInNanos()
     {
-        if (System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms") != null)
+        if (System.getProperty("palantir_cassandra.bootstrap_safeguard_pause_in_ms") != null)
         {
-            long pause = Long.parseLong(System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms"));
+            long pause = Long.parseLong(System.getProperty("palantir_cassandra.bootstrap_safeguard_pause_in_ms"));
             logger.warn("Overriding max bootstrapping node pause time to {} ms", pause);
             return pause * 1000000L;
         }
