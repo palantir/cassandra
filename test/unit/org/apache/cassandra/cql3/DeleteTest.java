@@ -31,8 +31,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class DeleteTest extends SchemaLoader
-{
+public class DeleteTest extends SchemaLoader {
     private static EmbeddedCassandraService cassandra;
 
     private static Cluster cluster;
@@ -47,14 +46,13 @@ public class DeleteTest extends SchemaLoader
     private static PreparedStatement pstmt5;
 
     @BeforeClass
-    public static void setup() throws Exception
-    {
+    public static void setup() throws Exception {
         Schema.instance.clear();
 
         cassandra = new EmbeddedCassandraService();
         cassandra.start();
 
-        cluster = Cluster.builder().addContactPoint("127.0.0.1").withPort(DatabaseDescriptor.getNativeTransportPort()).build();
+        cluster = Cluster.builder().addContactPoint("127.0.0.1").withoutJMXReporting().withPort(DatabaseDescriptor.getNativeTransportPort()).build();
         session = cluster.connect();
 
         session.execute("drop keyspace if exists junit;");
@@ -106,17 +104,14 @@ public class DeleteTest extends SchemaLoader
     }
 
     @AfterClass
-    public static void tearDown() throws Exception
-    {
+    public static void tearDown() throws Exception {
         cluster.close();
     }
 
     @Test
-    public void lostDeletesTest()
-    {
+    public void lostDeletesTest() {
 
-        for (int i = 0; i < 500; i++)
-        {
+        for (int i = 0; i < 500; i++) {
             session.execute(pstmtI.bind(1, 1, "inhB", "valB"));
 
             ResultSetFuture[] futures = load();
