@@ -55,7 +55,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     private static final long DEFAULT_MAX_PAUSE = 5000L * 1000000L; // 5 seconds
     private static final long MAX_LOCAL_PAUSE_IN_NANOS = getMaxLocalPause();
     private static final long DEFAULT_MAX_BOOTSTRAPPING_NODE_PAUSE = 60000L * 1000000L;// 60 seconds
-    private static final long MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS = getBootstrapingNodeMaxLocalPauseInNanos();
+    private static final long MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS = getBootstrappingNodeMaxLocalPauseInNanos();
 
     private long lastInterpret = System.nanoTime();
     private long lastPause = 0L;
@@ -72,7 +72,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
             return DEFAULT_MAX_PAUSE;
     }
 
-    private static long getBootstrapingNodeMaxLocalPauseInNanos()
+    private static long getBootstrappingNodeMaxLocalPauseInNanos()
     {
         if (System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms") != null)
         {
