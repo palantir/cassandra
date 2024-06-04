@@ -54,6 +54,7 @@ public class PreparedStatementsTest extends SchemaLoader
         Thread.sleep(500);
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1")
+                                   .withoutJMXReporting()
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .build();
         session = cluster.connect();
@@ -117,6 +118,7 @@ public class PreparedStatementsTest extends SchemaLoader
         cluster.close();
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1")
+                                   .withoutJMXReporting()
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .build();
         session = cluster.connect();

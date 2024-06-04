@@ -54,7 +54,7 @@ public class CQLMetricsTest extends SchemaLoader
         cassandra = new EmbeddedCassandraService();
         cassandra.start();
 
-        cluster = Cluster.builder().addContactPoint("127.0.0.1").withPort(DatabaseDescriptor.getNativeTransportPort()).build();
+        cluster = Cluster.builder().addContactPoint("127.0.0.1").withoutJMXReporting().withPort(DatabaseDescriptor.getNativeTransportPort()).build();
         session = cluster.connect();
 
         session.execute("CREATE KEYSPACE IF NOT EXISTS junit WITH replication = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };");

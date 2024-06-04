@@ -34,6 +34,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.google.common.base.Optional;
 import org.apache.commons.lang3.StringUtils;
 
@@ -321,8 +322,13 @@ public class CqlConfigHelper
 
         Cluster.Builder builder = Cluster.builder()
                 .addContactPoints(hosts)
+                .withoutJMXReporting()
                 .withPort(port)
                 .withCompression(ProtocolOptions.Compression.NONE);
+
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                    .inDomain(cluster.getClusterName() + "-metrics")
+                    .build().start();
 
         if (authProvider.isPresent())
             builder.withAuthProvider(authProvider.get());
