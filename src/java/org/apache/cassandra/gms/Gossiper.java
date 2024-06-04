@@ -205,7 +205,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         }
     }
 
-    public static long getFailedBootstrapTimeout()
+    private static long getFailedBootstrapTimeout()
     {
         String newtimeout = System.getProperty("cassandra.failed_bootstrap_timeout_ms");
         if (newtimeout != null)
