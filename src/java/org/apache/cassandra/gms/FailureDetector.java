@@ -54,6 +54,8 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     private static final int DEBUG_PERCENTAGE = 80; // if the phi is larger than this percentage of the max, log a debug message
     private static final long DEFAULT_MAX_PAUSE = 5000L * 1000000L; // 5 seconds
     private static final long MAX_LOCAL_PAUSE_IN_NANOS = getMaxLocalPause();
+    private static final long DEFAULT_MAX_BOOTSTRAPPING_NODE_PAUSE = 60000L * 1000000L;// 60 seconds
+    private static final long MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS = getBootstrappingNodeMaxLocalPauseInNanos();
 
     private long lastInterpret = System.nanoTime();
     private long lastPause = 0L;
@@ -63,11 +65,23 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (System.getProperty("cassandra.max_local_pause_in_ms") != null)
         {
             long pause = Long.parseLong(System.getProperty("cassandra.max_local_pause_in_ms"));
-            logger.warn("Overriding max local pause time to {}ms", pause);
+            logger.warn("Overriding max local pause time to {} ms", pause);
             return pause * 1000000L;
         }
         else
             return DEFAULT_MAX_PAUSE;
+    }
+
+    private static long getBootstrappingNodeMaxLocalPauseInNanos()
+    {
+        if (System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms") != null)
+        {
+            long pause = Long.parseLong(System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms"));
+            logger.warn("Overriding max bootstrapping node pause time to {} ms", pause);
+            return pause * 1000000L;
+        }
+        else
+            return DEFAULT_MAX_BOOTSTRAPPING_NODE_PAUSE;
     }
 
     public static final IFailureDetector instance = new FailureDetector();
@@ -273,16 +287,11 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         {
             StorageService.instance.unsafeDisableNode();
             logger.error("Detected local pause longer than Gossiper failed bootstrap timeout (nanos) {}"
-                   + "whilst node was bootstrapping", getFailedBootstrapTimeoutInNanos());
+                   + "whilst node was bootstrapping", MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS);
             StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR,
                                                             ImmutableMap.of("timeoutDuringBootstrap", "true"));
             throw new BootstrappingSafetyException("Bootstrap failed due to gossip timeout");
         }
-    }
-
-    private long getFailedBootstrapTimeoutInNanos()
-    {
-        return Gossiper.getFailedBootstrapTimeout() * 1000000L;
     }
 
     public void interpret(InetAddress ep)
@@ -295,7 +304,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         long now = System.nanoTime();
         long diff = now - lastInterpret;
         lastInterpret = now;
-        if (diff > getFailedBootstrapTimeoutInNanos())
+        if (diff > MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS)
         {
             safeguardBootstrapTimeout();
         }
