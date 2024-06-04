@@ -68,6 +68,7 @@ public class PagingTest
         Thread.sleep(500);
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1")
+                                   .withoutJMXReporting()
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .build();
         session = cluster.connect();
