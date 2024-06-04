@@ -272,7 +272,8 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (StorageService.instance.isJoiningOrWaitingToFinishBootstrap())
         {
             StorageService.instance.unsafeDisableNode();
-            logger.error("Detected local pause longer than MAX_LOCAL_PAUSE_IN_NANOS {} whilst bootstrapping", MAX_LOCAL_PAUSE_IN_NANOS);
+            logger.error("Detected local pause longer than BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS {} whilst bootstrapping",
+                    BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS);
             StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR,
                                                             ImmutableMap.of("timeoutDuringBootstrap", "true"));
             throw new BootstrappingSafetyException("Bootstrap failed due to gossip timeout");
