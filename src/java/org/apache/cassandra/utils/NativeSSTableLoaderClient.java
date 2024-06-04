@@ -68,7 +68,7 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
                         .inDomain(cluster.getClusterName() + "-metrics")
                         .build())
         {
-            try (Session session = cluster.connect())) {
+            try (Session session = cluster.connect()) {
                 Metadata metadata = cluster.getMetadata();
 
                 setPartitioner(metadata.getPartitioner());
