@@ -54,7 +54,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     private static final int DEBUG_PERCENTAGE = 80; // if the phi is larger than this percentage of the max, log a debug message
     private static final long DEFAULT_MAX_PAUSE = 5000L * 1000000L; // 5 seconds
     private static final long MAX_LOCAL_PAUSE_IN_NANOS = getMaxLocalPause();
-    private static final long BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS = Gossiper.getFailedBootstrapTimeout() * 1000000L;
+
     private long lastInterpret = System.nanoTime();
     private long lastPause = 0L;
 
@@ -272,12 +272,17 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (StorageService.instance.isJoiningOrWaitingToFinishBootstrap())
         {
             StorageService.instance.unsafeDisableNode();
-            logger.error("Detected local pause longer than BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS {}"
-                   + "whilst bootstrapping", BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS);
+            logger.error("Detected local pause longer than Gossiper failed bootstrap timeout (nanos) {}"
+                   + "whilst node was bootstrapping", getFailedBootstrapTimeoutInNanos());
             StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR,
                                                             ImmutableMap.of("timeoutDuringBootstrap", "true"));
             throw new BootstrappingSafetyException("Bootstrap failed due to gossip timeout");
         }
+    }
+
+    private long getFailedBootstrapTimeoutInNanos()
+    {
+        return Gossiper.getFailedBootstrapTimeout() * 1000000L;
     }
 
     public void interpret(InetAddress ep)
@@ -290,7 +295,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         long now = System.nanoTime();
         long diff = now - lastInterpret;
         lastInterpret = now;
-        if (diff > BOOSTRAP_SAFEGUARD_PAUSE_IN_NANOS)
+        if (diff > getFailedBootstrapTimeoutInNanos())
         {
             safeguardBootstrapTimeout();
         }
