@@ -23,7 +23,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.JmxReporter;
+import com.codahale.metrics.jmx.JmxReporter;
 
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
