@@ -251,6 +251,7 @@ public abstract class CQLTester
                 continue;
 
             cluster[version-1] = Cluster.builder().addContactPoints(nativeAddr)
+                                  .withoutJMXReporting()
                                   .withClusterName("Test Cluster")
                                   .withPort(nativePort)
                                   .withProtocolVersion(ProtocolVersion.fromInt(version))
