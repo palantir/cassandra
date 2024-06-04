@@ -65,7 +65,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (System.getProperty("cassandra.max_local_pause_in_ms") != null)
         {
             long pause = Long.parseLong(System.getProperty("cassandra.max_local_pause_in_ms"));
-            logger.warn("Overriding max local pause time to {}ms", pause);
+            logger.warn("Overriding max local pause time to {} ms", pause);
             return pause * 1000000L;
         }
         else
@@ -77,7 +77,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms") != null)
         {
             long pause = Long.parseLong(System.getProperty("palantir_cassandra.boostrap_safeguard_pause_in_ms"));
-            logger.warn("Overriding max bootstrapping node pause time to {}ms", pause);
+            logger.warn("Overriding max bootstrapping node pause time to {} ms", pause);
             return pause * 1000000L;
         }
         else
