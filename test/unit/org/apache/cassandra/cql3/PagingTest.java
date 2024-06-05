@@ -21,6 +21,7 @@ import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.List;
 
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -67,8 +68,7 @@ public class PagingTest
         // to wait slightly before trying to connect to it. We should fix this but in the meantime using a sleep.
         Thread.sleep(500);
 
-        cluster = Cluster.builder().addContactPoint("127.0.0.1")
-                                   .withoutJMXReporting()
+        cluster = Dropwizard4Cluster.builder().addContactPoint("127.0.0.1")
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .build();
         session = cluster.connect();
