@@ -22,6 +22,7 @@ import java.util.*;
 
 import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.*;
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.ColumnFamilyType;
 import org.apache.cassandra.db.SystemKeyspace;
@@ -56,37 +57,31 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
 
     public void init(String keyspace)
     {
-        Cluster.Builder builder = Cluster.builder().withoutJMXReporting().addContactPoints(hosts).withPort(port);
+        Cluster.Builder builder = Dropwizard4Cluster.builder().withoutJMXReporting().addContactPoints(hosts).withPort(port);
 
         if (sslOptions != null)
             builder.withSSL(sslOptions);
         if (username != null && password != null)
             builder = builder.withCredentials(username, password);
 
-        try (Cluster cluster = builder.build(); JmxReporter reporter =
-                JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
-                        .inDomain(cluster.getClusterName() + "-metrics")
-                        .build())
-        {
-            try (Session session = cluster.connect()) {
-                Metadata metadata = cluster.getMetadata();
+        try (Cluster cluster = builder.build(); Session session = cluster.connect()) {
+            Metadata metadata = cluster.getMetadata();
 
-                setPartitioner(metadata.getPartitioner());
+            setPartitioner(metadata.getPartitioner());
 
-                Set<TokenRange> tokenRanges = metadata.getTokenRanges();
+            Set<TokenRange> tokenRanges = metadata.getTokenRanges();
 
-                Token.TokenFactory tokenFactory = getPartitioner().getTokenFactory();
+            Token.TokenFactory tokenFactory = getPartitioner().getTokenFactory();
 
-                for (TokenRange tokenRange : tokenRanges) {
-                    Set<Host> endpoints = metadata.getReplicas(Metadata.quote(keyspace), tokenRange);
-                    Range<Token> range = new Range<>(tokenFactory.fromString(tokenRange.getStart().getValue().toString()),
-                            tokenFactory.fromString(tokenRange.getEnd().getValue().toString()));
-                    for (Host endpoint : endpoints)
-                        addRangeForEndpoint(range, endpoint.getAddress());
-                }
-
-                tables.putAll(fetchTablesMetadata(keyspace, session));
+            for (TokenRange tokenRange : tokenRanges) {
+                Set<Host> endpoints = metadata.getReplicas(Metadata.quote(keyspace), tokenRange);
+                Range<Token> range = new Range<>(tokenFactory.fromString(tokenRange.getStart().getValue().toString()),
+                        tokenFactory.fromString(tokenRange.getEnd().getValue().toString()));
+                for (Host endpoint : endpoints)
+                    addRangeForEndpoint(range, endpoint.getAddress());
             }
+
+            tables.putAll(fetchTablesMetadata(keyspace, session));
         }
     }
 
