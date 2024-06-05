@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.junit.Test;
 
 import com.datastax.driver.core.ProtocolVersion;
@@ -69,7 +70,7 @@ public class PagingTest extends UpgradeTestBase
     private void checkDuplicates(String message) throws InterruptedException
     {
         Thread.sleep(5000); // sometimes one node doesn't have time come up properly?
-        try (com.datastax.driver.core.Cluster c = com.datastax.driver.core.Cluster.builder()
+        try (com.datastax.driver.core.Cluster c = Dropwizard4Cluster.builder()
                                                                                   .addContactPoint("127.0.0.1")
                                                                                   .withProtocolVersion(ProtocolVersion.V3)
                                                                                   .withQueryOptions(new QueryOptions().setFetchSize(101))
