@@ -323,7 +323,6 @@ public class CqlConfigHelper
 
         Cluster.Builder builder = Dropwizard4Cluster.builder()
                 .addContactPoints(hosts)
-                .withoutJMXReporting()
                 .withPort(port)
                 .withCompression(ProtocolOptions.Compression.NONE);
 

@@ -57,7 +57,7 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
 
     public void init(String keyspace)
     {
-        Cluster.Builder builder = Dropwizard4Cluster.builder().withoutJMXReporting().addContactPoints(hosts).withPort(port);
+        Cluster.Builder builder = Dropwizard4Cluster.builder().addContactPoints(hosts).withPort(port);
 
         if (sslOptions != null)
             builder.withSSL(sslOptions);
