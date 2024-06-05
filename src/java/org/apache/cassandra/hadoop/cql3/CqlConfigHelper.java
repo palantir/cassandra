@@ -36,6 +36,7 @@ import javax.net.ssl.TrustManagerFactory;
 
 import com.codahale.metrics.jmx.JmxReporter;
 import com.google.common.base.Optional;
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.apache.commons.lang3.StringUtils;
 
 import com.datastax.driver.core.AuthProvider;
@@ -86,7 +87,7 @@ public class CqlConfigHelper
 
     private static final String OUTPUT_CQL = "cassandra.output.cql";
     private static final String OUTPUT_NATIVE_PORT = "cassandra.output.native.port";
-    
+
     /**
      * Set the CQL columns for the input of this job.
      *
@@ -97,10 +98,10 @@ public class CqlConfigHelper
     {
         if (columns == null || columns.isEmpty())
             return;
-        
+
         conf.set(INPUT_CQL_COLUMNS_CONFIG, columns);
     }
-    
+
     /**
      * Set the CQL query Limit for the input of this job.
      *
@@ -127,10 +128,10 @@ public class CqlConfigHelper
     {
         if (clauses == null || clauses.isEmpty())
             return;
-        
+
         conf.set(INPUT_CQL_WHERE_CLAUSE_CONFIG, clauses);
     }
-  
+
     /**
      * Set the CQL prepared statement for the output of this job.
      *
@@ -141,7 +142,7 @@ public class CqlConfigHelper
     {
         if (cql == null || cql.isEmpty())
             return;
-        
+
         conf.set(OUTPUT_CQL, cql);
     }
 
@@ -320,7 +321,7 @@ public class CqlConfigHelper
         QueryOptions queryOptions = getReadQueryOptions(conf);
         PoolingOptions poolingOptions = getReadPoolingOptions(conf);
 
-        Cluster.Builder builder = Cluster.builder()
+        Cluster.Builder builder = Dropwizard4Cluster.builder()
                 .addContactPoints(hosts)
                 .withoutJMXReporting()
                 .withPort(port)
@@ -340,12 +341,7 @@ public class CqlConfigHelper
                 .withQueryOptions(queryOptions)
                 .withPoolingOptions(poolingOptions);
 
-        Cluster cluster = builder.build();
-
-        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
-                .inDomain(cluster.getClusterName() + "-metrics")
-                .build().start();
-        return cluster;
+        return builder.build();
     }
 
     public static void setInputCoreConnections(Configuration conf, String connections)
@@ -361,7 +357,7 @@ public class CqlConfigHelper
     public static void setInputMaxSimultReqPerConnections(Configuration conf, String reqs)
     {
         conf.set(INPUT_NATIVE_MAX_SIMULT_REQ_PER_CONNECTION, reqs);
-    }    
+    }
 
     public static void setInputNativeConnectionTimeout(Configuration conf, String timeout)
     {
@@ -401,7 +397,7 @@ public class CqlConfigHelper
     public static void setInputNativeSSLTruststorePath(Configuration conf, String path)
     {
         conf.set(INPUT_NATIVE_SSL_TRUST_STORE_PATH, path);
-    } 
+    }
 
     public static void setInputNativeSSLKeystorePath(Configuration conf, String path)
     {
@@ -457,7 +453,7 @@ public class CqlConfigHelper
         }
 
         return poolingOptions;
-    }  
+    }
 
     private static QueryOptions getReadQueryOptions(Configuration conf)
     {
@@ -481,7 +477,7 @@ public class CqlConfigHelper
         Optional<Integer> sendBufferSize = getInputNativeSendBufferSize(conf);
         Optional<Integer> soLinger = getInputNativeSolinger(conf);
         Optional<Boolean> tcpNoDelay = getInputNativeTcpNodelay(conf);
-        Optional<Boolean> reuseAddress = getInputNativeReuseAddress(conf);       
+        Optional<Boolean> reuseAddress = getInputNativeReuseAddress(conf);
         Optional<Boolean> keepAlive = getInputNativeKeepAlive(conf);
 
         if (connectTimeoutMillis.isPresent())
@@ -499,7 +495,7 @@ public class CqlConfigHelper
         if (reuseAddress.isPresent())
             socketOptions.setReuseAddress(reuseAddress.get());
         if (keepAlive.isPresent())
-            socketOptions.setKeepAlive(keepAlive.get());     
+            socketOptions.setKeepAlive(keepAlive.get());
 
         return socketOptions;
     }
@@ -551,7 +547,7 @@ public class CqlConfigHelper
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(Integer.valueOf(setting));  
+        return Optional.of(Integer.valueOf(setting));
     }
 
     private static Optional<Boolean> getBooleanSetting(String parameter, Configuration conf)
@@ -559,7 +555,7 @@ public class CqlConfigHelper
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(Boolean.valueOf(setting));  
+        return Optional.of(Boolean.valueOf(setting));
     }
 
     private static Optional<String> getStringSetting(String parameter, Configuration conf)
@@ -567,7 +563,7 @@ public class CqlConfigHelper
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(setting);  
+        return Optional.of(setting);
     }
 
     private static AuthProvider getClientAuthProvider(String factoryClassName, Configuration conf)
