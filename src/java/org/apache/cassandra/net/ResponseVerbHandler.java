@@ -28,10 +28,17 @@ public class ResponseVerbHandler implements IVerbHandler
 {
     private static final Logger logger = LoggerFactory.getLogger( ResponseVerbHandler.class );
 
+    private final MessagingService messagingService;
+
+    public ResponseVerbHandler(MessagingService messagingService)
+    {
+        this.messagingService = messagingService;
+    }
+
     public void doVerb(MessageIn message, int id)
     {
-        long latency = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - MessagingService.instance().getRegisteredCallbackAge(id));
-        CallbackInfo callbackInfo = MessagingService.instance().removeRegisteredCallback(id);
+        long latency = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - messagingService.getRegisteredCallbackAge(id));
+        CallbackInfo callbackInfo = messagingService.removeRegisteredCallback(id);
         if (callbackInfo == null)
         {
             String msg = "Callback already removed for {} (from {})";
@@ -49,7 +56,7 @@ public class ResponseVerbHandler implements IVerbHandler
         else
         {
             //TODO: Should we add latency only in success cases?
-            MessagingService.instance().maybeAddLatency(cb, message.from, latency);
+            messagingService.maybeAddLatency(cb, message.from, latency);
             cb.response(message);
         }
     }

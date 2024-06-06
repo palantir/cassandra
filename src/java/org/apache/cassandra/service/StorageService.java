@@ -283,8 +283,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         // see BootStrapper for a summary of how the bootstrap verbs interact
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.REPLICATION_FINISHED, new ReplicationFinishedVerbHandler());
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.REQUEST_RESPONSE, new ResponseVerbHandler());
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.INTERNAL_RESPONSE, new ResponseVerbHandler());
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.REQUEST_RESPONSE, ResponseVerbHandler::new);
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.INTERNAL_RESPONSE, ResponseVerbHandler::new);
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.REPAIR_MESSAGE, new RepairMessageVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.GOSSIP_SHUTDOWN, new GossipShutdownVerbHandler());
 
@@ -297,7 +297,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.MIGRATION_REQUEST, new MigrationRequestVerbHandler());
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.SNAPSHOT, new SnapshotVerbHandler());
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.ECHO, new EchoVerbHandler());
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.ECHO, EchoVerbHandler::new);
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, new CrossVpcIpMappingSynVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK, new CrossVpcIpMappingAckVerbHandler());

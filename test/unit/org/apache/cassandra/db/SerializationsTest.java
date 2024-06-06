@@ -43,6 +43,7 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -117,7 +118,7 @@ public class SerializationsTest extends AbstractSerializationsTester
 
         DataInputStream in = getInput("db.RangeSliceCommand.bin");
         for (int i = 0; i < 6; i++)
-            MessageIn.read(in, getVersion(), -1);
+            read(in, getVersion(), -1);
         in.close();
     }
 
@@ -151,8 +152,8 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert SliceByNamesReadCommand.serializer.deserialize(in, getVersion()) != null;
         assert ReadCommand.serializer.deserialize(in, getVersion()) != null;
         assert ReadCommand.serializer.deserialize(in, getVersion()) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
         in.close();
     }
 
@@ -187,8 +188,8 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert SliceFromReadCommand.serializer.deserialize(in, getVersion()) != null;
         assert ReadCommand.serializer.deserialize(in, getVersion()) != null;
         assert ReadCommand.serializer.deserialize(in, getVersion()) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
         in.close();
     }
 
@@ -267,11 +268,11 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert Mutation.serializer.deserialize(in, getVersion()) != null;
         assert Mutation.serializer.deserialize(in, getVersion()) != null;
         assert Mutation.serializer.deserialize(in, getVersion()) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
         in.close();
     }
 
@@ -307,14 +308,14 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert Truncation.serializer.deserialize(in, getVersion()) != null;
         assert TruncateResponse.serializer.deserialize(in, getVersion()) != null;
         assert TruncateResponse.serializer.deserialize(in, getVersion()) != null;
-        assert MessageIn.read(in, getVersion(), -1) != null;
+        assert read(in, getVersion(), -1) != null;
 
         // set up some fake callbacks so deserialization knows that what it's deserializing is a TruncateResponse
         MessagingService.instance().setCallbackForTests(1, new CallbackInfo(null, null, TruncateResponse.serializer, false));
         MessagingService.instance().setCallbackForTests(2, new CallbackInfo(null, null, TruncateResponse.serializer, false));
 
-        assert MessageIn.read(in, getVersion(), 1) != null;
-        assert MessageIn.read(in, getVersion(), 2) != null;
+        assert read(in, getVersion(), 1) != null;
+        assert read(in, getVersion(), 2) != null;
         in.close();
     }
 
@@ -352,6 +353,11 @@ public class SerializationsTest extends AbstractSerializationsTester
     private static CellName cn(String s)
     {
         return CellNames.simpleDense(ByteBufferUtil.bytes(s));
+    }
+
+    private static <T2> MessageIn<T2> read(DataInput in, int version, int id) throws IOException
+    {
+        return MessageIn.read(MessagingService.instance(), in, version, id);
     }
 
     private static class Statics

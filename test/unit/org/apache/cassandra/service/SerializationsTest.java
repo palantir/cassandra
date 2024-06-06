@@ -18,6 +18,7 @@
  */
 package org.apache.cassandra.service;
 
+import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -62,7 +63,7 @@ public class SerializationsTest extends AbstractSerializationsTester
             }
             // also serialize MessageOut
             for (RepairMessage message : messages)
-                message.createMessage().serialize(out,  getVersion());
+                message.createMessage().serialize(out,  getVersion(), FBUtilities.getBroadcastAddress());
         }
     }
 
@@ -85,7 +86,7 @@ public class SerializationsTest extends AbstractSerializationsTester
             assert DESC.equals(message.desc);
             assert ((ValidationRequest) message).gcBefore == 1234;
 
-            assert MessageIn.read(in, getVersion(), -1) != null;
+            assert read(in, getVersion(), -1) != null;
         }
     }
 
@@ -144,7 +145,7 @@ public class SerializationsTest extends AbstractSerializationsTester
 
             // MessageOuts
             for (int i = 0; i < 3; i++)
-                assert MessageIn.read(in, getVersion(), -1) != null;
+                assert read(in, getVersion(), -1) != null;
         }
     }
 
@@ -178,7 +179,7 @@ public class SerializationsTest extends AbstractSerializationsTester
             assert dest.equals(((SyncRequest) message).dst);
             assert ((SyncRequest) message).ranges.size() == 1 && ((SyncRequest) message).ranges.contains(FULL_RANGE);
 
-            assert MessageIn.read(in, getVersion(), -1) != null;
+            assert read(in, getVersion(), -1) != null;
         }
     }
 
@@ -224,7 +225,12 @@ public class SerializationsTest extends AbstractSerializationsTester
 
             // MessageOuts
             for (int i = 0; i < 2; i++)
-                assert MessageIn.read(in, getVersion(), -1) != null;
+                assert read(in, getVersion(), -1) != null;
         }
+    }
+
+    private static <T2> MessageIn<T2> read(DataInput in, int version, int id) throws IOException
+    {
+        return MessageIn.read(MessagingService.instance(), in, version, id);
     }
 }
