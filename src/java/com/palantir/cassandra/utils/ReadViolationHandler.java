@@ -38,7 +38,7 @@ public class ReadViolationHandler implements OwnershipViolationHandler
     public void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
         keyspace.metric.invalidReads.inc();
-        logger.error("InvalidRead! Cannot execute read as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+        logger.error("Executed InvalidRead! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
                 FBUtilities.getBroadcastAddress(), Hex.bytesToHex(key.array()),keyspace.getName(), naturalEndpoints, pendingEndpoints);
     }
 
