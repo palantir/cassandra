@@ -20,7 +20,6 @@ package org.apache.cassandra.utils;
 import java.net.InetAddress;
 import java.util.*;
 
-import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.*;
 import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.apache.cassandra.config.CFMetaData;
@@ -58,13 +57,14 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
     public void init(String keyspace)
     {
         Cluster.Builder builder = Dropwizard4Cluster.builder().addContactPoints(hosts).withPort(port);
-
         if (sslOptions != null)
             builder.withSSL(sslOptions);
         if (username != null && password != null)
             builder = builder.withCredentials(username, password);
 
-        try (Cluster cluster = builder.build(); Session session = cluster.connect()) {
+        try (Cluster cluster = builder.build(); Session session = cluster.connect())
+        {
+
             Metadata metadata = cluster.getMetadata();
 
             setPartitioner(metadata.getPartitioner());
@@ -73,10 +73,11 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
 
             Token.TokenFactory tokenFactory = getPartitioner().getTokenFactory();
 
-            for (TokenRange tokenRange : tokenRanges) {
+            for (TokenRange tokenRange : tokenRanges)
+            {
                 Set<Host> endpoints = metadata.getReplicas(Metadata.quote(keyspace), tokenRange);
                 Range<Token> range = new Range<>(tokenFactory.fromString(tokenRange.getStart().getValue().toString()),
-                        tokenFactory.fromString(tokenRange.getEnd().getValue().toString()));
+                                                 tokenFactory.fromString(tokenRange.getEnd().getValue().toString()));
                 for (Host endpoint : endpoints)
                     addRangeForEndpoint(range, endpoint.getAddress());
             }

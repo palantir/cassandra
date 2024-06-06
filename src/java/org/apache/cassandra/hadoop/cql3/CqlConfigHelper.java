@@ -1,24 +1,24 @@
 package org.apache.cassandra.hadoop.cql3;
 /*
- *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *
- */
+*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*
+*/
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyManagementException;
@@ -86,7 +86,7 @@ public class CqlConfigHelper
 
     private static final String OUTPUT_CQL = "cassandra.output.cql";
     private static final String OUTPUT_NATIVE_PORT = "cassandra.output.native.port";
-
+    
     /**
      * Set the CQL columns for the input of this job.
      *
@@ -97,10 +97,10 @@ public class CqlConfigHelper
     {
         if (columns == null || columns.isEmpty())
             return;
-
+        
         conf.set(INPUT_CQL_COLUMNS_CONFIG, columns);
     }
-
+    
     /**
      * Set the CQL query Limit for the input of this job.
      *
@@ -127,10 +127,10 @@ public class CqlConfigHelper
     {
         if (clauses == null || clauses.isEmpty())
             return;
-
+        
         conf.set(INPUT_CQL_WHERE_CLAUSE_CONFIG, clauses);
     }
-
+  
     /**
      * Set the CQL prepared statement for the output of this job.
      *
@@ -141,7 +141,7 @@ public class CqlConfigHelper
     {
         if (cql == null || cql.isEmpty())
             return;
-
+        
         conf.set(OUTPUT_CQL, cql);
     }
 
@@ -354,7 +354,7 @@ public class CqlConfigHelper
     public static void setInputMaxSimultReqPerConnections(Configuration conf, String reqs)
     {
         conf.set(INPUT_NATIVE_MAX_SIMULT_REQ_PER_CONNECTION, reqs);
-    }
+    }    
 
     public static void setInputNativeConnectionTimeout(Configuration conf, String timeout)
     {
@@ -394,7 +394,7 @@ public class CqlConfigHelper
     public static void setInputNativeSSLTruststorePath(Configuration conf, String path)
     {
         conf.set(INPUT_NATIVE_SSL_TRUST_STORE_PATH, path);
-    }
+    } 
 
     public static void setInputNativeSSLKeystorePath(Configuration conf, String path)
     {
@@ -450,7 +450,7 @@ public class CqlConfigHelper
         }
 
         return poolingOptions;
-    }
+    }  
 
     private static QueryOptions getReadQueryOptions(Configuration conf)
     {
@@ -474,7 +474,7 @@ public class CqlConfigHelper
         Optional<Integer> sendBufferSize = getInputNativeSendBufferSize(conf);
         Optional<Integer> soLinger = getInputNativeSolinger(conf);
         Optional<Boolean> tcpNoDelay = getInputNativeTcpNodelay(conf);
-        Optional<Boolean> reuseAddress = getInputNativeReuseAddress(conf);
+        Optional<Boolean> reuseAddress = getInputNativeReuseAddress(conf);       
         Optional<Boolean> keepAlive = getInputNativeKeepAlive(conf);
 
         if (connectTimeoutMillis.isPresent())
@@ -492,7 +492,7 @@ public class CqlConfigHelper
         if (reuseAddress.isPresent())
             socketOptions.setReuseAddress(reuseAddress.get());
         if (keepAlive.isPresent())
-            socketOptions.setKeepAlive(keepAlive.get());
+            socketOptions.setKeepAlive(keepAlive.get());     
 
         return socketOptions;
     }
@@ -527,7 +527,7 @@ public class CqlConfigHelper
                 context = getSSLContext(truststorePath, truststorePassword, keystorePath, keystorePassword);
             }
             catch (UnrecoverableKeyException | KeyManagementException |
-                   NoSuchAlgorithmException | KeyStoreException | CertificateException | IOException e)
+                    NoSuchAlgorithmException | KeyStoreException | CertificateException | IOException e)
             {
                 throw new RuntimeException(e);
             }
@@ -544,7 +544,7 @@ public class CqlConfigHelper
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(Integer.valueOf(setting));
+        return Optional.of(Integer.valueOf(setting));  
     }
 
     private static Optional<Boolean> getBooleanSetting(String parameter, Configuration conf)
@@ -552,7 +552,7 @@ public class CqlConfigHelper
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(Boolean.valueOf(setting));
+        return Optional.of(Boolean.valueOf(setting));  
     }
 
     private static Optional<String> getStringSetting(String parameter, Configuration conf)
@@ -560,7 +560,7 @@ public class CqlConfigHelper
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(setting);
+        return Optional.of(setting);  
     }
 
     private static AuthProvider getClientAuthProvider(String factoryClassName, Configuration conf)
@@ -590,12 +590,12 @@ public class CqlConfigHelper
                                             Optional<String> truststorePassword,
                                             Optional<String> keystorePath,
                                             Optional<String> keystorePassword)
-            throws NoSuchAlgorithmException,
-            KeyStoreException,
-            CertificateException,
-            IOException,
-            UnrecoverableKeyException,
-            KeyManagementException
+    throws NoSuchAlgorithmException,
+           KeyStoreException,
+           CertificateException,
+           IOException,
+           UnrecoverableKeyException,
+           KeyManagementException
     {
         SSLContext ctx = SSLContext.getInstance("SSL");
 
@@ -624,8 +624,8 @@ public class CqlConfigHelper
         }
 
         ctx.init(kmf != null ? kmf.getKeyManagers() : null,
-                tmf != null ? tmf.getTrustManagers() : null,
-                new SecureRandom());
+                 tmf != null ? tmf.getTrustManagers() : null,
+                 new SecureRandom());
         return ctx;
     }
 }
