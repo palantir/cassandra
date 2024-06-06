@@ -29,5 +29,6 @@ import java.util.List;
 public interface OwnershipViolationHandler
 {
     void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints);
+
     void onValid(Keyspace keyspace);
 }
