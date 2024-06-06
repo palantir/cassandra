@@ -288,11 +288,15 @@ public final class MessagingService implements MessagingServiceMBean
 
     private final ConcurrentMap<InetAddress, OutboundTcpConnectionPool> connectionManagers = new NonBlockingHashMap<InetAddress, OutboundTcpConnectionPool>();
 
+    private final Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, ?> timeoutReporter;
+
     private static final Logger logger = LoggerFactory.getLogger(MessagingService.class);
     private static final int LOG_DROPPED_INTERVAL_IN_MS = 5000;
 
     private final List<SocketThread> socketThreads = Lists.newArrayList();
     private final SimpleCondition listenGate;
+
+    private final IDatabaseDescriptor dbDescriptor;
 
     /**
      * Verbs it's okay to drop if the request has been queued longer than the request timeout.  These
@@ -346,7 +350,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     private static class MSHandle
     {
-        public static final MessagingService instance = new MessagingService(false);
+        public static final MessagingService instance = new MessagingService(false, IDatabaseDescriptor.StaticDatabaseDescriptor.INSTANCE);
     }
 
     public static MessagingService instance()
@@ -356,7 +360,8 @@ public final class MessagingService implements MessagingServiceMBean
 
     private static class MSTestHandle
     {
-        public static final MessagingService instance = new MessagingService(true);
+        public static final MessagingService instance = new MessagingService(true,
+                                                                             IDatabaseDescriptor.StaticDatabaseDescriptor.INSTANCE);
     }
 
     static MessagingService test()
@@ -364,8 +369,14 @@ public final class MessagingService implements MessagingServiceMBean
         return MSTestHandle.instance;
     }
 
-    private MessagingService(boolean testOnly)
+    static MessagingService test(IDatabaseDescriptor dbDescriptor)
     {
+        return new MessagingService(true, dbDescriptor);
+    }
+
+    private MessagingService(boolean testOnly, IDatabaseDescriptor dbDescriptor)
+    {
+        this.dbDescriptor = dbDescriptor;
         for (Verb verb : DROPPABLE_VERBS)
             droppedMessagesMap.put(verb, new DroppedMessages(verb));
 
@@ -383,7 +394,7 @@ public final class MessagingService implements MessagingServiceMBean
             ScheduledExecutors.scheduledTasks.scheduleWithFixedDelay(logDropped, LOG_DROPPED_INTERVAL_IN_MS, LOG_DROPPED_INTERVAL_IN_MS, TimeUnit.MILLISECONDS);
         }
 
-        Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, ?> timeoutReporter = new Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, Object>()
+        timeoutReporter = new Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, Object>()
         {
             public Object apply(Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>> pair)
             {
@@ -450,11 +461,11 @@ public final class MessagingService implements MessagingServiceMBean
     public void listen()
     {
         callbacks.reset(); // hack to allow tests to stop/restart MS
-        listen(FBUtilities.getLocalAddress());
+        listen(dbDescriptor.getLocalAddress());
         if (DatabaseDescriptor.shouldListenOnBroadcastAddress()
-            && !FBUtilities.getLocalAddress().equals(FBUtilities.getBroadcastAddress()))
+            && !dbDescriptor.getLocalAddress().equals(dbDescriptor.getBroadcastAddress()))
         {
-            listen(FBUtilities.getBroadcastAddress());
+            listen(dbDescriptor.getBroadcastAddress());
         }
         listenGate.signalAll();
     }
@@ -468,7 +479,7 @@ public final class MessagingService implements MessagingServiceMBean
     {
         for (ServerSocket ss : getServerSockets(localEp))
         {
-            SocketThread th = new SocketThread(ss, "ACCEPT-" + localEp);
+            SocketThread th = new SocketThread(this, ss, "ACCEPT-" + localEp);
             th.start();
             socketThreads.add(th);
         }
@@ -573,7 +584,19 @@ public final class MessagingService implements MessagingServiceMBean
         OutboundTcpConnectionPool cp = connectionManagers.get(to);
         if (cp == null)
         {
-            cp = new OutboundTcpConnectionPool(to);
+            cp = new OutboundTcpConnectionPool(to, socket -> {
+                // TODO(jakubk): Add throttling for these notifications, if lots of connections are destroyed,
+                // maybe we just take the hit of full timeouts, since this is an iteration through an entire map.
+                callbacks.forEach((callbackId, cacheableObject) -> {
+                    if (cacheableObject.value.getConnection() == socket)
+                    {
+                        callbacks.remove(callbackId);
+                        cacheableObject.value.setConnection(null);
+                        // TODO(jakubk): Notify, whatever.
+                        timeoutReporter.apply(Pair.create(callbackId, cacheableObject));
+                    }
+                });
+            }, dbDescriptor, this);
             OutboundTcpConnectionPool existingPool = connectionManagers.putIfAbsent(to, cp);
             if (existingPool != null)
                 cp = existingPool;
@@ -601,6 +624,19 @@ public final class MessagingService implements MessagingServiceMBean
     {
         assert !verbHandlers.containsKey(verb);
         verbHandlers.put(verb, verbHandler);
+    }
+
+    /**
+     * Register a verb and the corresponding verb handler with the
+     * Messaging Service.
+     *
+     * @param verb
+     * @param verbHandlerFactory factory for the handler for the specified verb. Will be passed a reference to the MessagingService.
+     */
+    public void registerVerbHandlers(Verb verb, Function<MessagingService, IVerbHandler> verbHandlerFactory)
+    {
+        assert !verbHandlers.containsKey(verb);
+        verbHandlers.put(verb, verbHandlerFactory.apply(this));
     }
 
     /**
@@ -723,9 +759,9 @@ public final class MessagingService implements MessagingServiceMBean
     public void sendOneWay(MessageOut message, int id, InetAddress to)
     {
         if (logger.isTraceEnabled())
-            logger.trace("{} sending {} to {}@{}", FBUtilities.getBroadcastAddress(), message.verb, id, to);
+            logger.trace("{} sending {} to {}@{}", dbDescriptor.getBroadcastAddress(), message.verb, id, to);
 
-        if (to.equals(FBUtilities.getBroadcastAddress()))
+        if (to.equals(dbDescriptor.getBroadcastAddress()))
             logger.trace("Message-to-self {} going over MessagingService", message);
 
         // message sinks are a testing hook
@@ -735,6 +771,15 @@ public final class MessagingService implements MessagingServiceMBean
 
         // get pooled connection (really, connection queue)
         OutboundTcpConnection connection = getConnection(to, message);
+
+        // TODO(jakubk): We should somehow make sure we are given the reference, so we don't have to do a lookup again.
+        // Probably not a big deal to begin with, it's just annoying because this is public method.
+        // Also, it seems like this is used for writing RESPONSES too, hence the null-check
+        CallbackInfo callbackInfo = callbacks.get(id);
+        if (callbackInfo != null)
+        {
+            callbackInfo.setConnection(connection);
+        }
 
         // write it
         connection.enqueue(message, id);
@@ -804,7 +849,7 @@ public final class MessagingService implements MessagingServiceMBean
             if (!ms.allowIncomingMessage(message, id))
                 return;
 
-        Runnable runnable = new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp);
+        Runnable runnable = new MessageDeliveryTask(this, message, id, timestamp, isCrossNodeTimestamp);
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());
         assert stage != null : "No stage for message type " + message.verb;
 
@@ -977,13 +1022,15 @@ public final class MessagingService implements MessagingServiceMBean
     @VisibleForTesting
     public static class SocketThread extends Thread
     {
+        private final MessagingService messagingService;
         private final ServerSocket server;
         @VisibleForTesting
         public final Set<Closeable> connections = Sets.newConcurrentHashSet();
 
-        SocketThread(ServerSocket server, String name)
+        SocketThread(MessagingService messagingService, ServerSocket server, String name)
         {
             super(name);
+            this.messagingService = messagingService;
             this.server = server;
         }
 
@@ -1033,7 +1080,9 @@ public final class MessagingService implements MessagingServiceMBean
 
                     Thread thread = isStream
                                   ? new IncomingStreamingConnection(version, socket, connections)
-                                  : new IncomingTcpConnection(version, MessagingService.getBits(header, 2, 1) == 1, socket, connections);
+                                  : new IncomingTcpConnection(messagingService, version,
+                                                              MessagingService.getBits(header, 2, 1) == 1,
+                                                              socket, connections);
                     thread.start();
                     connections.add((Closeable) thread);
                     logger.trace("Successfully accepted incoming connection from {}", remote);

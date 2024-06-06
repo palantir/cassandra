@@ -33,10 +33,17 @@ public class EchoVerbHandler implements IVerbHandler<EchoMessage>
 {
     private static final Logger logger = LoggerFactory.getLogger(EchoVerbHandler.class);
 
+    private final MessagingService messagingService;
+
+    public EchoVerbHandler(MessagingService messagingService)
+    {
+        this.messagingService = messagingService;
+    }
+
     public void doVerb(MessageIn<EchoMessage> message, int id)
     {
         MessageOut<EchoMessage> echoMessage = new MessageOut<EchoMessage>(MessagingService.Verb.REQUEST_RESPONSE, EchoMessage.instance, EchoMessage.serializer);
         logger.trace("Sending a EchoMessage reply {}", message.from);
-        MessagingService.instance().sendReply(echoMessage, id, message.from);
+        messagingService.sendReply(echoMessage, id, message.from);
     }
 }

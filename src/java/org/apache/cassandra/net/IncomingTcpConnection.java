@@ -47,15 +47,17 @@ public class IncomingTcpConnection extends Thread implements Closeable
 
     private static final int BUFFER_SIZE = Integer.getInteger(Config.PROPERTY_PREFIX + ".itc_buffer_size", 1024 * 4);
 
+    private final MessagingService messagingService;
     private final int version;
     private final boolean compressed;
     private final Socket socket;
     private final Set<Closeable> group;
     public InetAddress from;
 
-    public IncomingTcpConnection(int version, boolean compressed, Socket socket, Set<Closeable> group)
+    public IncomingTcpConnection(MessagingService messagingService, int version, boolean compressed, Socket socket, Set<Closeable> group)
     {
         super("MessagingService-Incoming-" + socket.getInetAddress());
+        this.messagingService = messagingService;
         this.version = version;
         this.compressed = compressed;
         this.socket = socket;
@@ -145,8 +147,8 @@ public class IncomingTcpConnection extends Thread implements Closeable
         assert version <= MessagingService.current_version;
         from = CompactEndpointSerializationHelper.deserialize(in);
         // record the (true) version of the endpoint
-        MessagingService.instance().setVersion(from, maxVersion);
-        logger.trace("Set version for {} to {} (will use {})", from, maxVersion, MessagingService.instance().getVersion(from));
+        messagingService.setVersion(from, maxVersion);
+        logger.trace("Set version for {} to {} (will use {})", from, maxVersion, messagingService.getVersion(from));
 
         if (compressed)
         {
@@ -197,7 +199,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
             timestamp = crossNodeTimestamp;
         }
 
-        MessageIn message = MessageIn.read(input, version, id);
+        MessageIn message = MessageIn.read(messagingService, input, version, id);
         if (message == null)
         {
             // callback expired; nothing to do
@@ -205,7 +207,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
         }
         if (version <= MessagingService.current_version)
         {
-            MessagingService.instance().receive(message, id, timestamp, isCrossNodeTimestamp);
+            messagingService.receive(message, id, timestamp, isCrossNodeTimestamp);
         }
         else
         {

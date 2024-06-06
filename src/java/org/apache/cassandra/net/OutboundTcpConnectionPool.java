@@ -24,6 +24,7 @@ import java.net.Socket;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.Config;
@@ -46,13 +47,22 @@ public class OutboundTcpConnectionPool
     public final OutboundTcpConnection largeMessages;
     public final OutboundTcpConnection gossipMessages;
 
+    public final Consumer<OutboundTcpConnection> socketDisconnectListener;
+
+    public final IDatabaseDescriptor dbDescriptor;
+
+    public final MessagingService messagingService;
+
     // pointer to the reset Address.
     private InetAddress resetEndpoint;
     private ConnectionMetrics metrics;
 
-    OutboundTcpConnectionPool(InetAddress remoteEp)
+    OutboundTcpConnectionPool(InetAddress remoteEp, Consumer<OutboundTcpConnection> socketDisconnectListener, IDatabaseDescriptor dbDescriptor, MessagingService messagingService)
     {
         id = remoteEp;
+        this.socketDisconnectListener = socketDisconnectListener;
+        this.dbDescriptor = dbDescriptor;
+        this.messagingService = messagingService;
         resetEndpoint = SystemKeyspace.getPreferredIP(remoteEp);
         started = new CountDownLatch(1);
 
@@ -119,20 +129,26 @@ public class OutboundTcpConnectionPool
 
     public Socket newSocket() throws Exception
     {
-        return newSocket(endPoint());
+        return newSocket(endPoint(), dbDescriptor);
+    }
+
+    @SuppressWarnings("resource")
+    public static Socket newSocket(InetAddress endpoint) throws Exception
+    {
+        return newSocket(endpoint, IDatabaseDescriptor.StaticDatabaseDescriptor.INSTANCE);
     }
 
     // Closing the socket will close the underlying channel.
     @SuppressWarnings("resource")
-    public static Socket newSocket(InetAddress endpoint) throws Exception
+    public static Socket newSocket(InetAddress endpoint, IDatabaseDescriptor dbDescriptor) throws Exception
     {
         // zero means 'bind on any available port.'
-        if (isEncryptedChannel(endpoint))
+        if (isEncryptedChannel(endpoint, dbDescriptor))
         {
             if (DatabaseDescriptor.getOutboundBindAny())
                 return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort());
             else
-                return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), FBUtilities.getLocalAddress(), 0);
+                return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), dbDescriptor.getLocalAddress(), 0);
         }
         else
         {
@@ -146,12 +162,12 @@ public class OutboundTcpConnectionPool
 
     public InetAddress endPoint()
     {
-        if (id.equals(FBUtilities.getBroadcastAddress()))
-            return FBUtilities.getLocalAddress();
+        if (id.equals(dbDescriptor.getBroadcastAddress()))
+            return dbDescriptor.getLocalAddress();
         return resetEndpoint;
     }
 
-    public static boolean isEncryptedChannel(InetAddress address)
+    public static boolean isEncryptedChannel(InetAddress address, IDatabaseDescriptor dbDescriptor)
     {
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
         switch (DatabaseDescriptor.getServerEncryptionOptions().internode_encryption)
@@ -161,13 +177,13 @@ public class OutboundTcpConnectionPool
             case all:
                 break;
             case dc:
-                if (snitch.getDatacenter(address).equals(snitch.getDatacenter(FBUtilities.getBroadcastAddress())))
+                if (snitch.getDatacenter(address).equals(snitch.getDatacenter(dbDescriptor.getBroadcastAddress())))
                     return false;
                 break;
             case rack:
                 // for rack then check if the DC's are the same.
-                if (snitch.getRack(address).equals(snitch.getRack(FBUtilities.getBroadcastAddress()))
-                        && snitch.getDatacenter(address).equals(snitch.getDatacenter(FBUtilities.getBroadcastAddress())))
+                if (snitch.getRack(address).equals(snitch.getRack(dbDescriptor.getBroadcastAddress()))
+                    && snitch.getDatacenter(address).equals(snitch.getDatacenter(dbDescriptor.getBroadcastAddress())))
                     return false;
                 break;
         }

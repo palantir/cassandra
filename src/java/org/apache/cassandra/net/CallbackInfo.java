@@ -18,12 +18,13 @@
 package org.apache.cassandra.net;
 
 import java.net.InetAddress;
+import javax.annotation.Nullable;
 
 import org.apache.cassandra.io.IVersionedSerializer;
 
 /**
  * Encapsulates the callback information.
- * The ability to set the message is useful in cases for when a hint needs 
+ * The ability to set the message is useful in cases for when a hint needs
  * to be written due to a timeout in the response from a replica.
  */
 public class CallbackInfo
@@ -32,6 +33,9 @@ public class CallbackInfo
     protected final IAsyncCallback callback;
     protected final IVersionedSerializer<?> serializer;
     private final boolean failureCallback;
+
+    @Nullable
+    private volatile OutboundTcpConnection connection = null;
 
     /**
      * Create CallbackInfo without sent message
@@ -59,6 +63,17 @@ public class CallbackInfo
         return failureCallback;
     }
 
+    public void setConnection(@Nullable OutboundTcpConnection connection)
+    {
+        this.connection = connection;
+    }
+
+    @Nullable
+    public OutboundTcpConnection getConnection()
+    {
+        return connection;
+    }
+
     public String toString()
     {
         return "CallbackInfo(" +
@@ -66,6 +81,7 @@ public class CallbackInfo
                ", callback=" + callback +
                ", serializer=" + serializer +
                ", failureCallback=" + failureCallback +
+               ", connection=" + connection +
                ')';
     }
 }

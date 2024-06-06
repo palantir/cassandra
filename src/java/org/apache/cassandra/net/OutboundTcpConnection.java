@@ -151,10 +151,10 @@ public class OutboundTcpConnection extends Thread
         cs = newCoalescingStrategy(pool.endPoint().getHostAddress());
     }
 
-    private static boolean isLocalDC(InetAddress targetHost)
+    private boolean isLocalDC(InetAddress targetHost)
     {
         String remoteDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(targetHost);
-        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
+        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(poolReference.dbDescriptor.getBroadcastAddress());
         return remoteDC.equals(localDC);
     }
 
@@ -352,7 +352,7 @@ public class OutboundTcpConnection extends Thread
         // int cast cuts off the high-order half of the timestamp, which we can assume remains
         // the same between now and when the recipient reconstructs it.
         out.writeInt((int) timestamp);
-        message.serialize(out, targetVersion);
+        message.serialize(out, targetVersion, poolReference.dbDescriptor.getBroadcastAddress());
     }
 
     private static void writeHeader(DataOutput out, int version, boolean compressionEnabled) throws IOException
@@ -387,6 +387,7 @@ public class OutboundTcpConnection extends Thread
             }
             out = null;
             socket = null;
+            poolReference.socketDisconnectListener.accept(this);
         }
     }
 
@@ -400,7 +401,7 @@ public class OutboundTcpConnection extends Thread
         long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getRpcTimeout());
         while (System.nanoTime() - start < timeout && !isStopped)
         {
-            targetVersion = MessagingService.instance().getVersion(poolReference.endPoint());
+            targetVersion = poolReference.messagingService.getVersion(poolReference.endPoint());
             try
             {
                 socket = poolReference.newSocket();
@@ -446,7 +447,7 @@ public class OutboundTcpConnection extends Thread
                 }
                 else
                 {
-                    MessagingService.instance().setVersion(poolReference.endPoint(), maxTargetVersion);
+                    poolReference.messagingService.setVersion(poolReference.endPoint(), maxTargetVersion);
                 }
 
                 if (targetVersion > maxTargetVersion)
@@ -480,7 +481,7 @@ public class OutboundTcpConnection extends Thread
                 }
 
                 out.writeInt(MessagingService.current_version);
-                CompactEndpointSerializationHelper.serialize(FBUtilities.getBroadcastAddress(), out);
+                CompactEndpointSerializationHelper.serialize(poolReference.dbDescriptor.getBroadcastAddress(), out);
                 if (shouldCompressConnection())
                 {
                     out.flush();
@@ -509,6 +510,7 @@ public class OutboundTcpConnection extends Thread
             catch (SSLHandshakeException e)
             {
                 logger.error("SSL handshake error for outbound connection to " + socket, e);
+                poolReference.socketDisconnectListener.accept(this);
                 socket = null;
                 if (ENABLE_SSL_NTE) {
                     // EOFException is thrown (sometimes) when a node is turned off unexpectately.
@@ -523,6 +525,7 @@ public class OutboundTcpConnection extends Thread
             }
             catch (Exception e)
             {
+                poolReference.socketDisconnectListener.accept(this);
                 socket = null;
                 if (logger.isTraceEnabled())
                     logger.trace("unable to connect to " + poolReference.endPoint(), e);
