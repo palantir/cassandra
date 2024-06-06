@@ -6,18 +6,25 @@ import com.datastax.driver.core.Cluster;
 // Necessary for upgrading from Dropwizard 3.x to Dropwizard 4.x
 // See https://docs.datastax.com/en/developer/java-driver/3.6/manual/metrics/index.html#metrics-4-compatibility
 public class Dropwizard4Cluster extends Cluster {
-    private final JmxReporter reporter;
+    private JmxReporter reporter;
 
     private Dropwizard4Cluster(Cluster.Builder builder) {
         super(builder);
-        this.reporter = JmxReporter.forRegistry(this.getMetrics().getRegistry())
-                .inDomain(this.getClusterName() + "-metrics")
-                .build();
+        try {
+            this.reporter = JmxReporter.forRegistry(this.getMetrics().getRegistry())
+                    .inDomain(this.getClusterName() + "-metrics")
+                    .build();
+        } catch (NullPointerException e) {
+            // This is a workaround for yet unknown issue in the integration tests
+            this.reporter = null;
+        }
     }
 
     @Override
     public void close() {
-        reporter.close();
+        if (reporter != null) {
+            reporter.close();
+        }
         super.close();
     }
 
