@@ -624,6 +624,15 @@ public final class MessagingService implements MessagingServiceMBean
         return messageId;
     }
 
+    public void reportFailedOutboundMessage(int id, MessageOut<?> message, InetAddress to) {
+        Optional<IAsyncCallback> callback = Optional.ofNullable(callbacks.get(id)).map(cb -> cb.callback);
+        if (!callback.isPresent() || !Verb.MUTATION.equals(message.verb) || !Verb.COUNTER_MUTATION.equals(message.verb)) {
+            return;
+        }
+        AbstractWriteResponseHandler cb = (AbstractWriteResponseHandler) callback.get();
+        cb.onFailure(to);
+    }
+
     public int addCallback(IAsyncCallback cb,
                            MessageOut<?> message,
                            InetAddress to,

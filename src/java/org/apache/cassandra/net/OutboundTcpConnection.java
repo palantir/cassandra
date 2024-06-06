@@ -330,6 +330,8 @@ public class OutboundTcpConnection extends Thread
                     {
                         throw new AssertionError(e1);
                     }
+                } else {
+                    MessagingService.instance().reportFailedOutboundMessage(qm.id, qm.message, poolReference.endPoint());
                 }
             }
             else
