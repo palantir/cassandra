@@ -10,18 +10,11 @@ public class Dropwizard4Cluster extends Cluster {
 
     private Dropwizard4Cluster(Cluster.Builder builder) {
         super(builder);
-        if (this.getMetrics() == null) {
-            throw new IllegalArgumentException("Metrics cannot be null");
+        if (this.getMetrics() != null && this.getMetrics().getRegistry() != null) {
+            this.reporter = JmxReporter.forRegistry(this.getMetrics().getRegistry())
+                    .inDomain(this.getClusterName() + "-metrics")
+                    .build();
         }
-        if (this.getMetrics().getRegistry() == null) {
-            throw new IllegalArgumentException("Metrics Registry cannot be null");
-        }
-        if (this.getClusterName() == null) {
-            throw new IllegalArgumentException("Cluster name cannot be null");
-        }
-        this.reporter = JmxReporter.forRegistry(this.getMetrics().getRegistry())
-                .inDomain(this.getClusterName() + "-metrics")
-                .build();
     }
 
     @Override
