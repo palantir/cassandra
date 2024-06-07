@@ -114,7 +114,7 @@ public class StartupChecks
         {
             logger.info("Executing preflight check {}", check.getKey());
             check.getValue().execute();
-            logger.info("Preflight check {} completed", check.getKey());
+            logger.debug("Preflight check {} completed", check.getKey());
         }
     }
 
@@ -297,38 +297,25 @@ public class StartupChecks
             {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
                 {
-                    logger.debug("Visiting file {}", file.toString());
+                    logger.trace("Checking SSTable file {}", file.toString());
 
                     if (!file.toString().endsWith(".db"))
-                    {
-                        logger.debug("Completed non db file {} visit", file.toString());
                         return FileVisitResult.CONTINUE;
-                    }
 
                     try
                     {
-                        logger.debug("Checking db file {} compatibility", file.toString());
                         if (!Descriptor.fromFilename(file.toString()).isCompatible())
-                        {
                             invalid.add(file.toString());
-                            logger.debug("db file {} is incompatible", file.toString());
-                        }
-                        else
-                        {
-                            logger.debug("db file {} is compatible", file.toString());
-                        }
                     }
                     catch (Exception e)
                     {
                         invalid.add(file.toString());
                     }
-                    logger.debug("Completed file {} visit", file.toString());
                     return FileVisitResult.CONTINUE;
                 }
 
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException
                 {
-                    logger.debug("Visiting dir {}", dir.toString());
                     String name = dir.getFileName().toString();
                     return (name.equals("snapshots")
                             || name.equals("backups")
@@ -371,8 +358,6 @@ public class StartupChecks
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(SystemKeyspace.NAME).values())
                 ColumnFamilyStore.scrubDataDirectories(cfm);
 
-            logger.debug("Finished scrubbing data directories for system keyspace. Checking keyspace health");
-
             try
             {
                 SystemKeyspace.checkHealth();
@@ -381,8 +366,6 @@ public class StartupChecks
             {
                 throw new StartupException(100, "Fatal exception during initialization", e);
             }
-
-            logger.debug("System keyspace is healthy");
         }
     };
 
@@ -418,7 +401,6 @@ public class StartupChecks
                 if (storedRack != null)
                 {
                     String currentRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddress());
-                    logger.debug("Successfully grabbed endpoint rack via snitch: {}", currentRack);
                     if (!storedRack.equals(currentRack))
                     {
                         String formatMessage = "Cannot start node if snitch's rack (%s) differs from previous rack (%s). " +
@@ -439,7 +421,6 @@ public class StartupChecks
             if (restrictedIp != null)
             {
                 String currentIp = FBUtilities.getLocalAddress().getHostAddress();
-                logger.debug("Successfully grabbed current IP: {}", currentIp);
                 if (currentIp.equals(restrictedIp))
                 {
                     {
