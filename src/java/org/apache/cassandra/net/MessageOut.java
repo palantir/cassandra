@@ -107,11 +107,6 @@ public class MessageOut<T>
 
     public void serialize(DataOutputPlus out, int version) throws IOException
     {
-        serialize(out, version, this.from);
-    }
-
-    public void serialize(DataOutputPlus out, int version, InetAddress from) throws IOException
-    {
         CompactEndpointSerializationHelper.serialize(from, out);
 
         out.writeInt(verb.ordinal());

@@ -34,16 +34,14 @@ public class MessageDeliveryTask implements Runnable
 {
     private static final Logger logger = LoggerFactory.getLogger(MessageDeliveryTask.class);
 
-    private final MessagingService messagingService;
     private final MessageIn message;
     private final int id;
     private final long constructionTime;
     private final boolean isCrossNodeTimestamp;
 
-    public MessageDeliveryTask(MessagingService messagingService, MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
+    public MessageDeliveryTask(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
     {
         assert message != null;
-        this.messagingService = messagingService;
         this.message = message;
         this.id = id;
         this.constructionTime = timestamp;
@@ -56,11 +54,11 @@ public class MessageDeliveryTask implements Runnable
         if (MessagingService.DROPPABLE_VERBS.contains(verb)
             && System.currentTimeMillis() > constructionTime + message.getTimeout())
         {
-            messagingService.incrementDroppedMessages(verb, isCrossNodeTimestamp);
+            MessagingService.instance().incrementDroppedMessages(verb, isCrossNodeTimestamp);
             return;
         }
 
-        IVerbHandler verbHandler = messagingService.getVerbHandler(verb);
+        IVerbHandler verbHandler = MessagingService.instance().getVerbHandler(verb);
         if (verbHandler == null)
         {
             logger.trace("Unknown verb {}", verb);
@@ -112,7 +110,7 @@ public class MessageDeliveryTask implements Runnable
         {
             MessageOut response = new MessageOut(MessagingService.Verb.INTERNAL_RESPONSE)
                                                 .withParameter(MessagingService.FAILURE_RESPONSE_PARAM, MessagingService.ONE_BYTE);
-            messagingService.sendReply(response, id, message.from);
+            MessagingService.instance().sendReply(response, id, message.from);
         }
     }
 

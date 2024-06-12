@@ -151,10 +151,10 @@ public class OutboundTcpConnection extends Thread
         cs = newCoalescingStrategy(pool.endPoint().getHostAddress());
     }
 
-    private boolean isLocalDC(InetAddress targetHost)
+    private static boolean isLocalDC(InetAddress targetHost)
     {
         String remoteDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(targetHost);
-        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(poolReference.dbDescriptor.getBroadcastAddress());
+        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddress());
         return remoteDC.equals(localDC);
     }
 
@@ -352,7 +352,7 @@ public class OutboundTcpConnection extends Thread
         // int cast cuts off the high-order half of the timestamp, which we can assume remains
         // the same between now and when the recipient reconstructs it.
         out.writeInt((int) timestamp);
-        message.serialize(out, targetVersion, poolReference.dbDescriptor.getBroadcastAddress());
+        message.serialize(out, targetVersion);
     }
 
     private static void writeHeader(DataOutput out, int version, boolean compressionEnabled) throws IOException
@@ -401,7 +401,7 @@ public class OutboundTcpConnection extends Thread
         long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getRpcTimeout());
         while (System.nanoTime() - start < timeout && !isStopped)
         {
-            targetVersion = poolReference.messagingService.getVersion(poolReference.endPoint());
+            targetVersion = MessagingService.instance().getVersion(poolReference.endPoint());
             try
             {
                 socket = poolReference.newSocket();
@@ -447,7 +447,7 @@ public class OutboundTcpConnection extends Thread
                 }
                 else
                 {
-                    poolReference.messagingService.setVersion(poolReference.endPoint(), maxTargetVersion);
+                    MessagingService.instance().setVersion(poolReference.endPoint(), maxTargetVersion);
                 }
 
                 if (targetVersion > maxTargetVersion)
@@ -481,7 +481,7 @@ public class OutboundTcpConnection extends Thread
                 }
 
                 out.writeInt(MessagingService.current_version);
-                CompactEndpointSerializationHelper.serialize(poolReference.dbDescriptor.getBroadcastAddress(), out);
+                CompactEndpointSerializationHelper.serialize(FBUtilities.getBroadcastAddress(), out);
                 if (shouldCompressConnection())
                 {
                     out.flush();

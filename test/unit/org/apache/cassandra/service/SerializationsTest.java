@@ -62,7 +62,7 @@ public class SerializationsTest extends AbstractSerializationsTester
             }
             // also serialize MessageOut
             for (RepairMessage message : messages)
-                message.createMessage().serialize(out,  getVersion(), FBUtilities.getBroadcastAddress());
+                message.createMessage().serialize(out,  getVersion());
         }
     }
 

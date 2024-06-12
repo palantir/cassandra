@@ -296,8 +296,6 @@ public final class MessagingService implements MessagingServiceMBean
     private final List<SocketThread> socketThreads = Lists.newArrayList();
     private final SimpleCondition listenGate;
 
-    private final IDatabaseDescriptor dbDescriptor;
-
     /**
      * Verbs it's okay to drop if the request has been queued longer than the request timeout.  These
      * all correspond to client requests or something triggered by them; we don't want to
@@ -350,7 +348,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     private static class MSHandle
     {
-        public static final MessagingService instance = new MessagingService(false, IDatabaseDescriptor.StaticDatabaseDescriptor.INSTANCE);
+        public static final MessagingService instance = new MessagingService(false);
     }
 
     public static MessagingService instance()
@@ -360,8 +358,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     private static class MSTestHandle
     {
-        public static final MessagingService instance = new MessagingService(true,
-                                                                             IDatabaseDescriptor.StaticDatabaseDescriptor.INSTANCE);
+        public static final MessagingService instance = new MessagingService(true);
     }
 
     static MessagingService test()
@@ -369,14 +366,8 @@ public final class MessagingService implements MessagingServiceMBean
         return MSTestHandle.instance;
     }
 
-    static MessagingService test(IDatabaseDescriptor dbDescriptor)
+    private MessagingService(boolean testOnly)
     {
-        return new MessagingService(true, dbDescriptor);
-    }
-
-    private MessagingService(boolean testOnly, IDatabaseDescriptor dbDescriptor)
-    {
-        this.dbDescriptor = dbDescriptor;
         for (Verb verb : DROPPABLE_VERBS)
             droppedMessagesMap.put(verb, new DroppedMessages(verb));
 
@@ -461,11 +452,11 @@ public final class MessagingService implements MessagingServiceMBean
     public void listen()
     {
         callbacks.reset(); // hack to allow tests to stop/restart MS
-        listen(dbDescriptor.getLocalAddress());
+        listen(FBUtilities.getLocalAddress());
         if (DatabaseDescriptor.shouldListenOnBroadcastAddress()
-            && !dbDescriptor.getLocalAddress().equals(dbDescriptor.getBroadcastAddress()))
+            && !FBUtilities.getLocalAddress().equals(FBUtilities.getBroadcastAddress()))
         {
-            listen(dbDescriptor.getBroadcastAddress());
+            listen(FBUtilities.getBroadcastAddress());
         }
         listenGate.signalAll();
     }
@@ -479,7 +470,7 @@ public final class MessagingService implements MessagingServiceMBean
     {
         for (ServerSocket ss : getServerSockets(localEp))
         {
-            SocketThread th = new SocketThread(this, ss, "ACCEPT-" + localEp);
+            SocketThread th = new SocketThread(ss, "ACCEPT-" + localEp);
             th.start();
             socketThreads.add(th);
         }
@@ -596,7 +587,7 @@ public final class MessagingService implements MessagingServiceMBean
                         timeoutReporter.apply(Pair.create(callbackId, cacheableObject));
                     }
                 });
-            }, dbDescriptor, this);
+            });
             OutboundTcpConnectionPool existingPool = connectionManagers.putIfAbsent(to, cp);
             if (existingPool != null)
                 cp = existingPool;
@@ -624,19 +615,6 @@ public final class MessagingService implements MessagingServiceMBean
     {
         assert !verbHandlers.containsKey(verb);
         verbHandlers.put(verb, verbHandler);
-    }
-
-    /**
-     * Register a verb and the corresponding verb handler with the
-     * Messaging Service.
-     *
-     * @param verb
-     * @param verbHandlerFactory factory for the handler for the specified verb. Will be passed a reference to the MessagingService.
-     */
-    public void registerVerbHandlers(Verb verb, Function<MessagingService, IVerbHandler> verbHandlerFactory)
-    {
-        assert !verbHandlers.containsKey(verb);
-        verbHandlers.put(verb, verbHandlerFactory.apply(this));
     }
 
     /**
@@ -759,9 +737,9 @@ public final class MessagingService implements MessagingServiceMBean
     public void sendOneWay(MessageOut message, int id, InetAddress to)
     {
         if (logger.isTraceEnabled())
-            logger.trace("{} sending {} to {}@{}", dbDescriptor.getBroadcastAddress(), message.verb, id, to);
+            logger.trace("{} sending {} to {}@{}", FBUtilities.getBroadcastAddress(), message.verb, id, to);
 
-        if (to.equals(dbDescriptor.getBroadcastAddress()))
+        if (to.equals(FBUtilities.getBroadcastAddress()))
             logger.trace("Message-to-self {} going over MessagingService", message);
 
         // message sinks are a testing hook
@@ -849,7 +827,7 @@ public final class MessagingService implements MessagingServiceMBean
             if (!ms.allowIncomingMessage(message, id))
                 return;
 
-        Runnable runnable = new MessageDeliveryTask(this, message, id, timestamp, isCrossNodeTimestamp);
+        Runnable runnable = new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp);
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());
         assert stage != null : "No stage for message type " + message.verb;
 
@@ -1022,15 +1000,13 @@ public final class MessagingService implements MessagingServiceMBean
     @VisibleForTesting
     public static class SocketThread extends Thread
     {
-        private final MessagingService messagingService;
         private final ServerSocket server;
         @VisibleForTesting
         public final Set<Closeable> connections = Sets.newConcurrentHashSet();
 
-        SocketThread(MessagingService messagingService, ServerSocket server, String name)
+        SocketThread(ServerSocket server, String name)
         {
             super(name);
-            this.messagingService = messagingService;
             this.server = server;
         }
 
@@ -1080,9 +1056,7 @@ public final class MessagingService implements MessagingServiceMBean
 
                     Thread thread = isStream
                                   ? new IncomingStreamingConnection(version, socket, connections)
-                                  : new IncomingTcpConnection(messagingService, version,
-                                                              MessagingService.getBits(header, 2, 1) == 1,
-                                                              socket, connections);
+                                  : new IncomingTcpConnection(version, MessagingService.getBits(header, 2, 1) == 1, socket, connections);
                     thread.start();
                     connections.add((Closeable) thread);
                     logger.trace("Successfully accepted incoming connection from {}", remote);

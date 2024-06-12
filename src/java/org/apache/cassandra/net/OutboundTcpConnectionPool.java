@@ -49,20 +49,14 @@ public class OutboundTcpConnectionPool
 
     public final Consumer<OutboundTcpConnection> socketDisconnectListener;
 
-    public final IDatabaseDescriptor dbDescriptor;
-
-    public final MessagingService messagingService;
-
     // pointer to the reset Address.
     private InetAddress resetEndpoint;
     private ConnectionMetrics metrics;
 
-    OutboundTcpConnectionPool(InetAddress remoteEp, Consumer<OutboundTcpConnection> socketDisconnectListener, IDatabaseDescriptor dbDescriptor, MessagingService messagingService)
+    OutboundTcpConnectionPool(InetAddress remoteEp, Consumer<OutboundTcpConnection> socketDisconnectListener)
     {
         id = remoteEp;
         this.socketDisconnectListener = socketDisconnectListener;
-        this.dbDescriptor = dbDescriptor;
-        this.messagingService = messagingService;
         resetEndpoint = SystemKeyspace.getPreferredIP(remoteEp);
         started = new CountDownLatch(1);
 
@@ -129,26 +123,20 @@ public class OutboundTcpConnectionPool
 
     public Socket newSocket() throws Exception
     {
-        return newSocket(endPoint(), dbDescriptor);
-    }
-
-    @SuppressWarnings("resource")
-    public static Socket newSocket(InetAddress endpoint) throws Exception
-    {
-        return newSocket(endpoint, IDatabaseDescriptor.StaticDatabaseDescriptor.INSTANCE);
+        return newSocket(endPoint());
     }
 
     // Closing the socket will close the underlying channel.
     @SuppressWarnings("resource")
-    public static Socket newSocket(InetAddress endpoint, IDatabaseDescriptor dbDescriptor) throws Exception
+    public static Socket newSocket(InetAddress endpoint) throws Exception
     {
         // zero means 'bind on any available port.'
-        if (isEncryptedChannel(endpoint, dbDescriptor))
+        if (isEncryptedChannel(endpoint))
         {
             if (DatabaseDescriptor.getOutboundBindAny())
                 return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort());
             else
-                return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), dbDescriptor.getLocalAddress(), 0);
+                return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), FBUtilities.getLocalAddress(), 0);
         }
         else
         {
@@ -162,12 +150,12 @@ public class OutboundTcpConnectionPool
 
     public InetAddress endPoint()
     {
-        if (id.equals(dbDescriptor.getBroadcastAddress()))
-            return dbDescriptor.getLocalAddress();
+        if (id.equals(FBUtilities.getBroadcastAddress()))
+            return FBUtilities.getLocalAddress();
         return resetEndpoint;
     }
 
-    public static boolean isEncryptedChannel(InetAddress address, IDatabaseDescriptor dbDescriptor)
+    public static boolean isEncryptedChannel(InetAddress address)
     {
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
         switch (DatabaseDescriptor.getServerEncryptionOptions().internode_encryption)
@@ -177,13 +165,13 @@ public class OutboundTcpConnectionPool
             case all:
                 break;
             case dc:
-                if (snitch.getDatacenter(address).equals(snitch.getDatacenter(dbDescriptor.getBroadcastAddress())))
+                if (snitch.getDatacenter(address).equals(snitch.getDatacenter(FBUtilities.getBroadcastAddress())))
                     return false;
                 break;
             case rack:
                 // for rack then check if the DC's are the same.
-                if (snitch.getRack(address).equals(snitch.getRack(dbDescriptor.getBroadcastAddress()))
-                    && snitch.getDatacenter(address).equals(snitch.getDatacenter(dbDescriptor.getBroadcastAddress())))
+                if (snitch.getRack(address).equals(snitch.getRack(FBUtilities.getBroadcastAddress()))
+                        && snitch.getDatacenter(address).equals(snitch.getDatacenter(FBUtilities.getBroadcastAddress())))
                     return false;
                 break;
         }

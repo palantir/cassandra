@@ -61,11 +61,6 @@ public class MessageIn<T>
 
     public static <T2> MessageIn<T2> read(DataInput in, int version, int id) throws IOException
     {
-        return read(MessagingService.instance(), in, version, id);
-    }
-
-    public static <T2> MessageIn<T2> read(MessagingService messagingService, DataInput in, int version, int id) throws IOException
-    {
         InetAddress from = CompactEndpointSerializationHelper.deserialize(in);
 
         MessagingService.Verb verb = MessagingService.Verb.values()[in.readInt()];
@@ -92,7 +87,7 @@ public class MessageIn<T>
         IVersionedSerializer<T2> serializer = (IVersionedSerializer<T2>) MessagingService.verbSerializers.get(verb);
         if (serializer instanceof MessagingService.CallbackDeterminedSerializer)
         {
-            CallbackInfo callback = messagingService.getRegisteredCallback(id);
+            CallbackInfo callback = MessagingService.instance().getRegisteredCallback(id);
             if (callback == null)
             {
                 // reply for expired callback.  we'll have to skip it.
