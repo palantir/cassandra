@@ -53,11 +53,15 @@ public abstract class AbstractCompactionStrategy
     private static final boolean COMPACT_SMALL_TABLES = Boolean.getBoolean("palantir_cassandra.compact_small_tables");
 
     protected static final float DEFAULT_TOMBSTONE_THRESHOLD = 0.2f;
+
+    protected static final float DEFAULT_TOMBSTONE_READ_THRESHOLD = 100000;
+
     // minimum interval needed to perform tombstone removal compaction in seconds, default 86400 or 1 day.
     protected static final long DEFAULT_TOMBSTONE_COMPACTION_INTERVAL = 86400;
     protected static final boolean DEFAULT_UNCHECKED_TOMBSTONE_COMPACTION_OPTION = false;
 
     protected static final String TOMBSTONE_THRESHOLD_OPTION = "tombstone_threshold";
+    protected static final String TOMBSTONE_READ_THRESHOLD_OPTION = "tombstone_read_threshold";
     protected static final String TOMBSTONE_COMPACTION_INTERVAL_OPTION = "tombstone_compaction_interval";
     // disable range overlap check when deciding if an SSTable is candidate for tombstone compaction (CASSANDRA-6563)
     protected static final String UNCHECKED_TOMBSTONE_COMPACTION_OPTION = "unchecked_tombstone_compaction";
@@ -67,6 +71,7 @@ public abstract class AbstractCompactionStrategy
 
     protected final ColumnFamilyStore cfs;
     protected float tombstoneThreshold;
+    protected float tombstoneReadThreshold;
     protected long tombstoneCompactionInterval;
     protected boolean uncheckedTombstoneCompaction;
     protected boolean disableTombstoneCompactions = false;
@@ -98,6 +103,8 @@ public abstract class AbstractCompactionStrategy
             validateOptions(options);
             String optionValue = options.get(TOMBSTONE_THRESHOLD_OPTION);
             tombstoneThreshold = optionValue == null ? DEFAULT_TOMBSTONE_THRESHOLD : Float.parseFloat(optionValue);
+            optionValue = options.get(TOMBSTONE_READ_THRESHOLD_OPTION);
+            tombstoneThreshold = optionValue == null ? DEFAULT_TOMBSTONE_READ_THRESHOLD : Float.parseFloat(optionValue);
             optionValue = options.get(TOMBSTONE_COMPACTION_INTERVAL_OPTION);
             tombstoneCompactionInterval = optionValue == null ? DEFAULT_TOMBSTONE_COMPACTION_INTERVAL : Long.parseLong(optionValue);
             optionValue = options.get(UNCHECKED_TOMBSTONE_COMPACTION_OPTION);
@@ -111,6 +118,7 @@ public abstract class AbstractCompactionStrategy
             tombstoneThreshold = DEFAULT_TOMBSTONE_THRESHOLD;
             tombstoneCompactionInterval = DEFAULT_TOMBSTONE_COMPACTION_INTERVAL;
             uncheckedTombstoneCompaction = DEFAULT_UNCHECKED_TOMBSTONE_COMPACTION_OPTION;
+            tombstoneReadThreshold = DEFAULT_TOMBSTONE_READ_THRESHOLD;
         }
     }
 
@@ -378,7 +386,8 @@ public abstract class AbstractCompactionStrategy
         }
 
         double droppableRatio = sstable.getEstimatedDroppableTombstoneRatio(gcBefore);
-        if (droppableRatio <= tombstoneThreshold)
+        double droppableRate = sstable.getDroppableTombstonesReadRate();
+        if (droppableRate <= tombstoneReadThreshold)
         {
             logger.debug("Ignoring sstable due to estimated droppable ratio ({}): {}",
                          droppableRatio,
@@ -400,7 +409,7 @@ public abstract class AbstractCompactionStrategy
         {
             return true;
         }
-        else
+        else //
         {
             // what percentage of columns do we expect to compact outside of overlap?
             if (sstable.getIndexSummarySize() < 2)
