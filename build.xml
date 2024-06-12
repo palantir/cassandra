@@ -456,7 +456,7 @@
           <dependency groupId="com.palantir.safe-logging" artifactId="preconditions" version="1.8.2" />
           <dependency groupId="com.palantir.safe-logging" artifactId="safe-logging" version="1.8.2" />
           <!-- TODO CASSANDRA-9543
-          <dependency groupId="com.datastax.cassandra" artifactId="cassandra-driver-core" version="2.1.5" classifier="shaded" />
+          <dependency groupId="com.datastax.cassandra" artifactId="cassandra-driver-core" version="2.2.0-rc3" classifier="shaded" />
           -->
           <dependency groupId="org.eclipse.jdt.core.compiler" artifactId="ecj" version="4.4.2" />
           <dependency groupId="org.caffinitas.ohc" artifactId="ohc-core" version="0.3.4" />
