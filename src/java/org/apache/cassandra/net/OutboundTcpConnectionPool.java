@@ -69,6 +69,10 @@ public class OutboundTcpConnectionPool
     {
         if (Stage.GOSSIP == msg.getStage())
             return gossipMessages;
+        if (Stage.CROSS_VPC_IP_MAPPING == msg.getStage()) {
+            // Application-level keepalive to avoid NLB idle resets around 6 minutes
+            return largeMessages;
+        }
         return msg.payloadSize(smallMessages.getTargetVersion()) > LARGE_MESSAGE_THRESHOLD
                ? largeMessages
                : smallMessages;
