@@ -575,19 +575,7 @@ public final class MessagingService implements MessagingServiceMBean
         OutboundTcpConnectionPool cp = connectionManagers.get(to);
         if (cp == null)
         {
-            cp = new OutboundTcpConnectionPool(to, socket -> {
-                // TODO(jakubk): Add throttling for these notifications, if lots of connections are destroyed,
-                // maybe we just take the hit of full timeouts, since this is an iteration through an entire map.
-                callbacks.forEach((callbackId, cacheableObject) -> {
-                    if (cacheableObject.value.getConnection() == socket)
-                    {
-                        callbacks.remove(callbackId);
-                        cacheableObject.value.setConnection(null);
-                        // TODO(jakubk): Notify, whatever.
-                        timeoutReporter.apply(Pair.create(callbackId, cacheableObject));
-                    }
-                });
-            });
+            cp = new OutboundTcpConnectionPool(to);
             OutboundTcpConnectionPool existingPool = connectionManagers.putIfAbsent(to, cp);
             if (existingPool != null)
                 cp = existingPool;
@@ -602,6 +590,18 @@ public final class MessagingService implements MessagingServiceMBean
     public OutboundTcpConnection getConnection(InetAddress to, MessageOut msg)
     {
         return getConnectionPool(to).getConnection(msg);
+    }
+
+    public void connectionFailed(OutboundTcpConnection connection) {
+        callbacks.forEach((callbackId, cacheableObject) -> {
+            if (cacheableObject.value.getConnection() == connection)
+            {
+                callbacks.remove(callbackId);
+                cacheableObject.value.setConnection(null);
+                // TODO(jakubk): Notify, whatever.
+                timeoutReporter.apply(Pair.create(callbackId, cacheableObject));
+            }
+        });
     }
 
     /**

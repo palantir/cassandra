@@ -24,7 +24,6 @@ import java.net.Socket;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.Config;
@@ -47,16 +46,13 @@ public class OutboundTcpConnectionPool
     public final OutboundTcpConnection largeMessages;
     public final OutboundTcpConnection gossipMessages;
 
-    public final Consumer<OutboundTcpConnection> socketDisconnectListener;
-
     // pointer to the reset Address.
     private InetAddress resetEndpoint;
     private ConnectionMetrics metrics;
 
-    OutboundTcpConnectionPool(InetAddress remoteEp, Consumer<OutboundTcpConnection> socketDisconnectListener)
+    OutboundTcpConnectionPool(InetAddress remoteEp)
     {
         id = remoteEp;
-        this.socketDisconnectListener = socketDisconnectListener;
         resetEndpoint = SystemKeyspace.getPreferredIP(remoteEp);
         started = new CountDownLatch(1);
 
