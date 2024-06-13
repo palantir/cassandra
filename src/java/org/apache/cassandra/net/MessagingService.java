@@ -288,6 +288,8 @@ public final class MessagingService implements MessagingServiceMBean
 
     private final ConcurrentMap<InetAddress, OutboundTcpConnectionPool> connectionManagers = new NonBlockingHashMap<InetAddress, OutboundTcpConnectionPool>();
 
+    private final Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, ?> timeoutReporter;
+
     private static final Logger logger = LoggerFactory.getLogger(MessagingService.class);
     private static final int LOG_DROPPED_INTERVAL_IN_MS = 5000;
 
@@ -383,7 +385,7 @@ public final class MessagingService implements MessagingServiceMBean
             ScheduledExecutors.scheduledTasks.scheduleWithFixedDelay(logDropped, LOG_DROPPED_INTERVAL_IN_MS, LOG_DROPPED_INTERVAL_IN_MS, TimeUnit.MILLISECONDS);
         }
 
-        Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, ?> timeoutReporter = new Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, Object>()
+        timeoutReporter = new Function<Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>>, Object>()
         {
             public Object apply(Pair<Integer, ExpiringMap.CacheableObject<CallbackInfo>> pair)
             {
@@ -590,6 +592,18 @@ public final class MessagingService implements MessagingServiceMBean
         return getConnectionPool(to).getConnection(msg);
     }
 
+    public void connectionFailed(OutboundTcpConnection connection) {
+        callbacks.forEach((callbackId, cacheableObject) -> {
+            if (cacheableObject.value.getConnection() == connection)
+            {
+                callbacks.remove(callbackId);
+                cacheableObject.value.setConnection(null);
+                // TODO(jakubk): Notify, whatever.
+                timeoutReporter.apply(Pair.create(callbackId, cacheableObject));
+            }
+        });
+    }
+
     /**
      * Register a verb and the corresponding verb handler with the
      * Messaging Service.
@@ -735,6 +749,15 @@ public final class MessagingService implements MessagingServiceMBean
 
         // get pooled connection (really, connection queue)
         OutboundTcpConnection connection = getConnection(to, message);
+
+        // TODO(jakubk): We should somehow make sure we are given the reference, so we don't have to do a lookup again.
+        // Probably not a big deal to begin with, it's just annoying because this is public method.
+        // Also, it seems like this is used for writing RESPONSES too, hence the null-check
+        CallbackInfo callbackInfo = callbacks.get(id);
+        if (callbackInfo != null)
+        {
+            callbackInfo.setConnection(connection);
+        }
 
         // write it
         connection.enqueue(message, id);

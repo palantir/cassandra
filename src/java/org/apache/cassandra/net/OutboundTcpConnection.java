@@ -387,6 +387,7 @@ public class OutboundTcpConnection extends Thread
             }
             out = null;
             socket = null;
+            MessagingService.instance().connectionFailed(this);
         }
     }
 
@@ -509,6 +510,7 @@ public class OutboundTcpConnection extends Thread
             catch (SSLHandshakeException e)
             {
                 logger.error("SSL handshake error for outbound connection to " + socket, e);
+                MessagingService.instance().connectionFailed(this);
                 socket = null;
                 if (ENABLE_SSL_NTE) {
                     // EOFException is thrown (sometimes) when a node is turned off unexpectately.
@@ -523,6 +525,7 @@ public class OutboundTcpConnection extends Thread
             }
             catch (Exception e)
             {
+                MessagingService.instance().connectionFailed(this);
                 socket = null;
                 if (logger.isTraceEnabled())
                     logger.trace("unable to connect to " + poolReference.endPoint(), e);
