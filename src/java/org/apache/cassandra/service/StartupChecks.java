@@ -112,7 +112,7 @@ public class StartupChecks
     {
         for (Map.Entry<String, StartupCheck> check : preFlightChecks.entrySet())
         {
-            logger.info("Executing preflight check {}", check.getKey());
+            logger.debug("Executing preflight check {}", check.getKey());
             check.getValue().execute();
             logger.debug("Preflight check {} completed", check.getKey());
         }
