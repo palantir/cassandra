@@ -1349,7 +1349,22 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         try
         {
-            RangeStreamer streamer = getRebuildStreamer(sourceDc, keyspace);
+            RangeStreamer streamer = new RangeStreamer(tokenMetadata,
+                                                       null,
+                                                       FBUtilities.getBroadcastAddress(),
+                                                       "Rebuild",
+                                                       !replacing && useStrictConsistency,
+                                                       DatabaseDescriptor.getEndpointSnitch(),
+                                                       streamStateStore,
+                                                       false,
+                                                       DatabaseDescriptor.getStreamingConnectionsPerHost());
+            streamer.addSourceFilter(new RangeStreamer.FailureDetectorSourceFilter(FailureDetector.instance));
+            if (sourceDc != null)
+                streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
+
+            for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
+                streamer.addRanges(keyspaceName, getLocalRanges(keyspaceName));
+
             StreamResultFuture resultFuture = streamer.fetchAsync();
             // wait for result
             resultFuture.get();
@@ -1427,7 +1442,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                                    "Rebuild",
                                                    !replacing && useStrictConsistency,
                                                    DatabaseDescriptor.getEndpointSnitch(),
-                                                   streamStateStore);
+                                                   streamStateStore,
+                                                   false,
+                                                   DatabaseDescriptor.getStreamingConnectionsPerHost());
         streamer.addSourceFilter(new RangeStreamer.FailureDetectorSourceFilter(FailureDetector.instance));
         if (sourceDc != null)
         {
