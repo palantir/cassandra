@@ -46,7 +46,7 @@ public class ValidationRequest extends RepairMessage
     {
         return "ValidationRequest{" +
                 "gcBefore=" + gcBefore +
-                "} " + super.toString();
+                ", desc=" + desc + "} " + super.toString();
     }
 
     @Override
