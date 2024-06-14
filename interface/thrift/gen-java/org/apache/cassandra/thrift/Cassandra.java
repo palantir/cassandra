@@ -211,6 +211,21 @@ public class Cassandra {
     public CASResult cas(ByteBuffer key, String column_family, List<Column> expected, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
+     * Atomic compare and set, evaluated at columnar granularity (as opposed to key granularity).
+     * 
+     * This method behaves similar to cas(), however it operates with columnar granularity. This differs from cas(), in
+     * that a standard cas() will fail if there are any other columns present in the database for that key (while this
+     * will succeed as long as the columns specified in the expected updates have their expected values).
+     * 
+     * @param key
+     * @param column_family
+     * @param column_updates
+     * @param serial_consistency_level
+     * @param commit_consistency_level
+     */
+    public CASResult cell_cas(ByteBuffer key, String column_family, List<ProposedColumnUpdate> column_updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+
+    /**
      * Atomic put unless exists.
      * 
      * A cas() where the columns being updated are expected to not already exist.
@@ -522,6 +537,8 @@ public class Cassandra {
     public void add(ByteBuffer key, ColumnParent column_parent, CounterColumn column, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void cas(ByteBuffer key, String column_family, List<Column> expected, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
+
+    public void cell_cas(ByteBuffer key, String column_family, List<ProposedColumnUpdate> column_updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
@@ -1077,6 +1094,42 @@ public class Cassandra {
         throw result.te;
       }
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "cas failed: unknown result");
+    }
+
+    public CASResult cell_cas(ByteBuffer key, String column_family, List<ProposedColumnUpdate> column_updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    {
+      send_cell_cas(key, column_family, column_updates, serial_consistency_level, commit_consistency_level);
+      return recv_cell_cas();
+    }
+
+    public void send_cell_cas(ByteBuffer key, String column_family, List<ProposedColumnUpdate> column_updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws org.apache.thrift.TException
+    {
+      cell_cas_args args = new cell_cas_args();
+      args.setKey(key);
+      args.setColumn_family(column_family);
+      args.setColumn_updates(column_updates);
+      args.setSerial_consistency_level(serial_consistency_level);
+      args.setCommit_consistency_level(commit_consistency_level);
+      sendBase("cell_cas", args);
+    }
+
+    public CASResult recv_cell_cas() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    {
+      cell_cas_result result = new cell_cas_result();
+      receiveBase(result, "cell_cas");
+      if (result.isSetSuccess()) {
+        return result.success;
+      }
+      if (result.ire != null) {
+        throw result.ire;
+      }
+      if (result.ue != null) {
+        throw result.ue;
+      }
+      if (result.te != null) {
+        throw result.te;
+      }
+      throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "cell_cas failed: unknown result");
     }
 
     public CASResult put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
@@ -2620,6 +2673,50 @@ public class Cassandra {
       }
     }
 
+    public void cell_cas(ByteBuffer key, String column_family, List<ProposedColumnUpdate> column_updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      cell_cas_call method_call = new cell_cas_call(key, column_family, column_updates, serial_consistency_level, commit_consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class cell_cas_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private ByteBuffer key;
+      private String column_family;
+      private List<ProposedColumnUpdate> column_updates;
+      private ConsistencyLevel serial_consistency_level;
+      private ConsistencyLevel commit_consistency_level;
+      public cell_cas_call(ByteBuffer key, String column_family, List<ProposedColumnUpdate> column_updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.key = key;
+        this.column_family = column_family;
+        this.column_updates = column_updates;
+        this.serial_consistency_level = serial_consistency_level;
+        this.commit_consistency_level = commit_consistency_level;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("cell_cas", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        cell_cas_args args = new cell_cas_args();
+        args.setKey(key);
+        args.setColumn_family(column_family);
+        args.setColumn_updates(column_updates);
+        args.setSerial_consistency_level(serial_consistency_level);
+        args.setCommit_consistency_level(commit_consistency_level);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public CASResult getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_cell_cas();
+      }
+    }
+
     public void put_unless_exists(ByteBuffer key, String column_family, List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
       checkReady();
       put_unless_exists_call method_call = new put_unless_exists_call(key, column_family, updates, serial_consistency_level, commit_consistency_level, resultHandler, this, ___protocolFactory, ___transport);
@@ -3789,6 +3886,7 @@ public class Cassandra {
       processMap.put("insert", new insert());
       processMap.put("add", new add());
       processMap.put("cas", new cas());
+      processMap.put("cell_cas", new cell_cas());
       processMap.put("put_unless_exists", new put_unless_exists());
       processMap.put("remove", new remove());
       processMap.put("remove_counter", new remove_counter());
@@ -4204,6 +4302,34 @@ public class Cassandra {
         cas_result result = new cas_result();
         try {
           result.success = iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level);
+        } catch (InvalidRequestException ire) {
+          result.ire = ire;
+        } catch (UnavailableException ue) {
+          result.ue = ue;
+        } catch (TimedOutException te) {
+          result.te = te;
+        }
+        return result;
+      }
+    }
+
+    public static class cell_cas<I extends Iface> extends org.apache.thrift.ProcessFunction<I, cell_cas_args> {
+      public cell_cas() {
+        super("cell_cas");
+      }
+
+      public cell_cas_args getEmptyArgsInstance() {
+        return new cell_cas_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public cell_cas_result getResult(I iface, cell_cas_args args) throws org.apache.thrift.TException {
+        cell_cas_result result = new cell_cas_result();
+        try {
+          result.success = iface.cell_cas(args.key, args.column_family, args.column_updates, args.serial_consistency_level, args.commit_consistency_level);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -5100,6 +5226,7 @@ public class Cassandra {
       processMap.put("insert", new insert());
       processMap.put("add", new add());
       processMap.put("cas", new cas());
+      processMap.put("cell_cas", new cell_cas());
       processMap.put("put_unless_exists", new put_unless_exists());
       processMap.put("remove", new remove());
       processMap.put("remove_counter", new remove_counter());
@@ -6059,6 +6186,73 @@ public class Cassandra {
 
       public void start(I iface, cas_args args, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws TException {
         iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level,resultHandler);
+      }
+    }
+
+    public static class cell_cas<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, cell_cas_args, CASResult> {
+      public cell_cas() {
+        super("cell_cas");
+      }
+
+      public cell_cas_args getEmptyArgsInstance() {
+        return new cell_cas_args();
+      }
+
+      public AsyncMethodCallback<CASResult> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
+        final org.apache.thrift.AsyncProcessFunction fcall = this;
+        return new AsyncMethodCallback<CASResult>() { 
+          public void onComplete(CASResult o) {
+            cell_cas_result result = new cell_cas_result();
+            result.success = o;
+            try {
+              fcall.sendResponse(fb,result, org.apache.thrift.protocol.TMessageType.REPLY,seqid);
+              return;
+            } catch (Exception e) {
+              LOGGER.error("Exception writing to internal frame buffer", e);
+            }
+            fb.close();
+          }
+          public void onError(Exception e) {
+            byte msgType = org.apache.thrift.protocol.TMessageType.REPLY;
+            org.apache.thrift.TBase msg;
+            cell_cas_result result = new cell_cas_result();
+            if (e instanceof InvalidRequestException) {
+                        result.ire = (InvalidRequestException) e;
+                        result.setIreIsSet(true);
+                        msg = result;
+            }
+            else             if (e instanceof UnavailableException) {
+                        result.ue = (UnavailableException) e;
+                        result.setUeIsSet(true);
+                        msg = result;
+            }
+            else             if (e instanceof TimedOutException) {
+                        result.te = (TimedOutException) e;
+                        result.setTeIsSet(true);
+                        msg = result;
+            }
+             else 
+            {
+              msgType = org.apache.thrift.protocol.TMessageType.EXCEPTION;
+              msg = (org.apache.thrift.TBase)new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, e.getMessage());
+            }
+            try {
+              fcall.sendResponse(fb,msg,msgType,seqid);
+              return;
+            } catch (Exception ex) {
+              LOGGER.error("Exception writing to internal frame buffer", ex);
+            }
+            fb.close();
+          }
+        };
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public void start(I iface, cell_cas_args args, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws TException {
+        iface.cell_cas(args.key, args.column_family, args.column_updates, args.serial_consistency_level, args.commit_consistency_level,resultHandler);
       }
     }
 
@@ -26828,6 +27022,1560 @@ public class Cassandra {
 
       @Override
       public void read(org.apache.thrift.protocol.TProtocol prot, cas_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(4);
+        if (incoming.get(0)) {
+          struct.success = new CASResult();
+          struct.success.read(iprot);
+          struct.setSuccessIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.ire = new InvalidRequestException();
+          struct.ire.read(iprot);
+          struct.setIreIsSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.ue = new UnavailableException();
+          struct.ue.read(iprot);
+          struct.setUeIsSet(true);
+        }
+        if (incoming.get(3)) {
+          struct.te = new TimedOutException();
+          struct.te.read(iprot);
+          struct.setTeIsSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class cell_cas_args implements org.apache.thrift.TBase<cell_cas_args, cell_cas_args._Fields>, java.io.Serializable, Cloneable, Comparable<cell_cas_args>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("cell_cas_args");
+
+    private static final org.apache.thrift.protocol.TField KEY_FIELD_DESC = new org.apache.thrift.protocol.TField("key", org.apache.thrift.protocol.TType.STRING, (short)1);
+    private static final org.apache.thrift.protocol.TField COLUMN_FAMILY_FIELD_DESC = new org.apache.thrift.protocol.TField("column_family", org.apache.thrift.protocol.TType.STRING, (short)2);
+    private static final org.apache.thrift.protocol.TField COLUMN_UPDATES_FIELD_DESC = new org.apache.thrift.protocol.TField("column_updates", org.apache.thrift.protocol.TType.LIST, (short)3);
+    private static final org.apache.thrift.protocol.TField SERIAL_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("serial_consistency_level", org.apache.thrift.protocol.TType.I32, (short)4);
+    private static final org.apache.thrift.protocol.TField COMMIT_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("commit_consistency_level", org.apache.thrift.protocol.TType.I32, (short)5);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new cell_cas_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new cell_cas_argsTupleSchemeFactory());
+    }
+
+    public ByteBuffer key; // required
+    public String column_family; // required
+    public List<ProposedColumnUpdate> column_updates; // required
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel serial_consistency_level; // required
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel commit_consistency_level; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      KEY((short)1, "key"),
+      COLUMN_FAMILY((short)2, "column_family"),
+      COLUMN_UPDATES((short)3, "column_updates"),
+      /**
+       * 
+       * @see ConsistencyLevel
+       */
+      SERIAL_CONSISTENCY_LEVEL((short)4, "serial_consistency_level"),
+      /**
+       * 
+       * @see ConsistencyLevel
+       */
+      COMMIT_CONSISTENCY_LEVEL((short)5, "commit_consistency_level");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // KEY
+            return KEY;
+          case 2: // COLUMN_FAMILY
+            return COLUMN_FAMILY;
+          case 3: // COLUMN_UPDATES
+            return COLUMN_UPDATES;
+          case 4: // SERIAL_CONSISTENCY_LEVEL
+            return SERIAL_CONSISTENCY_LEVEL;
+          case 5: // COMMIT_CONSISTENCY_LEVEL
+            return COMMIT_CONSISTENCY_LEVEL;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.KEY, new org.apache.thrift.meta_data.FieldMetaData("key", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING          , true)));
+      tmpMap.put(_Fields.COLUMN_FAMILY, new org.apache.thrift.meta_data.FieldMetaData("column_family", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.COLUMN_UPDATES, new org.apache.thrift.meta_data.FieldMetaData("column_updates", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
+              new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, ProposedColumnUpdate.class))));
+      tmpMap.put(_Fields.SERIAL_CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("serial_consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.COMMIT_CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("commit_consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
+          new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(cell_cas_args.class, metaDataMap);
+    }
+
+    public cell_cas_args() {
+      this.serial_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.SERIAL;
+
+      this.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.QUORUM;
+
+    }
+
+    public cell_cas_args(
+      ByteBuffer key,
+      String column_family,
+      List<ProposedColumnUpdate> column_updates,
+      ConsistencyLevel serial_consistency_level,
+      ConsistencyLevel commit_consistency_level)
+    {
+      this();
+      this.key = org.apache.thrift.TBaseHelper.copyBinary(key);
+      this.column_family = column_family;
+      this.column_updates = column_updates;
+      this.serial_consistency_level = serial_consistency_level;
+      this.commit_consistency_level = commit_consistency_level;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public cell_cas_args(cell_cas_args other) {
+      if (other.isSetKey()) {
+        this.key = org.apache.thrift.TBaseHelper.copyBinary(other.key);
+      }
+      if (other.isSetColumn_family()) {
+        this.column_family = other.column_family;
+      }
+      if (other.isSetColumn_updates()) {
+        List<ProposedColumnUpdate> __this__column_updates = new ArrayList<ProposedColumnUpdate>(other.column_updates.size());
+        for (ProposedColumnUpdate other_element : other.column_updates) {
+          __this__column_updates.add(new ProposedColumnUpdate(other_element));
+        }
+        this.column_updates = __this__column_updates;
+      }
+      if (other.isSetSerial_consistency_level()) {
+        this.serial_consistency_level = other.serial_consistency_level;
+      }
+      if (other.isSetCommit_consistency_level()) {
+        this.commit_consistency_level = other.commit_consistency_level;
+      }
+    }
+
+    public cell_cas_args deepCopy() {
+      return new cell_cas_args(this);
+    }
+
+    @Override
+    public void clear() {
+      this.key = null;
+      this.column_family = null;
+      this.column_updates = null;
+      this.serial_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.SERIAL;
+
+      this.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.QUORUM;
+
+    }
+
+    public byte[] getKey() {
+      setKey(org.apache.thrift.TBaseHelper.rightSize(key));
+      return key == null ? null : key.array();
+    }
+
+    public ByteBuffer bufferForKey() {
+      return org.apache.thrift.TBaseHelper.copyBinary(key);
+    }
+
+    public cell_cas_args setKey(byte[] key) {
+      this.key = key == null ? (ByteBuffer)null : ByteBuffer.wrap(Arrays.copyOf(key, key.length));
+      return this;
+    }
+
+    public cell_cas_args setKey(ByteBuffer key) {
+      this.key = org.apache.thrift.TBaseHelper.copyBinary(key);
+      return this;
+    }
+
+    public void unsetKey() {
+      this.key = null;
+    }
+
+    /** Returns true if field key is set (has been assigned a value) and false otherwise */
+    public boolean isSetKey() {
+      return this.key != null;
+    }
+
+    public void setKeyIsSet(boolean value) {
+      if (!value) {
+        this.key = null;
+      }
+    }
+
+    public String getColumn_family() {
+      return this.column_family;
+    }
+
+    public cell_cas_args setColumn_family(String column_family) {
+      this.column_family = column_family;
+      return this;
+    }
+
+    public void unsetColumn_family() {
+      this.column_family = null;
+    }
+
+    /** Returns true if field column_family is set (has been assigned a value) and false otherwise */
+    public boolean isSetColumn_family() {
+      return this.column_family != null;
+    }
+
+    public void setColumn_familyIsSet(boolean value) {
+      if (!value) {
+        this.column_family = null;
+      }
+    }
+
+    public int getColumn_updatesSize() {
+      return (this.column_updates == null) ? 0 : this.column_updates.size();
+    }
+
+    public java.util.Iterator<ProposedColumnUpdate> getColumn_updatesIterator() {
+      return (this.column_updates == null) ? null : this.column_updates.iterator();
+    }
+
+    public void addToColumn_updates(ProposedColumnUpdate elem) {
+      if (this.column_updates == null) {
+        this.column_updates = new ArrayList<ProposedColumnUpdate>();
+      }
+      this.column_updates.add(elem);
+    }
+
+    public List<ProposedColumnUpdate> getColumn_updates() {
+      return this.column_updates;
+    }
+
+    public cell_cas_args setColumn_updates(List<ProposedColumnUpdate> column_updates) {
+      this.column_updates = column_updates;
+      return this;
+    }
+
+    public void unsetColumn_updates() {
+      this.column_updates = null;
+    }
+
+    /** Returns true if field column_updates is set (has been assigned a value) and false otherwise */
+    public boolean isSetColumn_updates() {
+      return this.column_updates != null;
+    }
+
+    public void setColumn_updatesIsSet(boolean value) {
+      if (!value) {
+        this.column_updates = null;
+      }
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel getSerial_consistency_level() {
+      return this.serial_consistency_level;
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public cell_cas_args setSerial_consistency_level(ConsistencyLevel serial_consistency_level) {
+      this.serial_consistency_level = serial_consistency_level;
+      return this;
+    }
+
+    public void unsetSerial_consistency_level() {
+      this.serial_consistency_level = null;
+    }
+
+    /** Returns true if field serial_consistency_level is set (has been assigned a value) and false otherwise */
+    public boolean isSetSerial_consistency_level() {
+      return this.serial_consistency_level != null;
+    }
+
+    public void setSerial_consistency_levelIsSet(boolean value) {
+      if (!value) {
+        this.serial_consistency_level = null;
+      }
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public ConsistencyLevel getCommit_consistency_level() {
+      return this.commit_consistency_level;
+    }
+
+    /**
+     * 
+     * @see ConsistencyLevel
+     */
+    public cell_cas_args setCommit_consistency_level(ConsistencyLevel commit_consistency_level) {
+      this.commit_consistency_level = commit_consistency_level;
+      return this;
+    }
+
+    public void unsetCommit_consistency_level() {
+      this.commit_consistency_level = null;
+    }
+
+    /** Returns true if field commit_consistency_level is set (has been assigned a value) and false otherwise */
+    public boolean isSetCommit_consistency_level() {
+      return this.commit_consistency_level != null;
+    }
+
+    public void setCommit_consistency_levelIsSet(boolean value) {
+      if (!value) {
+        this.commit_consistency_level = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case KEY:
+        if (value == null) {
+          unsetKey();
+        } else {
+          setKey((ByteBuffer)value);
+        }
+        break;
+
+      case COLUMN_FAMILY:
+        if (value == null) {
+          unsetColumn_family();
+        } else {
+          setColumn_family((String)value);
+        }
+        break;
+
+      case COLUMN_UPDATES:
+        if (value == null) {
+          unsetColumn_updates();
+        } else {
+          setColumn_updates((List<ProposedColumnUpdate>)value);
+        }
+        break;
+
+      case SERIAL_CONSISTENCY_LEVEL:
+        if (value == null) {
+          unsetSerial_consistency_level();
+        } else {
+          setSerial_consistency_level((ConsistencyLevel)value);
+        }
+        break;
+
+      case COMMIT_CONSISTENCY_LEVEL:
+        if (value == null) {
+          unsetCommit_consistency_level();
+        } else {
+          setCommit_consistency_level((ConsistencyLevel)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case KEY:
+        return getKey();
+
+      case COLUMN_FAMILY:
+        return getColumn_family();
+
+      case COLUMN_UPDATES:
+        return getColumn_updates();
+
+      case SERIAL_CONSISTENCY_LEVEL:
+        return getSerial_consistency_level();
+
+      case COMMIT_CONSISTENCY_LEVEL:
+        return getCommit_consistency_level();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case KEY:
+        return isSetKey();
+      case COLUMN_FAMILY:
+        return isSetColumn_family();
+      case COLUMN_UPDATES:
+        return isSetColumn_updates();
+      case SERIAL_CONSISTENCY_LEVEL:
+        return isSetSerial_consistency_level();
+      case COMMIT_CONSISTENCY_LEVEL:
+        return isSetCommit_consistency_level();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof cell_cas_args)
+        return this.equals((cell_cas_args)that);
+      return false;
+    }
+
+    public boolean equals(cell_cas_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_key = true && this.isSetKey();
+      boolean that_present_key = true && that.isSetKey();
+      if (this_present_key || that_present_key) {
+        if (!(this_present_key && that_present_key))
+          return false;
+        if (!this.key.equals(that.key))
+          return false;
+      }
+
+      boolean this_present_column_family = true && this.isSetColumn_family();
+      boolean that_present_column_family = true && that.isSetColumn_family();
+      if (this_present_column_family || that_present_column_family) {
+        if (!(this_present_column_family && that_present_column_family))
+          return false;
+        if (!this.column_family.equals(that.column_family))
+          return false;
+      }
+
+      boolean this_present_column_updates = true && this.isSetColumn_updates();
+      boolean that_present_column_updates = true && that.isSetColumn_updates();
+      if (this_present_column_updates || that_present_column_updates) {
+        if (!(this_present_column_updates && that_present_column_updates))
+          return false;
+        if (!this.column_updates.equals(that.column_updates))
+          return false;
+      }
+
+      boolean this_present_serial_consistency_level = true && this.isSetSerial_consistency_level();
+      boolean that_present_serial_consistency_level = true && that.isSetSerial_consistency_level();
+      if (this_present_serial_consistency_level || that_present_serial_consistency_level) {
+        if (!(this_present_serial_consistency_level && that_present_serial_consistency_level))
+          return false;
+        if (!this.serial_consistency_level.equals(that.serial_consistency_level))
+          return false;
+      }
+
+      boolean this_present_commit_consistency_level = true && this.isSetCommit_consistency_level();
+      boolean that_present_commit_consistency_level = true && that.isSetCommit_consistency_level();
+      if (this_present_commit_consistency_level || that_present_commit_consistency_level) {
+        if (!(this_present_commit_consistency_level && that_present_commit_consistency_level))
+          return false;
+        if (!this.commit_consistency_level.equals(that.commit_consistency_level))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      List<Object> list = new ArrayList<Object>();
+
+      boolean present_key = true && (isSetKey());
+      list.add(present_key);
+      if (present_key)
+        list.add(key);
+
+      boolean present_column_family = true && (isSetColumn_family());
+      list.add(present_column_family);
+      if (present_column_family)
+        list.add(column_family);
+
+      boolean present_column_updates = true && (isSetColumn_updates());
+      list.add(present_column_updates);
+      if (present_column_updates)
+        list.add(column_updates);
+
+      boolean present_serial_consistency_level = true && (isSetSerial_consistency_level());
+      list.add(present_serial_consistency_level);
+      if (present_serial_consistency_level)
+        list.add(serial_consistency_level.getValue());
+
+      boolean present_commit_consistency_level = true && (isSetCommit_consistency_level());
+      list.add(present_commit_consistency_level);
+      if (present_commit_consistency_level)
+        list.add(commit_consistency_level.getValue());
+
+      return list.hashCode();
+    }
+
+    @Override
+    public int compareTo(cell_cas_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(isSetKey()).compareTo(other.isSetKey());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetKey()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.key, other.key);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetColumn_family()).compareTo(other.isSetColumn_family());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetColumn_family()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.column_family, other.column_family);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetColumn_updates()).compareTo(other.isSetColumn_updates());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetColumn_updates()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.column_updates, other.column_updates);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetSerial_consistency_level()).compareTo(other.isSetSerial_consistency_level());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSerial_consistency_level()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.serial_consistency_level, other.serial_consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetCommit_consistency_level()).compareTo(other.isSetCommit_consistency_level());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetCommit_consistency_level()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.commit_consistency_level, other.commit_consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("cell_cas_args(");
+      boolean first = true;
+
+      sb.append("key:");
+      if (this.key == null) {
+        sb.append("null");
+      } else {
+        org.apache.thrift.TBaseHelper.toString(this.key, sb);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("column_family:");
+      if (this.column_family == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.column_family);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("column_updates:");
+      if (this.column_updates == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.column_updates);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("serial_consistency_level:");
+      if (this.serial_consistency_level == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.serial_consistency_level);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("commit_consistency_level:");
+      if (this.commit_consistency_level == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.commit_consistency_level);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      if (key == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'key' was not present! Struct: " + toString());
+      }
+      if (column_family == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'column_family' was not present! Struct: " + toString());
+      }
+      if (serial_consistency_level == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'serial_consistency_level' was not present! Struct: " + toString());
+      }
+      if (commit_consistency_level == null) {
+        throw new org.apache.thrift.protocol.TProtocolException("Required field 'commit_consistency_level' was not present! Struct: " + toString());
+      }
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class cell_cas_argsStandardSchemeFactory implements SchemeFactory {
+      public cell_cas_argsStandardScheme getScheme() {
+        return new cell_cas_argsStandardScheme();
+      }
+    }
+
+    private static class cell_cas_argsStandardScheme extends StandardScheme<cell_cas_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, cell_cas_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // KEY
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.key = iprot.readBinary();
+                struct.setKeyIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // COLUMN_FAMILY
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.column_family = iprot.readString();
+                struct.setColumn_familyIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // COLUMN_UPDATES
+              if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
+                {
+                  org.apache.thrift.protocol.TList _list350 = iprot.readListBegin();
+                  struct.column_updates = new ArrayList<ProposedColumnUpdate>(_list350.size);
+                  ProposedColumnUpdate _elem351;
+                  for (int _i352 = 0; _i352 < _list350.size; ++_i352)
+                  {
+                    _elem351 = new ProposedColumnUpdate();
+                    _elem351.read(iprot);
+                    struct.column_updates.add(_elem351);
+                  }
+                  iprot.readListEnd();
+                }
+                struct.setColumn_updatesIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 4: // SERIAL_CONSISTENCY_LEVEL
+              if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+                struct.serial_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
+                struct.setSerial_consistency_levelIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 5: // COMMIT_CONSISTENCY_LEVEL
+              if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+                struct.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
+                struct.setCommit_consistency_levelIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, cell_cas_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.key != null) {
+          oprot.writeFieldBegin(KEY_FIELD_DESC);
+          oprot.writeBinary(struct.key);
+          oprot.writeFieldEnd();
+        }
+        if (struct.column_family != null) {
+          oprot.writeFieldBegin(COLUMN_FAMILY_FIELD_DESC);
+          oprot.writeString(struct.column_family);
+          oprot.writeFieldEnd();
+        }
+        if (struct.column_updates != null) {
+          oprot.writeFieldBegin(COLUMN_UPDATES_FIELD_DESC);
+          {
+            oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.column_updates.size()));
+            for (ProposedColumnUpdate _iter353 : struct.column_updates)
+            {
+              _iter353.write(oprot);
+            }
+            oprot.writeListEnd();
+          }
+          oprot.writeFieldEnd();
+        }
+        if (struct.serial_consistency_level != null) {
+          oprot.writeFieldBegin(SERIAL_CONSISTENCY_LEVEL_FIELD_DESC);
+          oprot.writeI32(struct.serial_consistency_level.getValue());
+          oprot.writeFieldEnd();
+        }
+        if (struct.commit_consistency_level != null) {
+          oprot.writeFieldBegin(COMMIT_CONSISTENCY_LEVEL_FIELD_DESC);
+          oprot.writeI32(struct.commit_consistency_level.getValue());
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class cell_cas_argsTupleSchemeFactory implements SchemeFactory {
+      public cell_cas_argsTupleScheme getScheme() {
+        return new cell_cas_argsTupleScheme();
+      }
+    }
+
+    private static class cell_cas_argsTupleScheme extends TupleScheme<cell_cas_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, cell_cas_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        oprot.writeBinary(struct.key);
+        oprot.writeString(struct.column_family);
+        oprot.writeI32(struct.serial_consistency_level.getValue());
+        oprot.writeI32(struct.commit_consistency_level.getValue());
+        BitSet optionals = new BitSet();
+        if (struct.isSetColumn_updates()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetColumn_updates()) {
+          {
+            oprot.writeI32(struct.column_updates.size());
+            for (ProposedColumnUpdate _iter354 : struct.column_updates)
+            {
+              _iter354.write(oprot);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, cell_cas_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        struct.key = iprot.readBinary();
+        struct.setKeyIsSet(true);
+        struct.column_family = iprot.readString();
+        struct.setColumn_familyIsSet(true);
+        struct.serial_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
+        struct.setSerial_consistency_levelIsSet(true);
+        struct.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
+        struct.setCommit_consistency_levelIsSet(true);
+        BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          {
+            org.apache.thrift.protocol.TList _list355 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+            struct.column_updates = new ArrayList<ProposedColumnUpdate>(_list355.size);
+            ProposedColumnUpdate _elem356;
+            for (int _i357 = 0; _i357 < _list355.size; ++_i357)
+            {
+              _elem356 = new ProposedColumnUpdate();
+              _elem356.read(iprot);
+              struct.column_updates.add(_elem356);
+            }
+          }
+          struct.setColumn_updatesIsSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class cell_cas_result implements org.apache.thrift.TBase<cell_cas_result, cell_cas_result._Fields>, java.io.Serializable, Cloneable, Comparable<cell_cas_result>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("cell_cas_result");
+
+    private static final org.apache.thrift.protocol.TField SUCCESS_FIELD_DESC = new org.apache.thrift.protocol.TField("success", org.apache.thrift.protocol.TType.STRUCT, (short)0);
+    private static final org.apache.thrift.protocol.TField IRE_FIELD_DESC = new org.apache.thrift.protocol.TField("ire", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+    private static final org.apache.thrift.protocol.TField UE_FIELD_DESC = new org.apache.thrift.protocol.TField("ue", org.apache.thrift.protocol.TType.STRUCT, (short)2);
+    private static final org.apache.thrift.protocol.TField TE_FIELD_DESC = new org.apache.thrift.protocol.TField("te", org.apache.thrift.protocol.TType.STRUCT, (short)3);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new cell_cas_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new cell_cas_resultTupleSchemeFactory());
+    }
+
+    public CASResult success; // required
+    public InvalidRequestException ire; // required
+    public UnavailableException ue; // required
+    public TimedOutException te; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      SUCCESS((short)0, "success"),
+      IRE((short)1, "ire"),
+      UE((short)2, "ue"),
+      TE((short)3, "te");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          case 1: // IRE
+            return IRE;
+          case 2: // UE
+            return UE;
+          case 3: // TE
+            return TE;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, CASResult.class)));
+      tmpMap.put(_Fields.IRE, new org.apache.thrift.meta_data.FieldMetaData("ire", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.UE, new org.apache.thrift.meta_data.FieldMetaData("ue", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.TE, new org.apache.thrift.meta_data.FieldMetaData("te", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(cell_cas_result.class, metaDataMap);
+    }
+
+    public cell_cas_result() {
+    }
+
+    public cell_cas_result(
+      CASResult success,
+      InvalidRequestException ire,
+      UnavailableException ue,
+      TimedOutException te)
+    {
+      this();
+      this.success = success;
+      this.ire = ire;
+      this.ue = ue;
+      this.te = te;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public cell_cas_result(cell_cas_result other) {
+      if (other.isSetSuccess()) {
+        this.success = new CASResult(other.success);
+      }
+      if (other.isSetIre()) {
+        this.ire = new InvalidRequestException(other.ire);
+      }
+      if (other.isSetUe()) {
+        this.ue = new UnavailableException(other.ue);
+      }
+      if (other.isSetTe()) {
+        this.te = new TimedOutException(other.te);
+      }
+    }
+
+    public cell_cas_result deepCopy() {
+      return new cell_cas_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.success = null;
+      this.ire = null;
+      this.ue = null;
+      this.te = null;
+    }
+
+    public CASResult getSuccess() {
+      return this.success;
+    }
+
+    public cell_cas_result setSuccess(CASResult success) {
+      this.success = success;
+      return this;
+    }
+
+    public void unsetSuccess() {
+      this.success = null;
+    }
+
+    /** Returns true if field success is set (has been assigned a value) and false otherwise */
+    public boolean isSetSuccess() {
+      return this.success != null;
+    }
+
+    public void setSuccessIsSet(boolean value) {
+      if (!value) {
+        this.success = null;
+      }
+    }
+
+    public InvalidRequestException getIre() {
+      return this.ire;
+    }
+
+    public cell_cas_result setIre(InvalidRequestException ire) {
+      this.ire = ire;
+      return this;
+    }
+
+    public void unsetIre() {
+      this.ire = null;
+    }
+
+    /** Returns true if field ire is set (has been assigned a value) and false otherwise */
+    public boolean isSetIre() {
+      return this.ire != null;
+    }
+
+    public void setIreIsSet(boolean value) {
+      if (!value) {
+        this.ire = null;
+      }
+    }
+
+    public UnavailableException getUe() {
+      return this.ue;
+    }
+
+    public cell_cas_result setUe(UnavailableException ue) {
+      this.ue = ue;
+      return this;
+    }
+
+    public void unsetUe() {
+      this.ue = null;
+    }
+
+    /** Returns true if field ue is set (has been assigned a value) and false otherwise */
+    public boolean isSetUe() {
+      return this.ue != null;
+    }
+
+    public void setUeIsSet(boolean value) {
+      if (!value) {
+        this.ue = null;
+      }
+    }
+
+    public TimedOutException getTe() {
+      return this.te;
+    }
+
+    public cell_cas_result setTe(TimedOutException te) {
+      this.te = te;
+      return this;
+    }
+
+    public void unsetTe() {
+      this.te = null;
+    }
+
+    /** Returns true if field te is set (has been assigned a value) and false otherwise */
+    public boolean isSetTe() {
+      return this.te != null;
+    }
+
+    public void setTeIsSet(boolean value) {
+      if (!value) {
+        this.te = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unsetSuccess();
+        } else {
+          setSuccess((CASResult)value);
+        }
+        break;
+
+      case IRE:
+        if (value == null) {
+          unsetIre();
+        } else {
+          setIre((InvalidRequestException)value);
+        }
+        break;
+
+      case UE:
+        if (value == null) {
+          unsetUe();
+        } else {
+          setUe((UnavailableException)value);
+        }
+        break;
+
+      case TE:
+        if (value == null) {
+          unsetTe();
+        } else {
+          setTe((TimedOutException)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return getSuccess();
+
+      case IRE:
+        return getIre();
+
+      case UE:
+        return getUe();
+
+      case TE:
+        return getTe();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case SUCCESS:
+        return isSetSuccess();
+      case IRE:
+        return isSetIre();
+      case UE:
+        return isSetUe();
+      case TE:
+        return isSetTe();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof cell_cas_result)
+        return this.equals((cell_cas_result)that);
+      return false;
+    }
+
+    public boolean equals(cell_cas_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true && this.isSetSuccess();
+      boolean that_present_success = true && that.isSetSuccess();
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (!this.success.equals(that.success))
+          return false;
+      }
+
+      boolean this_present_ire = true && this.isSetIre();
+      boolean that_present_ire = true && that.isSetIre();
+      if (this_present_ire || that_present_ire) {
+        if (!(this_present_ire && that_present_ire))
+          return false;
+        if (!this.ire.equals(that.ire))
+          return false;
+      }
+
+      boolean this_present_ue = true && this.isSetUe();
+      boolean that_present_ue = true && that.isSetUe();
+      if (this_present_ue || that_present_ue) {
+        if (!(this_present_ue && that_present_ue))
+          return false;
+        if (!this.ue.equals(that.ue))
+          return false;
+      }
+
+      boolean this_present_te = true && this.isSetTe();
+      boolean that_present_te = true && that.isSetTe();
+      if (this_present_te || that_present_te) {
+        if (!(this_present_te && that_present_te))
+          return false;
+        if (!this.te.equals(that.te))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      List<Object> list = new ArrayList<Object>();
+
+      boolean present_success = true && (isSetSuccess());
+      list.add(present_success);
+      if (present_success)
+        list.add(success);
+
+      boolean present_ire = true && (isSetIre());
+      list.add(present_ire);
+      if (present_ire)
+        list.add(ire);
+
+      boolean present_ue = true && (isSetUe());
+      list.add(present_ue);
+      if (present_ue)
+        list.add(ue);
+
+      boolean present_te = true && (isSetTe());
+      list.add(present_te);
+      if (present_te)
+        list.add(te);
+
+      return list.hashCode();
+    }
+
+    @Override
+    public int compareTo(cell_cas_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(other.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.success, other.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetIre()).compareTo(other.isSetIre());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetIre()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ire, other.ire);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetUe()).compareTo(other.isSetUe());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetUe()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ue, other.ue);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetTe()).compareTo(other.isSetTe());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTe()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.te, other.te);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("cell_cas_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      if (this.success == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.success);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("ire:");
+      if (this.ire == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.ire);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("ue:");
+      if (this.ue == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.ue);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("te:");
+      if (this.te == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.te);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+      if (success != null) {
+        success.validate();
+      }
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class cell_cas_resultStandardSchemeFactory implements SchemeFactory {
+      public cell_cas_resultStandardScheme getScheme() {
+        return new cell_cas_resultStandardScheme();
+      }
+    }
+
+    private static class cell_cas_resultStandardScheme extends StandardScheme<cell_cas_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, cell_cas_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 0: // SUCCESS
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.success = new CASResult();
+                struct.success.read(iprot);
+                struct.setSuccessIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 1: // IRE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.ire = new InvalidRequestException();
+                struct.ire.read(iprot);
+                struct.setIreIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // UE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.ue = new UnavailableException();
+                struct.ue.read(iprot);
+                struct.setUeIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // TE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.te = new TimedOutException();
+                struct.te.read(iprot);
+                struct.setTeIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, cell_cas_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.success != null) {
+          oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+          struct.success.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.ire != null) {
+          oprot.writeFieldBegin(IRE_FIELD_DESC);
+          struct.ire.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.ue != null) {
+          oprot.writeFieldBegin(UE_FIELD_DESC);
+          struct.ue.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.te != null) {
+          oprot.writeFieldBegin(TE_FIELD_DESC);
+          struct.te.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class cell_cas_resultTupleSchemeFactory implements SchemeFactory {
+      public cell_cas_resultTupleScheme getScheme() {
+        return new cell_cas_resultTupleScheme();
+      }
+    }
+
+    private static class cell_cas_resultTupleScheme extends TupleScheme<cell_cas_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, cell_cas_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetSuccess()) {
+          optionals.set(0);
+        }
+        if (struct.isSetIre()) {
+          optionals.set(1);
+        }
+        if (struct.isSetUe()) {
+          optionals.set(2);
+        }
+        if (struct.isSetTe()) {
+          optionals.set(3);
+        }
+        oprot.writeBitSet(optionals, 4);
+        if (struct.isSetSuccess()) {
+          struct.success.write(oprot);
+        }
+        if (struct.isSetIre()) {
+          struct.ire.write(oprot);
+        }
+        if (struct.isSetUe()) {
+          struct.ue.write(oprot);
+        }
+        if (struct.isSetTe()) {
+          struct.te.write(oprot);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, cell_cas_result struct) throws org.apache.thrift.TException {
         TTupleProtocol iprot = (TTupleProtocol) prot;
         BitSet incoming = iprot.readBitSet(4);
         if (incoming.get(0)) {

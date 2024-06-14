@@ -55,7 +55,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0-pt2"
+const string VERSION = "20.1.0-pt3"
 
 
 #
@@ -306,6 +306,15 @@ struct SliceRange {
 struct SlicePredicate {
     1: optional list<binary> column_names,
     2: optional SliceRange   slice_range,
+}
+
+/**
+ * A column update is a proposal used in cell_cas(). It is expected that the name of the expected and proposed
+ * column is the same.
+ */
+struct ProposedColumnUpdate {
+    1: optional Column expected_column,
+    2: optional Column proposed_column,
 }
 
 enum IndexOperator {
@@ -755,6 +764,20 @@ service Cassandra {
                 5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
                 6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
+   * Atomic compare and set, evaluated at columnar granularity (as opposed to key granularity).
+   *
+   * This method behaves similar to cas(), however it operates with columnar granularity. This differs from cas(), in
+   * that a standard cas() will fail if there are any other columns present in the database for that key (while this
+   * will succeed as long as the columns specified in the expected updates have their expected values).
+   */
+  CASResult cell_cas(1:required binary key,
+                     2:required string column_family,
+                     3:list<ProposedColumnUpdate> column_updates,
+                     4:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
+                     5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
    * Atomic put unless exists.
