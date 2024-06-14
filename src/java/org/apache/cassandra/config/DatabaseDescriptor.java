@@ -1246,12 +1246,12 @@ public class DatabaseDescriptor
         conf.stream_throughput_outbound_megabits_per_sec = value;
     }
 
-    public static int getInterDCStreamThroughputOutboundMegabitsPerSec()
+    public static double getInterDCStreamThroughputOutboundMegabitsPerSec()
     {
         return conf.inter_dc_stream_throughput_outbound_megabits_per_sec;
     }
 
-    public static void setInterDCStreamThroughputOutboundMegabitsPerSec(int value)
+    public static void setInterDCStreamThroughputOutboundMegabitsPerSec(double value)
     {
         conf.inter_dc_stream_throughput_outbound_megabits_per_sec = value;
     }

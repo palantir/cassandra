@@ -24,6 +24,7 @@ import java.net.SocketTimeoutException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -723,6 +724,18 @@ public class StreamSession implements IEndpointStateChangeSubscriber
         streamResult.handleSessionPrepared(this);
 
         state(State.STREAMING);
+        logger.info("Sleeping for 10 seconds before streaming the following files : {}",
+                transfers.values().stream().map(task -> task.getFileMessages())
+                        .flatMap(messages -> messages.stream()).collect(Collectors.toSet()));
+        // Add delay before we start streaming files
+        try
+        {
+            Thread.sleep(10000);
+        }
+        catch (InterruptedException e)
+        {
+            // Do nothing
+        }
         for (StreamTransferTask task : transfers.values())
         {
             Collection<OutgoingFileMessage> messages = task.getFileMessages();

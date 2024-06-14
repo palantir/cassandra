@@ -991,7 +991,7 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getStreamThroughputMbPerSec();
     }
 
-    public int getInterDCStreamThroughput()
+    public double getInterDCStreamThroughput()
     {
         return ssProxy.getInterDCStreamThroughputMbPerSec();
     }
@@ -1094,7 +1094,7 @@ public class NodeProbe implements AutoCloseable
         ssProxy.setStreamThroughputMbPerSec(value);
     }
 
-    public void setInterDCStreamThroughput(int value)
+    public void setInterDCStreamThroughput(double value)
     {
         ssProxy.setInterDCStreamThroughputMbPerSec(value);
     }
