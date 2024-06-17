@@ -194,6 +194,8 @@ public class CassandraDaemon
 
         CLibrary.tryMlockall();
 
+        FileUtils.setDefaultUncaughtExceptionHandler();
+
         try
         {
             startupChecks.verify();
@@ -218,12 +220,12 @@ public class CassandraDaemon
 
         maybeInitJmx();
 
-        FileUtils.setDefaultUncaughtExceptionHandler();
-
         Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
 
         doNotStartupClientInterfacesIfDisabled();
         completeSetupMayThrowSstableException();
+
+        logger.debug("Completed CassandraDaemon setup.");
     }
 
     /* This functionality should only be used in a migration mode for a brand new cluster, and ensures that client
