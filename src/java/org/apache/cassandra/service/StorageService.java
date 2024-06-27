@@ -114,6 +114,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private int cleanupOpsInProgress = 0;
 
     private final RepairTracker repairTracker = new RepairTracker();
+    private final BootstrapStreamStateListener bootstrapStreamStateListener = new BootstrapStreamStateListener();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
@@ -1568,6 +1569,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
+        bootstrapStreamStateListener.reset();
+        bootstrapper.addProgressListener(bootstrapStreamStateListener);
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
         try
         {
@@ -1581,6 +1584,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.error("Error while waiting on bootstrap to complete. Bootstrap will have to be restarted.", e);
             return false;
         }
+    }
+
+    public BootstrapStreamStateListener.Status getBootstrapStatus() {
+        return bootstrapStreamStateListener.getStatus();
+    }
+
+    public Map<InetAddress, String> getBootstrapStreamState() {
+        return bootstrapStreamStateListener.getStreamState();
     }
 
     public boolean resumeBootstrap()
