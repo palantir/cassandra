@@ -903,6 +903,11 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
 
     public boolean localQuorumReadsForSerialCasEnabled();
 
+    /**
+     * Load schema from disk for new keyspaces without restarting.
+     */
+    public void loadSchemaFromDiskForNewKeyspaces();
+
     public boolean isMigrating();
 
     /**

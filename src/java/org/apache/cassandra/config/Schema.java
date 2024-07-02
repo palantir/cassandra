@@ -20,6 +20,8 @@ package org.apache.cassandra.config;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.stream.Collectors;
+
 import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.base.Splitter;
@@ -127,6 +129,22 @@ public class Schema
         load(LegacySchemaTables.readSchemaFromSystemTables());
         if (updateVersion)
             updateVersion();
+        return this;
+    }
+
+    /**
+     * Load new keyspace schema definitions from disk.
+     * Schema version may be updated and announced as the result.
+     *
+     */
+    public Schema loadNewKeyspacesFromDisk()
+    {
+        Collection<KSMetaData> newKeyspaceDefs = LegacySchemaTables.readSchemaFromSystemTables()
+                                                                         .stream()
+                                                                         .filter(def -> !keyspaces.containsKey(def.name))
+                                                                         .collect(Collectors.toList());
+        load(newKeyspaceDefs);
+        updateVersionAndAnnounce();
         return this;
     }
 

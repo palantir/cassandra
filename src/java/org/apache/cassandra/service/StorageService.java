@@ -5231,6 +5231,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @Override
+    public void loadSchemaFromDiskForNewKeyspaces() {
+        logger.info("Loading schema from disk for newly added keyspaces");
+        Schema.instance.loadNewKeyspacesFromDisk();
+    }
+
+    @Override
     public boolean isNewCluster()
     {
         return Boolean.parseBoolean(System.getProperty("palantir_cassandra.is_new_cluster", "false"));
