@@ -2,6 +2,7 @@ package com.palantir.cassandra.objects;
 
 import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Metrics;
 
 import java.util.Optional;
 
@@ -12,7 +13,8 @@ public class Dropwizard4Cluster extends Cluster {
 
     private Dropwizard4Cluster(Cluster.Builder builder) {
         super(builder);
-        this.maybeReporter = Optional.ofNullable(this.getMetrics().getRegistry())
+        this.maybeReporter = Optional.ofNullable(this.getMetrics())
+                .map(Metrics::getRegistry)
                 .map(registry -> JmxReporter.forRegistry(registry)
                         .inDomain(this.getClusterName() + "-metrics")
                         .build());
