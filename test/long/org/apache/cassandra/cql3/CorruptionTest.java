@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -64,7 +65,7 @@ public class CorruptionTest extends SchemaLoader
         cassandra = new EmbeddedCassandraService();
         cassandra.start();
 
-        cluster = Cluster.builder().addContactPoint("127.0.0.1")
+        cluster = Dropwizard4Cluster.builder().addContactPoint("127.0.0.1")
                          .withRetryPolicy(new LoggingRetryPolicy(Policies.defaultRetryPolicy()))
                          .withPort(DatabaseDescriptor.getNativeTransportPort()).build();
         session = cluster.connect();

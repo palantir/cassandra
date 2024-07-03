@@ -21,6 +21,7 @@ import java.net.InetAddress;
 import java.util.*;
 
 import com.datastax.driver.core.*;
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.ColumnFamilyType;
 import org.apache.cassandra.db.SystemKeyspace;
@@ -55,7 +56,7 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
 
     public void init(String keyspace)
     {
-        Cluster.Builder builder = Cluster.builder().addContactPoints(hosts).withPort(port);
+        Cluster.Builder builder = Dropwizard4Cluster.builder().addContactPoints(hosts).withPort(port);
         if (sslOptions != null)
             builder.withSSL(sslOptions);
         if (username != null && password != null)

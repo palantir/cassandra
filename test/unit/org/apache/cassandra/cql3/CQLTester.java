@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableSet;
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,7 +251,7 @@ public abstract class CQLTester
             if (cluster[version-1] != null)
                 continue;
 
-            cluster[version-1] = Cluster.builder().addContactPoints(nativeAddr)
+            cluster[version-1] = Dropwizard4Cluster.builder().addContactPoints(nativeAddr)
                                   .withClusterName("Test Cluster")
                                   .withPort(nativePort)
                                   .withProtocolVersion(ProtocolVersion.fromInt(version))
