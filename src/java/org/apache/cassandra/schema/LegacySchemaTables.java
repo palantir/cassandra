@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -382,6 +383,22 @@ public class LegacySchemaTables
     private static boolean isSystemKeyspaceSchemaPartition(Row partition)
     {
         return getSchemaKSKey(SystemKeyspace.NAME).equals(partition.key.getKey());
+    }
+
+    /*
+     * Reload schema from local disk. Useful if a user made changes to schema tables by hand, or has suspicion that
+     * in-memory representation got out of sync somehow with what's on disk.
+     *
+     * Backported from Cassandra 3 (CASSANDRA-13954) with modification.
+     */
+    public static synchronized void reloadSchemaAndAnnounceVersion()
+    {
+        Collection<KSMetaData> newNonSystemKeyspaceDefs = LegacySchemaTables.readSchemaFromSystemTables()
+                .stream()
+                .filter(def -> !Schema.SYSTEM_KEYSPACES.contains(def.name) && !Schema.instance.getKeyspaces().contains(def.name))
+                .collect(Collectors.toList());
+        Schema.instance.load(newNonSystemKeyspaceDefs);
+        Schema.instance.updateVersionAndAnnounce();
     }
 
     /**

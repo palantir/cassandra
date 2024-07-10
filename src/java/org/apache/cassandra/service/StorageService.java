@@ -41,6 +41,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -5077,6 +5078,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void resetLocalSchema() throws IOException
     {
         MigrationManager.resetLocalSchema();
+    }
+
+    /**
+     * This API is backported from Cassandra 3 (CASSANDRA-13954).
+     */
+    public void reloadLocalSchema()
+    {
+        LegacySchemaTables.reloadSchemaAndAnnounceVersion();
     }
 
     public void setTraceProbability(double probability)

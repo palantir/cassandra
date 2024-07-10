@@ -1134,6 +1134,11 @@ public class NodeProbe implements AutoCloseable
         ssProxy.resetLocalSchema();
     }
 
+    public void reloadLocalSchema()
+    {
+        ssProxy.reloadLocalSchema();
+    }
+
     public boolean isFailed()
     {
         return failed;
