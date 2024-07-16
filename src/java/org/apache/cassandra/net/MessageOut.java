@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -64,12 +64,12 @@ public class MessageOut<T>
     public MessageOut(MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer)
     {
         this(verb,
-             payload,
-             serializer,
-             isTracing()
-                 ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
-                                   TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) })
-                 : Collections.<String, byte[]>emptyMap());
+                payload,
+                serializer,
+                isTracing()
+                        ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
+                        TRACE_TYPE, new byte[]{Tracing.TraceType.serialize(Tracing.instance.getTraceType())})
+                        : Collections.<String, byte[]>emptyMap());
     }
 
     private MessageOut(MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, Map<String, byte[]> parameters)
@@ -81,25 +81,25 @@ public class MessageOut<T>
     public MessageOut(InetAddress from, MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, Map<String, byte[]> parameters)
     {
         this(verb,
-            payload,
-            serializer,
-             isTracing()
-             ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
-                               TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) })
-             : Collections.<String, byte[]>emptyMap(),
-            null);
+                payload,
+                serializer,
+                isTracing()
+                        ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
+                        TRACE_TYPE, new byte[]{Tracing.TraceType.serialize(Tracing.instance.getTraceType())})
+                        : Collections.<String, byte[]>emptyMap(),
+                null);
     }
 
     public MessageOut(MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, ConnectionType connectionType)
     {
         this(verb,
-             payload,
-             serializer,
-        isTracing()
-        ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
-                          TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) })
-        : Collections.<String, byte[]>emptyMap(),
-             connectionType);
+                payload,
+                serializer,
+                isTracing()
+                        ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
+                        TRACE_TYPE, new byte[]{Tracing.TraceType.serialize(Tracing.instance.getTraceType())})
+                        : Collections.<String, byte[]>emptyMap(),
+                connectionType);
     }
 
     private MessageOut(MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, Map<String, byte[]> parameters, ConnectionType connectionType)
@@ -159,7 +159,9 @@ public class MessageOut<T>
         assert longSize <= Integer.MAX_VALUE; // larger values are supported in sstables but not messages
         out.writeInt((int) longSize);
         if (payload != null)
+        {
             serializer.serialize(payload, out, version);
+        }
     }
 
     public int serializedSize(int version)
