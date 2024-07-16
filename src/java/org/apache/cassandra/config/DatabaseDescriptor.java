@@ -28,6 +28,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -1140,6 +1141,11 @@ public class DatabaseDescriptor
     public static void setTruncateRpcTimeout(Long timeOutInMillis)
     {
         conf.truncate_request_timeout_in_ms = timeOutInMillis;
+    }
+
+    public static long getPingTimeout()
+    {
+        return TimeUnit.SECONDS.toMillis(getBlockForPeersTimeoutInSeconds());
     }
 
     public static boolean hasCrossNodeTimeout()

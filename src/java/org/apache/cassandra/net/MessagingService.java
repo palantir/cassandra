@@ -143,12 +143,16 @@ public final class MessagingService implements MessagingServiceMBean
         // remember to add new verbs at the end, since we serialize by ordinal
         PING(),
 
-        // add new verbs after the existing verbs, but *before* the UNUSED verbs, since we serialize by ordinal.
-        // UNUSED verbs serve as padding for backwards compatability where a previous version needs to validate a verb from the future.
-        UNUSED_1,
+        // UNUSED verbs were used as padding for backward/forward compatability before 4.0,
+        // but it wasn't quite as bullet/future proof as needed. We still need to keep these entries
+        // around, at least for a major rev or two (post-4.0). see CASSANDRA-13993 for a discussion.
+        // For now, though, the UNUSED are legacy values (placeholders, basically) that should only be used
+        // for correctly adding VERBs that need to be emergency additions to 3.0/3.11.
+        // We can reclaim them (their id's, to be correct) in future versions, if desireed, though.
         UNUSED_2,
         UNUSED_3,
         ;
+        // add new verbs after the existing verbs, since we serialize by ordinal.
     }
 
     public static final EnumMap<MessagingService.Verb, Stage> verbStages = new EnumMap<MessagingService.Verb, Stage>(MessagingService.Verb.class)
@@ -195,7 +199,6 @@ public final class MessagingService implements MessagingServiceMBean
         put(Verb.CROSS_VPC_IP_MAPPING_SYN, Stage.CROSS_VPC_IP_MAPPING);
         put(Verb.CROSS_VPC_IP_MAPPING_ACK, Stage.CROSS_VPC_IP_MAPPING);
 
-        put(Verb.UNUSED_1, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_2, Stage.INTERNAL_RESPONSE);
         put(Verb.UNUSED_3, Stage.INTERNAL_RESPONSE);
 
@@ -608,6 +611,14 @@ public final class MessagingService implements MessagingServiceMBean
     {
         assert !verbHandlers.containsKey(verb);
         verbHandlers.put(verb, verbHandler);
+    }
+
+    /**
+     * SHOULD ONLY BE USED FOR TESTING!!
+     */
+    public void removeVerbHandler(Verb verb)
+    {
+        verbHandlers.remove(verb);
     }
 
     /**

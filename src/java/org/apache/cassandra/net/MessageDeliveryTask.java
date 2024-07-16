@@ -50,19 +50,35 @@ public class MessageDeliveryTask implements Runnable
 
     public void run()
     {
+        process();
+    }
+
+    /**
+     * A helper function for making unit testing reasonable.
+     *
+     * @return true if the message was processed; else false.
+     */
+    boolean process()
+    {
         MessagingService.Verb verb = message.verb;
+        if (verb == null)
+        {
+            logger.trace("Unknown verb {}", verb);
+            return false;
+        }
+
         if (MessagingService.DROPPABLE_VERBS.contains(verb)
             && System.currentTimeMillis() > constructionTime + message.getTimeout())
         {
             MessagingService.instance().incrementDroppedMessages(verb, isCrossNodeTimestamp);
-            return;
+            return false;
         }
 
         IVerbHandler verbHandler = MessagingService.instance().getVerbHandler(verb);
         if (verbHandler == null)
         {
-            logger.trace("Unknown verb {}", verb);
-            return;
+            logger.trace("No handler for verb {}", verb);
+            return false;
         }
 
         try
@@ -102,6 +118,7 @@ public class MessageDeliveryTask implements Runnable
 
         if (GOSSIP_VERBS.contains(message.verb))
             Gossiper.instance.setLastProcessedMessageAt(constructionTime);
+        return true;
     }
 
     private void handleFailure(Throwable t)
