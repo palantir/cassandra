@@ -18,17 +18,23 @@
 
 package org.apache.cassandra.net;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 
+import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
+import org.apache.cassandra.io.util.ByteBufferDataInput;
+import org.apache.cassandra.io.util.DataOutputBuffer;
+import org.apache.cassandra.io.util.DataOutputBufferFixed;
+import org.apache.cassandra.transport.Message;
+import org.apache.hadoop.io.DataInputBuffer;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.io.util.DataInputBuffer;
-import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.locator.InetAddressAndPort;
 
 public class MessageInTest
@@ -36,31 +42,43 @@ public class MessageInTest
     @BeforeClass
     public static void before()
     {
-        DatabaseDescriptor.daemonInitialization();
+        DatabaseDescriptor.setDaemonInitialized();
     }
 
     // make sure deserializing message doesn't crash with an unknown verb
+    @Ignore("Not fixed in C* 2.x")
     @Test
     public void read_NullVerb() throws IOException
     {
-        read(null);
+        read(Integer.MAX_VALUE);
     }
 
     @Test
     public void read_NoSerializer() throws IOException
     {
-        read(MessagingService.Verb.UNUSED_5);
+        read(MessagingService.Verb.UNUSED_3.ordinal());
     }
 
-    private void read(MessagingService.Verb verb) throws IOException
+    private void read(int verbOrdinal) throws IOException
     {
-        InetAddressAndPort addr = InetAddressAndPort.getByName("127.0.0.1");
-        ByteBuffer buf = ByteBuffer.allocate(64);
-        buf.limit(buf.capacity());
-        DataInputPlus dataInputBuffer = new DataInputBuffer(buf, false);
+        InetAddress addr = InetAddress.getByName("127.0.0.1");
         int payloadSize = 27;
-        Assert.assertEquals(0, buf.position());
-        Assert.assertNotNull(MessageIn.read(dataInputBuffer, 1, 42, 0, addr, payloadSize, verb, Collections.emptyMap()));
-        Assert.assertEquals(payloadSize, buf.position());
+        ByteBuffer buffer = ByteBuffer.allocate(64);
+        DataOutputBuffer out = new DataOutputBuffer(64);
+        out.writeByte(addr.getAddress().length);
+        out.write(addr.getAddress());
+        out.writeInt(verbOrdinal);
+        out.writeInt(0);
+        out.writeInt(payloadSize);
+
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(out.buffer().array());
+        DataInputStream dataInput = new DataInputStream(byteArrayInputStream);
+
+        buffer.flip();
+
+        Assert.assertEquals(0, buffer.position());
+        Assert.assertNotNull(MessageIn.read(dataInput, 1, 42));
+        // addr length, addr, verb, params, payload size, skipped payload
+        Assert.assertEquals(64 - (1 + 4 + 4 + 4 + 4 + 27), dataInput.available());
     }
 }

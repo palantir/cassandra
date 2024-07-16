@@ -18,6 +18,7 @@
 package org.apache.cassandra.net;
 
 import java.io.DataInput;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collections;
@@ -97,7 +98,14 @@ public class MessageIn<T>
             serializer = (IVersionedSerializer<T2>) callback.serializer;
         }
         if (payloadSize == 0 || serializer == null)
+        {
+            // if there's no deserializer for the verb, skip the payload bytes to leave
+            // the stream in a clean state (for the next message)
+            int skipped = in.skipBytes(payloadSize);
+            if (skipped != payloadSize)
+                throw new EOFException("EOF after " + skipped + " bytes out of " + payloadSize);
             return create(from, null, parameters, verb, version);
+        }
         T2 payload = serializer.deserialize(in, version);
         return MessageIn.create(from, payload, parameters, verb, version);
     }

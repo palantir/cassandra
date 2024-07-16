@@ -76,7 +76,7 @@ public class MessageDeliveryTaskTest
     public void process_NoHandler() throws UnknownHostException
     {
         InetAddress addr = InetAddress.getByName("127.0.0.1");
-        MessageIn msg = MessageIn.create(addr, null, Collections.emptyMap(), MessagingService.Verb.UNUSED_5, 1);
+        MessageIn msg = MessageIn.create(addr, null, Collections.emptyMap(), MessagingService.Verb.UNUSED_2, 1);
         MessageDeliveryTask task = new MessageDeliveryTask(msg, 42, System.currentTimeMillis(), false);
         Assert.assertFalse(task.process());
     }
@@ -87,7 +87,7 @@ public class MessageDeliveryTaskTest
         InetAddress addr = InetAddress.getByName("127.0.0.1");
 
         // we need any droppable verb, so just grab it from the enum itself rather than hard code a value
-        MessageIn msg = MessageIn.create(addr, null, Collections.emptyMap(), MessagingService.DROPPABLE_VERBS.iterator().next(), 1, 0);
+        MessageIn msg = MessageIn.create(addr, null, Collections.emptyMap(), MessagingService.DROPPABLE_VERBS.iterator().next(), 1);
         MessageDeliveryTask task = new MessageDeliveryTask(msg, 42, System.currentTimeMillis(), false);
         Assert.assertFalse(task.process());
     }
@@ -97,7 +97,7 @@ public class MessageDeliveryTaskTest
     public void process_ExpiredMessage() throws UnknownHostException
     {
         InetAddress addr = InetAddress.getByName("127.0.0.1");
-        MessageIn msg = MessageIn.create(addr, null, Collections.emptyMap(), MessagingService.Verb.UNUSED_2, 1, 0);
+        MessageIn msg = MessageIn.create(addr, null, Collections.emptyMap(), MessagingService.Verb.UNUSED_2, 1);
         MessageDeliveryTask task = new MessageDeliveryTask(msg, 42, System.currentTimeMillis(), false);
         Assert.assertTrue(task.process());
         Assert.assertEquals(1, VERB_HANDLER.invocationCount);
