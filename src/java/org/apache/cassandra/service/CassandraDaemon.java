@@ -35,16 +35,11 @@ import java.rmi.server.RMIServerSocketFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-<<<<<<< HEAD
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-=======
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.management.MBeanServer;
->>>>>>> b86801e95a (Add optional startup delay to wait until peers are ready)
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 import javax.management.remote.JMXConnectorServer;

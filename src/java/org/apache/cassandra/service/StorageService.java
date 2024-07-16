@@ -79,22 +79,7 @@ import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.repair.*;
 import org.apache.cassandra.repair.messages.RepairOption;
-<<<<<<< HEAD
 import org.apache.cassandra.service.opstate.CleanupStateTracker;
-=======
-import org.apache.cassandra.schema.CompactionParams.TombstoneOption;
-import org.apache.cassandra.schema.KeyspaceMetadata;
-import org.apache.cassandra.schema.MigrationManager;
-import org.apache.cassandra.schema.Schema;
-import org.apache.cassandra.schema.SchemaConstants;
-import org.apache.cassandra.schema.SchemaPullVerbHandler;
-import org.apache.cassandra.schema.SchemaPushVerbHandler;
-import org.apache.cassandra.schema.SchemaVersionVerbHandler;
-import org.apache.cassandra.schema.TableMetadata;
-import org.apache.cassandra.schema.TableMetadataRef;
-import org.apache.cassandra.schema.ViewMetadata;
-import org.apache.cassandra.repair.RepairMessageVerbHandler;
->>>>>>> b86801e95a (Add optional startup delay to wait until peers are ready)
 import org.apache.cassandra.service.paxos.CommitVerbHandler;
 import org.apache.cassandra.service.paxos.PrepareVerbHandler;
 import org.apache.cassandra.service.paxos.ProposeVerbHandler;
@@ -315,15 +300,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.SNAPSHOT, new SnapshotVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.ECHO, new EchoVerbHandler());
 
-<<<<<<< HEAD
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, new CrossVpcIpMappingSynVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_ACK, new CrossVpcIpMappingAckVerbHandler());
-=======
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.BATCH_STORE, new BatchStoreVerbHandler());
-        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.BATCH_REMOVE, new BatchRemoveVerbHandler());
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.PING, new PingVerbHandler());
->>>>>>> b86801e95a (Add optional startup delay to wait until peers are ready)
     }
 
     public void registerDaemon(CassandraDaemon daemon)

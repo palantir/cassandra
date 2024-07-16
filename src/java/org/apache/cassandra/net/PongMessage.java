@@ -18,10 +18,10 @@
 
 package org.apache.cassandra.net;
 
+import java.io.DataInput;
 import java.io.IOException;
 
 import org.apache.cassandra.io.IVersionedSerializer;
-import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
 
 public class PongMessage
@@ -37,7 +37,7 @@ public class PongMessage
         public void serialize(PongMessage t, DataOutputPlus out, int version) throws IOException
         {    }
 
-        public PongMessage deserialize(DataInputPlus in, int version) throws IOException
+        public PongMessage deserialize(DataInput in, int version) throws IOException
         {
             return instance;
         }
