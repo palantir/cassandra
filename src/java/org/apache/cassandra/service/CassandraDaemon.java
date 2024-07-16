@@ -580,9 +580,8 @@ public class CassandraDaemon
             logger.info(isx.getMessage());
             return;
         }
-        StartupClusterConnectivityChecker connectivityChecker = new StartupClusterConnectivityChecker(DatabaseDescriptor.getBlockForPeersPercentage(),
-                                                                                                      DatabaseDescriptor.getBlockForPeersTimeoutInSeconds(),
-                                                                                                      Gossiper.instance::isAlive);
+        StartupClusterConnectivityChecker connectivityChecker = StartupClusterConnectivityChecker.create(DatabaseDescriptor.getBlockForPeersPercentage(),
+                                                                                                      DatabaseDescriptor.getBlockForPeersTimeoutInSeconds());
         Set<InetAddress> peers = Gossiper.instance.getEndpointStates().stream().map(Map.Entry::getKey).collect(Collectors.toSet());
         connectivityChecker.execute(peers);
 
