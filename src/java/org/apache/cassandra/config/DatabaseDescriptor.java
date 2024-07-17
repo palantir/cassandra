@@ -412,9 +412,9 @@ public class DatabaseDescriptor
         }
 
         /* phi convict threshold for FailureDetector */
-        if (conf.phi_convict_threshold < 5 || conf.phi_convict_threshold > 16)
+        if (conf.phi_convict_threshold < 5)
         {
-            throw new ConfigurationException("phi_convict_threshold must be between 5 and 16", false);
+            throw new ConfigurationException("phi_convict_threshold must be above 5", false);
         }
 
         /* Thread per pool */
