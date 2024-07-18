@@ -90,6 +90,7 @@ import org.apache.cassandra.thrift.cassandraConstants;
 import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.concurrent.SimpleCondition;
+import org.apache.cassandra.utils.progress.ProgressListener;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
 
@@ -115,6 +116,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private int cleanupOpsInProgress = 0;
 
     private final RepairTracker repairTracker = new RepairTracker();
+    private final List<ProgressListener> bootstrapListeners = new CopyOnWriteArrayList<>();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
@@ -317,6 +319,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void unregister(IEndpointLifecycleSubscriber subscriber)
     {
         lifecycleSubscribers.remove(subscriber);
+    }
+
+    public void registerBootstrapListener(ProgressListener bootstrapListener) {
+        bootstrapListeners.add(bootstrapListener);
     }
 
     // should only be called via JMX
@@ -1569,6 +1575,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
+        bootstrapListeners.forEach(bootstrapper::addProgressListener);
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
         try
         {
