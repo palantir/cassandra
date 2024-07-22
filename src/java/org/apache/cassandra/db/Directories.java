@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Iterables;
+import com.palantir.logsafe.SafeArg;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,6 +134,7 @@ public class Directories
         for (int i = 0; i < locations.length; ++i)
             dataDirectories[i] = new DataDirectory(new File(locations[i]));
     }
+    private static final long RESERVED_COMPACTION_DISK_PERCENTAGE = Long.getLong("palantir_cassandra.reserved_compaction_disk_percentage", 5);
 
     /**
      * Checks whether Cassandra has RWX permissions to the specified directory.  Logs an error with
@@ -514,6 +516,7 @@ public class Directories
         long writeSize = expectedTotalWriteSize / estimatedSSTables;
         long totalAvailable = 0L;
         long totalSpace = 0L;
+        long totalReserved = 0L;
 
         for (DataDirectory dataDir : dataDirectories)
         {
@@ -521,19 +524,30 @@ public class Directories
                 continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace - expectedSpaceUsedByCompactions, candidate.totalSpace, writeSize))
+            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace - (expectedSpaceUsedByCompactions + dataDir.getReservedCompactionDiskSpace()),
+                                                  candidate.totalSpace,
+                                                  writeSize))
+            {
                 continue;
+            }
+            logger.warn("Enforcing reserved space to keep disk usage below 95% - reserved space {}. Total space {}.",
+                        SafeArg.of("reservedSpace", dataDir.getReservedCompactionDiskSpace()),
+                        SafeArg.of("totalSpace", candidate.availableSpace));
+            totalReserved += dataDir.getReservedCompactionDiskSpace();
             totalAvailable += candidate.availableSpace;
             totalSpace += candidate.totalSpace;
         }
-        if (insufficientDiskSpaceForWriteSize(totalAvailable - expectedSpaceUsedByCompactions, totalSpace, expectedTotalWriteSize))
+        if (insufficientDiskSpaceForWriteSize(totalAvailable - (expectedSpaceUsedByCompactions + totalReserved), totalSpace, expectedTotalWriteSize))
         {
             logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction with"
-                        + " expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",
+                        + " expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%"
+                        + " with total reserved space {}MB using {}% percent of reserved space",
                         totalAvailable / 1024 / 1024,
                         expectedTotalWriteSize / 1024 / 1024,
                         totalSpace / 1024 / 1024,
-                        MAX_COMPACTION_DISK_USAGE * 100);
+                        MAX_COMPACTION_DISK_USAGE * 100,
+                        SafeArg.of("totalReservedMB", totalReserved / 1024 / 1024),
+                        SafeArg.of("reservedPercentage", RESERVED_COMPACTION_DISK_PERCENTAGE));
             return false;
         }
         return true;
@@ -634,6 +648,11 @@ public class Directories
         public long getAvailableSpace()
         {
             return FileUtils.getUsableSpace(location);
+        }
+
+        public long getReservedCompactionDiskSpace()
+        {
+            return (getAvailableSpace() * RESERVED_COMPACTION_DISK_PERCENTAGE) / 100;
         }
 
         public long getTotalSpace()
