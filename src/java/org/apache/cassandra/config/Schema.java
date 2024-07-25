@@ -20,6 +20,8 @@ package org.apache.cassandra.config;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+
+import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.base.Splitter;
@@ -447,7 +449,9 @@ public class Schema
      */
     public void purge(CFMetaData cfm)
     {
-        cfIdMap.remove(Pair.create(cfm.ksName, cfm.cfName));
+        Pair<String, String> columnFamily = Pair.create(cfm.ksName, cfm.cfName);
+        logger.info("Purging column family {} [{}.{}] from schema.", SafeArg.of("columnFamilyId", cfIdMap.get(columnFamily)), SafeArg.of("keyspaceName", cfm.ksName), SafeArg.of("columnFamilyName", cfm.cfName));
+        cfIdMap.remove(columnFamily);
         cfm.markPurged();
     }
 
