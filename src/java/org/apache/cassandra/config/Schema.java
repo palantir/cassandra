@@ -450,7 +450,7 @@ public class Schema
     public void purge(CFMetaData cfm)
     {
         Pair<String, String> columnFamily = Pair.create(cfm.ksName, cfm.cfName);
-        logger.info("Purging column family {} [{}.{}] from schema.", SafeArg.of("columnFamilyId", cfIdMap.get(columnFamily)), SafeArg.of("keyspaceName", cfm.ksName), SafeArg.of("columnFamilyName", cfm.cfName));
+        logger.info("Purging column family {} [{}.{}] from schema.", cfIdMap.get(columnFamily), cfm.ksName,  cfm.cfName);
         cfIdMap.remove(columnFamily);
         cfm.markPurged();
     }
