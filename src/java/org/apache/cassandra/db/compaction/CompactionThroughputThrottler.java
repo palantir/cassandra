@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Backpressure mechanism to reduce compaction throughput as disk fills up
+ * Backpressure mechanism to reduce compaction throughput for large tables as disk fills up
  */
 public class CompactionThroughputThrottler
 {
@@ -18,42 +18,46 @@ public class CompactionThroughputThrottler
 
     public static RateLimiter getRateLimiter(String keyspace, String columnFamily)
     {
-        RateLimiter recommendedCompactionThroughputMbPerSec = CompactionManager.instance.getRateLimiter();
         long liveSpaceUsedBytes = ColumnFamilyStore.getIfExists(keyspace, columnFamily).metric.liveDiskSpaceUsed.getCount();
         if (liveSpaceUsedBytes < THROTTLER_TABLE_SIZE_BYTES)
         {
-            // table less than 10G and considered small, bypass throttle mechanism
-            return recommendedCompactionThroughputMbPerSec;
+            logger.trace("Using default compaction throughput {} with rate limit of {}",
+                         SafeArg.of("defaultCompactionThroughput", StorageService.instance.getCompactionThroughputMbPerSec()),
+                         SafeArg.of("defaultRateLimiter", CompactionManager.instance.getRateLimiter()));
+
+            return CompactionManager.instance.getRateLimiter();
         }
 
-        int defaultCompactionThroughput = StorageService.instance.getCompactionThroughputMbPerSec();
+        RateLimiter recommendedCompactionThroughputMbPerSec;
         double diskUsage = Directories.getMaxPathToUtilization().getValue();
 
-        if (diskUsage > 0.90d)
-        {
-            // 10 mb/s
-            recommendedCompactionThroughputMbPerSec.setRate(10d);
-        }
-        else if (diskUsage > 0.85d)
+        if (diskUsage >= 0.90d)
         {
             // 20 mb/s
-            recommendedCompactionThroughputMbPerSec.setRate(20d);
+            recommendedCompactionThroughputMbPerSec = RateLimiter.create(20d * 1024 * 1024);
         }
-        else if (diskUsage > 0.80d)
+        else if (diskUsage >= 0.85d)
         {
             // 40 mb/s
-            recommendedCompactionThroughputMbPerSec.setRate(40d);
+            recommendedCompactionThroughputMbPerSec = RateLimiter.create(40d * 1024 * 1024);
         }
-        else if (diskUsage >= 0.75d)
+        else if (diskUsage >= 0.80d)
         {
             // 80 mb/s
-            recommendedCompactionThroughputMbPerSec.setRate(80d);
+            recommendedCompactionThroughputMbPerSec = RateLimiter.create(80d * 1024 * 1024);
+        }
+        else {
+            // default
+            recommendedCompactionThroughputMbPerSec = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
         }
 
-        logger.debug("Using recommended rate limit of {} due to disk usage of {} and default throughput {} for compaction of keyspace/table {}/{}",
-                     SafeArg.of("recommendedCompactionThroughputMbPerSec", recommendedCompactionThroughputMbPerSec),
+        logger.debug("Due to disk usage of {} recommending througput of {}MBs with rate limit of {} for keyspace/table {}/{}. " +
+                     "Overwritten defaults were throughput {}MBs and rate limit  {}.",
                      SafeArg.of("diskUsage", diskUsage),
-                     SafeArg.of("defaultCompactionThroughput", defaultCompactionThroughput),
+                     SafeArg.of("recommendedCompactionThroughputMbPerSec", recommendedCompactionThroughputMbPerSec.getRate() / 1024/ 1024),
+                     SafeArg.of("recommendedRateLimiter", recommendedCompactionThroughputMbPerSec),
+                     SafeArg.of("defaultCompactionThroughput", StorageService.instance.getCompactionThroughputMbPerSec()),
+                     SafeArg.of("defaultRateLimiter", CompactionManager.instance.getRateLimiter()),
                      SafeArg.of("keyspace", keyspace),
                      SafeArg.of("table", columnFamily));
 

@@ -124,7 +124,7 @@ public class CompactionManager implements CompactionManagerMBean
     public RateLimiter getRateLimiter()
     {
         // TODO: -- this is the main access point, account for all usage:
-        //          1. ❌ ACS#getScanners
+        //          1. ❌ ACS#getScanners - want this for sure, accounts for other compaction strategies. LCS overwrites the ABS function calling this.
         //          2. ❌ CompactionManager#doCleanupOne - probably want this, need to check codepath.
         //          3. ✅ CompactionThroughputThrottler#getRateLimiter - (Was the 3 LCS calls)
         //          4. ⏩ Scrubber#Scrubber(constructor) - used for scrubbing tables - don't want to enforce here.

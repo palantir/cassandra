@@ -111,7 +111,7 @@ public class Directories
     private static final Logger logger = LoggerFactory.getLogger(Directories.class);
 
     private static final double MAX_COMPACTION_DISK_USAGE = System.getProperty("palantir_cassandra.max_compaction_disk_usage") == null
-                                                            ? 0.95
+                                                            ? 0.90
                                                             : Double.parseDouble(System.getProperty("palantir_cassandra.max_compaction_disk_usage"));
     private static final ReadWriteLock SNAPSHOT_LOCK = new ReentrantReadWriteLock();
     private static final int LOCK_TIMEOUT_SECONDS = 60;
