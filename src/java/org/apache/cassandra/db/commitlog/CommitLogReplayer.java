@@ -25,10 +25,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
@@ -676,6 +678,7 @@ public class CommitLogReplayer
                     Keyspace.open(newMutation.getKeyspaceName()).apply(newMutation, false);
                     keyspacesRecovered.add(keyspace);
                 }
+                logMutations(mutation);
             }
         };
         futures.add(StageManager.getStage(Stage.MUTATION).submit(runnable));
@@ -683,6 +686,14 @@ public class CommitLogReplayer
         {
             FBUtilities.waitOnFutures(futures);
             futures.clear();
+        }
+    }
+
+    void logMutations(Mutation mutation) {
+        if (mutation != null && mutation.getColumnFamilies() != null) {
+            mutation.getColumnFamilies().forEach(cf -> cf.asMap().forEach((cellName, value) ->
+                    logger.info(String.format("Detected mutation for CF %s: %s value %s", cf.metadata().cfName, cellName.cql3ColumnName(cf.metadata()), StandardCharsets.UTF_8.decode(value))))
+            );
         }
     }
 
