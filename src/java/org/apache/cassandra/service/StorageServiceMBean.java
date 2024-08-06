@@ -646,6 +646,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @param sourceDc Name of DC from which to select sources for streaming or null to pick any node
      * @param keyspace Name of the keyspace which to rebuild or null to rebuild all keyspaces.
      */
+    @Deprecated
     public void rebuild(String sourceDc, String keyspace);
 
     /**
