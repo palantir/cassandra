@@ -115,11 +115,12 @@ public class PropertyFileSnitch extends AbstractNetworkTopologySnitch
     /**
      * Return the data center for which an endpoint resides in
      *
-     * @param endpoint the endpoint to process
+     * @param endpointAndPort the endpoint to process
      * @return string of data center
      */
-    public String getDatacenter(InetAddress endpoint)
+    public String getDatacenter(InetAddressAndPort endpointAndPort)
     {
+        InetAddress endpoint = endpointAndPort.address;
         String[] info = getEndpointInfo(endpoint);
         assert info != null : "No location defined for endpoint " + endpoint;
         return info[0];
@@ -128,11 +129,12 @@ public class PropertyFileSnitch extends AbstractNetworkTopologySnitch
     /**
      * Return the rack for which an endpoint resides in
      *
-     * @param endpoint the endpoint to process
+     * @param endpointAndPort the endpoint to process
      * @return string of rack
      */
-    public String getRack(InetAddress endpoint)
+    public String getRack(InetAddressAndPort endpointAndPort)
     {
+        InetAddress endpoint = endpointAndPort.address;
         String[] info = getEndpointInfo(endpoint);
         assert info != null : "No location defined for endpoint " + endpoint;
         return info[1];

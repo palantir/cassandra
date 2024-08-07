@@ -28,10 +28,12 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
@@ -731,7 +733,8 @@ public class DatabaseDescriptor
         if (Boolean.getBoolean("palantir_cassandra.single_node_cluster"))
         {
             try {
-                if (!seedProvider.getSeeds().equals(ImmutableList.of(InetAddress.getLocalHost())))
+                List<InetAddressAndPort> seeds = seedProvider.getSeeds();
+                if (seeds.size() != 1 || !Iterables.getOnlyElement(seeds).address.equals(InetAddress.getLocalHost()))
                     throw new ConfigurationException("Unexpected seed list when single_node_cluster flag is set to true."
                         + " For a single node Cassandra cluster, the only seed should be localhost", false);
             } catch (UnknownHostException e) {
@@ -1355,7 +1358,12 @@ public class DatabaseDescriptor
 
     public static Set<InetAddress> getSeeds()
     {
-        return ImmutableSet.<InetAddress>builder().addAll(seedProvider.getSeeds()).build();
+        ImmutableSet.Builder<InetAddress> builder = ImmutableSet.builder();
+        for (InetAddressAndPort seed : seedProvider.getSeeds())
+        {
+            builder.add(seed.address);
+        }
+        return builder.build();
     }
 
     public static Set<InetAddress> getAllHosts()
