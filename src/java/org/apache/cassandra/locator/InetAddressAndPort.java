@@ -199,7 +199,7 @@ public final class InetAddressAndPort implements Comparable<InetAddressAndPort>,
         defaultPort = port;
     }
 
-    static InetAddressAndPort wrap(InetAddress address)
+    public static InetAddressAndPort wrap(InetAddress address)
     {
         return new InetAddressAndPort(address);
     }
