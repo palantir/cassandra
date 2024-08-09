@@ -203,4 +203,9 @@ public final class InetAddressAndPort implements Comparable<InetAddressAndPort>,
     {
         return new InetAddressAndPort(address);
     }
+
+    public static InetAddressAndPort getLocalHost()
+    {
+        return FBUtilities.getLocalAddressAndPort();
+    }
 }

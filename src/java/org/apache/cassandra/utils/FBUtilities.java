@@ -152,6 +152,15 @@ public class FBUtilities
         return InetAddressAndPort.wrap(getBroadcastAddress());
     }
 
+    /**
+     * @return an {@link InetAddressAndPort} that can only contains a value in the address field
+     * @apiNote Shim for plugin forward compatibility. Do not use internally.
+     */
+    public static InetAddressAndPort getLocalAddressAndPort()
+    {
+        return InetAddressAndPort.wrap(FBUtilities.getLocalAddress());
+    }
+
     public static InetAddress getBroadcastAddress()
     {
         if (broadcastInetAddress == null)
