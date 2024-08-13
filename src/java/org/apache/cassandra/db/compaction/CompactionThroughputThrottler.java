@@ -13,54 +13,60 @@ import org.slf4j.LoggerFactory;
  */
 public class CompactionThroughputThrottler
 {
+    private static final boolean ENABLE_COMPACTION_THROUGHPUT_THROTTLING = Boolean.getBoolean("palantir_cassandra.enable_compaction_throughput_throttling");
     private static final long THROTTLER_TABLE_SIZE_BYTES = Long.getLong("palantir_cassandra.throttler_table_size_gb", 10L) * 1024L * 1024L * 1024L;
     private static final Logger logger = LoggerFactory.getLogger(CompactionThroughputThrottler.class);
 
     public static RateLimiter getRateLimiter(String keyspace, String columnFamily)
     {
-        long liveSpaceUsedBytes = ColumnFamilyStore.getIfExists(keyspace, columnFamily).metric.liveDiskSpaceUsed.getCount();
-        if (liveSpaceUsedBytes < THROTTLER_TABLE_SIZE_BYTES)
+        RateLimiter defaultThroughput = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
+        if (ENABLE_COMPACTION_THROUGHPUT_THROTTLING)
         {
-            logger.trace("Using default compaction throughput {} with rate limit of {}",
-                         SafeArg.of("defaultCompactionThroughput", StorageService.instance.getCompactionThroughputMbPerSec()),
-                         SafeArg.of("defaultRateLimiter", CompactionManager.instance.getRateLimiter()));
-
-            return CompactionManager.instance.getRateLimiter();
+            return defaultThroughput;
         }
 
-        RateLimiter recommendedCompactionThroughputMbPerSec;
         double diskUsage = Directories.getMaxPathToUtilization().getValue();
+        long liveSpaceUsedBytes = ColumnFamilyStore.getIfExists(keyspace, columnFamily).metric.liveDiskSpaceUsed.getCount();
 
+        if (liveSpaceUsedBytes < THROTTLER_TABLE_SIZE_BYTES || diskUsage < 0.80d)
+        {
+            logger.trace("No disk pressure or table {} too small {} - using default compaction throughput {} with rate limit of {} for disk usage {}.",
+                         SafeArg.of("ksCfPair", String.format("%s/%s", keyspace, columnFamily)),
+                         SafeArg.of("liveSpaceUsedBytes", liveSpaceUsedBytes),
+                         SafeArg.of("defaultCompactionThroughputMbPerSec", StorageService.instance.getCompactionThroughputMbPerSec()),
+                         SafeArg.of("defaultThroughput", defaultThroughput),
+                         SafeArg.of("diskUsage", diskUsage));
+            return defaultThroughput;
+        }
+
+        RateLimiter recommendedThroughput = defaultThroughput;
         if (diskUsage >= 0.90d)
         {
-            // 20 mb/s
-            recommendedCompactionThroughputMbPerSec = RateLimiter.create(20d * 1024 * 1024);
+            // 12.5% throughput - at least 10MB/s
+            recommendedThroughput = RateLimiter.create(Math.max(defaultThroughput.getRate() / 8, 10d * 1024 * 1024));
         }
         else if (diskUsage >= 0.85d)
         {
-            // 40 mb/s
-            recommendedCompactionThroughputMbPerSec = RateLimiter.create(40d * 1024 * 1024);
+            // 25% throughput - at least 20MB/s
+            recommendedThroughput = RateLimiter.create(Math.max(defaultThroughput.getRate() / 8, 20d * 1024 * 1024));
         }
         else if (diskUsage >= 0.80d)
         {
-            // 80 mb/s
-            recommendedCompactionThroughputMbPerSec = RateLimiter.create(80d * 1024 * 1024);
-        }
-        else {
-            // default
-            recommendedCompactionThroughputMbPerSec = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
+            // 50% throughput - at least 40MB/s
+            recommendedThroughput = RateLimiter.create(Math.max(defaultThroughput.getRate() / 8, 40d * 1024 * 1024));
         }
 
-        logger.debug("Due to disk usage of {} recommending througput of {}MBs with rate limit of {} for keyspace/table {}/{}. " +
+        logger.debug("Due to disk usage of {} for table {}, recommending throughput of {}MBs with rate limit of {} for keyspace/table {}/{}. " +
                      "Overwritten defaults were throughput {}MBs and rate limit  {}.",
+                     SafeArg.of("ksCfPair", String.format("%s/%s", keyspace, columnFamily)),
                      SafeArg.of("diskUsage", diskUsage),
-                     SafeArg.of("recommendedCompactionThroughputMbPerSec", recommendedCompactionThroughputMbPerSec.getRate() / 1024/ 1024),
-                     SafeArg.of("recommendedRateLimiter", recommendedCompactionThroughputMbPerSec),
+                     SafeArg.of("recommendedThroughputMbs", recommendedThroughput.getRate() / 1024/ 1024),
+                     SafeArg.of("recommendedRateLimiter", recommendedThroughput),
                      SafeArg.of("defaultCompactionThroughput", StorageService.instance.getCompactionThroughputMbPerSec()),
                      SafeArg.of("defaultRateLimiter", CompactionManager.instance.getRateLimiter()),
                      SafeArg.of("keyspace", keyspace),
                      SafeArg.of("table", columnFamily));
 
-        return recommendedCompactionThroughputMbPerSec;
+        return recommendedThroughput;
     }
 }
