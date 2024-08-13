@@ -20,7 +20,7 @@ public class CompactionThroughputThrottler
     public static RateLimiter getRateLimiter(String keyspace, String columnFamily)
     {
         RateLimiter defaultThroughput = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
-        if (ENABLE_COMPACTION_THROUGHPUT_THROTTLING)
+        if (!ENABLE_COMPACTION_THROUGHPUT_THROTTLING)
         {
             return defaultThroughput;
         }
