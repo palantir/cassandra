@@ -306,6 +306,7 @@ public class CompactionTask extends AbstractCompactionTask
         }
 
         AbstractCompactionStrategy strategy = cfs.getCompactionStrategy();
+
         while(true)
         {
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
