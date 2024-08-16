@@ -19,7 +19,6 @@ package org.apache.cassandra.db.compaction;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 import com.google.common.annotations.VisibleForTesting;
@@ -253,7 +252,8 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
                     // L0 makes no guarantees about overlapping-ness.  Just create a direct scanner for each
                     for (SSTableReader sstable : byLevel.get(level))
                     {
-                        scanners.add(sstable.getScanner(range, CompactionThroughputThrottler.getRateLimiter(sstable.descriptor.ksname, sstable.descriptor.cfname)));
+                        scanners.add(sstable.getScanner(range, CompactionThroughputThrottler.getRateLimiter(Pair.create(sstable.descriptor.ksname,
+                                                                                                                        sstable.descriptor.cfname))));
                     }
                 }
                 else
@@ -334,8 +334,7 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
             Collections.sort(this.sstables, SSTableReader.sstableComparator);
             sstableIterator = this.sstables.iterator();
             assert sstableIterator.hasNext(); // caller should check intersecting first
-            Pair<String, String> ksCf = sstablesToKsCfPair(sstables);
-            currentScanner = sstableIterator.next().getScanner(range, CompactionThroughputThrottler.getRateLimiter(ksCf.left, ksCf.right));
+            currentScanner = sstableIterator.next().getScanner(range, CompactionThroughputThrottler.getRateLimiter(sstablesToKsCfPair(sstables)));
         }
 
         public static List<SSTableReader> intersecting(Collection<SSTableReader> sstables, Range<Token> range)
@@ -370,24 +369,13 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
                         currentScanner = null;
                         return endOfData();
                     }
-                    Pair<String, String> ksCf = sstablesToKsCfPair(sstables);
-                    currentScanner = sstableIterator.next().getScanner(range, CompactionThroughputThrottler.getRateLimiter(ksCf.left, ksCf.right));
+                    currentScanner = sstableIterator.next().getScanner(range, CompactionThroughputThrottler.getRateLimiter(sstablesToKsCfPair(sstables)));
                 }
             }
             catch (IOException e)
             {
                 throw new RuntimeException(e);
             }
-        }
-
-        private Pair<String, String> sstablesToKsCfPair(Collection<SSTableReader> sstableReaders)
-        {
-            Set<Pair<String, String>> ksCfPairs = sstableReaders.stream().map(sstable -> Pair.create(sstable.getKeyspaceName(), sstable.getColumnFamilyName()))
-                                                                         .collect(Collectors.toSet());
-            Preconditions.checkArgument(ksCfPairs.size() == 1,
-                                        "An individual compaction should span a single keyspace/table pair {}",
-                                        SafeArg.of("keyspaceTablePair", ksCfPairs));
-            return ksCfPairs.stream().findFirst().get();
         }
 
         public void close() throws IOException

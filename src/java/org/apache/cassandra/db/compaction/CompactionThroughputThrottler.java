@@ -5,6 +5,7 @@ import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +18,10 @@ public class CompactionThroughputThrottler
     private static final long THROTTLER_TABLE_SIZE_BYTES = Long.getLong("palantir_cassandra.throttler_table_size_gb", 10L) * 1024L * 1024L * 1024L;
     private static final Logger logger = LoggerFactory.getLogger(CompactionThroughputThrottler.class);
 
-    public static RateLimiter getRateLimiter(String keyspace, String columnFamily)
+    public static RateLimiter getRateLimiter(Pair<String, String> ksCf)
     {
+        String keyspace = ksCf.left;
+        String columnFamily = ksCf.right;
         RateLimiter defaultRateLimit = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
         if (!ENABLE_COMPACTION_THROUGHPUT_THROTTLING)
         {
