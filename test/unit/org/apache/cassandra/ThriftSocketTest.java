@@ -67,16 +67,16 @@ public class ThriftSocketTest
     public void connectionHangs() throws TException, IOException
     {
         InetAddress ip = InetAddress.getLocalHost();
-        int port = 9000;
+        int port = 9043;
         ThriftServer server = new ThriftServer(ip, port, 10);
         server.start();
-        Cassandra.Client clientThatHasSentARequest = getClient(9000, (int) Duration.ofSeconds(2).toMillis());
+        Cassandra.Client clientThatHasSentARequest = getClient(port, (int) Duration.ofSeconds(2).toMillis());
         assertClientTimesOut(clientThatHasSentARequest);
 
-        Cassandra.Client clientThatHasConnectedButNotRequested = getClient(9000, (int) Duration.ofSeconds(5).toMillis());
+        Cassandra.Client clientThatHasConnectedButNotRequested = getClient(port, (int) Duration.ofSeconds(5).toMillis());
 
         server.stop();
-        assertThatThrownBy(() -> getClient(9000, 1000)).hasCauseInstanceOf(ConnectException.class);
+        assertThatThrownBy(() -> getClient(port, 1000)).hasCauseInstanceOf(ConnectException.class);
 
         assertThatThrownBy(clientThatHasConnectedButNotRequested::describe_keyspaces).hasCauseInstanceOf(SocketException.class).hasMessageContaining("Connection reset");
         // We would want this to be a socket closed/reset exception
