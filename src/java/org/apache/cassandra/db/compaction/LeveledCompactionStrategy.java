@@ -27,7 +27,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.google.common.primitives.Doubles;
 
-import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.utils.Pair;
