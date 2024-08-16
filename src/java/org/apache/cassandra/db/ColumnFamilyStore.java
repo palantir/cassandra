@@ -843,6 +843,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 continue; // old (initialized) SSTable found, skipping
             if (descriptor.type.isTemporary) // in the process of being written
                 continue;
+            if (entry.getValue().contains(Component.IS_COMPACTED))
+                continue;
 
             if (!descriptor.isCompatible())
                 throw new RuntimeException(String.format("Can't open incompatible SSTable! Current version %s, found file: %s",
