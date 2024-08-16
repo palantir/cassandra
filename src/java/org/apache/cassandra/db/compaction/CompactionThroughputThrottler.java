@@ -19,10 +19,10 @@ public class CompactionThroughputThrottler
 
     public static RateLimiter getRateLimiter(String keyspace, String columnFamily)
     {
-        RateLimiter defaultThroughput = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
+        RateLimiter defaultRateLimit = RateLimiter.create(CompactionManager.instance.getRateLimiter().getRate());
         if (!ENABLE_COMPACTION_THROUGHPUT_THROTTLING)
         {
-            return defaultThroughput;
+            return defaultRateLimit;
         }
 
         double diskUsage = Directories.getMaxPathToUtilization().getValue();
@@ -34,39 +34,38 @@ public class CompactionThroughputThrottler
                          SafeArg.of("ksCfPair", String.format("%s/%s", keyspace, columnFamily)),
                          SafeArg.of("liveSpaceUsedBytes", liveSpaceUsedBytes),
                          SafeArg.of("defaultCompactionThroughputMbPerSec", StorageService.instance.getCompactionThroughputMbPerSec()),
-                         SafeArg.of("defaultThroughput", defaultThroughput),
+                         SafeArg.of("defaultRateLimit", defaultRateLimit),
                          SafeArg.of("diskUsage", diskUsage));
-            return defaultThroughput;
+            return defaultRateLimit;
         }
 
-        RateLimiter recommendedThroughput = defaultThroughput;
+        RateLimiter recommendedRateLimit = defaultRateLimit;
         if (diskUsage >= 0.90d)
         {
             // 12.5% throughput - at least 10MB/s
-            recommendedThroughput = RateLimiter.create(Math.max(defaultThroughput.getRate() / 8, 10d * 1024 * 1024));
+            recommendedRateLimit = RateLimiter.create(Math.max(defaultRateLimit.getRate() / 8, 10d * 1024 * 1024));
         }
         else if (diskUsage >= 0.85d)
         {
             // 25% throughput - at least 20MB/s
-            recommendedThroughput = RateLimiter.create(Math.max(defaultThroughput.getRate() / 8, 20d * 1024 * 1024));
+            recommendedRateLimit = RateLimiter.create(Math.max(defaultRateLimit.getRate() / 4, 20d * 1024 * 1024));
         }
         else if (diskUsage >= 0.80d)
         {
             // 50% throughput - at least 40MB/s
-            recommendedThroughput = RateLimiter.create(Math.max(defaultThroughput.getRate() / 8, 40d * 1024 * 1024));
+            recommendedRateLimit = RateLimiter.create(Math.max(defaultRateLimit.getRate() / 2, 40d * 1024 * 1024));
         }
 
-        logger.debug("Due to disk usage of {} for table {}, recommending throughput of {}MBs with rate limit of {} for keyspace/table {}/{}. " +
-                     "Overwritten defaults were throughput {}MBs and rate limit  {}.",
-                     SafeArg.of("ksCfPair", String.format("%s/%s", keyspace, columnFamily)),
+        logger.debug("Due to disk usage of {} and table size of {} for ks/cf {}, recommending throughput of {}MBs with rate limit of {}. " +
+                     "Overwritten defaults were throughput {}MBs and rate limit {}.",
                      SafeArg.of("diskUsage", diskUsage),
-                     SafeArg.of("recommendedThroughputMbs", recommendedThroughput.getRate() / 1024/ 1024),
-                     SafeArg.of("recommendedRateLimiter", recommendedThroughput),
+                     SafeArg.of("liveSpaceUsedBytes", liveSpaceUsedBytes),
+                     SafeArg.of("ksCfPair", String.format("%s/%s", keyspace, columnFamily)),
+                     SafeArg.of("recommendedRateLimitMbs", recommendedRateLimit.getRate() / 1024/ 1024),
+                     SafeArg.of("recommendedRateLimit", recommendedRateLimit),
                      SafeArg.of("defaultCompactionThroughput", StorageService.instance.getCompactionThroughputMbPerSec()),
-                     SafeArg.of("defaultRateLimiter", CompactionManager.instance.getRateLimiter()),
-                     SafeArg.of("keyspace", keyspace),
-                     SafeArg.of("table", columnFamily));
+                     SafeArg.of("defaultRateLimiter", CompactionManager.instance.getRateLimiter()));
 
-        return recommendedThroughput;
+        return recommendedRateLimit;
     }
 }
