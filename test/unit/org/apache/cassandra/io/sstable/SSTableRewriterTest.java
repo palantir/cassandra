@@ -238,7 +238,7 @@ public class SSTableRewriterTest extends SchemaLoader
     }
 
     @Test
-    public void testFileRemoval() throws InterruptedException
+    public void testFileRemoval() throws InterruptedException, IOException
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE);
         ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF);

@@ -1682,7 +1682,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
      * @return true if the this is the first time the file was marked obsolete.  Calling this
      * multiple times is usually buggy (see exceptions in Tracker.unmarkCompacting and removeOldSSTablesSize).
      */
-    public boolean markObsolete(Tracker tracker)
+    public boolean markObsolete(Tracker tracker) throws IOException
     {
         if (logger.isTraceEnabled())
             logger.trace("Marking {} compacted", getFilename());
@@ -1691,7 +1691,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         {
             assert !tidy.isReplaced;
         }
-        if (!tidy.global.isCompacted.getAndSet(true))
+        if (!tidy.global.setCompacted())
         {
             tidy.type.markObsolete(this, tracker);
             return true;
@@ -2260,6 +2260,23 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
             this.desc = reader.descriptor;
             this.isCompacted = new AtomicBoolean();
             this.compactionStrategy = reader.metadata.compactionStrategyClass;
+        }
+
+        /**
+         * Mark this SSTable as having been compacted. This will create the {@link Component#IS_COMPACTED} component,
+         * which will indicate that this SSTable must be deleted unconditionally on next startup. It may not be deleted
+         * immediately during the lifetime of the current JVM, however, if its refcount is not yet zero (e.g. may still
+         * be streaming to another node).
+         *
+         * @return the previous value of isCompacted
+         * @throws IOException if there was an exception while creating the {@link Component#IS_COMPACTED} component
+         */
+        synchronized boolean setCompacted() throws IOException
+        {
+            File compactedMarker = new File(desc.filenameFor(Component.IS_COMPACTED));
+            boolean compactedMarkerCreated = compactedMarker.createNewFile();
+            isCompacted.set(true);
+            return !compactedMarkerCreated;
         }
 
         void ensureReadMeter()

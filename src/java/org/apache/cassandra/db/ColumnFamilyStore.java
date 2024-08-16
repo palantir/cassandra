@@ -614,6 +614,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 continue;
             }
 
+            if (components.contains(Component.IS_COMPACTED)) {
+                SSTable.delete(desc, components);
+                continue;
+            }
+
             File dataFile = new File(desc.filenameFor(Component.DATA));
             if (components.contains(Component.DATA) && dataFile.length() > 0)
                 // everything appears to be in order... moving on.
