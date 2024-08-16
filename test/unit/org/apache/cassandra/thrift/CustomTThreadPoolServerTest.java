@@ -43,7 +43,7 @@ public class CustomTThreadPoolServerTest
     public void stop_closesActiveSockets() throws TException, IOException
     {
         InetAddress ip = InetAddress.getLocalHost();
-        int port = 9043;
+        int port = DatabaseDescriptor.getRpcPort();
         ThriftServer server = new ThriftServer(ip, port, 10);
         server.start();
 
