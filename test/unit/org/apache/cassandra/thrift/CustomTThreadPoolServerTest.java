@@ -25,6 +25,7 @@ import java.time.Duration;
 
 import org.junit.Test;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -45,22 +46,23 @@ public class CustomTThreadPoolServerTest
         int port = 9043;
         ThriftServer server = new ThriftServer(ip, port, 10);
         server.start();
-        Cassandra.Client clientThatHasSentARequest = getClient(port, (int) Duration.ofSeconds(2).toMillis());
+
+        Cassandra.Client clientThatHasSentARequest = getClient(port);
+        Cassandra.Client clientThatHasConnectedButNotRequested = getClient(port);
+
         assertThat(clientThatHasSentARequest.describe_keyspaces()).isNotNull();
 
-        Cassandra.Client clientThatHasConnectedButNotRequested = getClient(port, (int) Duration.ofSeconds(2).toMillis());
-
         server.stop();
-        assertThatThrownBy(() -> getClient(port, 1000)).hasCauseInstanceOf(ConnectException.class);
 
+        assertThatThrownBy(() -> getClient(port)).hasCauseInstanceOf(ConnectException.class);
         // Waiting to receive data will result in a read timeout if the client socket is not closed as well
         assertThatThrownBy(clientThatHasConnectedButNotRequested::recv_describe_ring).hasMessageContaining("Socket is closed by peer");
         assertThatThrownBy(clientThatHasSentARequest::recv_describe_ring).hasMessageContaining("Socket is closed by peer");
     }
 
-    private static Cassandra.Client getClient(int port, int timeout) throws TTransportException
+    private static Cassandra.Client getClient(int port) throws TTransportException
     {
-        TTransport tr = new TFramedTransport(new TSocket("localhost", port, timeout));
+        TTransport tr = new TFramedTransport(new TSocket("localhost", port, 2000));
         TProtocol proto = new TBinaryProtocol(tr);
         Cassandra.Client client = new Cassandra.Client(proto);
         tr.open();
