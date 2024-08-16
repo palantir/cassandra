@@ -608,13 +608,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             Set<Component> components = sstableFiles.getValue();
 
-            if (desc.type.isTemporary)
+            if (desc.type.isTemporary || components.contains(Component.OBSOLETE))
             {
-                SSTable.delete(desc, components);
-                continue;
-            }
-
-            if (components.contains(Component.IS_COMPACTED)) {
                 SSTable.delete(desc, components);
                 continue;
             }
@@ -843,7 +838,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 continue; // old (initialized) SSTable found, skipping
             if (descriptor.type.isTemporary) // in the process of being written
                 continue;
-            if (entry.getValue().contains(Component.IS_COMPACTED))
+            if (entry.getValue().contains(Component.OBSOLETE))
                 continue;
 
             if (!descriptor.isCompatible())

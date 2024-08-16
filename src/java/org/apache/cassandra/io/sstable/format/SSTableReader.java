@@ -2263,17 +2263,17 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         }
 
         /**
-         * Mark this SSTable as having been compacted. This will create the {@link Component#IS_COMPACTED} component,
+         * Mark this SSTable as having been compacted. This will create the {@link Component#OBSOLETE} component,
          * which will indicate that this SSTable must be deleted unconditionally on next startup. It may not be deleted
          * immediately during the lifetime of the current JVM, however, if its refcount is not yet zero (e.g. may still
          * be streaming to another node).
          *
          * @return the previous value of isCompacted
-         * @throws IOException if there was an exception while creating the {@link Component#IS_COMPACTED} component
+         * @throws IOException if there was an exception while creating the {@link Component#OBSOLETE} component
          */
         synchronized boolean setCompacted() throws IOException
         {
-            File compactedMarker = new File(desc.filenameFor(Component.IS_COMPACTED));
+            File compactedMarker = new File(desc.filenameFor(Component.OBSOLETE));
             boolean compactedMarkerCreated = compactedMarker.createNewFile();
             isCompacted.set(true);
             return !compactedMarkerCreated;
