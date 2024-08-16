@@ -42,18 +42,15 @@ public class CompactionThroughputThrottler
         RateLimiter recommendedRateLimit = defaultRateLimit;
         if (diskUsage >= 0.90d)
         {
-            // 12.5% throughput - at least 10MB/s
-            recommendedRateLimit = RateLimiter.create(Math.max(defaultRateLimit.getRate() / 8, 10d * 1024 * 1024));
+            recommendedRateLimit = RateLimiter.create(Math.min(defaultRateLimit.getRate() / 8, defaultRateLimit.getRate()));
         }
         else if (diskUsage >= 0.85d)
         {
-            // 25% throughput - at least 20MB/s
-            recommendedRateLimit = RateLimiter.create(Math.max(defaultRateLimit.getRate() / 4, 20d * 1024 * 1024));
+            recommendedRateLimit = RateLimiter.create(Math.min(defaultRateLimit.getRate() / 4, defaultRateLimit.getRate()));
         }
         else if (diskUsage >= 0.80d)
         {
-            // 50% throughput - at least 40MB/s
-            recommendedRateLimit = RateLimiter.create(Math.max(defaultRateLimit.getRate() / 2, 40d * 1024 * 1024));
+            recommendedRateLimit = RateLimiter.create(Math.min(defaultRateLimit.getRate() / 2, defaultRateLimit.getRate()));
         }
 
         logger.debug("Due to disk usage of {} and table size of {} for ks/cf {}, recommending throughput of {}MBs with rate limit of {}. " +
