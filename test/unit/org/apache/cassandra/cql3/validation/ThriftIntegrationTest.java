@@ -158,6 +158,11 @@ public class ThriftIntegrationTest extends ThriftCQLTester
     }
 
     @Test
+    public void testShutdown() throws Throwable {
+
+    }
+
+    @Test
     public void testCounterTableCqlUpdates() throws Throwable
     {
         populateCounterTable();
