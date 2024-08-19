@@ -608,9 +608,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             Set<Component> components = sstableFiles.getValue();
 
-            if (desc.type.isTemporary || components.contains(Component.OBSOLETE))
+            if (desc.type.isTemporary)
             {
                 SSTable.delete(desc, components);
+                continue;
+            }
+            if (components.contains(Component.OBSOLETE))
+            {
+                logger.warn("Removing obselete (compacted into new SSTable but not deleted) SSTable {}", desc);
                 continue;
             }
 
