@@ -615,7 +615,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
             if (components.contains(Component.OBSOLETE))
             {
-                logger.warn("Removing obselete (compacted into new SSTable but not deleted) SSTable {}", desc);
+                logger.warn("Removing obsolete (compacted into new SSTable but not deleted) SSTable {}", desc);
                 SSTable.delete(desc, components);
                 continue;
             }
