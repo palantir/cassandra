@@ -55,6 +55,7 @@ public class Component
         SUMMARY("Summary.db"),
         // table of contents, stores the list of all components for the sstable
         TOC("TOC.txt"),
+        // marker that this SSTable should be scrubbed on startup (e.g. has been compacted into a new SSTable)
         OBSOLETE("Obsolete.txt"),
         // custom component, used by e.g. custom compaction strategy
         CUSTOM(null);
