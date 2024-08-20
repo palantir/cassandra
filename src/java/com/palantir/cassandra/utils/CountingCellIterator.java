@@ -20,6 +20,7 @@ import java.util.Iterator;
 
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ExpiringCell;
+import org.apache.cassandra.metrics.ColumnFamilyMetrics;
 import org.apache.cassandra.utils.MergeIterator;
 
 /**
@@ -38,6 +39,7 @@ import org.apache.cassandra.utils.MergeIterator;
 public class CountingCellIterator implements Iterator<Cell> {
     private final Iterator<Cell> delegate;
 
+    private final ColumnFamilyMetrics metrics;
     /*
      * Given the way SliceQueryFilter is passed these values, per ColumnFamilyStore.getColumnFamily(QueryFilter filter),
      * it is generally expected that gcBefore will be equivalent to { (now / 1000) - gc_grace_seconds }
@@ -50,12 +52,13 @@ public class CountingCellIterator implements Iterator<Cell> {
     private int liveCells = 0;
     private int tombstones = 0;
 
-    public static CountingCellIterator wrapIterator(Iterator<Cell> delegate, long timestamp, long gcBefore) {
-        return new CountingCellIterator(delegate, timestamp, gcBefore);
+    public static CountingCellIterator wrapIterator(Iterator<Cell> delegate, ColumnFamilyMetrics metrics, long timestamp, long gcBefore) {
+        return new CountingCellIterator(delegate, metrics, timestamp, gcBefore);
     }
 
-    private CountingCellIterator(Iterator<Cell> delegate, long timestamp, long gcBefore) {
+    private CountingCellIterator(Iterator<Cell> delegate, ColumnFamilyMetrics metrics, long timestamp, long gcBefore) {
         this.delegate = delegate;
+        this.metrics = metrics;
         this.gcBeforeSeconds = gcBefore;
         this.nowMillis = timestamp;
     }
@@ -103,6 +106,7 @@ public class CountingCellIterator implements Iterator<Cell> {
         } else if (ExpiringCell.class.isAssignableFrom(cell.getClass())) {
             droppableTtls++;
         } else if (cell.getLocalDeletionTime() < gcBeforeSeconds) {
+            metrics.droppableTombstones.mark();
             droppableTombstones++;
         } else {
             tombstones++;
