@@ -21,6 +21,7 @@ package org.apache.cassandra.thrift;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 
 import org.junit.Test;
@@ -60,9 +61,9 @@ public class CustomTThreadPoolServerTest
         assertThatThrownBy(clientThatHasSentARequest::recv_describe_ring).hasMessageContaining("Socket is closed by peer");
     }
 
-    private static Cassandra.Client getClient(int port) throws TTransportException
+    private static Cassandra.Client getClient(int port) throws TTransportException, UnknownHostException
     {
-        TTransport tr = new TFramedTransport(new TSocket("localhost", port, 2000));
+        TTransport tr = new TFramedTransport(new TSocket(InetAddress.getLocalHost().getHostAddress(), port, 2000));
         TProtocol proto = new TBinaryProtocol(tr);
         Cassandra.Client client = new Cassandra.Client(proto);
         tr.open();
