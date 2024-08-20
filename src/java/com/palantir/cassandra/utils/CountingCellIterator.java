@@ -106,7 +106,9 @@ public class CountingCellIterator implements Iterator<Cell> {
         } else if (ExpiringCell.class.isAssignableFrom(cell.getClass())) {
             droppableTtls++;
         } else if (cell.getLocalDeletionTime() < gcBeforeSeconds) {
-            metrics.droppableTombstones.mark();
+            if (metrics != null) {
+                metrics.droppableTombstones.mark();
+            }
             droppableTombstones++;
         } else {
             tombstones++;
