@@ -30,6 +30,7 @@ import com.palantir.cassandra.utils.RangeTombstoneCounter;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.metrics.ColumnFamilyMetrics;
 import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,14 +66,14 @@ public class SliceQueryFilter implements IDiskAtomFilter
     private boolean hitTombstoneFailureThreshold = false;
     private boolean hitTombstoneWarnThreshold = false;
 
-    private DeletionInfo deletionInfo;
-
     // Not serialized, just a ack for range slices to find the number of live column counted, even when we group
     private ColumnCounter columnCounter;
 
     private CountingCellIterator reducedCells;
 
     private RangeTombstoneCounter rangeTombstoneCounter = new RangeTombstoneCounter();
+
+    private volatile ColumnFamilyMetrics metrics;
 
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count)
     {
@@ -112,6 +113,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
                                              ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
                                              : null;
+    }
+
+    public void setMetrics(ColumnFamilyMetrics metrics) {
+        this.metrics = metrics;
     }
 
     public SliceQueryFilter cloneShallow()
@@ -276,10 +281,19 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public void collectReducedColumns(ColumnFamily container, Iterator<Cell> reducedColumns, DecoratedKey key, int gcBefore, long now)
     {
-        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, now, gcBefore);
+        reducedCells = CountingCellIterator.wrapIterator(reducedColumns, metrics, now, gcBefore);
         columnCounter = columnCounter(container.getComparator(), now);
-        deletionInfo = container.deletionInfo();
-        DeletionInfo.InOrderTester tester = container.deletionInfo().inOrderTester(reversed);
+        DeletionInfo deletionInfo = container.deletionInfo();
+        logger.trace("Ranged tombstones read {} and droppable {} for {}",
+                     deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
+                     deletionInfo.getRangeTombstoneCounter().getDroppableCount(), container.metadata().ksAndCFName);
+
+        metrics.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
+        metrics.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+        metrics.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
+
+        metrics.droppableTombstones.mark(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+        DeletionInfo.InOrderTester tester = deletionInfo.inOrderTester(reversed);
 
         boolean hasBreachedCollectionThreshold = false;
         long dataSizeCollected = 0;
@@ -498,10 +512,6 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public int lastReadTombstones()
     {
         return reducedCells == null ? 0 : reducedCells.tombstones();
-    }
-
-    public Optional<DeletionInfo> lastReadDeletionInfo() {
-        return Optional.ofNullable(deletionInfo);
     }
 
     @Override

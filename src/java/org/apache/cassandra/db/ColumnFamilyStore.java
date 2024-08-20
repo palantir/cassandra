@@ -2026,6 +2026,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         ColumnFamily result = null;
 
+        if (filter.filter instanceof SliceQueryFilter) {
+            ((SliceQueryFilter) filter.filter).setMetrics(metric);
+        }
+
         long start = System.nanoTime();
 
         int readDelay = DatabaseDescriptor.getReadDelay();
@@ -2093,7 +2097,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     private void recordMetrics(SliceQueryFilter filter) {
-        metric.droppableTombstones.mark(filter.lastReadDroppableTombstones());
         // Log the number of tombstones scanned on single key queries
         metric.tombstoneScannedHistogram.update(filter.lastTombstones());
         metric.liveScannedHistogram.update(filter.lastLive());
@@ -2101,21 +2104,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         metric.droppableTtlsReadHistogram.update(filter.lastReadDroppableTtls());
         metric.liveReadHistogram.update(filter.lastReadLive());
         metric.tombstonesReadHistogram.update(filter.lastReadTombstones());
-
-        Optional<DeletionInfo> maybeDeletionInfo = filter.lastReadDeletionInfo();
-
-        if (maybeDeletionInfo.isPresent()) {
-            DeletionInfo deletionInfo = maybeDeletionInfo.get();
-            logger.trace("Ranged tombstones read {} and droppable {} for {}.{}",
-                         deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
-                         deletionInfo.getRangeTombstoneCounter().getDroppableCount(), keyspace, getColumnFamilyName());
-
-            metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
-            metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-            metric.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
-
-            metric.droppableTombstones.mark(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-        }
 
         if (filter.hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
     }
@@ -2552,6 +2540,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
                 if (rowIterator.needsFiltering())
                 {
+                    IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
+                    if (queryFilter instanceof SliceQueryFilter) {
+                        ((SliceQueryFilter) queryFilter).setMetrics(metric);
+                    }
+
                     IDiskAtomFilter extraFilter = filter.getExtraFilter(rawRow.key, data);
                     if (extraFilter != null)
                     {
@@ -2569,7 +2562,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                     // cut the resultset back to what was requested, if necessary
                     data = filter.prune(rawRow.key, data);
 
-                    IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
                     if (queryFilter instanceof SliceQueryFilter) {
                         recordMetrics((SliceQueryFilter) queryFilter);
                     }
