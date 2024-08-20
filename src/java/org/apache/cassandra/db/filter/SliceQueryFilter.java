@@ -288,11 +288,14 @@ public class SliceQueryFilter implements IDiskAtomFilter
                      deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
                      deletionInfo.getRangeTombstoneCounter().getDroppableCount(), container.metadata().ksAndCFName);
 
-        metrics.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
-        metrics.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-        metrics.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
+        if (metrics != null)
+        {
+            metrics.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
+            metrics.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+            metrics.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
 
-        metrics.droppableTombstones.mark(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+            metrics.droppableTombstones.mark(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+        }
         DeletionInfo.InOrderTester tester = deletionInfo.inOrderTester(reversed);
 
         boolean hasBreachedCollectionThreshold = false;
