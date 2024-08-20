@@ -613,6 +613,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 SSTable.delete(desc, components);
                 continue;
             }
+            if (components.contains(Component.OBSOLETE))
+            {
+                logger.warn("Removing obsolete (compacted into new SSTable but not deleted) SSTable {}", desc);
+                SSTable.delete(desc, components);
+                continue;
+            }
 
             File dataFile = new File(desc.filenameFor(Component.DATA));
             if (components.contains(Component.DATA) && dataFile.length() > 0)
@@ -837,6 +843,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             if (currentDescriptors.contains(descriptor))
                 continue; // old (initialized) SSTable found, skipping
             if (descriptor.type.isTemporary) // in the process of being written
+                continue;
+            if (entry.getValue().contains(Component.OBSOLETE))
                 continue;
 
             if (!descriptor.isCompatible())

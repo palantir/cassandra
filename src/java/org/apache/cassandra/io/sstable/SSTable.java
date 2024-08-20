@@ -114,6 +114,7 @@ public abstract class SSTable
             FileUtils.deleteWithConfirm(desc.filenameFor(component));
         }
         FileUtils.delete(desc.filenameFor(Component.SUMMARY));
+        FileUtils.delete(desc.filenameFor(Component.OBSOLETE));
 
         logger.trace("Deleted {}", desc);
         return true;
