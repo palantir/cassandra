@@ -17,10 +17,13 @@
  */
 package org.apache.cassandra.thrift;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.Callable;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -77,8 +80,11 @@ public class CustomTThreadPoolServer extends TServer
     // Server options
     private final TThreadPoolServer.Args args;
 
-    //Track and Limit the number of connected clients
+    // Track and Limit the number of connected clients
     private final AtomicInteger activeClients;
+
+    // Tracks number of connections per client IP
+    private final ConcurrentHashMap<InetAddress, Integer> connections;
 
 
     public CustomTThreadPoolServer(TThreadPoolServer.Args args, ExecutorService executorService)
@@ -88,6 +94,8 @@ public class CustomTThreadPoolServer extends TServer
         this.stopped = false;
         this.args = args;
         this.activeClients = new AtomicInteger(0);
+        this.connections = new ConcurrentHashMap<>();
+
         registerMetrics();
     }
 
@@ -114,8 +122,14 @@ public class CustomTThreadPoolServer extends TServer
 
             try
             {
-                TTransport client = serverTransport_.accept();
+                TCustomSocket client = (TCustomSocket) serverTransport_.accept();
                 activeClients.incrementAndGet();
+
+                InetSocketAddress clientAddressAndIp = (InetSocketAddress) client.getSocket().getRemoteSocketAddress();
+                InetAddress clientAddress = clientAddressAndIp.getAddress();
+                int clientConnections = connections.merge(clientAddress, 1, Integer::sum);
+                logger.info("Client {} connected, its host now has {} connections. There are {} total connections", clientAddressAndIp, clientConnections, activeClients.get());
+
                 WorkerProcess wp = new WorkerProcess(client);
                 executorService.execute(wp);
             }
@@ -139,9 +153,7 @@ public class CustomTThreadPoolServer extends TServer
             }
 
             if (activeClients.get() >= args.maxWorkerThreads)
-            {
-                logger.warn("Maximum number of clients {} reached", args.maxWorkerThreads);
-            }
+                logger.warn("Maximum number of clients {} reached. All connections: {}", args.maxWorkerThreads, connections);
         }
 
         executorService.shutdown();
@@ -235,6 +247,9 @@ public class CustomTThreadPoolServer extends TServer
                     ThriftSessionManager.instance.connectionComplete(socket);
                 }
 
+                InetSocketAddress clientAddressAndIp = (InetSocketAddress) ((TCustomSocket) client_).getSocket().getRemoteSocketAddress();
+                InetAddress clientAddress = clientAddressAndIp.getAddress();
+                connections.computeIfPresent(clientAddress, (_ip, count) -> count - 1);
                 activeClients.decrementAndGet();
             }
         }
