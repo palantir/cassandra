@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.objects;
+package com.palantir.cassandra.actions;
 
 import java.util.Optional;
 import java.util.UUID;
 
+import com.palantir.cassandra.objects.Wrapper;
+
 public final class VolumeMetadata extends Wrapper<String>
 {
-    private static final String POD_NAME_ENV = "POD_NAME";
+    public static final String POD_NAME_ENV = "POD_NAME";
 
     private final UUID hostId;
 
@@ -44,5 +46,15 @@ public final class VolumeMetadata extends Wrapper<String>
     public static VolumeMetadata of(UUID hostId)
     {
         return new VolumeMetadata(hostId);
+    }
+
+    public UUID getHostId()
+    {
+        return hostId;
+    }
+
+    public Optional<String> getPodName()
+    {
+        return podName;
     }
 }

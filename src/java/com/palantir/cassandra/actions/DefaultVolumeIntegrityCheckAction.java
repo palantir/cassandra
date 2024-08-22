@@ -18,47 +18,72 @@
 
 package com.palantir.cassandra.actions;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.palantir.cassandra.utils.FileParser;
 import com.palantir.logsafe.Preconditions;
 
 /**
  * Check if the backing volume has been tampered with. While Cassandra supports multiple data drive, we only
  * use 1 data drive.
  */
-public final class VolumeIntegrityCheckAction implements Action
+public final class DefaultVolumeIntegrityCheckAction implements Action
 {
-    private static final int MAX_EXPECTED_DATA_DRIVE = 1;
-
     private final UUID hostId;
 
-    private final Optional<VolumeMetadata> maybeDataDriveMetadata;
+    private final FileParser<VolumeMetadata> dataDriveMetadataFileParser;
 
-    private final Optional<VolumeMetadata> maybeCommitLogMetadata;
+    private final FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    public VolumeIntegrityCheckAction(UUID hostId,
-                                      Optional<VolumeMetadata> maybeDataDriveMetadata,
-                                      Optional<VolumeMetadata> maybeCommitLogMetadata)
+    public DefaultVolumeIntegrityCheckAction(UUID hostId,
+                                             FileParser<VolumeMetadata> dataDriveMetadataFileParser,
+                                             FileParser<VolumeMetadata> commitLogMetadataFileParser)
     {
         this.hostId = hostId;
-        this.maybeDataDriveMetadata = maybeDataDriveMetadata;
-        this.maybeCommitLogMetadata = maybeCommitLogMetadata;
+        this.dataDriveMetadataFileParser = dataDriveMetadataFileParser;
+        this.commitLogMetadataFileParser = commitLogMetadataFileParser;
     }
 
     public void execute()
     {
+        try
+        {
+            Optional<VolumeMetadata> maybeDataDriveMetadata = dataDriveMetadataFileParser.read();
+            Optional<VolumeMetadata> maybeCommitLogMetadata = commitLogMetadataFileParser.read();
+            check(maybeDataDriveMetadata, maybeCommitLogMetadata);
+
+            // Write order matters here. We treat write to the data drive as
+            // a "locking" operation, i.e the node is in a steady state.
+            writeIfEmpty(commitLogMetadataFileParser, maybeCommitLogMetadata.isPresent());
+            writeIfEmpty(dataDriveMetadataFileParser, maybeDataDriveMetadata.isPresent());
+        }
+        catch (IOException cause)
+        {
+            throw new RuntimeException("Fail to execute check for volume integrity", cause);
+        }
+    }
+
+    private void check(Optional<VolumeMetadata> maybeDataDriveMetadata, Optional<VolumeMetadata> maybeCommitLogMetadata)
+    {
         if (maybeCommitLogMetadata.isPresent())
         {
-            VolumeMetadata commitLogMetadata = maybeCommitLogMetadata.get();
-            Preconditions.checkState(hostId.equals(commitLogMetadata.getHostId()),
-                                     "Expected SystemKeyspace HostId to match with commitlog");
-            Preconditions.checkState(VolumeMetadata.of(hostId).equals(commitLogMetadata));
+            Preconditions.checkState(VolumeMetadata.of(hostId).equals(maybeCommitLogMetadata.get()),
+                                     "Expected SystemKeyspace HostId and POD_NAME to match with commitlog");
         }
         else
         {
-            Preconditions.checkState(maybeDataDriveMetadata.isEmpty(),
+            Preconditions.checkState(!maybeDataDriveMetadata.isPresent(),
                                      "Expected no metadata has been written to data drive if commitlog is empty");
+        }
+    }
+
+    private void writeIfEmpty(FileParser<VolumeMetadata> parser, boolean present) throws IOException
+    {
+        if (!present)
+        {
+            parser.write(VolumeMetadata.of(hostId));
         }
     }
 }

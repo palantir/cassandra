@@ -18,18 +18,23 @@
 
 package com.palantir.cassandra.actions;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.palantir.cassandra.utils.FileParser;
 import org.assertj.core.api.Assertions;
 
-public final class VolumeIntegrityCheckActionTest
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
+
+public final class DefaultVolumeIntegrityCheckActionTest
 {
     private static final UUID HOST_1 = UUID.randomUUID();
 
@@ -38,6 +43,12 @@ public final class VolumeIntegrityCheckActionTest
     private static final String POD_NAME_1 = "pod-1";
 
     private static final String POD_NAME_2 = "pod-2";
+
+    private static final FileParser<VolumeMetadata> dataDriveMetadataFileParser = mock(FileParser.class);
+
+    private static final FileParser<VolumeMetadata> commitLogMetadataFileParser = mock(FileParser.class);
+
+    private static Action action = new DefaultVolumeIntegrityCheckAction(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
 
     @Before
     public void beforeEach()
@@ -48,28 +59,32 @@ public final class VolumeIntegrityCheckActionTest
     @Test
     public void execute_commitLogIfPresentHaveSameHostIdPass()
     {
-        Action action = new VolumeIntegrityCheckAction(HOST_1, Optional.empty(), volumeMetadataFrom(HOST_1));
+        mockParserRead(dataDriveMetadataFileParser, Optional.empty());
+        mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
         Assertions.assertThatCode(action::execute).doesNotThrowAnyException();
     }
 
     @Test
     public void execute_commitLogIfPresentHaveDifferentHostIdThrows()
     {
-        Action action = new VolumeIntegrityCheckAction(HOST_1, Optional.empty(), volumeMetadataFrom(HOST_2));
+        mockParserRead(dataDriveMetadataFileParser, Optional.empty());
+        mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_2));
         Assertions.assertThatCode(action::execute).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     public void execute_commitLogIfPresentHaveSamePodNameEnvPass()
     {
-        Action action = new VolumeIntegrityCheckAction(HOST_1, Optional.empty(), volumeMetadataFrom(HOST_1));
+        mockParserRead(dataDriveMetadataFileParser, Optional.empty());
+        mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
         Assertions.assertThatCode(action::execute).doesNotThrowAnyException();
     }
 
     @Test
     public void execute_commitLogIfPresentHaveDifferentPodNameEnvThrows()
     {
-        Action action = new VolumeIntegrityCheckAction(HOST_1, Optional.empty(), volumeMetadataFrom(HOST_1));
+        mockParserRead(dataDriveMetadataFileParser, Optional.empty());
+        mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_2);
         Assertions.assertThatCode(action::execute).isInstanceOf(IllegalStateException.class);
     }
@@ -77,19 +92,42 @@ public final class VolumeIntegrityCheckActionTest
     @Test
     public void execute_commitLogIfNotPresentEmptyDataDrivePass()
     {
-        Action action = new VolumeIntegrityCheckAction(HOST_1, Optional.empty(), Optional.empty());
+        mockParserRead(dataDriveMetadataFileParser, Optional.empty());
+        mockParserRead(commitLogMetadataFileParser, Optional.empty());
         Assertions.assertThatCode(action::execute).doesNotThrowAnyException();
     }
 
     @Test
     public void execute_commitLogIfNotPresentNonEmptyDataDriveThrows()
     {
-        Action action = new VolumeIntegrityCheckAction(HOST_1,
-                                                       volumeMetadataFrom(HOST_1),
-                                                       Optional.empty());
+        mockParserRead(dataDriveMetadataFileParser, volumeMetadataFrom(HOST_1));
+        mockParserRead(commitLogMetadataFileParser, Optional.empty());
         Assertions.assertThatCode(action::execute).isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    public void execute_onlyWriteWhenEmpty() throws IOException
+    {
+        mockParserRead(dataDriveMetadataFileParser, Optional.empty());
+        mockParserRead(commitLogMetadataFileParser, Optional.empty());
+        action.execute();
+        verify(dataDriveMetadataFileParser).write(VolumeMetadata.of(HOST_1));
+        verify(commitLogMetadataFileParser).write(VolumeMetadata.of(HOST_1));
+    }
+
+    private static void mockParserRead(FileParser<VolumeMetadata> parser, Optional<VolumeMetadata> metadata)
+    {
+        try
+        {
+            when(parser.read()).thenReturn(metadata);
+        }
+        catch (Exception exception)
+        {
+            throw new RuntimeException(exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked") // Supress type cast from System.getenv
     private static Map<String, String> withMutableEnv()
     {
         try
