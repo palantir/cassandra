@@ -48,12 +48,13 @@ public final class DefaultVolumeIntegrityCheckActionTest
 
     private static final FileParser<VolumeMetadata> commitLogMetadataFileParser = mock(FileParser.class);
 
-    private static Action action = new DefaultVolumeIntegrityCheckAction(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
+    private static Action action;
 
     @Before
     public void beforeEach()
     {
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_1);
+        action =  new DefaultVolumeIntegrityCheckAction(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
     }
 
     @Test
