@@ -29,16 +29,16 @@ public final class VolumeMetadata extends Wrapper<String>
 
     private final UUID hostId;
 
-    private final Optional<String> podName;
+    private final String podName;
 
     public VolumeMetadata(UUID hostId)
     {
-        this(hostId, Optional.ofNullable(System.getenv(POD_NAME_ENV)));
+        this(hostId, Optional.ofNullable(System.getenv(POD_NAME_ENV)).orElse(""));
     }
 
-    public VolumeMetadata(UUID hostId, Optional<String> podName)
+    public VolumeMetadata(UUID hostId, String podName)
     {
-        super(String.format("%s:%s", hostId, podName.orElse("")));
+        super(String.format("%s:%s", hostId, podName));
         this.hostId = hostId;
         this.podName = podName;
     }
@@ -53,7 +53,7 @@ public final class VolumeMetadata extends Wrapper<String>
         return hostId;
     }
 
-    public Optional<String> getPodName()
+    public String getPodName()
     {
         return podName;
     }
