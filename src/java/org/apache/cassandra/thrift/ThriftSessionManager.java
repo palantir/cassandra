@@ -105,13 +105,7 @@ public class ThriftSessionManager
     public void closeActiveClients() throws IOException
     {
         Set<TTransport> currentActive = ImmutableSet.copyOf(activeClients);
-        for (TTransport client : currentActive)
-        {
-            if (client.isOpen())
-            {
-                client.close();
-            }
-        }
+        currentActive.stream().filter(TTransport::isOpen).forEach(TTransport::close);
         activeClients.removeAll(currentActive);
     }
 }
