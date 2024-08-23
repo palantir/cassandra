@@ -718,7 +718,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // any of the ancestors would work, so we'll just lookup the compaction task ID with the first one
                 UUID compactionTaskID = unfinishedCompactions.get(ancestors.iterator().next());
                 assert compactionTaskID != null;
-                logger.trace("Going to delete unfinished compaction product {}", desc);
+                logger.info("Going to delete unfinished compaction product {}", desc);
                 SSTable.delete(desc, sstableFiles.getValue());
                 SystemKeyspace.finishCompaction(compactionTaskID);
             }
@@ -735,7 +735,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             if (completedAncestors.contains(desc.generation))
             {
                 // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.trace("Going to delete leftover compaction ancestor {}", desc);
+                logger.info("Going to delete leftover compaction ancestor {}", desc);
                 SSTable.delete(desc, sstableFiles.getValue());
                 UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
                 if (compactionTaskID != null)
