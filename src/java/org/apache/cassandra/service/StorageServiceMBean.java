@@ -646,7 +646,23 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * @param sourceDc Name of DC from which to select sources for streaming or null to pick any node
      * @param keyspace Name of the keyspace which to rebuild or null to rebuild all keyspaces.
      */
+    @Deprecated
     public void rebuild(String sourceDc, String keyspace);
+
+    /**
+     * Same as {@link #rebuild(String)}, but only for specified keyspace and ranges.
+     * <p>
+     * This API is Backported from Cassandra 3.11
+     *
+     * @apiNote tokens and specificSources are not supported on this release and must be set to null.
+     *
+     * @param sourceDc Name of DC from which to select sources for streaming or null to pick any node
+     * @param keyspace Name of the keyspace which to rebuild or null to rebuild all keyspaces.
+     * @param tokens   Range of tokens to rebuild or null to rebuild all token ranges. In the format of:
+     *                 "(start_token_1,end_token_1],(start_token_2,end_token_2],...(start_token_n,end_token_n]"
+     * @param specificSources Comma-separated list of hostnames to stream from during the rebuild
+     */
+    public void rebuild(String sourceDc, String keyspace, String tokens, String specificSources);
 
     /** True if this node is rebuilding and receiving data. */
     public boolean isRebuilding();

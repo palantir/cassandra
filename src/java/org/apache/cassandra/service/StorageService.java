@@ -1378,6 +1378,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void rebuild(String sourceDc, String keyspace, String tokens, String specificSources)
+    {
+        if (tokens != null)
+        {
+            throw new UnsupportedOperationException("Rebuild with specific tokens is not supported");
+        }
+        if (specificSources != null)
+        {
+            throw new UnsupportedOperationException("Rebuild with specificSources is not supported");
+        }
+        rebuild(sourceDc, keyspace);
+    }
+
     public boolean isRebuilding()
     {
         return isRebuilding.get();
