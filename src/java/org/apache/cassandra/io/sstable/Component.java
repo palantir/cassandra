@@ -55,8 +55,6 @@ public class Component
         SUMMARY("Summary.db"),
         // table of contents, stores the list of all components for the sstable
         TOC("TOC.txt"),
-        // marker that this SSTable should be scrubbed on startup (e.g. has been compacted into a new SSTable)
-        OBSOLETE("Obsolete.txt"),
         // custom component, used by e.g. custom compaction strategy
         CUSTOM(null);
 
@@ -84,7 +82,6 @@ public class Component
     public final static Component DIGEST = new Component(Type.DIGEST);
     public final static Component CRC = new Component(Type.CRC);
     public final static Component SUMMARY = new Component(Type.SUMMARY);
-    public final static Component OBSOLETE = new Component(Type.OBSOLETE);
     public final static Component TOC = new Component(Type.TOC);
 
     public final Type type;
@@ -139,7 +136,6 @@ public class Component
             case CRC:               component = Component.CRC;                          break;
             case SUMMARY:           component = Component.SUMMARY;                      break;
             case TOC:               component = Component.TOC;                          break;
-            case OBSOLETE:          component = Component.OBSOLETE;                     break;
             case CUSTOM:            component = new Component(Type.CUSTOM, path.right); break;
             default:
                  throw new IllegalStateException();
