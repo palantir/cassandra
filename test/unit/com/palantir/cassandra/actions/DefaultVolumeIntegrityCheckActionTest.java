@@ -28,6 +28,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.palantir.cassandra.utils.FileParser;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.assertj.core.api.Assertions;
 
 import static org.mockito.Mockito.times;
@@ -115,6 +116,9 @@ public final class DefaultVolumeIntegrityCheckActionTest
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, Optional.empty());
         action.execute();
+        // Second time has no effect
+        action.execute();
+
         verify(dataDriveMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
         verify(commitLogMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
     }
