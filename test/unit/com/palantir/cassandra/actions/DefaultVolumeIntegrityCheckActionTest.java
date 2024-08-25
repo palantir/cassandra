@@ -116,6 +116,9 @@ public final class DefaultVolumeIntegrityCheckActionTest
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, Optional.empty());
         action.execute();
+
+        mockParserRead(dataDriveMetadataFileParser, volumeMetadataFrom(HOST_1));
+        mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
         // Second time has no effect
         action.execute();
 
