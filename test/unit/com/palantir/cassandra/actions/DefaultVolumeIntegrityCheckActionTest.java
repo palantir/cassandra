@@ -30,6 +30,7 @@ import org.junit.Test;
 import com.palantir.cassandra.utils.FileParser;
 import org.assertj.core.api.Assertions;
 
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
@@ -44,16 +45,18 @@ public final class DefaultVolumeIntegrityCheckActionTest
 
     private static final String POD_NAME_2 = "pod-2";
 
-    private static final FileParser<VolumeMetadata> dataDriveMetadataFileParser = mock(FileParser.class);
+    private FileParser<VolumeMetadata> dataDriveMetadataFileParser;
 
-    private static final FileParser<VolumeMetadata> commitLogMetadataFileParser = mock(FileParser.class);
+    private FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    private static Action action;
+    private Action action;
 
     @Before
     public void beforeEach()
     {
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_1);
+        dataDriveMetadataFileParser = mock(FileParser.class);
+        commitLogMetadataFileParser = mock(FileParser.class);
         action =  new DefaultVolumeIntegrityCheckAction(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
     }
 
@@ -112,8 +115,8 @@ public final class DefaultVolumeIntegrityCheckActionTest
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, Optional.empty());
         action.execute();
-        verify(dataDriveMetadataFileParser).write(VolumeMetadata.of(HOST_1));
-        verify(commitLogMetadataFileParser).write(VolumeMetadata.of(HOST_1));
+        verify(dataDriveMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
+        verify(commitLogMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
     }
 
     private static void mockParserRead(FileParser<VolumeMetadata> parser, Optional<VolumeMetadata> metadata)
