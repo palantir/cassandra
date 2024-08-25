@@ -53,6 +53,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
 
+import net.nicoulaj.compilecommand.annotations.Print;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ColumnFamilyStoreMBean;
 import org.apache.cassandra.db.HintedHandOffManager;
@@ -101,6 +102,7 @@ public class NodeProbe implements AutoCloseable
     final int port;
     private String username;
     private String password;
+    private final PrintStream output;
 
     protected JMXConnector jmxc;
     protected MBeanServerConnection mbeanServerConn;
@@ -127,6 +129,11 @@ public class NodeProbe implements AutoCloseable
      */
     public NodeProbe(String host, int port, String username, String password) throws IOException
     {
+        this(host, port, username, password, System.out);
+    }
+
+    public NodeProbe(String host, int port, String username, String password, PrintStream output) throws IOException
+    {
         assert username != null && !username.isEmpty() && password != null && !password.isEmpty()
                : "neither username nor password can be blank";
 
@@ -134,6 +141,7 @@ public class NodeProbe implements AutoCloseable
         this.port = port;
         this.username = username;
         this.password = password;
+        this.output = output;
         connect();
     }
 
@@ -146,8 +154,14 @@ public class NodeProbe implements AutoCloseable
      */
     public NodeProbe(String host, int port) throws IOException
     {
+        this(host, port, System.out);
+    }
+
+    public NodeProbe(String host, int port, PrintStream output) throws IOException
+    {
         this.host = host;
         this.port = port;
+        this.output = output;
         connect();
     }
 
@@ -161,6 +175,7 @@ public class NodeProbe implements AutoCloseable
     {
         this.host = host;
         this.port = defaultPort;
+        output = System.out;
         connect();
     }
 
@@ -169,6 +184,7 @@ public class NodeProbe implements AutoCloseable
         // this constructor is only used for extensions to rewrite their own connect method
         this.host = "";
         this.port = 0;
+        output = System.out;
     }
 
     /**
@@ -1441,6 +1457,11 @@ public class NodeProbe implements AutoCloseable
     public MessagingServiceMBean getMessagingServiceProxy()
     {
         return msProxy;
+    }
+
+    public PrintStream getOutput()
+    {
+        return output;
     }
 }
 

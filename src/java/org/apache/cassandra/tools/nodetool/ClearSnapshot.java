@@ -55,7 +55,7 @@ public class ClearSnapshot extends NodeToolCmd
         if (!snapshotName.isEmpty())
             sb.append(" with snapshot name [").append(snapshotName).append("]");
 
-        System.out.println(sb.toString());
+        probe.getOutput().println(sb.toString());
 
         try
         {

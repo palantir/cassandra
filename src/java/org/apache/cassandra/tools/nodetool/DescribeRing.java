@@ -35,13 +35,13 @@ public class DescribeRing extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        System.out.println("Schema Version:" + probe.getSchemaVersion());
-        System.out.println("TokenRange: ");
+        probe.getOutput().println("Schema Version:" + probe.getSchemaVersion());
+        probe.getOutput().println("TokenRange: ");
         try
         {
             for (String tokenRangeString : probe.describeRing(keyspace))
             {
-                System.out.println("\t" + tokenRangeString);
+                probe.getOutput().println("\t" + tokenRangeString);
             }
         } catch (IOException e)
         {

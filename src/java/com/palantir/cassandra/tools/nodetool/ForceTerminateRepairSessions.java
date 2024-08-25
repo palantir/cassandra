@@ -29,8 +29,8 @@ public class ForceTerminateRepairSessions extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        System.out.println("Attempting to force terminate all running and already queued repair sessions on this host...");
+        probe.getOutput().println("Attempting to force terminate all running and already queued repair sessions on this host...");
         probe.forceTerminateActiveRepairSessions();
-        System.out.println("Done.");
+        probe.getOutput().println("Done.");
     }
 }

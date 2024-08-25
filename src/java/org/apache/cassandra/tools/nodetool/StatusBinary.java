@@ -28,7 +28,7 @@ public class StatusBinary extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        System.out.println(
+        probe.getOutput().println(
                 probe.isNativeTransportRunning()
                 ? "running"
                 : "not running");

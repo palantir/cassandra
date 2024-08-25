@@ -20,6 +20,7 @@ package org.apache.cassandra.tools.nodetool;
 import static java.lang.String.format;
 import io.airlift.command.Command;
 
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
@@ -51,38 +52,38 @@ public class DynamicEndpointSnitchStats extends NodeToolCmd
         try
         {
             DynamicEndpointSnitchMBean dynamicSnitchProxy = probe.getDynamicEndpointSnitchProxy();
-            printConfiguration(dynamicSnitchProxy);
+            printConfiguration(probe.getOutput(), dynamicSnitchProxy);
             // display snitch scores for each node
-            System.out.println("Dynamic Endpoint Snitch Scores:");
+            probe.getOutput().println("Dynamic Endpoint Snitch Scores:");
             Map<InetAddress, Double> snitchScores = dynamicSnitchProxy.getScores();
             for (InetAddress address : snitchScores.keySet())
             {
-                System.out.println(format("\t%s: %s", address.getCanonicalHostName(), snitchScores.get(address)));
+                probe.getOutput().println(format("\t%s: %s", address.getCanonicalHostName(), snitchScores.get(address)));
             }
             if (timings) {
-                printTimings(dynamicSnitchProxy, snitchScores.keySet());
+                printTimings(probe.getOutput(), dynamicSnitchProxy, snitchScores.keySet());
             }
         } catch (RuntimeException e) {
             if ((e.getCause() instanceof InstanceNotFoundException)) {
-                System.out.println("Error getting DynamicEndpointSnitch proxy--Dynamic snitch may not be enabled on this cluster.");
+                probe.getOutput().println("Error getting DynamicEndpointSnitch proxy--Dynamic snitch may not be enabled on this cluster.");
             }
         }
     }
 
-    private void printConfiguration(DynamicEndpointSnitchMBean dynamicSnitchProxy) {
-        System.out.println("Dynamic Endpoint Snitch Configuration:");
-        System.out.println("\tUpdate Interval (ms): " + dynamicSnitchProxy.getUpdateInterval());
-        System.out.println("\tReset Interval (ms): " + dynamicSnitchProxy.getResetInterval());
-        System.out.println("\tBadness Threshold: " + dynamicSnitchProxy.getBadnessThreshold());
-        System.out.println("\tSubsnitch: " + dynamicSnitchProxy.getSubsnitchClassName());
-        System.out.println("\tSeverity: " + dynamicSnitchProxy.getSeverity());
+    private void printConfiguration(PrintStream output, DynamicEndpointSnitchMBean dynamicSnitchProxy) {
+        output.println("Dynamic Endpoint Snitch Configuration:");
+        output.println("\tUpdate Interval (ms): " + dynamicSnitchProxy.getUpdateInterval());
+        output.println("\tReset Interval (ms): " + dynamicSnitchProxy.getResetInterval());
+        output.println("\tBadness Threshold: " + dynamicSnitchProxy.getBadnessThreshold());
+        output.println("\tSubsnitch: " + dynamicSnitchProxy.getSubsnitchClassName());
+        output.println("\tSeverity: " + dynamicSnitchProxy.getSeverity());
     }
 
-    private void printTimings(DynamicEndpointSnitchMBean dynamicEndpointSnitch, Set<InetAddress> nodes) {
-        System.out.println("Timings sent to Dynamic Snitch (ms): ");
+    private void printTimings(PrintStream output, DynamicEndpointSnitchMBean dynamicEndpointSnitch, Set<InetAddress> nodes) {
+        output.println("Timings sent to Dynamic Snitch (ms): ");
         for (InetAddress address : nodes)
         {
-            System.out.println(format("\t%s:", address.getCanonicalHostName()));
+            output.println(format("\t%s:", address.getCanonicalHostName()));
             try {
                 List<Double> scores = dynamicEndpointSnitch.dumpTimings(address.getHostName());
                 Map<Double, Integer> scoresToCounts = new HashMap<>();
@@ -96,10 +97,10 @@ public class DynamicEndpointSnitchStats extends NodeToolCmd
                 List<Double> sortedScores = Lists.newArrayList(scoresToCounts.keySet());
                 Collections.sort(sortedScores);
                 for (Double score : sortedScores) {
-                    System.out.println(String.format("\t\t%f ms (%d occurrences)", score, scoresToCounts.get(score)));
+                    output.println(String.format("\t\t%f ms (%d occurrences)", score, scoresToCounts.get(score)));
                 }
             } catch (UnknownHostException e) {
-                System.out.println(String.format("Error getting timings for %s", address.getCanonicalHostName()));
+                output.println(String.format("Error getting timings for %s", address.getCanonicalHostName()));
             }
 
         }

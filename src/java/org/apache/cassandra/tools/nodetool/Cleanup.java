@@ -52,7 +52,7 @@ public class Cleanup extends NodeToolCmd
 
             try
             {
-                probe.forceKeyspaceCleanup(System.out, jobs, keyspace, cfnames);
+                probe.forceKeyspaceCleanup(probe.getOutput(), jobs, keyspace, cfnames);
             } catch (Exception e)
             {
                 throw new RuntimeException("Error occurred during cleanup", e);
