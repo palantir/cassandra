@@ -16,30 +16,35 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.actions;
+package com.palantir.cassandra.check;
 
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
 import com.palantir.cassandra.utils.FileParser;
 import com.palantir.logsafe.Preconditions;
+import org.apache.cassandra.config.DatabaseDescriptor;
 
 /**
  * Check if the backing volume has been tampered with. While Cassandra supports multiple data drive, we only
  * use 1 data drive.
  */
-public final class DefaultVolumeIntegrityCheckAction implements Action
+public final class VolumeIntegrityCheck
 {
+    private static final String METADATA_NAME = "cassandra-metadata.json";
+
     private final UUID hostId;
 
     private final FileParser<VolumeMetadata> dataDriveMetadataFileParser;
 
     private final FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    public DefaultVolumeIntegrityCheckAction(UUID hostId,
-                                             FileParser<VolumeMetadata> dataDriveMetadataFileParser,
-                                             FileParser<VolumeMetadata> commitLogMetadataFileParser)
+    public VolumeIntegrityCheck(UUID hostId,
+                                FileParser<VolumeMetadata> dataDriveMetadataFileParser,
+                                FileParser<VolumeMetadata> commitLogMetadataFileParser)
     {
         this.hostId = hostId;
         this.dataDriveMetadataFileParser = dataDriveMetadataFileParser;
@@ -85,5 +90,19 @@ public final class DefaultVolumeIntegrityCheckAction implements Action
         {
             parser.write(VolumeMetadata.of(hostId));
         }
+    }
+
+    public static VolumeIntegrityCheck of(UUID hostId) {
+        String dataDirectory = Arrays
+                               .stream(DatabaseDescriptor.getAllDataFileLocations())
+                               .findFirst()
+                               .orElseThrow(() -> new RuntimeException("No data directory found"));
+        String commitLogDirectory = DatabaseDescriptor.getCommitLogLocation();
+        return new VolumeIntegrityCheck(hostId, withParser(dataDirectory), withParser(commitLogDirectory));
+    }
+
+    private static FileParser<VolumeMetadata> withParser(String path)
+    {
+        return new FileParser<>(Paths.get(path, METADATA_NAME), VolumeMetadata.class);
     }
 }

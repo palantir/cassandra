@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.actions;
+package com.palantir.cassandra.check;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -28,7 +28,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.palantir.cassandra.utils.FileParser;
-import org.apache.cassandra.config.DatabaseDescriptor;
 import org.assertj.core.api.Assertions;
 
 import static org.mockito.Mockito.times;
@@ -36,7 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
-public final class DefaultVolumeIntegrityCheckActionTest
+public final class VolumeIntegrityCheckTest
 {
     private static final UUID HOST_1 = UUID.randomUUID();
 
@@ -50,7 +49,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
 
     private FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    private Action action;
+    private VolumeIntegrityCheck check;
 
     @Before
     public void beforeEach()
@@ -58,7 +57,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_1);
         dataDriveMetadataFileParser = mock(FileParser.class);
         commitLogMetadataFileParser = mock(FileParser.class);
-        action =  new DefaultVolumeIntegrityCheckAction(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
+        check =  new VolumeIntegrityCheck(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
     }
 
     @Test
@@ -66,7 +65,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
     {
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
-        Assertions.assertThatCode(action::execute).doesNotThrowAnyException();
+        Assertions.assertThatCode(check::execute).doesNotThrowAnyException();
     }
 
     @Test
@@ -74,7 +73,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
     {
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_2));
-        Assertions.assertThatCode(action::execute).isInstanceOf(IllegalStateException.class);
+        Assertions.assertThatCode(check::execute).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -82,7 +81,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
     {
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
-        Assertions.assertThatCode(action::execute).doesNotThrowAnyException();
+        Assertions.assertThatCode(check::execute).doesNotThrowAnyException();
     }
 
     @Test
@@ -91,7 +90,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_2);
-        Assertions.assertThatCode(action::execute).isInstanceOf(IllegalStateException.class);
+        Assertions.assertThatCode(check::execute).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -99,7 +98,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
     {
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, Optional.empty());
-        Assertions.assertThatCode(action::execute).doesNotThrowAnyException();
+        Assertions.assertThatCode(check::execute).doesNotThrowAnyException();
     }
 
     @Test
@@ -107,7 +106,7 @@ public final class DefaultVolumeIntegrityCheckActionTest
     {
         mockParserRead(dataDriveMetadataFileParser, volumeMetadataFrom(HOST_1));
         mockParserRead(commitLogMetadataFileParser, Optional.empty());
-        Assertions.assertThatCode(action::execute).isInstanceOf(IllegalStateException.class);
+        Assertions.assertThatCode(check::execute).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -115,12 +114,12 @@ public final class DefaultVolumeIntegrityCheckActionTest
     {
         mockParserRead(dataDriveMetadataFileParser, Optional.empty());
         mockParserRead(commitLogMetadataFileParser, Optional.empty());
-        action.execute();
+        check.execute();
 
         mockParserRead(dataDriveMetadataFileParser, volumeMetadataFrom(HOST_1));
         mockParserRead(commitLogMetadataFileParser, volumeMetadataFrom(HOST_1));
         // Second time has no effect
-        action.execute();
+        check.execute();
 
         verify(dataDriveMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
         verify(commitLogMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));

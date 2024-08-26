@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.actions;
+package com.palantir.cassandra.check;
 
 import java.util.Optional;
 import java.util.UUID;

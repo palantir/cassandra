@@ -40,8 +40,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 
-import com.palantir.cassandra.actions.Action;
-import com.palantir.cassandra.actions.DefaultVolumeIntegrityCheckActionWrapper;
+import com.palantir.cassandra.check.VolumeIntegrityCheck;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import org.apache.cassandra.schema.LegacySchemaTables;
@@ -861,8 +860,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // (we won't be part of the storage ring though until we add a counterId to our state, below.)
             // Seed the host ID-to-endpoint map with our own ID.
             UUID localHostId = SystemKeyspace.getLocalHostId();
-            Action action = new DefaultVolumeIntegrityCheckActionWrapper(localHostId);
-            action.execute();
+            VolumeIntegrityCheck.of(localHostId).execute();
             getTokenMetadata().updateHostId(localHostId, FBUtilities.getBroadcastAddress());
             appStates.put(ApplicationState.NET_VERSION, valueFactory.networkVersion());
             appStates.put(ApplicationState.HOST_ID, valueFactory.hostId(localHostId));
