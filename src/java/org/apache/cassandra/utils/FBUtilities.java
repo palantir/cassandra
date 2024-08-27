@@ -149,7 +149,7 @@ public class FBUtilities
      */
     public static InetAddressAndPort getBroadcastAddressAndPort()
     {
-        return InetAddressAndPort.wrap(getBroadcastAddress());
+        return InetAddressAndPort.getByAddress(getBroadcastAddress());
     }
 
     /**
@@ -158,7 +158,7 @@ public class FBUtilities
      */
     public static InetAddressAndPort getLocalAddressAndPort()
     {
-        return InetAddressAndPort.wrap(FBUtilities.getLocalAddress());
+        return InetAddressAndPort.getByAddress(getLocalAddress());
     }
 
     public static InetAddress getBroadcastAddress()

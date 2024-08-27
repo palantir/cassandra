@@ -295,6 +295,8 @@ public class DatabaseDescriptor
     public static void applyConfig(Config config) throws ConfigurationException
     {
         conf = config;
+        
+        InetAddressAndPort.initializeDefaultPort(getSSLStoragePort());
 
         if (conf.commitlog_sync == null)
         {

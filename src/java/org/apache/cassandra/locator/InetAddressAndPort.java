@@ -49,7 +49,7 @@ public final class InetAddressAndPort implements Comparable<InetAddressAndPort>,
     //these when it loads the config. A lot of unit tests won't end up loading DatabaseDescriptor.
     //Tools that might use this class also might not load database descriptor. Those tools are expected
     //to always override the defaults.
-    static volatile int defaultPort = 7000;
+    static volatile int defaultPort = 7001;
 
     public final InetAddress address;
     public final byte[] addressBytes;
@@ -197,11 +197,6 @@ public final class InetAddressAndPort implements Comparable<InetAddressAndPort>,
     public static void initializeDefaultPort(int port)
     {
         defaultPort = port;
-    }
-
-    public static InetAddressAndPort wrap(InetAddress address)
-    {
-        return new InetAddressAndPort(address);
     }
 
     public static InetAddressAndPort getLocalHost()

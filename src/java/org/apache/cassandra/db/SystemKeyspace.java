@@ -694,7 +694,7 @@ public final class SystemKeyspace
         Map<InetAddressAndPort, Map<String, String>> result = new HashMap<>();
         for (UntypedResultSet.Row row : executeInternal("SELECT peer, data_center, rack from system." + PEERS))
         {
-            InetAddressAndPort peer = InetAddressAndPort.wrap(row.getInetAddress("peer"));
+            InetAddressAndPort peer = InetAddressAndPort.getByAddress(row.getInetAddress("peer"));
             if (row.has("data_center") && row.has("rack"))
             {
                 Map<String, String> dcRack = new HashMap<>();
