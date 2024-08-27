@@ -32,13 +32,13 @@ public class TpStats extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.getOutput().printf("%-25s%10s%10s%15s%10s%18s%n", "Pool Name", "Active", "Pending", "Completed", "Blocked", "All time blocked");
+        probe.output().out.printf("%-25s%10s%10s%15s%10s%18s%n", "Pool Name", "Active", "Pending", "Completed", "Blocked", "All time blocked");
 
         Multimap<String, String> threadPools = probe.getThreadPools();
 
         for (Map.Entry<String, String> tpool : threadPools.entries())
         {
-            probe.getOutput().printf("%-25s%10s%10s%15s%10s%18s%n",
+            probe.output().out.printf("%-25s%10s%10s%15s%10s%18s%n",
                     tpool.getValue(),
                               probe.getThreadPoolMetric(tpool.getKey(), tpool.getValue(), "ActiveTasks"),
                               probe.getThreadPoolMetric(tpool.getKey(), tpool.getValue(), "PendingTasks"),
@@ -47,8 +47,8 @@ public class TpStats extends NodeToolCmd
                               probe.getThreadPoolMetric(tpool.getKey(), tpool.getValue(), "TotalBlockedTasks"));
         }
 
-        probe.getOutput().printf("%n%-20s%10s%n", "Message type", "Dropped");
+        probe.output().out.printf("%n%-20s%10s%n", "Message type", "Dropped");
         for (Map.Entry<String, Integer> entry : probe.getDroppedMessages().entrySet())
-            probe.getOutput().printf("%-20s%10s%n", entry.getKey(), entry.getValue());
+            probe.output().out.printf("%-20s%10s%n", entry.getKey(), entry.getValue());
     }
 }

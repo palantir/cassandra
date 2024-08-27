@@ -52,20 +52,20 @@ public class DynamicEndpointSnitchStats extends NodeToolCmd
         try
         {
             DynamicEndpointSnitchMBean dynamicSnitchProxy = probe.getDynamicEndpointSnitchProxy();
-            printConfiguration(probe.getOutput(), dynamicSnitchProxy);
+            printConfiguration(probe.output().out, dynamicSnitchProxy);
             // display snitch scores for each node
-            probe.getOutput().println("Dynamic Endpoint Snitch Scores:");
+            probe.output().out.println("Dynamic Endpoint Snitch Scores:");
             Map<InetAddress, Double> snitchScores = dynamicSnitchProxy.getScores();
             for (InetAddress address : snitchScores.keySet())
             {
-                probe.getOutput().println(format("\t%s: %s", address.getCanonicalHostName(), snitchScores.get(address)));
+                probe.output().out.println(format("\t%s: %s", address.getCanonicalHostName(), snitchScores.get(address)));
             }
             if (timings) {
-                printTimings(probe.getOutput(), dynamicSnitchProxy, snitchScores.keySet());
+                printTimings(probe.output().out, dynamicSnitchProxy, snitchScores.keySet());
             }
         } catch (RuntimeException e) {
             if ((e.getCause() instanceof InstanceNotFoundException)) {
-                probe.getOutput().println("Error getting DynamicEndpointSnitch proxy--Dynamic snitch may not be enabled on this cluster.");
+                probe.output().out.println("Error getting DynamicEndpointSnitch proxy--Dynamic snitch may not be enabled on this cluster.");
             }
         }
     }

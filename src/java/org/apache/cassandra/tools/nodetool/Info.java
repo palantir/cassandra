@@ -45,28 +45,28 @@ public class Info extends NodeToolCmd
     {
         boolean gossipInitialized = probe.isInitialized();
 
-        probe.getOutput().printf("%-23s: %s%n", "ID", probe.getLocalHostId());
-        probe.getOutput().printf("%-23s: %s%n", "Gossip active", gossipInitialized);
-        probe.getOutput().printf("%-23s: %s%n", "Thrift active", probe.isThriftServerRunning());
-        probe.getOutput().printf("%-23s: %s%n", "Native Transport active", probe.isNativeTransportRunning());
-        probe.getOutput().printf("%-23s: %s%n", "Load", probe.getLoadString());
+        probe.output().out.printf("%-23s: %s%n", "ID", probe.getLocalHostId());
+        probe.output().out.printf("%-23s: %s%n", "Gossip active", gossipInitialized);
+        probe.output().out.printf("%-23s: %s%n", "Thrift active", probe.isThriftServerRunning());
+        probe.output().out.printf("%-23s: %s%n", "Native Transport active", probe.isNativeTransportRunning());
+        probe.output().out.printf("%-23s: %s%n", "Load", probe.getLoadString());
         if (gossipInitialized)
-            probe.getOutput().printf("%-23s: %s%n", "Generation No", probe.getCurrentGenerationNumber());
+            probe.output().out.printf("%-23s: %s%n", "Generation No", probe.getCurrentGenerationNumber());
         else
-            probe.getOutput().printf("%-23s: %s%n", "Generation No", 0);
+            probe.output().out.printf("%-23s: %s%n", "Generation No", 0);
 
         // Uptime
         long secondsUp = probe.getUptime() / 1000;
-        probe.getOutput().printf("%-23s: %d%n", "Uptime (seconds)", secondsUp);
+        probe.output().out.printf("%-23s: %d%n", "Uptime (seconds)", secondsUp);
 
         // Memory usage
         MemoryUsage heapUsage = probe.getHeapMemoryUsage();
         double memUsed = (double) heapUsage.getUsed() / (1024 * 1024);
         double memMax = (double) heapUsage.getMax() / (1024 * 1024);
-        probe.getOutput().printf("%-23s: %.2f / %.2f%n", "Heap Memory (MB)", memUsed, memMax);
+        probe.output().out.printf("%-23s: %.2f / %.2f%n", "Heap Memory (MB)", memUsed, memMax);
         try
         {
-            probe.getOutput().printf("%-23s: %.2f%n", "Off Heap Memory (MB)", getOffHeapMemoryUsed(probe));
+            probe.output().out.printf("%-23s: %.2f%n", "Off Heap Memory (MB)", getOffHeapMemoryUsed(probe));
         }
         catch (RuntimeException e)
         {
@@ -76,16 +76,16 @@ public class Info extends NodeToolCmd
         }
 
         // Data Center/Rack
-        probe.getOutput().printf("%-23s: %s%n", "Data Center", probe.getDataCenter());
-        probe.getOutput().printf("%-23s: %s%n", "Rack", probe.getRack());
+        probe.output().out.printf("%-23s: %s%n", "Data Center", probe.getDataCenter());
+        probe.output().out.printf("%-23s: %s%n", "Rack", probe.getRack());
 
         // Exceptions
-        probe.getOutput().printf("%-23s: %s%n", "Exceptions", probe.getStorageMetric("Exceptions"));
+        probe.output().out.printf("%-23s: %s%n", "Exceptions", probe.getStorageMetric("Exceptions"));
 
         CacheServiceMBean cacheService = probe.getCacheServiceMBean();
 
         // Key Cache: Hits, Requests, RecentHitRate, SavePeriodInSeconds
-        probe.getOutput().printf("%-23s: entries %d, size %s, capacity %s, %d hits, %d requests, %.3f recent hit rate, %d save period in seconds%n",
+        probe.output().out.printf("%-23s: entries %d, size %s, capacity %s, %d hits, %d requests, %.3f recent hit rate, %d save period in seconds%n",
                 "Key Cache",
                 probe.getCacheMetric("KeyCache", "Entries"),
                 FileUtils.stringifyFileSize((long) probe.getCacheMetric("KeyCache", "Size")),
@@ -96,7 +96,7 @@ public class Info extends NodeToolCmd
                 cacheService.getKeyCacheSavePeriodInSeconds());
 
         // Row Cache: Hits, Requests, RecentHitRate, SavePeriodInSeconds
-        probe.getOutput().printf("%-23s: entries %d, size %s, capacity %s, %d hits, %d requests, %.3f recent hit rate, %d save period in seconds%n",
+        probe.output().out.printf("%-23s: entries %d, size %s, capacity %s, %d hits, %d requests, %.3f recent hit rate, %d save period in seconds%n",
                 "Row Cache",
                 probe.getCacheMetric("RowCache", "Entries"),
                 FileUtils.stringifyFileSize((long) probe.getCacheMetric("RowCache", "Size")),
@@ -107,7 +107,7 @@ public class Info extends NodeToolCmd
                 cacheService.getRowCacheSavePeriodInSeconds());
 
         // Counter Cache: Hits, Requests, RecentHitRate, SavePeriodInSeconds
-        probe.getOutput().printf("%-23s: entries %d, size %s, capacity %s, %d hits, %d requests, %.3f recent hit rate, %d save period in seconds%n",
+        probe.output().out.printf("%-23s: entries %d, size %s, capacity %s, %d hits, %d requests, %.3f recent hit rate, %d save period in seconds%n",
                 "Counter Cache",
                 probe.getCacheMetric("CounterCache", "Entries"),
                 FileUtils.stringifyFileSize((long) probe.getCacheMetric("CounterCache", "Size")),
@@ -124,14 +124,14 @@ public class Info extends NodeToolCmd
             List<String> tokens = probe.getTokens();
             if (tokens.size() == 1 || this.tokens)
                 for (String token : tokens)
-                    probe.getOutput().printf("%-23s: %s%n", "Token", token);
+                    probe.output().out.printf("%-23s: %s%n", "Token", token);
             else
-                probe.getOutput().printf("%-23s: (invoke with -T/--tokens to see all %d tokens)%n", "Token",
+                probe.output().out.printf("%-23s: (invoke with -T/--tokens to see all %d tokens)%n", "Token",
                         tokens.size());
         }
         else
         {
-            probe.getOutput().printf("%-23s: (node is not joined to the cluster)%n", "Token");
+            probe.output().out.printf("%-23s: (node is not joined to the cluster)%n", "Token");
         }
     }
 

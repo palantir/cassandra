@@ -48,7 +48,7 @@ public class Verify extends NodeToolCmd
         {
             try
             {
-                probe.verify(probe.getOutput(), extendedVerify, keyspace, cfnames);
+                probe.verify(probe.output().out, extendedVerify, keyspace, cfnames);
             } catch (Exception e)
             {
                 throw new RuntimeException("Error occurred during verifying", e);

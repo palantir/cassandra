@@ -28,7 +28,7 @@ public class StatusThrift extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.getOutput().println(
+        probe.output().out.println(
                 probe.isThriftServerRunning()
                 ? "running"
                 : "not running");

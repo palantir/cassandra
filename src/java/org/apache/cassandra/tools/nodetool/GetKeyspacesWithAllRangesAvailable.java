@@ -37,11 +37,11 @@ public class GetKeyspacesWithAllRangesAvailable extends NodeToolCmd
         try
         {
             Set<String> keyspaces = probe.getKeyspacesWithAllRangesAvailable(sourceDataCenterName);
-            probe.getOutput().print(keyspaces);
+            probe.output().out.print(keyspaces);
         }
         catch (Exception e)
         {
-            probe.getOutput().print("Failed to retrieve keyspaces with all ranges available. Check logs for details");
+            probe.output().out.print("Failed to retrieve keyspaces with all ranges available. Check logs for details");
         }
     }
 }

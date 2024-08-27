@@ -33,7 +33,7 @@ public class BootstrapResume extends NodeToolCmd
     {
         try
         {
-            probe.resumeBootstrap(probe.getOutput());
+            probe.resumeBootstrap(probe.output().out);
         }
         catch (IOException e)
         {

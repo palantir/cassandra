@@ -34,19 +34,19 @@ public class ProxyHistograms extends NodeToolCmd
         double[] writeLatency = probe.metricPercentilesAsArray(probe.getProxyMetric("Write"));
         double[] rangeLatency = probe.metricPercentilesAsArray(probe.getProxyMetric("RangeSlice"));
 
-        probe.getOutput().println("proxy histograms");
-        probe.getOutput().println(format("%-10s%18s%18s%18s",
+        probe.output().out.println("proxy histograms");
+        probe.output().out.println(format("%-10s%18s%18s%18s",
                         "Percentile", "Read Latency", "Write Latency", "Range Latency"));
-        probe.getOutput().println(format("%-10s%18s%18s%18s",
+        probe.output().out.println(format("%-10s%18s%18s%18s",
                         "", "(micros)", "(micros)", "(micros)"));
         for (int i = 0; i < percentiles.length; i++)
         {
-            probe.getOutput().println(format("%-10s%18.2f%18.2f%18.2f",
+            probe.output().out.println(format("%-10s%18.2f%18.2f%18.2f",
                             percentiles[i],
                     readLatency[i],
                     writeLatency[i],
                     rangeLatency[i]));
         }
-        probe.getOutput().println();
+        probe.output().out.println();
     }
 }

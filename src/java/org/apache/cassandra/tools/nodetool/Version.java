@@ -28,6 +28,6 @@ public class Version extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.getOutput().println("ReleaseVersion: " + probe.getReleaseVersion());
+        probe.output().out.println("ReleaseVersion: " + probe.getReleaseVersion());
     }
 }

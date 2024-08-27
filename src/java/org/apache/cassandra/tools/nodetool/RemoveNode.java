@@ -36,10 +36,10 @@ public class RemoveNode extends NodeToolCmd
         switch (removeOperation)
         {
             case "status":
-                probe.getOutput().println("RemovalStatus: " + probe.getRemovalStatus());
+                probe.output().out.println("RemovalStatus: " + probe.getRemovalStatus());
                 break;
             case "force":
-                probe.getOutput().println("RemovalStatus: " + probe.getRemovalStatus());
+                probe.output().out.println("RemovalStatus: " + probe.getRemovalStatus());
                 probe.forceRemoveCompletion();
                 break;
             default:

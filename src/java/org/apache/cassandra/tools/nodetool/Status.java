@@ -82,7 +82,7 @@ public class Status extends NodeToolCmd
         }
         catch (IllegalArgumentException ex)
         {
-            probe.getOutput().printf("%nError: " + ex.getMessage() + "%n");
+            probe.output().out.printf("%nError: " + ex.getMessage() + "%n");
             System.exit(1);
         }
 
@@ -98,15 +98,15 @@ public class Status extends NodeToolCmd
         for (Map.Entry<String, SetHostStat> dc : dcs.entrySet())
         {
             String dcHeader = String.format("Datacenter: %s%n", dc.getKey());
-            probe.getOutput().printf(dcHeader);
-            for (int i = 0; i < (dcHeader.length() - 1); i++) probe.getOutput().print('=');
-            probe.getOutput().println();
+            probe.output().out.printf(dcHeader);
+            for (int i = 0; i < (dcHeader.length() - 1); i++) probe.output().out.print('=');
+            probe.output().out.println();
 
             // Legend
-            probe.getOutput().println("Status=Up/Down");
-            probe.getOutput().println("|/ State=Normal/Leaving/Joining/Moving");
+            probe.output().out.println("Status=Up/Down");
+            probe.output().out.println("|/ State=Normal/Leaving/Joining/Moving");
 
-            printNodesHeader(probe.getOutput(), hasEffectiveOwns, isTokenPerNode);
+            printNodesHeader(probe.output().out, hasEffectiveOwns, isTokenPerNode);
 
             ArrayListMultimap<InetAddress, HostStat> hostToTokens = ArrayListMultimap.create();
             for (HostStat stat : dc.getValue())
@@ -116,11 +116,11 @@ public class Status extends NodeToolCmd
             {
                 Float owns = ownerships.get(endpoint);
                 List<HostStat> tokens = hostToTokens.get(endpoint);
-                printNode(probe.getOutput(), endpoint.getHostAddress(), owns, tokens, hasEffectiveOwns, isTokenPerNode);
+                printNode(probe.output().out, endpoint.getHostAddress(), owns, tokens, hasEffectiveOwns, isTokenPerNode);
             }
         }
 
-        probe.getOutput().printf("%n" + errors.toString());
+        probe.output().out.printf("%n" + errors.toString());
 
     }
 
