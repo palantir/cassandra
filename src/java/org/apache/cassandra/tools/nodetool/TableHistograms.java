@@ -106,22 +106,22 @@ public class TableHistograms extends NodeToolCmd
         double[] writeLatency = probe.metricPercentilesAsArray((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspace, table, "WriteLatency"));
         double[] sstablesPerRead = probe.metricPercentilesAsArray((CassandraMetricsRegistry.JmxHistogramMBean) probe.getColumnFamilyMetric(keyspace, table, "SSTablesPerReadHistogram"));
 
-        System.out.println(format("%s/%s histograms", keyspace, table));
-        System.out.println(format("%-10s%10s%18s%18s%18s%18s",
-                "Percentile", "SSTables", "Write Latency", "Read Latency", "Partition Size", "Cell Count"));
-        System.out.println(format("%-10s%10s%18s%18s%18s%18s",
-                "", "", "(micros)", "(micros)", "(bytes)", ""));
+        probe.output().out.println(format("%s/%s histograms", keyspace, table));
+        probe.output().out.println(format("%-10s%10s%18s%18s%18s%18s",
+                        "Percentile", "SSTables", "Write Latency", "Read Latency", "Partition Size", "Cell Count"));
+        probe.output().out.println(format("%-10s%10s%18s%18s%18s%18s",
+                        "", "", "(micros)", "(micros)", "(bytes)", ""));
 
         for (int i = 0; i < percentiles.length; i++)
         {
-            System.out.println(format("%-10s%10.2f%18.2f%18.2f%18.0f%18.0f",
-                    percentiles[i],
+            probe.output().out.println(format("%-10s%10.2f%18.2f%18.2f%18.0f%18.0f",
+                            percentiles[i],
                     sstablesPerRead[i],
                     writeLatency[i],
                     readLatency[i],
                     estimatedRowSizePercentiles[i],
                     estimatedColumnCountPercentiles[i]));
         }
-        System.out.println();
+        probe.output().out.println();
     }
 }

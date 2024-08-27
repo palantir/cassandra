@@ -67,9 +67,9 @@ public class Snapshot extends NodeToolCmd
                 }
                 if (!snapshotName.isEmpty())
                     sb.append(" with snapshot name [").append(snapshotName).append("]");
-                System.out.println(sb.toString());
+                probe.output().out.println(sb.toString());
                 probe.takeMultipleColumnFamilySnapshot(snapshotName, ktList.split(","));
-                System.out.println("Snapshot directory: " + snapshotName);
+                probe.output().out.println("Snapshot directory: " + snapshotName);
             }
             else
             {
@@ -81,10 +81,10 @@ public class Snapshot extends NodeToolCmd
                 if (!snapshotName.isEmpty())
                     sb.append(" with snapshot name [").append(snapshotName).append("]");
 
-                System.out.println(sb.toString());
+                probe.output().out.println(sb.toString());
 
                 probe.takeSnapshot(snapshotName, table, toArray(keyspaces, String.class));
-                System.out.println("Snapshot directory: " + snapshotName);
+                probe.output().out.println("Snapshot directory: " + snapshotName);
             }
         }
         catch (IOException e)

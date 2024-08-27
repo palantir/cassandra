@@ -37,12 +37,12 @@ public class ListSnapshots extends NodeToolCmd
     {
         try
         {
-            System.out.println("Snapshot Details: ");
+            probe.output().out.println("Snapshot Details: ");
 
             final Map<String,TabularData> snapshotDetails = probe.getSnapshotDetails();
             if (snapshotDetails.isEmpty())
             {
-                System.out.printf("There are no snapshots");
+                probe.output().out.printf("There are no snapshots");
                 return;
             }
 
@@ -50,7 +50,7 @@ public class ListSnapshots extends NodeToolCmd
             final String format = "%-40s%-45s%-45s%-19s%-19s%-27s%n";
             // display column names only once
             final List<String> indexNames = snapshotDetails.entrySet().iterator().next().getValue().getTabularType().getIndexNames();
-            System.out.printf(format, (Object[]) indexNames.toArray(new String[indexNames.size()]));
+            probe.output().out.printf(format, (Object[]) indexNames.toArray(new String[indexNames.size()]));
 
             for (final Map.Entry<String, TabularData> snapshotDetail : snapshotDetails.entrySet())
             {
@@ -58,11 +58,11 @@ public class ListSnapshots extends NodeToolCmd
                 for (Object eachValue : values)
                 {
                     final List<?> value = (List<?>) eachValue;
-                    System.out.printf(format, value.toArray(new Object[value.size()]));
+                    probe.output().out.printf(format, value.toArray(new Object[value.size()]));
                 }
             }
 
-            System.out.println("\nTotal TrueDiskSpaceUsed: " + FileUtils.stringifyFileSize(trueSnapshotsSize) + "\n");
+            probe.output().out.println("\nTotal TrueDiskSpaceUsed: " + FileUtils.stringifyFileSize(trueSnapshotsSize) + "\n");
         }
         catch (Exception e)
         {
