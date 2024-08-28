@@ -142,12 +142,18 @@ public class OutboundTcpConnectionPool
             else
             {
                 InetAddress localAddress = FBUtilities.getLocalAddress();
-                if (localAddress.toString().startsWith("/")) {
+                if (localAddress.toString().startsWith("/"))
+                {
                     logger.warn("Local address does not have a hostname: {}", localAddress);
                 }
                 String hostname = localAddress.getHostName();
-                if (localAddress.toString().startsWith("/")) {
+                if (localAddress.toString().startsWith("/"))
+                {
                     logger.warn("Local address still does not have a hostname: {}, {}", localAddress, hostname);
+                }
+                else
+                {
+                    logger.info("Local address has a hostname: {}", localAddress);
                 }
 
                 return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), localAddress, 0);
