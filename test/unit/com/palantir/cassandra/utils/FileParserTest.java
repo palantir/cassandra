@@ -80,9 +80,23 @@ public final class FileParserTest
     }
 
     @Test
-    public void write_successfullyWriteToFile() throws Exception
+    public void read_emptyFileReturnsOptionalEmpty() throws IOException
+    {
+        assertThat(parser.create()).isTrue();
+        assertThat(parser.read()).isEmpty();
+    }
+
+    @Test
+    public void write_successfullyWriteToFile() throws IOException
     {
         parser.write(DATA);
         assertThat(parser.read()).isPresent().hasValue(DATA);
+    }
+
+    @Test
+    public void create_returnsTrueIfNotExistElseFalse() throws IOException
+    {
+        assertThat(parser.create()).isTrue();
+        assertThat(parser.create()).isFalse();
     }
 }
