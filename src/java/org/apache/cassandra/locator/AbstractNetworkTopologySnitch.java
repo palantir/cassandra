@@ -32,7 +32,7 @@ public abstract class AbstractNetworkTopologySnitch extends AbstractEndpointSnit
      */
     abstract public String getRack(InetAddressAndPort endpoint);
 
-    public final String getRack(InetAddress endpoint)
+    public String getRack(InetAddress endpoint)
     {
         return getRack(InetAddressAndPort.getByAddress(endpoint));
     }
@@ -44,7 +44,7 @@ public abstract class AbstractNetworkTopologySnitch extends AbstractEndpointSnit
      */
     abstract public String getDatacenter(InetAddressAndPort endpoint);
 
-    public final String getDatacenter(InetAddress endpoint)
+    public String getDatacenter(InetAddress endpoint)
     {
         return getDatacenter(InetAddressAndPort.getByAddress(endpoint));
     }
