@@ -45,7 +45,7 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
     private final boolean preferLocal;
     private final AtomicReference<ReconnectableSnitchHelper> snitchHelperReference;
 
-    private Map<InetAddress, Map<String, String>> savedEndpoints;
+    private Map<InetAddressAndPort, Map<String, String>> savedEndpoints;
     private static final String DEFAULT_DC = "UNKNOWN_DC";
     private static final String DEFAULT_RACK = "UNKNOWN_RACK";
 
@@ -81,13 +81,12 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
     /**
      * Return the data center for which an endpoint resides in
      *
-     * @param endpointAndPort the endpoint to process
+     * @param endpoint the endpoint to process
      * @return string of data center
      */
-    public String getDatacenter(InetAddressAndPort endpointAndPort)
+    public String getDatacenter(InetAddressAndPort endpoint)
     {
-        InetAddress endpoint = endpointAndPort.address;
-        if (endpoint.equals(FBUtilities.getBroadcastAddress()))
+        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return myDC;
 
         EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
@@ -96,7 +95,7 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
             if (psnitch == null)
             {
                 if (savedEndpoints == null)
-                    savedEndpoints = SystemKeyspace.loadDcRackInfoLegacy();
+                    savedEndpoints = SystemKeyspace.loadDcRackInfo();
                 if (savedEndpoints.containsKey(endpoint))
                     return savedEndpoints.get(endpoint).get("data_center");
                 return DEFAULT_DC;
@@ -110,13 +109,12 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
     /**
      * Return the rack for which an endpoint resides in
      *
-     * @param endpointAndPort the endpoint to process
+     * @param endpoint the endpoint to process
      * @return string of rack
      */
-    public String getRack(InetAddressAndPort endpointAndPort)
+    public String getRack(InetAddressAndPort endpoint)
     {
-        InetAddress endpoint = endpointAndPort.address;
-        if (endpoint.equals(FBUtilities.getBroadcastAddress()))
+        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return myRack;
 
         EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
@@ -125,7 +123,7 @@ public class GossipingPropertyFileSnitch extends AbstractNetworkTopologySnitch//
             if (psnitch == null)
             {
                 if (savedEndpoints == null)
-                    savedEndpoints = SystemKeyspace.loadDcRackInfoLegacy();
+                    savedEndpoints = SystemKeyspace.loadDcRackInfo();
                 if (savedEndpoints.containsKey(endpoint))
                     return savedEndpoints.get(endpoint).get("rack");
                 return DEFAULT_RACK;

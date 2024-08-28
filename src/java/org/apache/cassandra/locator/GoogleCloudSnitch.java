@@ -46,7 +46,7 @@ public class GoogleCloudSnitch extends AbstractNetworkTopologySnitch
     protected static final String ZONE_NAME_QUERY_URL = "http://metadata.google.internal/computeMetadata/v1/instance/zone";
     private static final String DEFAULT_DC = "UNKNOWN-DC";
     private static final String DEFAULT_RACK = "UNKNOWN-RACK";
-    private Map<InetAddress, Map<String, String>> savedEndpoints;
+    private Map<InetAddressAndPort, Map<String, String>> savedEndpoints;
     protected String gceZone;
     protected String gceRegion;
 
@@ -94,16 +94,15 @@ public class GoogleCloudSnitch extends AbstractNetworkTopologySnitch
         }
     }
 
-    public String getRack(InetAddressAndPort endpointAndPort)
+    public String getRack(InetAddressAndPort endpoint)
     {
-        InetAddress endpoint = endpointAndPort.address;
-        if (endpoint.equals(FBUtilities.getBroadcastAddress()))
+        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return gceZone;
         EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
         if (state == null || state.getApplicationState(ApplicationState.RACK) == null)
         {
             if (savedEndpoints == null)
-                savedEndpoints = SystemKeyspace.loadDcRackInfoLegacy();
+                savedEndpoints = SystemKeyspace.loadDcRackInfo();
             if (savedEndpoints.containsKey(endpoint))
                 return savedEndpoints.get(endpoint).get("rack");
             return DEFAULT_RACK;
@@ -111,16 +110,15 @@ public class GoogleCloudSnitch extends AbstractNetworkTopologySnitch
         return state.getApplicationState(ApplicationState.RACK).value;
     }
 
-    public String getDatacenter(InetAddressAndPort endpointAndPort)
+    public String getDatacenter(InetAddressAndPort endpoint)
     {
-        InetAddress endpoint = endpointAndPort.address;
-        if (endpoint.equals(FBUtilities.getBroadcastAddress()))
+        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return gceRegion;
         EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
         if (state == null || state.getApplicationState(ApplicationState.DC) == null)
         {
             if (savedEndpoints == null)
-                savedEndpoints = SystemKeyspace.loadDcRackInfoLegacy();
+                savedEndpoints = SystemKeyspace.loadDcRackInfo();
             if (savedEndpoints.containsKey(endpoint))
                 return savedEndpoints.get(endpoint).get("data_center");
             return DEFAULT_DC;

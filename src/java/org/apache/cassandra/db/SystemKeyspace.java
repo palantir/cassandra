@@ -667,28 +667,6 @@ public final class SystemKeyspace
     /**
      * Return a map of IP addresses containing a map of dc and rack info
      */
-    public static Map<InetAddress, Map<String, String>> loadDcRackInfoLegacy()
-    {
-        Map<InetAddress, Map<String, String>> result = new HashMap<>();
-        for (UntypedResultSet.Row row : executeInternal("SELECT peer, data_center, rack from system." + PEERS))
-        {
-            InetAddress peer = row.getInetAddress("peer");
-            if (row.has("data_center") && row.has("rack"))
-            {
-                Map<String, String> dcRack = new HashMap<>();
-                dcRack.put("data_center", row.getString("data_center"));
-                dcRack.put("rack", row.getString("rack"));
-                result.put(peer, dcRack);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Return a map of IP addresses containing a map of dc and rack info
-     *
-     * @apiNote Shim for plugin forward compatibility. Do not use internally.
-     */
     public static Map<InetAddressAndPort, Map<String, String>> loadDcRackInfo()
     {
         Map<InetAddressAndPort, Map<String, String>> result = new HashMap<>();
