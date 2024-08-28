@@ -26,11 +26,16 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
+import com.google.common.net.InetAddresses;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.locator.IEndpointSnitch;
 import org.apache.cassandra.metrics.ConnectionMetrics;
 import org.apache.cassandra.security.SSLFactory;
@@ -40,6 +45,8 @@ public class OutboundTcpConnectionPool
 {
     public static final long LARGE_MESSAGE_THRESHOLD =
             Long.getLong(Config.PROPERTY_PREFIX + "otcp_large_message_threshold", 1024 * 64);
+
+    private static final Logger logger = LoggerFactory.getLogger(OutboundTcpConnectionPool.class);
 
     // pointer for the real Address.
     private final InetAddress id;
@@ -139,9 +146,15 @@ public class OutboundTcpConnectionPool
                 return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort());
             else
             {
-
                 InetAddress localAddress = FBUtilities.getLocalAddress();
-                Preconditions.checkState(!localAddress.toString().startsWith("/"), "LocalAddress must have a resolved hostname");
+                if (localAddress.toString().startsWith("/")) {
+                    logger.warn("Local address does not have a hostname: {}", localAddress);
+                }
+                String hostname = localAddress.getHostName();
+                if (localAddress.toString().startsWith("/")) {
+                    logger.warn("Local address still does not have a hostname: {}, {}", localAddress, hostname);
+                }
+
                 return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), localAddress, 0);
             }
         }
