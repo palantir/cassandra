@@ -47,6 +47,7 @@ public class KeyspaceTableOpStatePersister
         this.parser = new FileParser<>(persistentFileLocation, new TypeReference<Map<String, Long>>()
         {
         });
+        init();
     }
 
     public Optional<Map<KeyspaceTableKey, Instant>> readStateFromPersistentLocation()
@@ -93,6 +94,18 @@ public class KeyspaceTableOpStatePersister
         catch (IOException e)
         {
             return false;
+        }
+    }
+
+    private void init()
+    {
+        try
+        {
+            parser.create();
+        }
+        catch (IOException e)
+        {
+            logIoException("Failed to create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
         }
     }
 

@@ -53,6 +53,13 @@ public class KeyspaceTableOpStatePersisterTest
     }
 
     @Test
+    public void keyspaceTableOpStatePersisterSuccessfullyCreateFileWhenDoesNotExist()
+    {
+        new KeyspaceTableOpStatePersister(stateFilePath);
+        assertThat(stateFilePath.toFile()).exists();
+    }
+
+    @Test
     public void keyspaceTableOpStatePersisterReturnsEmptyMapAtFileCreation()
     {
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
