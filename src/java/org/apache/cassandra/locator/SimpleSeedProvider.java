@@ -60,6 +60,6 @@ public class SimpleSeedProvider implements SeedProvider
                 logger.warn("Seed provider couldn't lookup host {}", host);
             }
         }
-        return seeds;
+        return Collections.unmodifiableList(seeds);
     }
 }

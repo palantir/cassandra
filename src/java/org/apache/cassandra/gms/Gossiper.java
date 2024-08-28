@@ -859,14 +859,12 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return storedTime == null ? computeExpireTime() : storedTime;
     }
 
-    /**
-     * @apiNote Shim for plugin forward compatibility. Do not use internally.
-     */
     public EndpointState getEndpointStateForEndpoint(InetAddressAndPort ep)
     {
         return getEndpointStateForEndpoint(ep.address);
     }
 
+    @Deprecated
     public EndpointState getEndpointStateForEndpoint(InetAddress ep)
     {
         return endpointStateMap.get(ep);

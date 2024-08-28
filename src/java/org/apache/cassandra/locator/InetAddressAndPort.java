@@ -65,13 +65,6 @@ public final class InetAddressAndPort implements Comparable<InetAddressAndPort>,
         this.addressBytes = addressBytes;
     }
 
-    private InetAddressAndPort(InetAddress address)
-    {
-        this.address = address;
-        this.port = -1;
-        this.addressBytes = null;
-    }
-
     private static void validatePortRange(int port)
     {
         if (port < 0 | port > 65535)
