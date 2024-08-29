@@ -17,8 +17,11 @@
  */
 package org.apache.cassandra.tools;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.*;
 
@@ -373,7 +376,7 @@ public class SSTableExport
      * @param args command lines arguments
      * @throws ConfigurationException on configuration failure (wrong params given)
      */
-    public static void main(String[] args) throws ConfigurationException
+    public static void main(String[] args) throws ConfigurationException, IOException
     {
         String usage = String.format("Usage: %s <sstable> [-k key [-k key [...]] -x key [-x key [...]]]%n", SSTableExport.class.getName());
 
@@ -405,37 +408,37 @@ public class SSTableExport
 
         Schema.instance.loadFromDisk(false);
 
-        System.out.flush();
-        if (fileOrDirectory.isDirectory())
-        {
-            File[] files = Objects.requireNonNull(fileOrDirectory.listFiles((dir, name) ->
-                    name.endsWith("Data.db")
-            ), "An error occurred while listing files in the provided directory");
-            System.out.println("{");
-            int i = 0;
-            for (File file : files)
+        try(PrintStream printStream = new PrintStream(new BufferedOutputStream(System.out))) {
+            if (fileOrDirectory.isDirectory())
             {
-                if (i != 0)
+                File[] files = Objects.requireNonNull(fileOrDirectory.listFiles((dir, name) ->
+                        name.endsWith("Data.db")
+                ), "An error occurred while listing files in the provided directory");
+                printStream.println("{");
+                int i = 0;
+                for (File file : files)
                 {
-                    System.out.println(",");
+                    if (i != 0)
+                    {
+                        printStream.println(",");
+                    }
+                    i++;
+                    String ssTableFileName = file.getAbsolutePath();
+                    printStream.printf("\"%s\":", file.getName());
+                    handleSingleSsTableFile(ssTableFileName, keys, excludes, printStream);
                 }
-                i++;
-                String ssTableFileName = file.getAbsolutePath();
-                System.out.printf("\"%s\":", file.getName());
-                handleSingleSsTableFile(ssTableFileName, keys, excludes);
+                printStream.println("}");
             }
-            System.out.println("}");
-        }
-        else
-        {
-            handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes);
-
+            else
+            {
+                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, printStream);
+            }
         }
 
         System.exit(0);
     }
 
-    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes)
+    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, PrintStream printStream)
     {
         Descriptor descriptor = Descriptor.fromFilename(ssTableFileName);
 
@@ -474,14 +477,14 @@ public class SSTableExport
         {
             if (cmd.hasOption(ENUMERATEKEYS_OPTION))
             {
-                enumeratekeys(descriptor, System.out, cfStore.metadata);
+                enumeratekeys(descriptor, printStream, cfStore.metadata);
             }
             else
             {
                 if ((keys != null) && (keys.length > 0))
-                    export(descriptor, System.out, Arrays.asList(keys), excludes, cfStore.metadata);
+                    export(descriptor, printStream, Arrays.asList(keys), excludes, cfStore.metadata);
                 else
-                    export(descriptor, excludes);
+                    export(descriptor, printStream, excludes);
             }
         }
         catch (IOException e)
