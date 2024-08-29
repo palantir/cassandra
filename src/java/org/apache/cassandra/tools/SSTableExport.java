@@ -405,6 +405,7 @@ public class SSTableExport
 
         Schema.instance.loadFromDisk(false);
 
+        System.out.flush();
         if (fileOrDirectory.isDirectory())
         {
             File[] files = Objects.requireNonNull(fileOrDirectory.listFiles((dir, name) ->
