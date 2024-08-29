@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.palantir.cassandra.utils.FileParser;
@@ -50,10 +51,7 @@ public final class VolumeIntegrityCheckTest
 
     private static final String POD_NAME_2 = "pod-2";
 
-    private static final Path DATA_DIRECTORY = Paths.get(Arrays
-                                                         .stream(DatabaseDescriptor.getAllDataFileLocations())
-                                                         .findFirst()
-                                                         .orElseThrow(RuntimeException::new), VolumeIntegrityCheck.METADATA_NAME);
+    private static final Path DATA_DIRECTORY = Paths.get(getDataDrive(), VolumeIntegrityCheck.METADATA_NAME);
 
     private static final Path COMMIT_LOG_DIRECTORY = Paths.get(DatabaseDescriptor.getCommitLogLocation(), VolumeIntegrityCheck.METADATA_NAME);
 
@@ -62,6 +60,13 @@ public final class VolumeIntegrityCheckTest
     private FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
     private VolumeIntegrityCheck check;
+
+    @BeforeClass
+    public static void beforeAll() throws IOException
+    {
+        Files.createDirectories(Paths.get(getDataDrive()));
+        Files.createDirectories(Paths.get(DatabaseDescriptor.getCommitLogLocation()));
+    }
 
     @Before
     public void beforeEach() throws IOException
@@ -183,5 +188,12 @@ public final class VolumeIntegrityCheckTest
     private static Optional<VolumeMetadata> volumeMetadataFrom(UUID hostId)
     {
         return Optional.of(VolumeMetadata.of(hostId));
+    }
+
+    private static String getDataDrive()
+    {
+        return Arrays.stream(DatabaseDescriptor.getAllDataFileLocations())
+                     .findFirst()
+                     .orElseThrow(RuntimeException::new);
     }
 }
