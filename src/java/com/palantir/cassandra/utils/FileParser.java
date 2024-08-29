@@ -26,6 +26,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FileParser<T>
@@ -34,9 +35,9 @@ public class FileParser<T>
 
     private final Path path;
 
-    private final Class<T> cls;
+    private final TypeReference<T> cls;
 
-    public FileParser(Path path, Class<T> cls)
+    public FileParser(Path path, TypeReference<T> cls)
     {
         this.path = path;
         this.cls = cls;

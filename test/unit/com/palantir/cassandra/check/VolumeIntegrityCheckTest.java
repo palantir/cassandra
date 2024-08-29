@@ -20,6 +20,10 @@ package com.palantir.cassandra.check;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.palantir.cassandra.utils.FileParser;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.assertj.core.api.Assertions;
 
 import static org.mockito.Mockito.times;
@@ -45,6 +50,13 @@ public final class VolumeIntegrityCheckTest
 
     private static final String POD_NAME_2 = "pod-2";
 
+    private static final Path DATA_DIRECTORY = Paths.get(Arrays
+                                                         .stream(DatabaseDescriptor.getAllDataFileLocations())
+                                                         .findFirst()
+                                                         .orElseThrow(RuntimeException::new), VolumeIntegrityCheck.METADATA_NAME);
+
+    private static final Path COMMIT_LOG_DIRECTORY = Paths.get(DatabaseDescriptor.getCommitLogLocation(), VolumeIntegrityCheck.METADATA_NAME);
+
     private FileParser<VolumeMetadata> dataDriveMetadataFileParser;
 
     private FileParser<VolumeMetadata> commitLogMetadataFileParser;
@@ -52,12 +64,15 @@ public final class VolumeIntegrityCheckTest
     private VolumeIntegrityCheck check;
 
     @Before
-    public void beforeEach()
+    public void beforeEach() throws IOException
     {
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_1);
         dataDriveMetadataFileParser = mock(FileParser.class);
         commitLogMetadataFileParser = mock(FileParser.class);
-        check =  new VolumeIntegrityCheck(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
+        check = new VolumeIntegrityCheck(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
+
+        Files.deleteIfExists(DATA_DIRECTORY);
+        Files.deleteIfExists(COMMIT_LOG_DIRECTORY);
     }
 
     @Test
@@ -123,6 +138,17 @@ public final class VolumeIntegrityCheckTest
 
         verify(dataDriveMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
         verify(commitLogMetadataFileParser, times(1)).write(VolumeMetadata.of(HOST_1));
+    }
+
+    @Test
+    public void execute_deserVolumeMetadataFromDisk() throws IOException
+    {
+        VolumeIntegrityCheck.of(HOST_1).execute();
+
+        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new VolumeIntegrityCheck.VolumeMetadataType());
+        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new VolumeIntegrityCheck.VolumeMetadataType());
+        Assertions.assertThat(dataDriveParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
+        Assertions.assertThat(commitLogParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
     }
 
     private static void mockParserRead(FileParser<VolumeMetadata> parser, Optional<VolumeMetadata> metadata)

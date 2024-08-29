@@ -28,6 +28,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class FileParserTest
@@ -44,7 +46,7 @@ public final class FileParserTest
 
     private static final Map<String, String> DATA = ImmutableMap.of("k1", "v1", "k2", "v2");
 
-    private static FileParser<Map> parser;
+    private static FileParser<Map<String, String>> parser;
 
     @BeforeClass
     public static void beforeClass() throws IOException
@@ -52,7 +54,9 @@ public final class FileParserTest
         Path directory = Files.createTempDirectory(TEST_DIRECTORY_NAME);
         file = directory.resolve(FILE_NAME);
         tmpFile = directory.resolve(TMP_FILE_NAME);
-        parser = new FileParser<>(file, Map.class);
+        parser = new FileParser<>(file, new TypeReference<Map<String, String>>()
+        {
+        });
     }
 
     @Before

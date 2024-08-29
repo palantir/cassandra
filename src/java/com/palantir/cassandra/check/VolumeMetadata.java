@@ -18,12 +18,14 @@
 
 package com.palantir.cassandra.check;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.palantir.cassandra.objects.Wrapper;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public final class VolumeMetadata extends Wrapper<String>
+public final class VolumeMetadata
 {
     public static final String POD_NAME_ENV = "POD_NAME";
 
@@ -36,9 +38,9 @@ public final class VolumeMetadata extends Wrapper<String>
         this(hostId, Optional.ofNullable(System.getenv(POD_NAME_ENV)).orElse(""));
     }
 
-    public VolumeMetadata(UUID hostId, String podName)
+    @JsonCreator
+    public VolumeMetadata(@JsonProperty("host-id") UUID hostId, @JsonProperty("pod-name") String podName)
     {
-        super(String.format("%s:%s", hostId, podName));
         this.hostId = hostId;
         this.podName = podName;
     }
@@ -56,5 +58,28 @@ public final class VolumeMetadata extends Wrapper<String>
     public String getPodName()
     {
         return podName;
+    }
+
+    @Override
+    public String toString()
+    {
+        return String.format("VolumeMetadata{hostId=%s, podName=%s}", hostId, podName);
+    }
+
+    @Override
+    public boolean equals(Object other)
+    {
+        if (!(other instanceof VolumeMetadata))
+        {
+            return false;
+        }
+        VolumeMetadata volumeMetadata = (VolumeMetadata) other;
+        return hostId.equals(volumeMetadata.hostId) && podName.equals(volumeMetadata.podName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(hostId, podName);
     }
 }

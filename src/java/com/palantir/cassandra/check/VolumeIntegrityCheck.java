@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.palantir.cassandra.utils.FileParser;
 import com.palantir.logsafe.Preconditions;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -34,13 +35,17 @@ import org.apache.cassandra.config.DatabaseDescriptor;
  */
 public final class VolumeIntegrityCheck
 {
-    private static final String METADATA_NAME = "cassandra-metadata.json";
+    public static final String METADATA_NAME = "cassandra-metadata.json";
 
     private final UUID hostId;
 
     private final FileParser<VolumeMetadata> dataDriveMetadataFileParser;
 
     private final FileParser<VolumeMetadata> commitLogMetadataFileParser;
+
+    static class VolumeMetadataType extends TypeReference<VolumeMetadata>
+    {
+    }
 
     public VolumeIntegrityCheck(UUID hostId,
                                 FileParser<VolumeMetadata> dataDriveMetadataFileParser,
@@ -92,7 +97,8 @@ public final class VolumeIntegrityCheck
         }
     }
 
-    public static VolumeIntegrityCheck of(UUID hostId) {
+    public static VolumeIntegrityCheck of(UUID hostId)
+    {
         String dataDirectory = Arrays
                                .stream(DatabaseDescriptor.getAllDataFileLocations())
                                .findFirst()
@@ -103,6 +109,6 @@ public final class VolumeIntegrityCheck
 
     private static FileParser<VolumeMetadata> withParser(String path)
     {
-        return new FileParser<>(Paths.get(path, METADATA_NAME), VolumeMetadata.class);
+        return new FileParser<>(Paths.get(path, METADATA_NAME), new VolumeMetadataType());
     }
 }
