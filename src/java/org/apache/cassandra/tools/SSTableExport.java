@@ -392,7 +392,7 @@ public class SSTableExport
 
         if (cmd.getArgs().length != 1)
         {
-            System.err.println("You must supply exactly one sstable");
+            System.err.println("You must supply exactly one sstable or directory");
             System.err.println(usage);
             System.exit(1);
         }
@@ -410,11 +410,20 @@ public class SSTableExport
             File[] files = Objects.requireNonNull(fileOrDirectory.listFiles((dir, name) ->
                     name.endsWith("Data.db")
             ), "An error occurred while listing files in the provided directory");
+            System.out.println("{");
+            int i = 0;
             for (File file : files)
             {
+                if (i != 0)
+                {
+                    System.out.println(",");
+                }
+                i++;
                 String ssTableFileName = file.getAbsolutePath();
+                System.out.printf("\"%s\":", file.getName());
                 handleSingleSsTableFile(ssTableFileName, keys, excludes);
             }
+            System.out.println("}");
         }
         else
         {
