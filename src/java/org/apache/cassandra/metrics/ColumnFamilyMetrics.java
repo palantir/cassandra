@@ -168,6 +168,12 @@ public class ColumnFamilyMetrics
     public final Gauge<Double> liveTombstoneRatio;
     /** Estimated ratio of tombstones and number of cells in this table */
     public final Gauge<Double> tombstoneRatio;
+    /** Estimated count of droppable tombstones and number of cells in this table */
+    public final Gauge<Double> droppableTombstoneCount;
+    /** Estimated count of live tombstones and number of cells in this table */
+    public final Gauge<Double> liveTombstoneCount;
+    /** Estimated count of tombstones and number of cells in this table */
+    public final Gauge<Double> tombstoneCount;
 
     /** Bytes read on range scans **/
     public final Meter rangeScanBytesRead;
@@ -735,6 +741,27 @@ public class ColumnFamilyMetrics
             public Double getValue()
             {
                 return cfs.getTombstoneRatio();
+            }
+        });
+        droppableTombstoneCount = createColumnFamilyGauge("DroppableTombstoneCount", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getDroppableTombstoneCount();
+            }
+        });
+        liveTombstoneCount = createColumnFamilyGauge("LiveTombstoneCount", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getLiveTombstoneCount();
+            }
+        });
+        tombstoneCount = createColumnFamilyGauge("TombstoneCount", new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return cfs.getTombstoneCount();
             }
         });
 

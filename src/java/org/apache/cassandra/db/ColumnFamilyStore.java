@@ -3413,6 +3413,35 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return allColumns > 0 ? allDroppable / allColumns : 0;
     }
 
+    public double getDroppableTombstoneCount()
+    {
+        return getDroppableTombstoneCount(true);
+    }
+
+    public double getTombstoneCount()
+    {
+        return getDroppableTombstoneCount(false);
+    }
+
+    public double getLiveTombstoneCount()
+    {
+        return getTombstoneCount() - getDroppableTombstoneCount();
+    }
+
+    private double getDroppableTombstoneCount(boolean useGcGrace)
+    {
+        double allDroppable = 0;
+        int localTime = (int) (System.currentTimeMillis() / 1000);
+
+        for (SSTableReader sstable : getSSTables())
+        {
+            int gcBefore = localTime;
+            if (useGcGrace) gcBefore = localTime - sstable.metadata.getGcGraceSeconds();
+            allDroppable += sstable.getDroppableTombstonesBefore(gcBefore);
+        }
+        return allDroppable;
+    }
+
     public long trueSnapshotsSize()
     {
         return directories.trueSnapshotsSize();
