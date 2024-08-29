@@ -375,9 +375,6 @@ public class SSTableExport
      */
     public static void main(String[] args) throws ConfigurationException
     {
-        System.err.println("WARNING: please note that sstable2json is now deprecated and will be removed in Cassandra 3.0. "
-                         + "Please see https://issues.apache.org/jira/browse/CASSANDRA-9618 for details.");
-
         String usage = String.format("Usage: %s <sstable> [-k key [-k key [...]] -x key [-x key [...]]]%n", SSTableExport.class.getName());
 
         CommandLineParser parser = new PosixParser();
@@ -404,16 +401,39 @@ public class SSTableExport
 
         String[] keys = cmd.getOptionValues(KEY_OPTION);
         String[] excludes = cmd.getOptionValues(EXCLUDEKEY_OPTION);
-        String ssTableFileName = new File(cmd.getArgs()[0]).getAbsolutePath();
+        File fileOrDirectory = new File(cmd.getArgs()[0]);
 
         Schema.instance.loadFromDisk(false);
+
+        if (fileOrDirectory.isDirectory())
+        {
+            File[] files = Objects.requireNonNull(fileOrDirectory.listFiles((dir, name) ->
+                    name.endsWith("Data.db")
+            ), "An error occurred while listing files in the provided directory");
+            for (File file : files)
+            {
+                String ssTableFileName = file.getAbsolutePath();
+                handleSingleSsTableFile(ssTableFileName, keys, excludes);
+            }
+        }
+        else
+        {
+            handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes);
+
+        }
+
+        System.exit(0);
+    }
+
+    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes)
+    {
         Descriptor descriptor = Descriptor.fromFilename(ssTableFileName);
 
         // Start by validating keyspace name
         if (Schema.instance.getKSMetaData(descriptor.ksname) == null)
         {
             System.err.println(String.format("Filename %s references to nonexistent keyspace: %s!",
-                                             ssTableFileName, descriptor.ksname));
+                    ssTableFileName, descriptor.ksname));
             System.exit(1);
         }
         Keyspace.setInitialized();
@@ -459,8 +479,6 @@ public class SSTableExport
             // throwing exception outside main with broken pipe causes windows cmd to hang
             e.printStackTrace(System.err);
         }
-
-        System.exit(0);
     }
 
     private static void writeJSON(PrintStream out, Object value)
