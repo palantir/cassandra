@@ -871,6 +871,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
             while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
 
+            logger.info("Removing Statistics.db for new SSTable {} to clear old ancestor metadata", descriptor);
+            FileUtils.delete(new File(descriptor.filenameFor(Component.STATS)));
+
             logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
             SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
 
