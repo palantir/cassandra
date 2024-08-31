@@ -17,17 +17,33 @@
  */
 package org.apache.cassandra.db.compaction;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.collect.ImmutableMap;
+
+import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.db.Directories;
+import org.apache.cassandra.db.SystemKeyspace;
+import org.apache.cassandra.io.FSReadError;
+import org.apache.cassandra.io.sstable.Component;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.SSTable;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import junit.framework.Assert;
 import org.junit.After;
@@ -51,6 +67,8 @@ import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
+import org.apache.cassandra.io.sstable.metadata.CompactionMetadata;
+import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.notifications.SSTableAddedNotification;
 import org.apache.cassandra.notifications.SSTableRepairStatusChanged;
@@ -61,6 +79,7 @@ import org.apache.cassandra.utils.FBUtilities;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
@@ -70,6 +89,7 @@ public class LeveledCompactionStrategyTest
 
     private static final String KEYSPACE1 = "LeveledCompactionStrategyTest";
     private static final String CF_STANDARDDLEVELED = "StandardLeveled";
+    private static final String CF_STANDARDDLEVELEDRESTORED = "StandardLeveledRestored";
     private Keyspace keyspace;
     private ColumnFamilyStore cfs;
 
@@ -83,6 +103,9 @@ public class LeveledCompactionStrategyTest
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARDDLEVELED)
+                                                .compactionStrategyClass(LeveledCompactionStrategy.class)
+                                                .compactionStrategyOptions(leveledOptions),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARDDLEVELEDRESTORED)
                                                 .compactionStrategyClass(LeveledCompactionStrategy.class)
                                                 .compactionStrategyOptions(leveledOptions));
         }
@@ -421,7 +444,7 @@ public class LeveledCompactionStrategyTest
     }
 
     @Test
-    public void testLevelSettingOnLoadNewSSTables() throws InterruptedException
+    public void testLevelSettingOnLoadNewSSTables() throws InterruptedException, IOException
     {
         byte [] b = new byte[100 * 1024];
         new Random().nextBytes(b);
@@ -452,6 +475,25 @@ public class LeveledCompactionStrategyTest
         int[] originalLevelSizes = strategy.getAllLevelSize();
         assertTrue(originalLevelSizes[1] > 0);
 
+        assertTrue(getUnfinishedCompactionLeftovers(cfs.metadata, ImmutableMap.of()).isEmpty());
+
+        cfs.snapshot("test");
+        // move sstables to restored keyspace
+        ColumnFamilyStore cfsRestored = keyspace.getColumnFamilyStore(CF_STANDARDDLEVELEDRESTORED);
+        Path restoreDataDir = cfsRestored.directories.getCFDirectories().get(0).toPath();
+        cfsRestored.disableAutoCompaction();
+
+        for (File source : cfs.directories
+                           .getCFDirectories().get(0).toPath().resolve("snapshots").resolve("test").toFile().listFiles()) {
+            if (source.isFile()) {
+                Files.copy(source.toPath(), restoreDataDir.resolve(source.toPath().getFileName()));
+            }
+        }
+
+        cfsRestored.loadNewSSTables(true);
+
+        assertFalse(getUnfinishedCompactionLeftovers(cfsRestored.metadata, ImmutableMap.of()).isEmpty());
+
         // when assumeCfIsEmpty is true loadNewSSTables should keep original levels
         resetState();
         cfs.loadNewSSTables(true);
@@ -462,6 +504,8 @@ public class LeveledCompactionStrategyTest
 
         // when assumeCfIsEmpty is false loadNewSSTables should re-level everything to 0
         resetState();
+        assertTrue(getUnfinishedCompactionLeftovers(cfs.metadata, ImmutableMap.of()).isEmpty());
+
         cfs.loadNewSSTables(false);
         levelSizes = strategy.getAllLevelSize();
         assertTrue(levelSizes[0] > 0);
@@ -469,6 +513,88 @@ public class LeveledCompactionStrategyTest
             assertTrue(levelSizes[i] == 0);
         }
     }
+
+    public static Map<Descriptor, Set<Component>> getUnfinishedCompactionLeftovers(CFMetaData metadata, Map<Integer, UUID> unfinishedCompactions)
+    {
+        System.out.println("Looking for leftovers");
+        Map<Descriptor, Set<Component>> unfinished = new HashMap<>();
+        Directories directories = new Directories(metadata);
+        Set<Integer> allGenerations = new HashSet<>();
+        for (Descriptor desc : directories.sstableLister().list().keySet())
+            allGenerations.add(desc.generation);
+
+        // sanity-check unfinishedCompactions
+        Set<Integer> unfinishedGenerations = unfinishedCompactions.keySet();
+        if (!allGenerations.containsAll(unfinishedGenerations))
+        {
+            HashSet<Integer> missingGenerations = new HashSet<>(unfinishedGenerations);
+            missingGenerations.removeAll(allGenerations);
+            logger.trace("Unfinished compactions of {}.{} reference missing sstables of generations {}",
+                         metadata.ksName, metadata.cfName, missingGenerations);
+        }
+
+        // remove new sstables from compactions that didn't complete, and compute
+        // set of ancestors that shouldn't exist anymore
+        Set<Integer> completedAncestors = new HashSet<>();
+        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
+        {
+            // we rename the Data component last - if it does not exist as a final file, we should ignore this sstable and
+            // it will be removed during startup
+            if (!sstableFiles.getValue().contains(Component.DATA))
+                continue;
+            Descriptor desc = sstableFiles.getKey();
+
+            Set<Integer> ancestors;
+            try
+            {
+                CompactionMetadata compactionMetadata = (CompactionMetadata) desc.getMetadataSerializer().deserialize(desc, MetadataType.COMPACTION);
+                ancestors = compactionMetadata.ancestors;
+            }
+            catch (IOException e)
+            {
+                throw new FSReadError(e, desc.filenameFor(Component.STATS));
+            }
+            catch (NullPointerException e)
+            {
+                throw new FSReadError(e, "Failed to remove unfinished compaction leftovers (file: " + desc.filenameFor(Component.STATS) + ").  See log for details.");
+            }
+            System.out.println(sstableFiles.getKey().generation + " has ancestors " + ancestors);
+
+            if (!ancestors.isEmpty()
+                && unfinishedGenerations.containsAll(ancestors)
+                && allGenerations.containsAll(ancestors))
+            {
+                // any of the ancestors would work, so we'll just lookup the compaction task ID with the first one
+                UUID compactionTaskID = unfinishedCompactions.get(ancestors.iterator().next());
+                assert compactionTaskID != null;
+                logger.info("Going to delete unfinished compaction product {}", desc);
+                SSTable.delete(desc, sstableFiles.getValue());
+                SystemKeyspace.finishCompaction(compactionTaskID);
+            }
+            else
+            {
+                completedAncestors.addAll(ancestors);
+            }
+        }
+
+        // remove old sstables from compactions that did complete
+        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
+        {
+            Descriptor desc = sstableFiles.getKey();
+            if (completedAncestors.contains(desc.generation))
+            {
+                // if any of the ancestors were participating in a compaction, finish that compaction
+                logger.info("Going to delete leftover compaction ancestor {}", desc);
+                //SSTable.delete(desc, sstableFiles.getValue());
+                unfinished.put(desc, sstableFiles.getValue());
+//                UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
+//                if (compactionTaskID != null)
+//                    SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
+            }
+        }
+        return unfinished;
+    }
+
 
     private void resetState() {
         Collection<SSTableReader> sstables = cfs.getSSTables();

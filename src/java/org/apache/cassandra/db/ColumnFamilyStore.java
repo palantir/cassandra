@@ -874,6 +874,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
             SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
 
+
             SSTableReader reader;
             try
             {
