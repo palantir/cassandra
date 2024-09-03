@@ -45,8 +45,9 @@ public final class VolumesIntegrityCheck
 
     private final FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    static class VolumeMetadataType extends TypeReference<VolumeMetadata>
+    public VolumesIntegrityCheck(UUID hostId)
     {
+        this(hostId, withParser(getDataDirectory()), withParser(DatabaseDescriptor.getCommitLogLocation()));
     }
 
     @VisibleForTesting
@@ -67,8 +68,12 @@ public final class VolumesIntegrityCheck
             Optional<VolumeMetadata> maybeCommitLogMetadata = commitLogMetadataFileParser.read();
             check(maybeDataDriveMetadata, maybeCommitLogMetadata);
 
-            // Write order matters here. We treat write to the data drive as
-            // a "locking" operation, i.e the node is in a steady state.
+            /**
+             * Write order matters here based on the implementation for {@link com.palantir.cassandra.check.VolumesIntegrityCheck#check}.
+             * Write to the data drive specifies that we've committed the metadata files to the node. Without writing
+             * to the data drive, we can't differentiate if this is a new node to the cluster or the data drive has
+             * been swapped.
+             */
             writeIfEmpty(commitLogMetadataFileParser, maybeCommitLogMetadata.isPresent());
             writeIfEmpty(dataDriveMetadataFileParser, maybeDataDriveMetadata.isPresent());
         }
@@ -97,18 +102,18 @@ public final class VolumesIntegrityCheck
         if (!present) parser.write(VolumeMetadata.of(hostId));
     }
 
-    public static VolumesIntegrityCheck of(UUID hostId)
-    {
-        String dataDirectory = Arrays
-                               .stream(DatabaseDescriptor.getAllDataFileLocations())
-                               .findFirst()
-                               .orElseThrow(() -> new RuntimeException("No data directory found"));
-        String commitLogDirectory = DatabaseDescriptor.getCommitLogLocation();
-        return new VolumesIntegrityCheck(hostId, withParser(dataDirectory), withParser(commitLogDirectory));
-    }
-
     private static FileParser<VolumeMetadata> withParser(String path)
     {
-        return new FileParser<>(Paths.get(path, VOLUME_METADATA_NAME), new VolumeMetadataType());
+        return new FileParser<>(Paths.get(path, VOLUME_METADATA_NAME), new TypeReference<VolumeMetadata>()
+        {
+        });
+    }
+
+    private static String getDataDirectory()
+    {
+        return Arrays
+               .stream(DatabaseDescriptor.getAllDataFileLocations())
+               .findFirst()
+               .orElseThrow(() -> new RuntimeException("No data directory found"));
     }
 }

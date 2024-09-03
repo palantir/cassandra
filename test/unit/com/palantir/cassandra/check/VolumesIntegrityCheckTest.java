@@ -32,6 +32,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.palantir.cassandra.utils.FileParser;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.assertj.core.api.Assertions;
@@ -62,14 +63,14 @@ public final class VolumesIntegrityCheckTest
     private VolumesIntegrityCheck check;
 
     @BeforeClass
-    public static void beforeAll() throws IOException
+    public static void beforeClass() throws IOException
     {
         Files.createDirectories(Paths.get(getDataDrive()));
         Files.createDirectories(Paths.get(DatabaseDescriptor.getCommitLogLocation()));
     }
 
     @Before
-    public void beforeEach() throws IOException
+    public void before() throws IOException
     {
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_1);
         dataDriveMetadataFileParser = mock(FileParser.class);
@@ -148,10 +149,14 @@ public final class VolumesIntegrityCheckTest
     @Test
     public void execute_deserVolumeMetadataFromDisk() throws IOException
     {
-        VolumesIntegrityCheck.of(HOST_1).execute();
+        new VolumesIntegrityCheck(HOST_1).execute();
 
-        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new VolumesIntegrityCheck.VolumeMetadataType());
-        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new VolumesIntegrityCheck.VolumeMetadataType());
+        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new TypeReference<VolumeMetadata>()
+        {
+        });
+        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new TypeReference<VolumeMetadata>()
+        {
+        });
         Assertions.assertThat(dataDriveParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
         Assertions.assertThat(commitLogParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
     }

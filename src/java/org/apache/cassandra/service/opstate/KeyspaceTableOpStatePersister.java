@@ -60,7 +60,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            logIoException("Failed to read state from file.", persistentFileLocation.toFile().getAbsolutePath(), e);
+            log.warn("Failed to read state from file.", persistentFileLocation.toFile().getAbsolutePath(), e);
             if (e instanceof JsonParseException)
             {
                 log.warn("Persistent file corrupted, wiping content.");
@@ -79,7 +79,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            logIoException("Cannot retrieve or create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
+            log.warn("Cannot retrieve or create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
             return false;
         }
     }
@@ -105,13 +105,8 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            logIoException("Failed to create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
+            log.warn("Failed to create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
         }
-    }
-
-    private void logIoException(String message, String path, IOException e)
-    {
-        log.warn(message, path, e);
     }
 
     private static Map<KeyspaceTableKey, Instant> convertMapTypeToKeyspaceTableKeyInstant(Map<String, Long> map)
