@@ -46,7 +46,7 @@ public class FileParser<T>
     public Optional<T> read() throws IOException
     {
         File file = path.toFile();
-        if (file.exists() && file.isFile())
+        if (Files.isRegularFile(path) && file.length() > 0)
         {
             return Optional.of(OBJECT_MAPPER.readValue(file, cls));
         }
@@ -65,14 +65,22 @@ public class FileParser<T>
 
         try
         {
-            tmpFile.createNewFile();
-            Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
-            Files.move(tmpFile.toPath(), path.toFile().toPath(),
-                       StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.move(tmpFile.toPath(), path.toFile().toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         }
         finally
         {
             Files.deleteIfExists(tmpFile.toPath());
         }
+    }
+
+    public boolean create() throws IOException
+    {
+        if (Files.notExists(path))
+        {
+            Files.createFile(path);
+            return true;
+        }
+        return false;
     }
 }

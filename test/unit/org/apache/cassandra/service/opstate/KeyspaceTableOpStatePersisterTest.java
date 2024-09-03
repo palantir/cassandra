@@ -31,7 +31,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class KeyspaceTableOpStatePersisterTest
 {
@@ -74,9 +73,9 @@ public class KeyspaceTableOpStatePersisterTest
         assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
 
         persister.updateStateInPersistentLocation(
-            ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+        ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
         assertThat(persister.readStateFromPersistentLocation().get()).containsExactly(
-            new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+        new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }
 
     @Test
@@ -88,7 +87,7 @@ public class KeyspaceTableOpStatePersisterTest
         tmpStateFilePath.toFile().setReadOnly();
 
         assertThat(persister.updateStateInPersistentLocation(
-                ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)))).isFalse();
+        ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)))).isFalse();
         assertThat(tmpStateFilePath.toFile().exists()).isFalse();
         assertThat(persister.readStateFromPersistentLocation().get()).isEmpty();
     }
@@ -115,10 +114,10 @@ public class KeyspaceTableOpStatePersisterTest
         File testOpStateFile = stateFilePath.toFile();
         assertThat(testOpStateFile).exists();
         OpStateTestConstants.OBJECT_MAPPER.writeValue(
-            testOpStateFile, ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1.toString(), 10L));
+        testOpStateFile, ImmutableMap.of(OpStateTestConstants.KEYSPACE_TABLE_KEY_1.toString(), 10L));
 
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         assertThat(persister.readStateFromPersistentLocation().get()).containsExactly(
-            new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
+        new AbstractMap.SimpleEntry<>(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, Instant.ofEpochMilli(10L)));
     }
 }

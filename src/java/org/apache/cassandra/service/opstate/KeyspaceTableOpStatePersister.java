@@ -18,12 +18,8 @@
 
 package org.apache.cassandra.service.opstate;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,39 +30,41 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.palantir.cassandra.utils.FileParser;
 
 public class KeyspaceTableOpStatePersister
 {
     private static final Logger log = LoggerFactory.getLogger(KeyspaceTableOpStatePersister.class);
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-    private File persistentFile;
     private final Path persistentFileLocation;
+
+    private final FileParser<Map<String, Long>> parser;
 
     public KeyspaceTableOpStatePersister(Path persistentFileLocation)
     {
         this.persistentFileLocation = persistentFileLocation;
-        this.persistentFile = getOrMaybeCreateStateFile();
+        this.parser = new FileParser<>(persistentFileLocation, new TypeReference<Map<String, Long>>()
+        {
+        });
+        init();
     }
 
     public Optional<Map<KeyspaceTableKey, Instant>> readStateFromPersistentLocation()
     {
-        File persistentStateFile = getOrMaybeCreateStateFile();
-        if (persistentStateFile == null)
-            return Optional.empty();
-
         try
         {
-            return Optional.of(readStateFromFile(persistentStateFile));
+            parser.create();
+            return Optional.of(parser.read().map(KeyspaceTableOpStatePersister::convertMapTypeToKeyspaceTableKeyInstant)
+                                     .orElse(ImmutableMap.of()));
         }
         catch (IOException e)
         {
+            logIoException("Failed to read state from file.", persistentFileLocation.toFile().getAbsolutePath(), e);
             if (e instanceof JsonParseException)
             {
                 log.warn("Persistent file corrupted, wiping content.");
-                writeStateToFile(persistentStateFile, ImmutableMap.of());
+                writeStateToFile(ImmutableMap.of());
             }
             return Optional.empty();
         }
@@ -74,52 +72,23 @@ public class KeyspaceTableOpStatePersister
 
     public boolean updateStateInPersistentLocation(Map<KeyspaceTableKey, Instant> updatedEntries)
     {
-        File persistentStateFile = getOrMaybeCreateStateFile();
-        if (persistentStateFile == null)
+        try
+        {
+            parser.create();
+            return writeStateToFile(updatedEntries);
+        }
+        catch (IOException e)
+        {
+            logIoException("Cannot retrieve or create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
             return false;
-
-        return writeStateToFile(persistentStateFile, updatedEntries);
-    }
-
-    private File getOrMaybeCreateStateFile()
-    {
-        if (persistentFile != null)
-            return persistentFile;
-
-        File operationStateFile = persistentFileLocation.toFile();
-        try
-        {
-            operationStateFile.createNewFile();
-        }
-        catch (IOException e)
-        {
-            log.warn("Cannot retrieve or create state file.", operationStateFile.getAbsolutePath(), e);
-            return null;
-        }
-        this.persistentFile = operationStateFile;
-        return operationStateFile;
-    }
-
-    private Map<KeyspaceTableKey, Instant> readStateFromFile(File file) throws IOException
-    {
-        if(file.length() == 0)
-            return new HashMap<>();
-        try
-        {
-            return convertMapTypeToKeyspaceTableKeyInstant(OBJECT_MAPPER.readValue(file, Map.class));
-        }
-        catch (IOException e)
-        {
-            log.warn("Failed to read state from file.", file.getAbsolutePath(), e);
-            throw e;
         }
     }
 
-    private boolean writeStateToFile(File file, Map<KeyspaceTableKey, Instant> updatedEntries)
+    private boolean writeStateToFile(Map<KeyspaceTableKey, Instant> updatedEntries)
     {
         try
         {
-            atomicWritetoFile(file, OBJECT_MAPPER.writeValueAsString(convertMapTypeToStringLong(updatedEntries)));
+            parser.write(convertMapTypeToStringLong(updatedEntries));
             return true;
         }
         catch (IOException e)
@@ -128,33 +97,27 @@ public class KeyspaceTableOpStatePersister
         }
     }
 
-    private synchronized void atomicWritetoFile(File file, String content) throws IOException
+    private void init()
     {
-        String tmpFilePath = file.getAbsolutePath() + ".tmp";
-        File tmpFile = new File(tmpFilePath);
         try
         {
-            tmpFile.createNewFile();
-            Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
-            Files.move(tmpFile.toPath(), file.toPath(),
-                       StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            parser.create();
         }
         catch (IOException e)
         {
-            log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
-            throw e;
-        }
-        finally
-        {
-            Files.delete(tmpFile.toPath());
+            logIoException("Failed to create state file.", persistentFileLocation.toFile().getAbsolutePath(), e);
         }
     }
 
-    private static Map<KeyspaceTableKey, Instant> convertMapTypeToKeyspaceTableKeyInstant(Map<Object, Object> map)
+    private void logIoException(String message, String path, IOException e)
+    {
+        log.warn(message, path, e);
+    }
+
+    private static Map<KeyspaceTableKey, Instant> convertMapTypeToKeyspaceTableKeyInstant(Map<String, Long> map)
     {
         Map<KeyspaceTableKey, Instant> typedMap = new HashMap<>();
-        map.forEach((key, value) ->
-                    typedMap.put(KeyspaceTableKey.parse(key.toString()), Instant.ofEpochMilli(Long.parseLong(value.toString()))));
+        map.forEach((key, value) -> typedMap.put(KeyspaceTableKey.parse(key), Instant.ofEpochMilli(value)));
         return typedMap;
     }
 
@@ -164,5 +127,4 @@ public class KeyspaceTableOpStatePersister
         map.forEach((key, value) -> typedMap.put(key.toString(), value.toEpochMilli()));
         return typedMap;
     }
-
 }
