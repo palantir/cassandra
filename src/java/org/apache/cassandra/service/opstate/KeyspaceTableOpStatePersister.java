@@ -54,7 +54,7 @@ public class KeyspaceTableOpStatePersister
     {
         try
         {
-            parser.create();
+            parser.createFileIfNotExists();
             return Optional.of(parser.read().map(KeyspaceTableOpStatePersister::convertMapTypeToKeyspaceTableKeyInstant)
                                      .orElse(ImmutableMap.of()));
         }
@@ -74,7 +74,7 @@ public class KeyspaceTableOpStatePersister
     {
         try
         {
-            parser.create();
+            parser.createFileIfNotExists();
             return writeStateToFile(updatedEntries);
         }
         catch (IOException e)
@@ -101,7 +101,7 @@ public class KeyspaceTableOpStatePersister
     {
         try
         {
-            parser.create();
+            parser.createFileIfNotExists();
         }
         catch (IOException e)
         {

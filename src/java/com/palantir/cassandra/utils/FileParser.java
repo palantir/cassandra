@@ -74,7 +74,7 @@ public class FileParser<T>
         }
     }
 
-    public boolean create() throws IOException
+    public boolean createFileIfNotExists() throws IOException
     {
         if (Files.notExists(path))
         {

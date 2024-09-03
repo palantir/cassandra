@@ -82,7 +82,7 @@ public final class FileParserTest
     @Test
     public void read_emptyFileReturnsOptionalEmpty() throws IOException
     {
-        assertThat(parser.create()).isTrue();
+        assertThat(parser.createFileIfNotExists()).isTrue();
         assertThat(parser.read()).isEmpty();
     }
 
@@ -96,7 +96,7 @@ public final class FileParserTest
     @Test
     public void create_returnsTrueIfNotExistElseFalse() throws IOException
     {
-        assertThat(parser.create()).isTrue();
-        assertThat(parser.create()).isFalse();
+        assertThat(parser.createFileIfNotExists()).isTrue();
+        assertThat(parser.createFileIfNotExists()).isFalse();
     }
 }

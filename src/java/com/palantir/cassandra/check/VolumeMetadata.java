@@ -50,16 +50,6 @@ public final class VolumeMetadata
         return new VolumeMetadata(hostId);
     }
 
-    public UUID getHostId()
-    {
-        return hostId;
-    }
-
-    public String getPodName()
-    {
-        return podName;
-    }
-
     @Override
     public String toString()
     {

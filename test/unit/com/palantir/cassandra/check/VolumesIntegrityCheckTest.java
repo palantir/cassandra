@@ -41,7 +41,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
-public final class VolumeIntegrityCheckTest
+public final class VolumesIntegrityCheckTest
 {
     private static final UUID HOST_1 = UUID.randomUUID();
 
@@ -51,15 +51,15 @@ public final class VolumeIntegrityCheckTest
 
     private static final String POD_NAME_2 = "pod-2";
 
-    private static final Path DATA_DIRECTORY = Paths.get(getDataDrive(), VolumeIntegrityCheck.METADATA_NAME);
+    private static final Path DATA_DIRECTORY = Paths.get(getDataDrive(), VolumesIntegrityCheck.VOLUME_METADATA_NAME);
 
-    private static final Path COMMIT_LOG_DIRECTORY = Paths.get(DatabaseDescriptor.getCommitLogLocation(), VolumeIntegrityCheck.METADATA_NAME);
+    private static final Path COMMIT_LOG_DIRECTORY = Paths.get(DatabaseDescriptor.getCommitLogLocation(), VolumesIntegrityCheck.VOLUME_METADATA_NAME);
 
     private FileParser<VolumeMetadata> dataDriveMetadataFileParser;
 
     private FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    private VolumeIntegrityCheck check;
+    private VolumesIntegrityCheck check;
 
     @BeforeClass
     public static void beforeAll() throws IOException
@@ -74,7 +74,7 @@ public final class VolumeIntegrityCheckTest
         withMutableEnv().put(VolumeMetadata.POD_NAME_ENV, POD_NAME_1);
         dataDriveMetadataFileParser = mock(FileParser.class);
         commitLogMetadataFileParser = mock(FileParser.class);
-        check = new VolumeIntegrityCheck(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
+        check = new VolumesIntegrityCheck(HOST_1, dataDriveMetadataFileParser, commitLogMetadataFileParser);
 
         Files.deleteIfExists(DATA_DIRECTORY);
         Files.deleteIfExists(COMMIT_LOG_DIRECTORY);
@@ -148,10 +148,10 @@ public final class VolumeIntegrityCheckTest
     @Test
     public void execute_deserVolumeMetadataFromDisk() throws IOException
     {
-        VolumeIntegrityCheck.of(HOST_1).execute();
+        VolumesIntegrityCheck.of(HOST_1).execute();
 
-        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new VolumeIntegrityCheck.VolumeMetadataType());
-        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new VolumeIntegrityCheck.VolumeMetadataType());
+        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new VolumesIntegrityCheck.VolumeMetadataType());
+        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new VolumesIntegrityCheck.VolumeMetadataType());
         Assertions.assertThat(dataDriveParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
         Assertions.assertThat(commitLogParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
     }
