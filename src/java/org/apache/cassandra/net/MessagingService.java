@@ -1002,7 +1002,10 @@ public final class MessagingService implements MessagingServiceMBean
                 {
                     socket = server.accept();
                     InetAddress remote = socket.getInetAddress();
-                    InetAddressUtils.setHostname(remote, hostnameResolver.getHostname(remote));
+                    if (Boolean.getBoolean("palantir_cassandra.use_custom_reverse_dns"))
+                    {
+                        InetAddressUtils.setHostname(remote, hostnameResolver.getHostname(remote));
+                    }
 
                     logger.trace("Attempting to accept incoming connection from {}", remote);
 
