@@ -56,6 +56,16 @@ public final class VolumeMetadata
         return String.format("VolumeMetadata{hostId=%s, podName=%s}", hostId, podName);
     }
 
+    public String getPodName()
+    {
+        return podName;
+    }
+
+    public UUID getHostId()
+    {
+        return hostId;
+    }
+
     @Override
     public boolean equals(Object other)
     {
