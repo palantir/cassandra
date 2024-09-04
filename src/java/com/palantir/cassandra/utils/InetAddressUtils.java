@@ -32,6 +32,7 @@ public final class InetAddressUtils
         {
             Object inetAddressHolder = MethodUtils.invokeMethod(address, true, "holder");
             FieldUtils.writeField(inetAddressHolder, "hostName", hostname, true);
+            FieldUtils.writeField(inetAddressHolder, "originalHostName", hostname, true);
         }
         catch (Exception e)
         {
