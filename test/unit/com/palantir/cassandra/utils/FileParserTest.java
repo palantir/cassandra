@@ -54,9 +54,7 @@ public final class FileParserTest
         Path directory = Files.createTempDirectory(TEST_DIRECTORY_NAME);
         file = directory.resolve(FILE_NAME);
         tmpFile = directory.resolve(TMP_FILE_NAME);
-        parser = new FileParser<>(file, new TypeReference<Map<String, String>>()
-        {
-        });
+        parser = new FileParser<>(file, new TypeReference<Map<String, String>>() {});
     }
 
     @Before

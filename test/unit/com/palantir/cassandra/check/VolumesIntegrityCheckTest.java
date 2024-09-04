@@ -149,14 +149,10 @@ public final class VolumesIntegrityCheckTest
     @Test
     public void execute_deserVolumeMetadataFromDisk() throws IOException
     {
-        new VolumesIntegrityCheck(HOST_1).execute();
+        VolumesIntegrityCheck.getInstance(HOST_1).execute();
 
-        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new TypeReference<VolumeMetadata>()
-        {
-        });
-        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new TypeReference<VolumeMetadata>()
-        {
-        });
+        FileParser<VolumeMetadata> dataDriveParser = new FileParser<>(DATA_DIRECTORY, new TypeReference<VolumeMetadata>() {});
+        FileParser<VolumeMetadata> commitLogParser = new FileParser<>(COMMIT_LOG_DIRECTORY, new TypeReference<VolumeMetadata>() {});
         Assertions.assertThat(dataDriveParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
         Assertions.assertThat(commitLogParser.read()).isPresent().hasValue(new VolumeMetadata(HOST_1, POD_NAME_1));
     }

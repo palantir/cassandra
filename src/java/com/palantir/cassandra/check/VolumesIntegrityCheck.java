@@ -37,7 +37,9 @@ import org.apache.cassandra.config.DatabaseDescriptor;
  */
 public final class VolumesIntegrityCheck
 {
-    public static final String VOLUME_METADATA_NAME = "cassandra-metadata.json";
+    private static VolumesIntegrityCheck instance = null;
+
+    public static final String VOLUME_METADATA_NAME = "palantir-startup-metadata.json";
 
     private final UUID hostId;
 
@@ -45,7 +47,7 @@ public final class VolumesIntegrityCheck
 
     private final FileParser<VolumeMetadata> commitLogMetadataFileParser;
 
-    public VolumesIntegrityCheck(UUID hostId)
+    private VolumesIntegrityCheck(UUID hostId)
     {
         this(hostId, withParser(getDataDirectory()), withParser(DatabaseDescriptor.getCommitLogLocation()));
     }
@@ -60,7 +62,7 @@ public final class VolumesIntegrityCheck
         this.commitLogMetadataFileParser = commitLogMetadataFileParser;
     }
 
-    public void execute()
+    public synchronized void execute()
     {
         try
         {
@@ -102,11 +104,15 @@ public final class VolumesIntegrityCheck
         if (!present) parser.write(VolumeMetadata.of(hostId));
     }
 
+    public static VolumesIntegrityCheck getInstance(UUID hostId)
+    {
+        if (instance == null) instance = new VolumesIntegrityCheck(hostId);
+        return instance;
+    }
+
     private static FileParser<VolumeMetadata> withParser(String path)
     {
-        return new FileParser<>(Paths.get(path, VOLUME_METADATA_NAME), new TypeReference<VolumeMetadata>()
-        {
-        });
+        return new FileParser<>(Paths.get(path, VOLUME_METADATA_NAME), new TypeReference<VolumeMetadata>() {});
     }
 
     private static String getDataDirectory()

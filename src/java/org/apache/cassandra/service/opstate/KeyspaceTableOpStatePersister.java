@@ -44,9 +44,7 @@ public class KeyspaceTableOpStatePersister
     public KeyspaceTableOpStatePersister(Path persistentFileLocation)
     {
         this.persistentFileLocation = persistentFileLocation;
-        this.parser = new FileParser<>(persistentFileLocation, new TypeReference<Map<String, Long>>()
-        {
-        });
+        this.parser = new FileParser<>(persistentFileLocation, new TypeReference<Map<String, Long>>() {});
         init();
     }
 
