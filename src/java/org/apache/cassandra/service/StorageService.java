@@ -187,7 +187,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     /* we bootstrap but do NOT join the ring unless told to do so */
     private boolean isSurveyMode = Boolean.parseBoolean(System.getProperty
-                                                              ("cassandra.write_survey", "false"));
+            ("cassandra.write_survey", "false"));
     /* true if node is rebuilding and receiving data */
     private final AtomicBoolean isRebuilding = new AtomicBoolean();
 
@@ -385,7 +385,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 if (StorageService.instance.isBootstrapMode() || DatabaseDescriptor.getAuthenticator().requireAuthentication())
                 {
                     throw new IllegalStateException("Not starting RPC server in write_survey mode as " +
-                                                    "it's bootstrapping or auth is enabled");
+                            "it's bootstrapping or auth is enabled");
                 }
             }
             else
@@ -393,7 +393,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 if (!SystemKeyspace.bootstrapComplete())
                 {
                     throw new IllegalStateException("Node is not yet bootstrapped completely. Use nodetool to check bootstrap" +
-                                                    " state and resume. For more, see `nodetool help bootstrap`");
+                            " state and resume. For more, see `nodetool help bootstrap`");
                 }
             }
         }
@@ -426,14 +426,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // survey mode and streaming has completed but we're not using auth.
         // OR if we have not joined the ring yet.
         if (hasJoined() &&
-            ((!isSurveyMode() && !SystemKeyspace.bootstrapComplete()) ||
-             (isSurveyMode() && isBootstrapMode())))
+                ((!isSurveyMode() && !SystemKeyspace.bootstrapComplete()) ||
+                (isSurveyMode() && isBootstrapMode())))
         {
             throw new IllegalStateException("Node is not yet bootstrapped completely. Use nodetool to check bootstrap" +
-                                            " state and resume. For more, see `nodetool help bootstrap`");
+                    " state and resume. For more, see `nodetool help bootstrap`");
         }
         if (hasJoined() && isSurveyMode() && !SystemKeyspace.bootstrapComplete() &&
-            DatabaseDescriptor.getAuthenticator().requireAuthentication())
+                DatabaseDescriptor.getAuthenticator().requireAuthentication())
         {
             throw new IllegalStateException("Not starting client transports as write_survey mode is enabled");
         }
@@ -495,7 +495,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!bootstrapComplete())
         {
             throw new IllegalStateException("Node is not yet bootstrapped completely. Refusing operator request to "
-                                            + "start transports.");
+                                           + "start transports.");
         }
         if (!isInitialized() && !Gossiper.instance.isEnabled())
         {
@@ -711,7 +711,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     return; // drained already
 
                 if (daemon != null)
-                    shutdownClientServers();
+                	shutdownClientServers();
                 ScheduledExecutors.optionalTasks.shutdown();
                 Gossiper.instance.stop();
 
@@ -969,11 +969,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.debug("... got ring + schema info");
 
             if (useStrictConsistency && !allowSimultaneousMoves() &&
-                (
-                tokenMetadata.getBootstrapTokens().valueSet().size() > 0 ||
-                tokenMetadata.getLeavingEndpoints().size() > 0 ||
-                tokenMetadata.getMovingEndpoints().size() > 0
-                ))
+                    (
+                        tokenMetadata.getBootstrapTokens().valueSet().size() > 0 ||
+                        tokenMetadata.getLeavingEndpoints().size() > 0 ||
+                        tokenMetadata.getMovingEndpoints().size() > 0
+                    ))
             {
                 throw new UnsupportedOperationException("Other bootstrapping/leaving/moving nodes detected, cannot bootstrap while cassandra.consistent.rangemovement is true");
             }
@@ -1172,9 +1172,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     static boolean isCommitlogEmptyForBootstrap(Set<UUID> columnFamiliesWithReplayedMutations) {
         boolean empty = true;
         Set<UUID> ignoredKeyspacesInCommitLog = columnFamiliesWithReplayedMutations.stream()
-                                                                                   .filter(Objects::nonNull) // cfIds for commitlog can sometimes be null
-                                                                                   .filter(uuid -> Schema.instance.getCFMetaData(uuid) == null)
-                                                                                   .collect(Collectors.toSet());
+                                                                 .filter(Objects::nonNull) // cfIds for commitlog can sometimes be null
+                                                                 .filter(uuid -> Schema.instance.getCFMetaData(uuid) == null)
+                                                                 .collect(Collectors.toSet());
 
         if (!ignoredKeyspacesInCommitLog.isEmpty()) {
             logger.info("Tried to replay a commitlog segment with an unknown CF(s) {}, " +
@@ -1183,11 +1183,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
 
         Set<String> seenKeyspacesInCommitlog =  columnFamiliesWithReplayedMutations.stream()
-                                                                                   .map(Schema.instance::getCFMetaData)
-                                                                                   .filter(Objects::nonNull)
-                                                                                   .map(cf -> cf.ksName)
-                                                                                   .filter(keyspace -> !Schema.SYSTEM_KEYSPACES.contains(keyspace))
-                                                                                   .collect(Collectors.toSet());
+                                                                 .map(Schema.instance::getCFMetaData)
+                                                                 .filter(Objects::nonNull)
+                                                                 .map(cf -> cf.ksName)
+                                                                 .filter(keyspace -> !Schema.SYSTEM_KEYSPACES.contains(keyspace))
+                                                                 .collect(Collectors.toSet());
 
         if (!seenKeyspacesInCommitlog.isEmpty()) {
             logger.error("Found previous commitlog entries for non-existing CFs {}, indicating we've an old commitlog files from a preivous bootstrap. Please delete before proceeding.",
@@ -1379,19 +1379,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // rebuild is done (successfully or not)
             isRebuilding.set(false);
         }
-    }
-
-    public void rebuild(String sourceDc, String keyspace, String tokens, String specificSources)
-    {
-        if (tokens != null)
-        {
-            throw new UnsupportedOperationException("Rebuild with specific tokens is not supported");
-        }
-        if (specificSources != null)
-        {
-            throw new UnsupportedOperationException("Rebuild with specificSources is not supported");
-        }
-        rebuild(sourceDc, keyspace);
     }
 
     public boolean isRebuilding()
@@ -1707,10 +1694,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(Mode.NON_TRANSIENT_ERROR, String.format("Non transient error of type %s", nonTransientError.toString()), true);
         NonTransientErrorMetrics.instance.record(nonTransientError);
         ImmutableMap<String, String> attributesWithErrorType =
-        ImmutableMap.<String, String>builder()
-                    .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
-                    .putAll(attributes)
-                    .build();
+            ImmutableMap.<String, String>builder()
+            .put(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY, nonTransientError.name())
+            .putAll(attributes)
+            .build();
         nonTransientErrors.add(attributesWithErrorType);
     }
 
@@ -1734,10 +1721,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void recordTransientError(TransientError transientError, Map<String, String> attributes) {
         setMode(Mode.TRANSIENT_ERROR, String.format("Transient error of type %s", transientError.toString()), true);
         ImmutableMap<String, String> attributesWithErrorType =
-        ImmutableMap.<String, String>builder()
-                    .put(StorageServiceMBean.TRANSIENT_ERROR_TYPE_KEY, transientError.name())
-                    .putAll(attributes)
-                    .build();
+            ImmutableMap.<String, String>builder()
+            .put(StorageServiceMBean.TRANSIENT_ERROR_TYPE_KEY, transientError.name())
+            .putAll(attributes)
+            .build();
         transientErrors.add(attributesWithErrorType);
     }
 
@@ -1969,9 +1956,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         Token.TokenFactory tf = getPartitioner().getTokenFactory();
 
         Map<Range<Token>, List<InetAddress>> rangeToAddressMap =
-        includeOnlyLocalDC
-        ? getRangeToAddressMapInLocalDC(keyspace)
-        : getRangeToAddressMap(keyspace);
+                includeOnlyLocalDC
+                        ? getRangeToAddressMapInLocalDC(keyspace)
+                        : getRangeToAddressMap(keyspace);
 
         for (Map.Entry<Range<Token>, List<InetAddress>> entry : rangeToAddressMap.entrySet())
         {
@@ -1995,8 +1982,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
 
             TokenRange tr = new TokenRange(tf.toString(range.left.getToken()), tf.toString(range.right.getToken()), endpoints)
-                            .setEndpoint_details(epDetails)
-                            .setRpc_endpoints(rpc_endpoints);
+                                    .setEndpoint_details(epDetails)
+                                    .setRpc_endpoints(rpc_endpoints);
 
             ranges.add(tr);
         }
@@ -2050,7 +2037,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * of the world.
      * @param ranges
      * @return mapping of ranges to the replicas responsible for them.
-     */
+    */
     private Map<Range<Token>, List<InetAddress>> constructRangeToEndpointMap(String keyspace, List<Range<Token>> ranges)
     {
         Map<Range<Token>, List<InetAddress>> rangeToEndpointMap = new HashMap<>(ranges.size());
@@ -2291,7 +2278,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public boolean isRpcReady(InetAddress endpoint)
     {
         return MessagingService.instance().getVersion(endpoint) < MessagingService.VERSION_22 ||
-               Gossiper.instance.getEndpointStateForEndpoint(endpoint).isRpcReady();
+                Gossiper.instance.getEndpointStateForEndpoint(endpoint).isRpcReady();
     }
 
     public void setRpcReady(boolean value)
@@ -3340,7 +3327,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     @Override
     public void takeMultipleColumnFamilySnapshot(String tag, String... columnFamilyList)
-    throws IOException
+            throws IOException
     {
         Map<Keyspace, List<String>> keyspaceColumnfamily = new HashMap<Keyspace, List<String>>();
         for (String columnFamily : columnFamilyList)
@@ -3381,7 +3368,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             else
             {
                 throw new IllegalArgumentException(
-                "Cannot take a snapshot on secondary index or invalid column family name. You must supply a column family name in the form of keyspace.columnfamily");
+                        "Cannot take a snapshot on secondary index or invalid column family name. You must supply a column family name in the form of keyspace.columnfamily");
             }
         }
 
@@ -3450,12 +3437,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     }
 
                     SnapshotDetailsTabularData.from(
-                    snapshotDetail.getKey(),
-                    keyspace.getName(),
-                    cfStore.getColumnFamilyName(),
-                    snapshotDetail,
-                    cfStore.getSnapshotCreationTime(snapshotDetail.getKey()),
-                    data);
+                    		snapshotDetail.getKey(),
+							keyspace.getName(),
+							cfStore.getColumnFamilyName(),
+							snapshotDetail,
+							cfStore.getSnapshotCreationTime(snapshotDetail.getKey()),
+							data);
                 }
             }
         }
@@ -3760,7 +3747,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private FutureTask<Object> createRepairTask(final int cmd, final RepairArguments arguments, boolean legacy)
     {
         if (!arguments.repairOptions().getDataCenters().isEmpty() &&
-            !arguments.repairOptions().getDataCenters().contains(DatabaseDescriptor.getLocalDataCenter()))
+                        !arguments.repairOptions().getDataCenters().contains(DatabaseDescriptor.getLocalDataCenter()))
         {
             throw new IllegalArgumentException("the local data center must be part of the repair");
         }
@@ -3869,7 +3856,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * of tokens. All ranges are in sorted order of
      * ranges.
      * @return ranges in sorted order
-     */
+    */
     public List<Range<Token>> getAllRanges(List<Token> sortedTokens)
     {
         if (logger.isTraceEnabled())
@@ -3965,8 +3952,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (StringUtils.isBlank(classQualifier) && StringUtils.isBlank(rawLevel) )
         {
             JMXConfiguratorMBean jmxConfiguratorMBean = JMX.newMBeanProxy(ManagementFactory.getPlatformMBeanServer(),
-                                                                          new ObjectName("ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator"),
-                                                                          JMXConfiguratorMBean.class);
+                    new ObjectName("ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator"),
+                    JMXConfiguratorMBean.class);
             jmxConfiguratorMBean.reloadDefaultConfiguration();
             return;
         }
@@ -4496,7 +4483,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             throw new UnsupportedOperationException("Node to be removed is not a member of the token ring");
 
         if (endpoint.equals(myAddress))
-            throw new UnsupportedOperationException("Cannot remove self");
+             throw new UnsupportedOperationException("Cannot remove self");
 
         if (Gossiper.instance.getLiveMembers().contains(endpoint))
             throw new UnsupportedOperationException("Node " + endpoint + " is alive and owns this ID. Use decommission command to remove it from the ring");
@@ -5224,7 +5211,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!bootstrapComplete())
         {
             throw new IllegalStateException("Node is not yet bootstrapped completely. Refusing operator request to "
-                                            + "enable client interfaces.");
+                    + "enable client interfaces.");
         }
         DisableClientInterfaceSetting.instance.setFalse();
         instance.startTransports();
