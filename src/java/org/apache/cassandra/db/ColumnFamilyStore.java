@@ -886,12 +886,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 }
                 while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
 
+                logger.info("Removing Statistics.db for new SSTable {} to clear old ancestor metadata", descriptor);
+                FileUtils.delete(new File(descriptor.filenameFor(Component.STATS)));
+                components = Sets.difference(components, ImmutableSet.of(Component.STATS));
+
                 logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
                 SSTableWriter.rename(descriptor, newDescriptor, components);
-
-                logger.info("Removing Statistics.db for new SSTable {} to clear old ancestor metadata", newDescriptor);
-                FileUtils.delete(new File(newDescriptor.filenameFor(Component.STATS)));
-                components = Sets.difference(components, ImmutableSet.of(Component.STATS));
             }
 
             SSTableReader reader;
