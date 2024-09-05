@@ -35,6 +35,18 @@ public class ValidAncestorsMetadata extends MetadataComponent
         return MetadataType.VALID_ANCESTORS;
     }
 
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof ValidAncestorsMetadata;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return 0;
+    }
+
     public static class ValidAncestorsMetadataSerializer implements IMetadataComponentSerializer<ValidAncestorsMetadata>
     {
         @Override
