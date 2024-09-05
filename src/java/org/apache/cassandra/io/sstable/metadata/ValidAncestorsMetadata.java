@@ -29,23 +29,14 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 public class ValidAncestorsMetadata extends MetadataComponent
 {
     public static final IMetadataComponentSerializer serializer = new ValidAncestorsMetadataSerializer();
+    public static final ValidAncestorsMetadata instance = new ValidAncestorsMetadata();
 
     public MetadataType getType()
     {
         return MetadataType.VALID_ANCESTORS;
     }
 
-    @Override
-    public boolean equals(Object obj)
-    {
-        return obj instanceof ValidAncestorsMetadata;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return 0;
-    }
+    private ValidAncestorsMetadata() {}
 
     public static class ValidAncestorsMetadataSerializer implements IMetadataComponentSerializer<ValidAncestorsMetadata>
     {
@@ -61,7 +52,7 @@ public class ValidAncestorsMetadata extends MetadataComponent
         @Override
         public ValidAncestorsMetadata deserialize(Version version, DataInput in)
         {
-            return new ValidAncestorsMetadata();
+            return instance;
         }
     }
 }

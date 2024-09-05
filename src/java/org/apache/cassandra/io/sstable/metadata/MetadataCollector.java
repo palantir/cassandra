@@ -295,7 +295,7 @@ public class MetadataCollector
                                                              hasLegacyCounterShards,
                                                              repairedAt));
         components.put(MetadataType.COMPACTION, new CompactionMetadata(ancestors, cardinality));
-        components.put(MetadataType.VALID_ANCESTORS, new ValidAncestorsMetadata());
+        components.put(MetadataType.VALID_ANCESTORS, ValidAncestorsMetadata.instance);
         return components;
     }
 }
