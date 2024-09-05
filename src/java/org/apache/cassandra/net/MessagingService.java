@@ -984,7 +984,7 @@ public final class MessagingService implements MessagingServiceMBean
         private final ServerSocket server;
         @VisibleForTesting
         public final Set<Closeable> connections = Sets.newConcurrentHashSet();
-        private final HostnameResolver hostnameResolver = new KubernetesHostnameResolver(() -> Gossiper.instance.getEndpointStates().size());
+        private final HostnameResolver hostnameResolver = new KubernetesHostnameResolver(() -> Math.max(3, Gossiper.instance.getEndpointStates().size() + 1));
 
         SocketThread(ServerSocket server, String name)
         {
