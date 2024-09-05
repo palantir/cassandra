@@ -31,12 +31,12 @@ public class ValidAncestorsMetadata extends MetadataComponent
     public static final IMetadataComponentSerializer serializer = new ValidAncestorsMetadataSerializer();
     public static final ValidAncestorsMetadata instance = new ValidAncestorsMetadata();
 
+    private ValidAncestorsMetadata() {}
+
     public MetadataType getType()
     {
         return MetadataType.VALID_ANCESTORS;
     }
-
-    private ValidAncestorsMetadata() {}
 
     public static class ValidAncestorsMetadataSerializer implements IMetadataComponentSerializer<ValidAncestorsMetadata>
     {
