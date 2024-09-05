@@ -54,6 +54,7 @@ public class SSTableMetadataViewer
                 ValidationMetadata validation = (ValidationMetadata) metadata.get(MetadataType.VALIDATION);
                 StatsMetadata stats = (StatsMetadata) metadata.get(MetadataType.STATS);
                 CompactionMetadata compaction = (CompactionMetadata) metadata.get(MetadataType.COMPACTION);
+                ValidAncestorsMetadata validAncestors = (ValidAncestorsMetadata) metadata.get(MetadataType.VALID_ANCESTORS);
 
                 out.printf("SSTable: %s%n", descriptor);
                 if (validation != null)
@@ -81,7 +82,15 @@ public class SSTableMetadataViewer
                 }
                 if (compaction != null)
                 {
-                    out.printf("Ancestors: %s%n", compaction.ancestors.toString());
+                    out.printf("Ancestors: %s", compaction.ancestors.toString());
+                    if (validAncestors != null)
+                    {
+                        out.println(" (considered valid)");
+                    }
+                    else
+                    {
+                        out.println(" (considered invalid)");
+                    }
                     out.printf("Estimated cardinality: %s%n", compaction.cardinalityEstimator.cardinality());
 
                 }
