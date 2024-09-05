@@ -247,11 +247,6 @@ public class HostnameSocket extends Socket
         return delegate.isOutputShutdown();
     }
 
-    public static void setSocketImplFactory(SocketImplFactory fac) throws IOException
-    {
-        Socket.setSocketImplFactory(fac);
-    }
-
     public void setPerformancePreferences(int connectionTime, int latency, int bandwidth)
     {
         delegate.setPerformancePreferences(connectionTime, latency, bandwidth);
