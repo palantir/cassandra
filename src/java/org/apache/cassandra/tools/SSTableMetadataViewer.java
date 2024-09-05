@@ -20,8 +20,12 @@ package org.apache.cassandra.tools;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.metadata.*;
@@ -44,6 +48,8 @@ public class SSTableMetadataViewer
         }
 
         Util.initDatabaseDescriptor();
+
+        Map<Integer, Set<Integer>> generationToAncestors = new HashMap<>();
 
         for (String fname : args)
         {
@@ -83,13 +89,30 @@ public class SSTableMetadataViewer
                 {
                     out.printf("Ancestors: %s%n", compaction.ancestors.toString());
                     out.printf("Estimated cardinality: %s%n", compaction.cardinalityEstimator.cardinality());
-
+                    generationToAncestors.put(descriptor.generation, compaction.ancestors);
+                }
+                else
+                {
+                    generationToAncestors.put(descriptor.generation, Collections.emptySet());
                 }
             }
             else
             {
                 out.println("No such file: " + fname);
             }
+        }
+
+        out.println();
+        out.println("SSTables listing other SSTables as ancestors (should be empty unless mid-compaction):");
+        for (Map.Entry<Integer, Set<Integer>> entry : generationToAncestors.entrySet())
+        {
+            out.print(entry.getKey());
+            out.print(": ");
+            out.println(entry
+                        .getValue()
+                        .stream()
+                        .filter(generationToAncestors::containsKey)
+                        .collect(Collectors.toSet()));
         }
     }
 
