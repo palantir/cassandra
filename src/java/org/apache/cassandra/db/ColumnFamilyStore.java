@@ -3399,17 +3399,13 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     private double getDroppableTombstoneRatio(boolean useGcGrace)
     {
-        double allDroppable = 0;
         long allColumns = 0;
-        int localTime = (int)(System.currentTimeMillis()/1000);
-
-        for (SSTableReader sstable : getSSTables())
+        Collection<SSTableReader> sstables = getSSTables();
+        for (SSTableReader sstable : sstables)
         {
-            int gcBefore = localTime;
-            if (useGcGrace) gcBefore = localTime - sstable.metadata.getGcGraceSeconds();
-            allDroppable += sstable.getDroppableTombstonesBefore(gcBefore);
             allColumns += sstable.getEstimatedColumnCount().mean() * sstable.getEstimatedColumnCount().count();
         }
+        double allDroppable = getDroppableTombstoneCount(sstables, useGcGrace);
         return allColumns > 0 ? allDroppable / allColumns : 0;
     }
 
@@ -3430,10 +3426,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     private double getDroppableTombstoneCount(boolean useGcGrace)
     {
+        return getDroppableTombstoneCount(getSSTables(), useGcGrace);
+    }
+
+    private double getDroppableTombstoneCount(Collection<SSTableReader> sstables, boolean useGcGrace) {
         double allDroppable = 0;
         int localTime = (int) (System.currentTimeMillis() / 1000);
 
-        for (SSTableReader sstable : getSSTables())
+        for (SSTableReader sstable : sstables)
         {
             int gcBefore = localTime;
             if (useGcGrace) gcBefore = localTime - sstable.metadata.getGcGraceSeconds();
