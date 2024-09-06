@@ -743,8 +743,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             if (completedAncestors.contains(desc.generation))
             {
                 // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.info("Going to delete leftover compaction ancestor {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
+                if (Boolean.getBoolean("palantir_cassandra.dry_run_ancestor_deletion"))
+                {
+                    logger.info("Would have deleted leftover compaction ancestor {} if palantir_cassandra.dry_run_ancestor_deletion was false", desc);
+                }
+                else
+                {
+                    logger.info("Going to delete leftover compaction ancestor {}", desc);
+                    SSTable.delete(desc, sstableFiles.getValue());
+                }
                 UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
                 if (compactionTaskID != null)
                     SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
