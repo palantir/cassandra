@@ -19,13 +19,14 @@ package org.apache.cassandra.db.compaction;
 
 import java.io.IOException;
 import java.util.*;
-
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.google.common.primitives.Doubles;
+import com.palantir.logsafe.SafeArg;
 
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -458,5 +459,16 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
         uncheckedOptions = SizeTieredCompactionStrategyOptions.validateOptions(options, uncheckedOptions);
 
         return uncheckedOptions;
+    }
+
+    protected static Pair<String, String> sstablesToKsCfPair(Collection<SSTableReader> sstableReaders)
+    {
+        Set<Pair<String, String>> ksCfPairs = sstableReaders.stream()
+                .map(sstable -> Pair.create(sstable.getKeyspaceName(), sstable.getColumnFamilyName()))
+                .collect(Collectors.toSet());
+        Preconditions.checkArgument(ksCfPairs.size() == 1,
+                "An individual compaction should span a single keyspace/table pair {}",
+                SafeArg.of("keyspaceTablePair", ksCfPairs));
+        return ksCfPairs.stream().findFirst().get();
     }
 }

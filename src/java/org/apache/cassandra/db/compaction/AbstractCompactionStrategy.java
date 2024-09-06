@@ -20,13 +20,11 @@ package org.apache.cassandra.db.compaction;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.RateLimiter;
-import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
@@ -274,12 +272,16 @@ public abstract class AbstractCompactionStrategy
     @SuppressWarnings("resource")
     public ScannerList getScanners(Collection<SSTableReader> sstables, Range<Token> range)
     {
-        RateLimiter limiter = CompactionThroughputThrottler.getRateLimiter(sstablesToKsCfPair(sstables));
         ArrayList<ISSTableScanner> scanners = new ArrayList<ISSTableScanner>();
         try
         {
             for (SSTableReader sstable : sstables)
-                scanners.add(sstable.getScanner(range, limiter));
+            {
+                scanners.add(sstable.getScanner(range, CompactionThroughputThrottler.getRateLimiter(Pair.create(sstable.getKeyspaceName(),
+                                                                                                                sstable.getColumnFamilyName()))));
+            }
+
+
         }
         catch (Throwable t)
         {
@@ -537,16 +539,5 @@ public abstract class AbstractCompactionStrategy
         if (currGroup.size() != 0)
             groupedSSTables.add(currGroup);
         return groupedSSTables;
-    }
-
-    protected static Pair<String, String> sstablesToKsCfPair(Collection<SSTableReader> sstableReaders)
-    {
-        Set<Pair<String, String>> ksCfPairs = sstableReaders.stream()
-                                                            .map(sstable -> Pair.create(sstable.getKeyspaceName(), sstable.getColumnFamilyName()))
-                                                            .collect(Collectors.toSet());
-        Preconditions.checkArgument(ksCfPairs.size() == 1,
-                "An individual compaction should span a single keyspace/table pair {}",
-                SafeArg.of("keyspaceTablePair", ksCfPairs));
-        return ksCfPairs.stream().findFirst().get();
     }
 }
