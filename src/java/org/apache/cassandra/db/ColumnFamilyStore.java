@@ -3429,7 +3429,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return getDroppableTombstoneCount(getSSTables(), useGcGrace);
     }
 
-    private double getDroppableTombstoneCount(Collection<SSTableReader> sstables, boolean useGcGrace) {
+    private double getDroppableTombstoneCount(Collection<SSTableReader> sstables, boolean useGcGrace)
+    {
         double allDroppable = 0;
         int localTime = (int) (System.currentTimeMillis() / 1000);
 
