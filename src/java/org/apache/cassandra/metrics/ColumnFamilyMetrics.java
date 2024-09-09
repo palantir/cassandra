@@ -168,6 +168,12 @@ public class ColumnFamilyMetrics
     public final Gauge<Double> liveTombstoneRatio;
     /** Estimated ratio of tombstones and number of cells in this table */
     public final Gauge<Double> tombstoneRatio;
+    /** Estimated count of droppable tombstones and number of cells in this table */
+    public final Gauge<Double> droppableTombstoneCount;
+    /** Estimated count of live tombstones and number of cells in this table */
+    public final Gauge<Double> liveTombstoneCount;
+    /** Estimated count of tombstones and number of cells in this table */
+    public final Gauge<Double> tombstoneCount;
 
     /** Bytes read on range scans **/
     public final Meter rangeScanBytesRead;
@@ -716,27 +722,12 @@ public class ColumnFamilyMetrics
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
 
-        droppableTombstoneRatio = createColumnFamilyGauge("DroppableTombstoneRatio", new Gauge<Double>()
-        {
-            public Double getValue()
-            {
-                return cfs.getDroppableTombstoneRatio();
-            }
-        });
-        liveTombstoneRatio = createColumnFamilyGauge("LiveTombstoneRatio", new Gauge<Double>()
-        {
-            public Double getValue()
-            {
-                return cfs.getLiveTombstoneRatio();
-            }
-        });
-        tombstoneRatio = createColumnFamilyGauge("TombstoneRatio", new Gauge<Double>()
-        {
-            public Double getValue()
-            {
-                return cfs.getTombstoneRatio();
-            }
-        });
+        droppableTombstoneRatio = createColumnFamilyGauge("DroppableTombstoneRatio", cfs::getDroppableTombstoneRatio);
+        liveTombstoneRatio = createColumnFamilyGauge("LiveTombstoneRatio", cfs::getLiveTombstoneRatio);
+        tombstoneRatio = createColumnFamilyGauge("TombstoneRatio", cfs::getTombstoneRatio);
+        droppableTombstoneCount = createColumnFamilyGauge("DroppableTombstoneCount", cfs::getDroppableTombstoneCount);
+        liveTombstoneCount = createColumnFamilyGauge("LiveTombstoneCount", cfs::getLiveTombstoneCount);
+        tombstoneCount = createColumnFamilyGauge("TombstoneCount", cfs::getTombstoneCount);
 
         rangeScanBytesRead = Metrics.meter(factory.createMetricName("RangeScanBytesRead"));
         readBytesRead = Metrics.meter(factory.createMetricName("ReadBytesRead"));
