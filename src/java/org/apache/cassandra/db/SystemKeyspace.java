@@ -1118,6 +1118,16 @@ public final class SystemKeyspace
         }
     }
 
+    public static boolean isPreviousVersionGreaterThanOrEqual(CassandraVersion version)
+    {
+        String previousVersion = getPreviousVersionString();
+        if (previousVersion.equals(NULL_VERSION.toString()) || previousVersion.equals(UNREADABLE_VERSION.toString()))
+        {
+            return true;
+        }
+        return version.compareTo(new CassandraVersion(previousVersion)) > 0;
+    }
+
     /**
      * Try to determine what the previous version, if any, was installed on this node.
      * Primary source of truth is the release version in system.local. If the previous
@@ -1129,7 +1139,7 @@ public final class SystemKeyspace
      * indicating either no previous version (SystemUpgrade.NULL_VERSION) or an unreadable,
      * legacy version (SystemUpgrade.UNREADABLE_VERSION).
      */
-    private static String getPreviousVersionString()
+    public static String getPreviousVersionString()
     {
         String req = "SELECT release_version FROM system.%s WHERE key='%s'";
         UntypedResultSet result = executeInternal(String.format(req, SystemKeyspace.LOCAL, SystemKeyspace.LOCAL));

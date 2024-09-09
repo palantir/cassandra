@@ -166,6 +166,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     @VisibleForTesting
     public static volatile ColumnFamilyStore discardFlushResults;
+    public static volatile boolean validateCompactionAncestors;
 
     public final Keyspace keyspace;
     public final String name;
@@ -701,7 +702,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             try
             {
                 Map<MetadataType, MetadataComponent> compactionMetadata = desc.getMetadataSerializer().deserialize(desc, EnumSet.of(MetadataType.COMPACTION, MetadataType.VALID_ANCESTORS));
-                if (compactionMetadata.get(MetadataType.VALID_ANCESTORS) != null)
+                if (compactionMetadata.get(MetadataType.VALID_ANCESTORS) != null || !validateCompactionAncestors)
                 {
                     ancestors = ((CompactionMetadata) compactionMetadata.get(MetadataType.COMPACTION)).ancestors;
                 }

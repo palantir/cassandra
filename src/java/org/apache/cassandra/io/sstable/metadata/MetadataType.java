@@ -17,6 +17,8 @@
  */
 package org.apache.cassandra.io.sstable.metadata;
 
+import org.apache.cassandra.utils.CassandraVersion;
+
 /**
  * Defines Metadata component type.
  */
@@ -30,6 +32,9 @@ public enum MetadataType
     STATS(StatsMetadata.serializer),
     /** Meta-metadata about whether the ancestors metadata is valid **/
     VALID_ANCESTORS(ValidAncestorsMetadata.serializer);
+
+    // Update before release:
+    public static final CassandraVersion VALID_ANCESTORS_VERSION = new CassandraVersion("2.2.18-1.161.0");
 
     public final IMetadataComponentSerializer<MetadataComponent> serializer;
 

@@ -35,6 +35,7 @@ import java.rmi.server.RMIServerSocketFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -54,6 +55,7 @@ import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -74,6 +76,7 @@ import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.StartupException;
+import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
@@ -214,6 +217,13 @@ public class CassandraDaemon
         {
             exitOrFail(3, e.getMessage(), e.getCause());
         }
+
+        ColumnFamilyStore.validateCompactionAncestors = Optional.of(SystemKeyspace.getPreviousVersionString())
+            .filter(Predicates.not(SystemKeyspace.NULL_VERSION.toString()::equals))
+            .filter(Predicates.not(SystemKeyspace.UNREADABLE_VERSION.toString()::equals))
+            .map(CassandraVersion::new)
+            .map(previousVersion -> previousVersion.compareTo(MetadataType.VALID_ANCESTORS_VERSION) >= 0)
+            .orElse(true);
 
         // We need to persist this as soon as possible after startup checks.
         // This should be the first write to SystemKeyspace (CASSANDRA-11742)
