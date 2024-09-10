@@ -122,8 +122,8 @@ public class MetadataSerializer implements IMetadataSerializer
             {
                 in.seek(offset);
                 component = type.serializer.deserialize(descriptor.version, in);
+                components.put(type, component);
             }
-            components.put(type, component);
         }
         return components;
     }
