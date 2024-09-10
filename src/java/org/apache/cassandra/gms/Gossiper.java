@@ -31,6 +31,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingHandshaker;
+import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.utils.ExecutorUtils;
 import org.apache.cassandra.utils.MBeanWrapper;
 import org.apache.cassandra.utils.Pair;
@@ -858,6 +859,12 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return storedTime == null ? computeExpireTime() : storedTime;
     }
 
+    public EndpointState getEndpointStateForEndpoint(InetAddressAndPort ep)
+    {
+        return getEndpointStateForEndpoint(ep.address);
+    }
+
+    @Deprecated
     public EndpointState getEndpointStateForEndpoint(InetAddress ep)
     {
         return endpointStateMap.get(ep);

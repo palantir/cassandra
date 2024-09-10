@@ -56,7 +56,7 @@ public class CloudstackSnitch extends AbstractNetworkTopologySnitch
     protected static final Logger logger = LoggerFactory.getLogger(CloudstackSnitch.class);
     protected static final String ZONE_NAME_QUERY_URI = "/latest/meta-data/availability-zone";
 
-    private Map<InetAddress, Map<String, String>> savedEndpoints;
+    private Map<InetAddressAndPort, Map<String, String>> savedEndpoints;
 
     private static final String DEFAULT_DC = "UNKNOWN-DC";
     private static final String DEFAULT_RACK = "UNKNOWN-RACK";
@@ -83,9 +83,9 @@ public class CloudstackSnitch extends AbstractNetworkTopologySnitch
         csZoneRack = zone_parts[2];
     }
 
-    public String getRack(InetAddress endpoint)
+    public String getRack(InetAddressAndPort endpoint)
     {
-        if (endpoint.equals(FBUtilities.getBroadcastAddress()))
+        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return csZoneRack;
         EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
         if (state == null || state.getApplicationState(ApplicationState.RACK) == null) 
@@ -99,9 +99,9 @@ public class CloudstackSnitch extends AbstractNetworkTopologySnitch
         return state.getApplicationState(ApplicationState.RACK).value;
     }
 
-    public String getDatacenter(InetAddress endpoint)
+    public String getDatacenter(InetAddressAndPort endpoint)
     {
-        if (endpoint.equals(FBUtilities.getBroadcastAddress()))
+        if (endpoint.equals(FBUtilities.getBroadcastAddressAndPort()))
             return csZoneDc;
         EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
         if (state == null || state.getApplicationState(ApplicationState.DC) == null) 

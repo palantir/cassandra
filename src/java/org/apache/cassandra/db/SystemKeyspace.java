@@ -30,6 +30,7 @@ import com.google.common.collect.*;
 import com.google.common.io.ByteStreams;
 import com.palantir.cassandra.db.CompactionsInProgressFlusher;
 
+import org.apache.cassandra.locator.InetAddressAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -666,12 +667,12 @@ public final class SystemKeyspace
     /**
      * Return a map of IP addresses containing a map of dc and rack info
      */
-    public static Map<InetAddress, Map<String,String>> loadDcRackInfo()
+    public static Map<InetAddressAndPort, Map<String, String>> loadDcRackInfo()
     {
-        Map<InetAddress, Map<String, String>> result = new HashMap<>();
+        Map<InetAddressAndPort, Map<String, String>> result = new HashMap<>();
         for (UntypedResultSet.Row row : executeInternal("SELECT peer, data_center, rack from system." + PEERS))
         {
-            InetAddress peer = row.getInetAddress("peer");
+            InetAddressAndPort peer = InetAddressAndPort.getByAddress(row.getInetAddress("peer"));
             if (row.has("data_center") && row.has("rack"))
             {
                 Map<String, String> dcRack = new HashMap<>();
