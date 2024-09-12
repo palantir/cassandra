@@ -67,6 +67,24 @@ public class MetadataSerializerTest
         }
     }
 
+    @Test
+    public void testBackCompatDeserialization() throws IOException
+    {
+        MetadataSerializer serializer = new MetadataSerializer();
+        File statsFile = new File("/Volumes/git/cassandra/test/resources/Statistics.db");
+
+        Descriptor desc = new Descriptor( statsFile.getParentFile(), "", "", 0, Descriptor.Type.FINAL);
+        try (RandomAccessReader in = RandomAccessReader.open(statsFile))
+        {
+            Map<MetadataType, MetadataComponent> deserialized = serializer.deserialize(desc, in, EnumSet.allOf(MetadataType.class));
+
+            for (MetadataType type : MetadataType.values())
+            {
+                assertEquals(null, deserialized.get(type));
+            }
+        }
+    }
+
     public File serialize(Map<MetadataType, MetadataComponent> metadata, MetadataSerializer serializer, Version version)
             throws IOException, FileNotFoundException
     {
