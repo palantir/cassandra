@@ -72,7 +72,7 @@ public class MetadataSerializerTest
     public void testBackCompatDeserialization() throws IOException
     {
         MetadataSerializer serializer = new MetadataSerializer();
-        File statsFile = new File("/Volumes/git/cassandra/test/resources/Statistics.db");
+        File statsFile = new File("./test/resources/Statistics.db");
 
         Descriptor desc = new Descriptor( statsFile.getParentFile(), "", "", 0, Descriptor.Type.FINAL);
         try (RandomAccessReader in = RandomAccessReader.open(statsFile))
