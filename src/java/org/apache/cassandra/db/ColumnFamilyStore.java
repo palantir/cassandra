@@ -820,6 +820,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
     {
+        if (assumeCfIsEmpty) {
+            throw new UnsupportedOperationException("Loading new SSTables is not supported on this version");
+        }
         logger.info("Loading new SSTables for {}/{}{}...",
                 keyspace.getName(), name,
                 assumeCfIsEmpty ? " assuming the columnfamily is empty" : "");
