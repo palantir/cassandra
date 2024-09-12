@@ -19,24 +19,25 @@
 package com.palantir.cassandra.utils;
 
 import java.net.InetAddress;
+import java.net.Socket;
 
-import org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.commons.lang3.reflect.MethodUtils;
+import com.google.common.net.InetAddresses;
+import org.junit.Test;
 
-public final class InetAddressUtils
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+
+public class HostnameSocketTest
 {
-    private InetAddressUtils() {}
+    @Test
+    public void testInetAddress()
+    {
+        InetAddress inetAddress = InetAddresses.forString("10.0.0.1");
+        Socket socket = mock(Socket.class);
+        doReturn(inetAddress).when(socket).getInetAddress();
 
-    public static void setHostname(InetAddress address, String hostname) {
-        try
-        {
-            Object inetAddressHolder = MethodUtils.invokeMethod(address, true, "holder");
-            FieldUtils.writeField(inetAddressHolder, "hostName", hostname, true);
-            FieldUtils.writeField(inetAddressHolder, "originalHostName", hostname, true);
-        }
-        catch (Exception e)
-        {
-            throw new RuntimeException("Failed to set hostname for InetAddress", e);
-        }
+        HostnameSocket hostnameSocket = new HostnameSocket(socket, "manually.specified.hostname");
+        assertThat(hostnameSocket.getInetAddress().toString()).isEqualTo("manually.specified.hostname/10.0.0.1");
     }
 }

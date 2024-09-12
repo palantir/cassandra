@@ -44,7 +44,7 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import com.palantir.cassandra.net.HostnameResolver;
 import com.palantir.cassandra.net.KubernetesHostnameResolver;
-import com.palantir.cassandra.utils.InetAddressUtils;
+import com.palantir.cassandra.utils.HostnameSocket;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -1004,7 +1004,7 @@ public final class MessagingService implements MessagingServiceMBean
                     InetAddress remote = socket.getInetAddress();
                     if (Boolean.getBoolean("palantir_cassandra.use_custom_reverse_dns"))
                     {
-                        InetAddressUtils.setHostname(remote, hostnameResolver.getHostname(remote));
+                        socket = new HostnameSocket(socket, hostnameResolver.getHostname(remote));
                     }
 
                     logger.trace("Attempting to accept incoming connection from {}", remote);
