@@ -19,6 +19,7 @@
 package org.apache.cassandra.db;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -26,6 +27,7 @@ import java.nio.charset.CharacterCodingException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -42,6 +44,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
@@ -83,8 +87,15 @@ import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.IncludingExcludingBounds;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.io.sstable.format.big.BigFormat;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
+import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
+import org.apache.cassandra.io.sstable.metadata.MetadataSerializer;
+import org.apache.cassandra.io.sstable.metadata.MetadataType;
+import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
+import org.apache.cassandra.io.util.DataOutputStreamPlus;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.metrics.ClearableHistogram;
 import org.apache.cassandra.service.ActiveRepairService;
@@ -125,6 +136,7 @@ public class ColumnFamilyStoreTest
     public static final String CF_STANDARD4 = "Standard4";
     public static final String CF_STANDARD5 = "Standard5";
     public static final String CF_STANDARD6 = "Standard6";
+    public static final String CF_STANDARD7 = "Standard7";
     public static final String CF_STANDARDINT = "StandardInteger1";
     public static final String CF_SUPER1 = "Super1";
     public static final String CF_SUPER6 = "Super6";
@@ -154,6 +166,7 @@ public class ColumnFamilyStoreTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD4),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX1, true),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX2, false),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
@@ -1960,6 +1973,76 @@ public class ColumnFamilyStoreTest
         sstables = dir.sstableLister().list();
         assert sstables.size() == 1;
         assert sstables.containsKey(sstable1.descriptor);
+    }
+
+    @Test
+    public void testRemoveUnfinishedCompactionLeftoversOnlyRemovesValidAncestors() throws IOException
+    {
+        final String ks = KEYSPACE1;
+        final String cf = CF_STANDARD7; // should be empty
+
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Directories dir = new Directories(cfmeta);
+
+        writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        writeNextGenerationSstable(ImmutableSet.of(1, 2), dir, cfmeta);
+        writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        writeNextGenerationSstable(ImmutableSet.of(4), dir, cfmeta);
+
+        Map<Descriptor, Set<Component>> sstables = dir.sstableLister().list();
+        Descriptor sstable3Desc = sstables.keySet().iterator().next().withGeneration(3);
+        assertEquals(5, sstables.size());
+        assertTrue(sstables.containsKey(sstable3Desc));
+
+        // Modify stats file to not contain the valid ancestor flag
+        MetadataSerializer serializer = new MetadataSerializer();
+        File statsFile = new File(sstable3Desc.filenameFor(Component.STATS));
+        Map<MetadataType, MetadataComponent> sstable3Meta;
+        try (RandomAccessReader in = RandomAccessReader.open(statsFile))
+        {
+            sstable3Meta = serializer.deserialize(sstable3Desc, in, EnumSet.allOf(MetadataType.class));
+            sstable3Meta.remove(MetadataType.VALID_ANCESTORS);
+        }
+        try (DataOutputStreamPlus out = new BufferedDataOutputStreamPlus(new FileOutputStream(statsFile)))
+        {
+            serializer.serialize(sstable3Meta, BigFormat.latestVersion, out);
+        }
+
+        ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfmeta, ImmutableMap.of());
+
+        // SSTables from non-explicitly valid stats files should not be deleted
+        sstables = dir.sstableLister().list();
+        ImmutableSet<Descriptor> expected = ImmutableSet.of(
+            sstable3Desc.withGeneration(1),
+            sstable3Desc.withGeneration(2),
+            sstable3Desc.withGeneration(3),
+            sstable3Desc.withGeneration(5));
+        assertEquals(sstables.keySet(), expected);
+    }
+
+    private void writeNextGenerationSstable(Set<Integer> ancestors, Directories dir, CFMetaData cfmeta) throws IOException
+    {
+        SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                         cfmeta, StorageService.getPartitioner())
+        {
+            protected SSTableWriter getWriter()
+            {
+                MetadataCollector collector = new MetadataCollector(cfmeta.comparator);
+                for (int ancestor : ancestors)
+                    collector.addAncestor(ancestor);
+                return SSTableWriter.create(createDescriptor(directory, metadata.ksName, metadata.cfName, DatabaseDescriptor.getSSTableFormat()),
+                                            0L,
+                                            ActiveRepairService.UNREPAIRED_SSTABLE,
+                                            metadata,
+                                            DatabaseDescriptor.getPartitioner(),
+                                            collector);
+            }
+        };
+        writer.newRow(bytes("key"));
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
     }
 
     @Test
