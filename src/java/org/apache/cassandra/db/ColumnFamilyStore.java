@@ -701,12 +701,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             try
             {
                 Map<MetadataType, MetadataComponent> compactionMetadata = desc.getMetadataSerializer().deserialize(desc, EnumSet.of(MetadataType.COMPACTION, MetadataType.VALID_ANCESTORS));
+                Set<Integer> persistedAncestors = ((CompactionMetadata) compactionMetadata.get(MetadataType.COMPACTION)).ancestors;
                 if (compactionMetadata.get(MetadataType.VALID_ANCESTORS) != null)
                 {
-                    ancestors = ((CompactionMetadata) compactionMetadata.get(MetadataType.COMPACTION)).ancestors;
+                    ancestors = persistedAncestors;
                 }
                 else
                 {
+                    if (!persistedAncestors.isEmpty())
+                    {
+                        logger.trace("Excluding ancestors persisted in Statistics.db from being removed as they are " +
+                                     "not explicitly marked as valid (file: " + desc.filenameFor(Component.STATS) + ")");
+                    }
                     ancestors = Collections.emptySet();
                 }
             }

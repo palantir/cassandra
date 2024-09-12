@@ -44,6 +44,7 @@ import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.utils.EstimatedHistogram;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class MetadataSerializerTest
 {
@@ -78,10 +79,8 @@ public class MetadataSerializerTest
         {
             Map<MetadataType, MetadataComponent> deserialized = serializer.deserialize(desc, in, EnumSet.allOf(MetadataType.class));
 
-            for (MetadataType type : MetadataType.values())
-            {
-                assertEquals(null, deserialized.get(type));
-            }
+            assertEquals(3, deserialized.size());
+            assertNull(deserialized.get(MetadataType.VALID_ANCESTORS));
         }
     }
 
