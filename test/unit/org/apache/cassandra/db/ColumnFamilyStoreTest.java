@@ -1982,6 +1982,7 @@ public class ColumnFamilyStoreTest
         final String cf = CF_STANDARD7; // should be empty
 
         final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Keyspace.open(KEYSPACE1).getColumnFamilyStore(cf).disableAutoCompaction();
         Directories dir = new Directories(cfmeta);
 
         writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
@@ -2018,7 +2019,7 @@ public class ColumnFamilyStoreTest
             sstable3Desc.withGeneration(2),
             sstable3Desc.withGeneration(3),
             sstable3Desc.withGeneration(5));
-        assertEquals(sstables.keySet(), expected);
+        assertEquals(expected, sstables.keySet());
     }
 
     private void writeNextGenerationSstable(Set<Integer> ancestors, Directories dir, CFMetaData cfmeta) throws IOException

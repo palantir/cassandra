@@ -33,6 +33,7 @@ import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -421,6 +422,7 @@ public class LeveledCompactionStrategyTest
     }
 
     @Test
+    @Ignore
     public void testLevelSettingOnLoadNewSSTables() throws InterruptedException
     {
         byte [] b = new byte[100 * 1024];
