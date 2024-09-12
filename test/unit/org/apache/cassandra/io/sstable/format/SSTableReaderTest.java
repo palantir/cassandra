@@ -196,6 +196,26 @@ public class SSTableReaderTest
         }
     }
 
+    @Test
+    public void testPersistentStatistics()
+    {
+
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        ColumnFamilyStore store = keyspace.getColumnFamilyStore("Standard1");
+
+        for (int j = 0; j < 100; j += 2)
+        {
+            ByteBuffer key = ByteBufferUtil.bytes(String.valueOf(j));
+            Mutation rm = new Mutation(KEYSPACE1, key);
+            rm.add("Standard1", cellname("0"), ByteBufferUtil.EMPTY_BYTE_BUFFER, j);
+            rm.applyUnsafe();
+        }
+        store.forceBlockingFlush();
+
+        clearAndLoad(store);
+        assert store.metric.maxRowSize.getValue() != 0;
+    }
+
     private void clearAndLoad(ColumnFamilyStore cfs)
     {
         cfs.clearUnsafe();

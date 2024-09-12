@@ -835,6 +835,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
     {
+        if (assumeCfIsEmpty) {
+            throw new UnsupportedOperationException("Loading new SSTables is not supported on this version");
+        }
         logger.info("Loading new SSTables for {}/{}{}...",
                 keyspace.getName(), name,
                 assumeCfIsEmpty ? " assuming the columnfamily is empty" : "");
@@ -848,7 +851,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         for (Map.Entry<Descriptor, Set<Component>> entry : lister.list().entrySet())
         {
             Descriptor descriptor = entry.getKey();
-            Set<Component> components = entry.getValue();
 
             if (currentDescriptors.contains(descriptor))
                 continue; // old (initialized) SSTable found, skipping
@@ -872,39 +874,28 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 continue;
             }
 
+            // Increment the generation until we find a filename that doesn't exist. This is needed because the new
+            // SSTables that are being loaded might already use these generation numbers.
             Descriptor newDescriptor;
-            if (assumeCfIsEmpty)
+            do
             {
-                newDescriptor = descriptor;
+                newDescriptor = new Descriptor(descriptor.version,
+                                               descriptor.directory,
+                                               descriptor.ksname,
+                                               descriptor.cfname,
+                                               fileIndexGenerator.incrementAndGet(),
+                                               Descriptor.Type.FINAL,
+                                               descriptor.formatType);
             }
-            else
-            {
-                // Increment the generation until we find a filename that doesn't exist. This is needed because the new
-                // SSTables that are being loaded might already use these generation numbers.
-                do
-                {
-                    newDescriptor = new Descriptor(descriptor.version,
-                                                   descriptor.directory,
-                                                   descriptor.ksname,
-                                                   descriptor.cfname,
-                                                   fileIndexGenerator.incrementAndGet(),
-                                                   Descriptor.Type.FINAL,
-                                                   descriptor.formatType);
-                }
-                while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
+            while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
 
-                logger.info("Removing Statistics.db for new SSTable {} to clear old ancestor metadata", descriptor);
-                FileUtils.delete(new File(descriptor.filenameFor(Component.STATS)));
-                components = Sets.difference(components, ImmutableSet.of(Component.STATS));
-
-                logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
-                SSTableWriter.rename(descriptor, newDescriptor, components);
-            }
+            logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
+            SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
 
             SSTableReader reader;
             try
             {
-                reader = SSTableReader.open(newDescriptor, components, metadata, partitioner);
+                reader = SSTableReader.open(newDescriptor, entry.getValue(), metadata, partitioner);
             }
             catch (IOException e)
             {
