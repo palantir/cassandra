@@ -1985,14 +1985,14 @@ public class ColumnFamilyStoreTest
         Keyspace.open(KEYSPACE1).getColumnFamilyStore(cf).disableAutoCompaction();
         Directories dir = new Directories(cfmeta);
 
-        writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
-        writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
-        writeNextGenerationSstable(ImmutableSet.of(1, 2), dir, cfmeta);
-        writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
-        writeNextGenerationSstable(ImmutableSet.of(4), dir, cfmeta);
+        int gen1 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen2 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen3 = writeNextGenerationSstable(ImmutableSet.of(gen1, gen2), dir, cfmeta);
+        int gen4 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen5 = writeNextGenerationSstable(ImmutableSet.of(gen4), dir, cfmeta);
 
         Map<Descriptor, Set<Component>> sstables = dir.sstableLister().list();
-        Descriptor sstable3Desc = sstables.keySet().iterator().next().withGeneration(3);
+        Descriptor sstable3Desc = sstables.keySet().iterator().next().withGeneration(gen3);
         assertEquals(5, sstables.size());
         assertTrue(sstables.containsKey(sstable3Desc));
 
@@ -2015,14 +2015,14 @@ public class ColumnFamilyStoreTest
         // SSTables from non-explicitly valid stats files should not be deleted
         sstables = dir.sstableLister().list();
         ImmutableSet<Descriptor> expected = ImmutableSet.of(
-            sstable3Desc.withGeneration(1),
-            sstable3Desc.withGeneration(2),
-            sstable3Desc.withGeneration(3),
-            sstable3Desc.withGeneration(5));
+            sstable3Desc.withGeneration(gen1),
+            sstable3Desc.withGeneration(gen2),
+            sstable3Desc.withGeneration(gen3),
+            sstable3Desc.withGeneration(gen5));
         assertEquals(expected, sstables.keySet());
     }
 
-    private void writeNextGenerationSstable(Set<Integer> ancestors, Directories dir, CFMetaData cfmeta) throws IOException
+    private int writeNextGenerationSstable(Set<Integer> ancestors, Directories dir, CFMetaData cfmeta) throws IOException
     {
         SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
                                          cfmeta, StorageService.getPartitioner())
@@ -2043,7 +2043,7 @@ public class ColumnFamilyStoreTest
         writer.newRow(bytes("key"));
         writer.addColumn(bytes("col"), bytes("val"), 1);
         writer.close();
-
+        return writer.getCurrentDescriptor().generation;
     }
 
     @Test
