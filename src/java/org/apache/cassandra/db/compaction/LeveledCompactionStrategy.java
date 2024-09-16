@@ -26,6 +26,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import com.google.common.primitives.Doubles;
+import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 import com.palantir.logsafe.SafeArg;
 
 import org.apache.cassandra.io.sstable.ISSTableScanner;

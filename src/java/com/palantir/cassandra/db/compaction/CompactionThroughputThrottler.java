@@ -1,9 +1,11 @@
-package org.apache.cassandra.db.compaction;
+package com.palantir.cassandra.db.compaction;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.palantir.logsafe.SafeArg;
+
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Directories;
+import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
