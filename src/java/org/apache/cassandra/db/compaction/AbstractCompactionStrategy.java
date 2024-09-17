@@ -279,8 +279,6 @@ public abstract class AbstractCompactionStrategy
                 scanners.add(sstable.getScanner(range, CompactionThroughputThrottler.getRateLimiter(Pair.create(sstable.getKeyspaceName(),
                                                                                                                 sstable.getColumnFamilyName()))));
             }
-
-
         }
         catch (Throwable t)
         {
