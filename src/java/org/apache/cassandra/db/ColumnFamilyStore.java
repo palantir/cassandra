@@ -39,6 +39,8 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.tracing.CloseableTracer;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
@@ -686,6 +688,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         // remove new sstables from compactions that didn't complete, and compute
         // set of ancestors that shouldn't exist anymore
+        Map<Descriptor, Set<Integer>> sstableToAncestors = new HashMap<>();
         Set<Integer> completedAncestors = new HashSet<>();
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
         {
@@ -710,7 +713,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             {
                 throw new FSReadError(e, "Failed to remove unfinished compaction leftovers (file: " + desc.filenameFor(Component.STATS) + ").  See log for details.");
             }
+            sstableToAncestors.put(desc, ancestors);
+        }
 
+        sstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, sstableToAncestors, unfinishedCompactions);
+
+        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
+        {
+            Descriptor desc = sstableFiles.getKey();
+            if (!sstableToAncestors.containsKey(desc)) {
+                continue;
+            }
+
+            Set<Integer> ancestors = sstableToAncestors.get(desc);
             if (!ancestors.isEmpty()
                 && unfinishedGenerations.containsAll(ancestors)
                 && allGenerations.containsAll(ancestors))
