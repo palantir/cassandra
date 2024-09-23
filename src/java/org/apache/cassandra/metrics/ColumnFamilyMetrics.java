@@ -161,6 +161,15 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics casPropose;
     /** CAS Commit metrics */
     public final LatencyMetrics casCommit;
+    /** CAS lock metrics */
+    public final LatencyMetrics casLockWait;
+
+    /** CAS lock acquired */
+    public final Meter casLock;
+
+    public final Meter casPrepareAttempts;
+    public final Meter casProposeAttempts;
+    public final Meter casCommitAttempts;
 
     /** Estimated ratio of droppable tombstones and number of cells in this table */
     public final Gauge<Double> droppableTombstoneRatio;
@@ -721,6 +730,12 @@ public class ColumnFamilyMetrics
         casPrepare = new LatencyMetrics(factory, "CasPrepare", cfs.keyspace.metric.casPrepare);
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
+        casLockWait = new LatencyMetrics(factory, "CasLock", cfs.keyspace.metric.casLockWait);
+
+        casLock = Metrics.meter(factory.createMetricName("casLock"));
+        casPrepareAttempts = Metrics.meter(factory.createMetricName("casPrepareAttempts"));
+        casProposeAttempts = Metrics.meter(factory.createMetricName("casProposeAttempts"));
+        casCommitAttempts = Metrics.meter(factory.createMetricName("casCommitAttempts"));
 
         droppableTombstoneRatio = createColumnFamilyGauge("DroppableTombstoneRatio", cfs::getDroppableTombstoneRatio);
         liveTombstoneRatio = createColumnFamilyGauge("LiveTombstoneRatio", cfs::getLiveTombstoneRatio);
