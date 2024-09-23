@@ -66,12 +66,12 @@ public class PaxosState
         try
         {
             long startWaitLock = System.nanoTime();
-            logger.debug("CASPrepare: waiting for key lock {} for cf {} in keyspace", readableKey(toPrepare.key), toPrepare.update.metadata().cfName, toPrepare.update.metadata().cfName);
+            logger.debug("CASPrepare: waiting for key lock {} for cf {} in keyspace", readableKey(toPrepare.key), toPrepare.update.metadata().cfName, toPrepare.update.metadata().ksName);
             Lock lock = LOCKS.get(toPrepare.key);
             lock.lock();
             Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casLock.mark();
             Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casLockWait.addNano(System.nanoTime() - startWaitLock);
-            logger.debug("CASPrepare: key lock acquired {} for cf {} in keyspace", readableKey(toPrepare.key), toPrepare.update.metadata().cfName, toPrepare.update.metadata().cfName);
+            logger.debug("CASPrepare: key lock acquired {} for cf {} in keyspace", readableKey(toPrepare.key), toPrepare.update.metadata().cfName, toPrepare.update.metadata().ksName);
             try
             {
                 // When preparing, we need to use the same time as "now" (that's the time we use to decide if something
@@ -115,12 +115,12 @@ public class PaxosState
         try
         {
             long startWaitLock = System.nanoTime();
-            logger.debug("CASPropose: waiting for key lock {} for cf {} in keyspace", readableKey(proposal.key), proposal.update.metadata().cfName, proposal.update.metadata().cfName);
+            logger.debug("CASPropose: waiting for key lock {} for cf {} in keyspace", readableKey(proposal.key), proposal.update.metadata().cfName, proposal.update.metadata().ksName);
             Lock lock = LOCKS.get(proposal.key);
             lock.lock();
             Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casLock.mark();
             Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casLockWait.addNano(System.nanoTime() - startWaitLock);
-            logger.debug("CASPropose: key lock acquired {} for cf {} in keyspace", readableKey(proposal.key), proposal.update.metadata().cfName, proposal.update.metadata().cfName);
+            logger.debug("CASPropose: key lock acquired {} for cf {} in keyspace", readableKey(proposal.key), proposal.update.metadata().cfName, proposal.update.metadata().ksName);
             try
             {
                 long now = UUIDGen.unixTimestamp(proposal.ballot);

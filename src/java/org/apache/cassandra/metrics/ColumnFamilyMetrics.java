@@ -730,12 +730,12 @@ public class ColumnFamilyMetrics
         casPrepare = new LatencyMetrics(factory, "CasPrepare", cfs.keyspace.metric.casPrepare);
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
-        casLockWait = new LatencyMetrics(factory, "CasLock", cfs.keyspace.metric.casLockWait);
+        casLockWait = new LatencyMetrics(factory, "CasLockWait", cfs.keyspace.metric.casLockWait);
 
-        casLock = Metrics.meter(factory.createMetricName("casLock"));
-        casPrepareAttempts = Metrics.meter(factory.createMetricName("casPrepareAttempts"));
-        casProposeAttempts = Metrics.meter(factory.createMetricName("casProposeAttempts"));
-        casCommitAttempts = Metrics.meter(factory.createMetricName("casCommitAttempts"));
+        casLock = Metrics.meter(factory.createMetricName("CasLock"));
+        casPrepareAttempts = Metrics.meter(factory.createMetricName("CasPrepareAttempts"));
+        casProposeAttempts = Metrics.meter(factory.createMetricName("CasProposeAttempts"));
+        casCommitAttempts = Metrics.meter(factory.createMetricName("CasCommitAttempts"));
 
         droppableTombstoneRatio = createColumnFamilyGauge("DroppableTombstoneRatio", cfs::getDroppableTombstoneRatio);
         liveTombstoneRatio = createColumnFamilyGauge("LiveTombstoneRatio", cfs::getLiveTombstoneRatio);
