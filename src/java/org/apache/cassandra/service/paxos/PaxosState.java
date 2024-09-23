@@ -70,7 +70,7 @@ public class PaxosState
             lock.lock();
             Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casLock.mark();
             Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casLockWait.addNano(System.nanoTime() - startWaitLock);
-            logger.debug("CASPrepare: key lock acquired {} for cf {} in keyspace", proposal.key, proposal.update.metadata().cfName, proposal.update.metadata().cfName);
+            logger.debug("CASPrepare: key lock acquired {} for cf {} in keyspace", toPrepare.key, toPrepare.update.metadata().cfName, toPrepare.update.metadata().cfName);
             try
             {
                 // When preparing, we need to use the same time as "now" (that's the time we use to decide if something
