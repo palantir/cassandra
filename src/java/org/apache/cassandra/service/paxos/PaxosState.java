@@ -80,12 +80,19 @@ public class PaxosState
                 // amount of re-submit will fix this (because the node on which the commit has expired will have a
                 // tombstone that hides any re-submit). See CASSANDRA-12043 for details.
                 long now = UUIDGen.unixTimestamp(toPrepare.ballot);
+
+                long readPaxos = System.nanoTime();
                 PaxosState state = SystemKeyspace.loadPaxosState(toPrepare.key, toPrepare.update.metadata(), now);
+                Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casSystemRead.addNano(System.nanoTime() - readPaxos);
                 if (toPrepare.isAfter(state.promised))
                 {
                     Tracing.trace("Promising ballot {}", toPrepare.ballot);
                     logger.debug("Promising ballot {}", toPrepare.ballot);
+
+                    long writePaxos = System.nanoTime();
                     SystemKeyspace.savePaxosPromise(toPrepare);
+                    Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casSystemWrite.addNano(System.nanoTime() - writePaxos);
+
                     return new PrepareResponse(true, state.accepted, state.mostRecentCommit);
                 }
                 else

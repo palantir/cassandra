@@ -161,8 +161,12 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics casPropose;
     /** CAS Commit metrics */
     public final LatencyMetrics casCommit;
-    /** CAS lock metrics */
+    /** CAS Lock metrics */
     public final LatencyMetrics casLockWait;
+    /** CAS Paxos System Read metrics */
+    public final LatencyMetrics casSystemRead;
+    /** CAS Paxos System Write metrics */
+    public final LatencyMetrics casSystemWrite;
 
     /** CAS lock acquired */
     public final Meter casLock;
@@ -731,6 +735,8 @@ public class ColumnFamilyMetrics
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
         casLockWait = new LatencyMetrics(factory, "CasLockWait", cfs.keyspace.metric.casLockWait);
+        casSystemRead = new LatencyMetrics(factory, "CasSystemRead", cfs.keyspace.metric.casSystemRead);
+        casSystemWrite = new LatencyMetrics(factory, "CasSystemWrite", cfs.keyspace.metric.casSystemWrite);
 
         casLock = Metrics.meter(factory.createMetricName("CasLock"));
         casPrepareAttempts = Metrics.meter(factory.createMetricName("CasPrepareAttempts"));
