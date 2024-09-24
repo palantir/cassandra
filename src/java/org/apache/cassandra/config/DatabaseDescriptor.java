@@ -701,9 +701,13 @@ public class DatabaseDescriptor
                 Path systemDirectoryPath = Paths.get(conf.data_file_directories[0] + "/system");
                 Instant fourDaysAgo = Instant.now().minus(4, ChronoUnit.DAYS);
 
-                if (Files.exists(systemDirectoryPath) && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo))
+                if (Files.exists(systemDirectoryPath)
+                    && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo)
+                    && Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true")))
+                {
                     throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
                         + " Please remove this flag from configuration as it could cause split brain.", false);
+                }
             }
             catch (IOException e)
             {
