@@ -17,11 +17,13 @@
  */
 package org.apache.cassandra.service;
 
+import java.util.Map;
+
 /**
- * Initializer service invoked as early as possible at startup. This may be used to
- * initialize observability infrastructure, for example.
+ * Configuration service invoked via StorageService (nodetool). This may be used to
+ * re-configure settings at runtime without a JVM reboot.
  */
-public interface CassandraInitializer
+public interface CassandraRuntimeConfigurable
 {
-    void initialize();
+    void updateConfig(Map<String, String> params);
 }

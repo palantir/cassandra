@@ -3956,28 +3956,43 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void setLoggingLevel(String classQualifier, String rawLevel) throws Exception
     {
-        ch.qos.logback.classic.Logger logBackLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(classQualifier);
-
-        // if both classQualifer and rawLevel are empty, reload from configuration
-        if (StringUtils.isBlank(classQualifier) && StringUtils.isBlank(rawLevel) )
+        try
         {
-            JMXConfiguratorMBean jmxConfiguratorMBean = JMX.newMBeanProxy(ManagementFactory.getPlatformMBeanServer(),
-                    new ObjectName("ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator"),
-                    JMXConfiguratorMBean.class);
-            jmxConfiguratorMBean.reloadDefaultConfiguration();
-            return;
+            // trigger ClassNotFoundException to be thrown if logback isn't in classpath
+            Class.forName("ch.qos.logback.classic.Logger");
+            ch.qos.logback.classic.Logger logBackLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(classQualifier);
+
+            // if both classQualifer and rawLevel are empty, reload from configuration
+            if (StringUtils.isBlank(classQualifier) && StringUtils.isBlank(rawLevel))
+            {
+                JMXConfiguratorMBean jmxConfiguratorMBean = JMX.newMBeanProxy(ManagementFactory.getPlatformMBeanServer(),
+                        new ObjectName("ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator"),
+                        JMXConfiguratorMBean.class);
+                jmxConfiguratorMBean.reloadDefaultConfiguration();
+                return;
+            }
+            // classQualifer is set, but blank level given
+            else if (StringUtils.isNotBlank(classQualifier) && StringUtils.isBlank(rawLevel))
+            {
+                if (logBackLogger.getLevel() != null || hasAppenders(logBackLogger))
+                    logBackLogger.setLevel(null);
+                return;
+            }
+
+            ch.qos.logback.classic.Level level = ch.qos.logback.classic.Level.toLevel(rawLevel);
+            logBackLogger.setLevel(level);
+            logger.info("set log level to {} for classes under '{}' (if the level doesn't look like '{}' then the logger couldn't parse '{}')", level, classQualifier, rawLevel, rawLevel);
         }
-        // classQualifer is set, but blank level given
-        else if (StringUtils.isNotBlank(classQualifier) && StringUtils.isBlank(rawLevel) )
+        catch (ClassNotFoundException ex)
         {
-            if (logBackLogger.getLevel() != null || hasAppenders(logBackLogger))
-                logBackLogger.setLevel(null);
-            return;
+            logger.warn("Not using logback, falling back to custom logging setup for log level modification.");
         }
 
-        ch.qos.logback.classic.Level level = ch.qos.logback.classic.Level.toLevel(rawLevel);
-        logBackLogger.setLevel(level);
-        logger.info("set log level to {} for classes under '{}' (if the level doesn't look like '{}' then the logger couldn't parse '{}')", level, classQualifier, rawLevel, rawLevel);
+        for (CassandraRuntimeConfigurable configurableLogging : java.util.ServiceLoader.load(
+                CassandraRuntimeConfigurable.class, CassandraDaemon.class.getClassLoader()))
+        {
+            configurableLogging.updateConfig(new HashMap<String, String>() {{put(classQualifier, rawLevel);}});
+        }
     }
 
     /**
