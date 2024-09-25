@@ -33,7 +33,8 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
     public static final ColumnFamilyStoreManager instance = new ColumnFamilyStoreManager();
     private final List<IColumnFamilyStoreValidator> validators;
 
-    private ColumnFamilyStoreManager() {
+    private ColumnFamilyStoreManager()
+    {
         this.validators = new CopyOnWriteArrayList<>();
     }
 

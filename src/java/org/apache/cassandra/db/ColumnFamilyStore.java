@@ -721,7 +721,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
         {
             Descriptor desc = sstableFiles.getKey();
-            if (!sstableToAncestors.containsKey(desc)) {
+            if (!sstableToAncestors.containsKey(desc))
+            {
                 continue;
             }
 
@@ -835,7 +836,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
     {
-        if (assumeCfIsEmpty) {
+        if (assumeCfIsEmpty)
+        {
             throw new UnsupportedOperationException("Loading new SSTables is not supported on this version");
         }
         logger.info("Loading new SSTables for {}/{}{}...",
