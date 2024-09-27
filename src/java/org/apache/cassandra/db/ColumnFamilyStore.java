@@ -682,15 +682,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         {
             HashSet<Integer> missingGenerations = new HashSet<>(unfinishedGenerations);
             missingGenerations.removeAll(allGenerations);
-            logger.trace("Unfinished compactions of {}.{} reference missing sstables of generations {}",
+            logger.info("Unfinished compactions of {}.{} reference missing sstables of generations {}",
                          metadata.ksName, metadata.cfName, missingGenerations);
         }
 
         // remove new sstables from compactions that didn't complete, and compute
         // set of ancestors that shouldn't exist anymore
-        Map<Descriptor, Set<Integer>> sstableToAncestors = new HashMap<>();
+        Map<Descriptor, Set<Integer>> allSstableToAncestors = new HashMap<>();
         Set<Integer> completedAncestors = new HashSet<>();
-        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
+        Map<Descriptor, Set<Component>> allNonTempSstableFiles = directories.sstableLister().skipTemporary(true).list();
+        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : allNonTempSstableFiles.entrySet())
         {
             // we rename the Data component last - if it does not exist as a final file, we should ignore this sstable and
             // it will be removed during startup
@@ -713,20 +714,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             {
                 throw new FSReadError(e, "Failed to remove unfinished compaction leftovers (file: " + desc.filenameFor(Component.STATS) + ").  See log for details.");
             }
-            sstableToAncestors.put(desc, ancestors);
+            allSstableToAncestors.put(desc, ancestors);
         }
 
-        sstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, sstableToAncestors, unfinishedCompactions);
+        allSstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, allSstableToAncestors, unfinishedCompactions);
 
-        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
+        for (Map.Entry<Descriptor, Set<Integer>> sstableToAncestors : allSstableToAncestors.entrySet())
         {
-            Descriptor desc = sstableFiles.getKey();
-            if (!sstableToAncestors.containsKey(desc))
-            {
-                continue;
-            }
-
-            Set<Integer> ancestors = sstableToAncestors.get(desc);
+            Descriptor desc = sstableToAncestors.getKey();
+            Set<Integer> ancestors = sstableToAncestors.getValue();
             if (!ancestors.isEmpty()
                 && unfinishedGenerations.containsAll(ancestors)
                 && allGenerations.containsAll(ancestors))
@@ -735,7 +731,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 UUID compactionTaskID = unfinishedCompactions.get(ancestors.iterator().next());
                 assert compactionTaskID != null;
                 logger.info("Going to delete unfinished compaction product {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
+                SSTable.delete(desc, allNonTempSstableFiles.get(desc));
                 SystemKeyspace.finishCompaction(compactionTaskID);
             }
             else
@@ -751,7 +747,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             if (completedAncestors.contains(desc.generation))
             {
                 // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.info("Going to delete leftover compaction ancestor {}", desc);
+                logger.warn("Going to delete leftover compaction ancestor {}", desc);
                 SSTable.delete(desc, sstableFiles.getValue());
                 UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
                 if (compactionTaskID != null)
