@@ -669,7 +669,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      * compactions, we remove the new ones (since those may be incomplete -- under LCS, we may create multiple
      * sstables from any given ancestor).
      */
-    public static void removeUnfinishedCompactionLeftovers(CFMetaData metadata, Map<Integer, UUID> unfinishedCompactions)
+    public static void removeUnusedSstables(CFMetaData metadata, Map<Integer, UUID> unfinishedCompactions)
     {
         Directories directories = new Directories(metadata);
         Set<Integer> allGenerations = new HashSet<>();

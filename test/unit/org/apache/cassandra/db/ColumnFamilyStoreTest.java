@@ -1836,7 +1836,7 @@ public class ColumnFamilyStoreTest
     }
 
     @Test
-    public void testRemoveUnfinishedCompactionLeftovers() throws Throwable
+    public void testRemoveUnusedSstables() throws Throwable
     {
         String ks = KEYSPACE1;
         String cf = CF_STANDARD3; // should be empty
@@ -1888,7 +1888,7 @@ public class ColumnFamilyStoreTest
 
         Map<Integer, UUID> unfinishedCompaction = new HashMap<>();
         unfinishedCompaction.put(sstable1.descriptor.generation, compactionTaskID);
-        ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfmeta, unfinishedCompaction);
+        ColumnFamilyStore.removeUnusedSstables(cfmeta, unfinishedCompaction);
 
         // 2nd sstable should be removed (only 1st sstable exists in set of size 1)
         sstables = dir.sstableLister().list();
@@ -1905,7 +1905,7 @@ public class ColumnFamilyStoreTest
      * @see <a href="https://issues.apache.org/jira/browse/CASSANDRA-6086">CASSANDRA-6086</a>
      */
     @Test
-    public void testFailedToRemoveUnfinishedCompactionLeftovers() throws Throwable
+    public void testFailedToRemoveUnusedSstables() throws Throwable
     {
         final String ks = KEYSPACE1;
         final String cf = CF_STANDARD4; // should be empty
@@ -1948,7 +1948,7 @@ public class ColumnFamilyStoreTest
         UUID compactionTaskID = UUID.randomUUID();
         for (Integer ancestor : ancestors)
             unfinishedCompactions.put(ancestor, compactionTaskID);
-        ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfmeta, unfinishedCompactions);
+        ColumnFamilyStore.removeUnusedSstables(cfmeta, unfinishedCompactions);
 
         // SSTable should not be deleted
         sstables = dir.sstableLister().list();
@@ -1957,7 +1957,7 @@ public class ColumnFamilyStoreTest
     }
 
     @Test
-    public void testRemoveUnfinishedCompactionLeftoversOnlyRemovesFiltered() throws IOException
+    public void testRemoveUnusedSstablesOnlyRemovesFiltered() throws IOException
     {
         final String ks = KEYSPACE1;
         final String cf = CF_STANDARD7;
@@ -1986,7 +1986,7 @@ public class ColumnFamilyStoreTest
 
         try {
             ColumnFamilyStoreManager.instance.registerValidator(validator);
-            ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfmeta, ImmutableMap.of());
+            ColumnFamilyStore.removeUnusedSstables(cfmeta, ImmutableMap.of());
         }
         finally
         {

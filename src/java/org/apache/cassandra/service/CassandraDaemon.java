@@ -270,7 +270,7 @@ public class CassandraDaemon
 
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
             {
-                ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
                 ColumnFamilyStore.scrubDataDirectories(cfm);
             }
         }
