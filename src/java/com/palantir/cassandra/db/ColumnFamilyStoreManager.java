@@ -43,6 +43,11 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
         validators.add(validator);
     }
 
+    public void deregisterValidator(IColumnFamilyStoreValidator validator)
+    {
+        validators.remove(validator);
+    }
+
     public Map<Descriptor, Set<Integer>> filterValidAncestors(CFMetaData cfMetaData, Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> unfinishedCompactions)
     {
         Map<Descriptor, Set<Integer>> filtered = sstableToCompletedAncestors;
