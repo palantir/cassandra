@@ -32,6 +32,7 @@ import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.metrics.FailureDetectorMetrics;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
@@ -271,6 +272,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
             heartbeatWindow = arrivalSamples.putIfAbsent(ep, heartbeatWindow);
             if (heartbeatWindow != null)
                 heartbeatWindow.add(now, ep);
+            FailureDetectorMetrics.register(ep);
         }
         else
         {
@@ -355,6 +357,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     public void remove(InetAddress ep)
     {
         arrivalSamples.remove(ep);
+        FailureDetectorMetrics.unregister(ep);
     }
 
     public void registerFailureDetectionEventListener(IFailureDetectionEventListener listener)
@@ -382,6 +385,16 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         }
         sb.append("-----------------------------------------------------------------------");
         return sb.toString();
+    }
+
+    public double getPhiValue(InetAddress ep)
+    {
+        ArrivalWindow arrivalWindow = arrivalSamples.get(ep);
+        if (arrivalWindow == null)
+        {
+            return -1;
+        }
+        return arrivalWindow.getLastReportedPhi();
     }
 }
 
