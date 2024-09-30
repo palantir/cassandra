@@ -28,6 +28,10 @@ import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.*;
 
 import com.google.common.collect.ImmutableMap;
+
+import com.codahale.metrics.Reservoir;
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.UniformSnapshot;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -401,7 +405,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
 /*
  This class is not thread safe.
  */
-class ArrayBackedBoundedStats
+class ArrayBackedBoundedStats implements Reservoir
 {
     private final long[] arrivalIntervals;
     private long sum = 0;
@@ -430,7 +434,8 @@ class ArrayBackedBoundedStats
         mean = (double)sum / size();
     }
 
-    private int size()
+    @Override
+    public int size()
     {
         return isFilled ? arrivalIntervals.length : index;
     }
@@ -445,6 +450,26 @@ class ArrayBackedBoundedStats
         return arrivalIntervals;
     }
 
+    @Override
+    public void update(long interval)
+    {
+        add(interval);
+    }
+
+    @Override
+    public Snapshot getSnapshot()
+    {
+        // Based on https://github.com/dropwizard/metrics/blob/release/4.2.x/metrics-core/src/main/java/com/codahale/metrics/SlidingWindowReservoir.java#L35
+        long[] values = new long[size()];
+        for (int i = 0; i < values.length; i++)
+        {
+            synchronized (this)
+            {
+                values[i] = arrivalIntervals[i];
+            }
+        }
+        return new UniformSnapshot(values);
+    }
 }
 
 class ArrivalWindow
