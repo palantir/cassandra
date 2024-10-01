@@ -27,12 +27,14 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.palantir.logsafe.exceptions.SafeIllegalStateException;
 import com.palantir.logsafe.exceptions.SafeRuntimeException;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
@@ -52,6 +54,7 @@ import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
+import org.apache.commons.io.FileUtils;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -73,6 +76,7 @@ public class CompactionsTest
     private static final String CF_STANDARD3 = "Standard3";
     private static final String CF_STANDARD4 = "Standard4";
     private static final String CF_STANDARD5 = "Standard5";
+    private static final String CF_STANDARD6 = "Standard6";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -91,6 +95,7 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD3),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD4),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -544,7 +549,7 @@ public class CompactionsTest
     }
 
     @Test
-    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress() throws InterruptedException
+    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress() throws IOException
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE1);
         String cfName = CF_STANDARD5;
@@ -585,16 +590,19 @@ public class CompactionsTest
         Map<Pair<String, String>, Map<Integer, UUID>> compactionLogs = SystemKeyspace.getUnfinishedCompactions();
         Pair<String, String> pair = Pair.create(KEYSPACE1, cfName);
         assertTrue(compactionLogs.containsKey(pair));
-        // removes incomplete compaction product
-        ColumnFamilyStore.removeUnusedSstables(cfs.metadata, compactionLogs.getOrDefault(pair, ImmutableMap.of()));
-        // removes tmp files
-        ColumnFamilyStore.scrubDataDirectories(cfs.metadata);
 
-        // in-memory sstable tracking will be broken and think we have 50 sstables (the cleanup + scrub is meant to happen before the keyspace is
-        // initialized) looking on disk shows that the correct number of sstables exist at this point
-        Directories directories = new Directories(cfs.metadata);
+        // Copy to a new CF in case in-memory tracking affects testing
+        File src = new Directories(cfs.metadata).getCFDirectories().get(0);
+        File dst = Arrays.stream(src.getParentFile().listFiles())
+                .filter(file -> file.getName().contains(CF_STANDARD6)).findFirst().orElseThrow(() -> new SafeIllegalStateException("No Standard6 CF found"));
+        FileUtils.copyDirectory(src, dst);
+        CFMetaData cf2Metadata = Schema.instance.getKSMetaData(keyspace.getName()).cfMetaData().get(CF_STANDARD6);
+        // removes incomplete compaction product and tmp files
+        ColumnFamilyStore.removeUnusedSstables(cf2Metadata, compactionLogs.getOrDefault(pair, ImmutableMap.of()));
+        ColumnFamilyStore.scrubDataDirectories(cf2Metadata);
+
         Set<Integer> allGenerations = new HashSet<>();
-        for (Descriptor desc : directories.sstableLister().list().keySet())
+        for (Descriptor desc : new Directories(cf2Metadata).sstableLister().list().keySet())
             allGenerations.add(desc.generation);
         // When we don't retain the compaction log, the ancestors 2 and 3 are deleted and products 4 and 5 are retained, despite 40+ tmp files in the unfinished
         // product not having been committed!
