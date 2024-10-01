@@ -273,17 +273,21 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
             // avoid adding an empty ArrivalWindow to the Map
             heartbeatWindow = new ArrivalWindow(SAMPLE_SIZE);
             heartbeatWindow.add(now, ep);
-            heartbeatWindow = arrivalSamples.putIfAbsent(ep, heartbeatWindow);
-            if (heartbeatWindow != null)
-                heartbeatWindow.add(now, ep);
-            FailureDetectorMetrics.register(ep);
+            ArrivalWindow previousHeartbeatWindow = arrivalSamples.putIfAbsent(ep, heartbeatWindow);
+            if (previousHeartbeatWindow != null)
+            {
+                // Another thread beat us to registering the ArrivalWindow.
+                previousHeartbeatWindow.add(now, ep);
+                heartbeatWindow = previousHeartbeatWindow;
+            }
+            FailureDetectorMetrics.register(ep, heartbeatWindow);
         }
         else
         {
             heartbeatWindow.add(now, ep);
         }
 
-        if (logger.isTraceEnabled() && heartbeatWindow != null)
+        if (logger.isTraceEnabled())
             logger.trace("Average for {} is {}", ep, heartbeatWindow.mean());
     }
 
@@ -391,14 +395,110 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         return sb.toString();
     }
 
-    public double getPhiValue(InetAddress ep)
+    public static class ArrivalWindow implements Reservoir
     {
-        ArrivalWindow arrivalWindow = arrivalSamples.get(ep);
-        if (arrivalWindow == null)
+        private static final Logger logger = LoggerFactory.getLogger(ArrivalWindow.class);
+        private long tLast = 0L;
+        private final ArrayBackedBoundedStats arrivalIntervals;
+        private double lastReportedPhi = Double.MIN_VALUE;
+
+        // in the event of a long partition, never record an interval longer than the rpc timeout,
+        // since if a host is regularly experiencing connectivity problems lasting this long we'd
+        // rather mark it down quickly instead of adapting
+        // this value defaults to the same initial value the FD is seeded with
+        private final long MAX_INTERVAL_IN_NANO = getMaxInterval();
+
+        ArrivalWindow(int size)
         {
-            return -1;
+            arrivalIntervals = new ArrayBackedBoundedStats(size);
         }
-        return arrivalWindow.getLastReportedPhi();
+
+        private static long getMaxInterval()
+        {
+            String newvalue = System.getProperty("cassandra.fd_max_interval_ms");
+            if (newvalue == null)
+            {
+                return FailureDetector.INITIAL_VALUE_NANOS;
+            }
+            else
+            {
+                logger.info("Overriding FD MAX_INTERVAL to {}ms", newvalue);
+                return TimeUnit.NANOSECONDS.convert(Integer.parseInt(newvalue), TimeUnit.MILLISECONDS);
+            }
+        }
+
+        synchronized void add(long value, InetAddress ep)
+        {
+            assert tLast >= 0;
+            if (tLast > 0L)
+            {
+                long interArrivalTime = (value - tLast);
+                if (interArrivalTime <= MAX_INTERVAL_IN_NANO)
+                {
+                    arrivalIntervals.add(interArrivalTime);
+                    logger.trace("Reporting interval time of {} for {}", interArrivalTime, ep);
+                }
+                else
+                {
+                    logger.debug("Ignoring interval time of {} for {}", interArrivalTime, ep);
+                }
+            }
+            else
+            {
+                // We use a very large initial interval since the "right" average depends on the cluster size
+                // and it's better to err high (false negatives, which will be corrected by waiting a bit longer)
+                // than low (false positives, which cause "flapping").
+                arrivalIntervals.add(FailureDetector.INITIAL_VALUE_NANOS);
+            }
+            tLast = value;
+        }
+
+        double mean()
+        {
+            return arrivalIntervals.mean();
+        }
+
+        // see CASSANDRA-2597 for an explanation of the math at work here.
+        double phi(long tnow)
+        {
+            assert arrivalIntervals.mean() > 0 && tLast > 0; // should not be called before any samples arrive
+            long t = tnow - tLast;
+            lastReportedPhi = t / mean();
+            return lastReportedPhi;
+        }
+
+        public double getLastReportedPhi()
+        {
+            return lastReportedPhi;
+        }
+
+        public String toString()
+        {
+            return Arrays.toString(arrivalIntervals.getArrivalIntervals());
+        }
+
+        @Override
+        public int size()
+        {
+            return arrivalIntervals.size();
+        }
+
+        @Override
+        public void update(long interval)
+        {
+            arrivalIntervals.update(interval);
+        }
+
+        @Override
+        public Snapshot getSnapshot()
+        {
+            return arrivalIntervals.getSnapshot();
+        }
+
+        public long getLastInterval()
+        {
+            return arrivalIntervals.getLastInterval();
+        }
     }
 }
 
@@ -470,88 +570,10 @@ class ArrayBackedBoundedStats implements Reservoir
         }
         return new UniformSnapshot(values);
     }
-}
 
-class ArrivalWindow
-{
-    private static final Logger logger = LoggerFactory.getLogger(ArrivalWindow.class);
-    private long tLast = 0L;
-    private final ArrayBackedBoundedStats arrivalIntervals;
-    private double lastReportedPhi = Double.MIN_VALUE;
-
-    // in the event of a long partition, never record an interval longer than the rpc timeout,
-    // since if a host is regularly experiencing connectivity problems lasting this long we'd
-    // rather mark it down quickly instead of adapting
-    // this value defaults to the same initial value the FD is seeded with
-    private final long MAX_INTERVAL_IN_NANO = getMaxInterval();
-
-    ArrivalWindow(int size)
+    public long getLastInterval()
     {
-        arrivalIntervals = new ArrayBackedBoundedStats(size);
-    }
-
-    private static long getMaxInterval()
-    {
-        String newvalue = System.getProperty("cassandra.fd_max_interval_ms");
-        if (newvalue == null)
-        {
-            return FailureDetector.INITIAL_VALUE_NANOS;
-        }
-        else
-        {
-            logger.info("Overriding FD MAX_INTERVAL to {}ms", newvalue);
-            return TimeUnit.NANOSECONDS.convert(Integer.parseInt(newvalue), TimeUnit.MILLISECONDS);
-        }
-    }
-
-    synchronized void add(long value, InetAddress ep)
-    {
-        assert tLast >= 0;
-        if (tLast > 0L)
-        {
-            long interArrivalTime = (value - tLast);
-            if (interArrivalTime <= MAX_INTERVAL_IN_NANO)
-            {
-                arrivalIntervals.add(interArrivalTime);
-                logger.trace("Reporting interval time of {} for {}", interArrivalTime, ep);
-            }
-            else
-            {
-                logger.debug("Ignoring interval time of {} for {}", interArrivalTime, ep);
-            }
-        }
-        else
-        {
-            // We use a very large initial interval since the "right" average depends on the cluster size
-            // and it's better to err high (false negatives, which will be corrected by waiting a bit longer)
-            // than low (false positives, which cause "flapping").
-            arrivalIntervals.add(FailureDetector.INITIAL_VALUE_NANOS);
-        }
-        tLast = value;
-    }
-
-    double mean()
-    {
-        return arrivalIntervals.mean();
-    }
-
-    // see CASSANDRA-2597 for an explanation of the math at work here.
-    double phi(long tnow)
-    {
-        assert arrivalIntervals.mean() > 0 && tLast > 0; // should not be called before any samples arrive
-        long t = tnow - tLast;
-        lastReportedPhi = t / mean();
-        return lastReportedPhi;
-    }
-
-    double getLastReportedPhi()
-    {
-        return lastReportedPhi;
-    }
-
-    public String toString()
-    {
-        return Arrays.toString(arrivalIntervals.getArrivalIntervals());
+        return arrivalIntervals[index % arrivalIntervals.length];
     }
 }
 
