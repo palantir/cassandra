@@ -39,7 +39,7 @@ import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
-import org.apache.cassandra.db.compaction.writers.MajorLeveledCompactionWriter;
+import org.apache.cassandra.db.compaction.writers.MaxSSTableSizeWriter;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
 import org.apache.cassandra.db.marshal.BytesType;
@@ -609,11 +609,12 @@ public class CompactionsTest
         assertEquals(ImmutableSet.of(1, 2, 3), allGenerations);
     }
 
-    private static class FailedAbortCompactionWriter extends MajorLeveledCompactionWriter
+    private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
     {
-        public FailedAbortCompactionWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables, long maxSSTableSize, boolean offline, OperationType compactionType)
+
+        public FailedAbortCompactionWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables, long maxSSTableSize, int level, boolean offline, OperationType compactionType)
         {
-            super(cfs, txn, nonExpiredSSTables, maxSSTableSize, offline, compactionType);
+            super(cfs, txn, nonExpiredSSTables, maxSSTableSize, level, offline, compactionType);
         }
 
         @Override
@@ -641,7 +642,7 @@ public class CompactionsTest
         @Override
         public CompactionAwareWriter getCompactionAwareWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables)
         {
-            return new FailedAbortCompactionWriter(cfs, txn, nonExpiredSSTables, 1024 * 1024, false, compactionType);
+            return new FailedAbortCompactionWriter(cfs, txn, nonExpiredSSTables, 1024 * 1024, 0, false, compactionType);
         }
     }
 
