@@ -25,6 +25,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.palantir.logsafe.exceptions.SafeRuntimeException;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
@@ -71,6 +72,7 @@ public class CompactionsTest
     private static final String CF_STANDARD2 = "Standard2";
     private static final String CF_STANDARD3 = "Standard3";
     private static final String CF_STANDARD4 = "Standard4";
+    private static final String CF_STANDARD5 = "Standard5";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -88,6 +90,7 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD3),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD4),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -541,15 +544,16 @@ public class CompactionsTest
     }
 
     @Test
-    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress()
+    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress() throws InterruptedException
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_STANDARD4);
+        String cfName = CF_STANDARD5;
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
 
         cfs.clearUnsafe();
         cfs.disableAutoCompaction();
 
-        SchemaLoader.insertData(KEYSPACE1, CF_STANDARD4, 0, 1);
+        SchemaLoader.insertData(KEYSPACE1, cfName, 0, 1);
         cfs.forceBlockingFlush();
 
         SSTableReader s = SSTableRewriterTest.writeFile(cfs, 1000);
@@ -560,42 +564,42 @@ public class CompactionsTest
         assertEquals(3, cfs.getSSTables().size());
 
         Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
-        try (LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN))
+        LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
+        CompactionTask compaction = spy(new FailedAbortCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true));
+        try
         {
-            CompactionTask compaction = spy(new FailedAbortCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true));
-            try {
-                compaction.runMayThrow();
-            } catch (Throwable e) {
-                assertNotNull(e);
-            }
+            compaction.runMayThrow();
+        }
+        catch (Throwable e)
+        {
+            assertNotNull(e);
+        }
 
-            Collection<SSTableReader> sstablesAfter = cfs.getSSTables();
-            assertEquals(50, sstablesAfter.size());
-            Set<Integer> nonTmp = ImmutableSet.of(1, 2, 3, 4, 5);
-            Set<Integer> actualNonTmp = new Directories(cfs.metadata).sstableLister().skipTemporary(true).list().keySet()
-                    .stream().map(desc -> desc.generation).collect(Collectors.toSet());
-            assertEquals(nonTmp, actualNonTmp);
+        Collection<SSTableReader> sstablesAfter = cfs.getSSTables();
+        assertEquals(50, sstablesAfter.size());
+        Set<Integer> nonTmp = ImmutableSet.of(1, 2, 3, 4, 5);
+        Set<Integer> actualNonTmp = new Directories(cfs.metadata).sstableLister().skipTemporary(true).list().keySet()
+                .stream().map(desc -> desc.generation).collect(Collectors.toSet());
+        assertEquals(nonTmp, actualNonTmp);
 
-            Map<Pair<String, String>, Map<Integer, UUID>> compactionLogs = SystemKeyspace.getUnfinishedCompactions();
-            Pair<String, String> pair = Pair.create(KEYSPACE1, CF_STANDARD4);
-            assertTrue(compactionLogs.containsKey(pair));
+        Map<Pair<String, String>, Map<Integer, UUID>> compactionLogs = SystemKeyspace.getUnfinishedCompactions();
+        Pair<String, String> pair = Pair.create(KEYSPACE1, cfName);
+        assertTrue(compactionLogs.containsKey(pair));
+        // removes incomplete compaction product
+        ColumnFamilyStore.removeUnusedSstables(cfs.metadata, compactionLogs.getOrDefault(pair, ImmutableMap.of()));
+        // removes tmp files
+        ColumnFamilyStore.scrubDataDirectories(cfs.metadata);
 
-            // removes incomplete compaction product
-            ColumnFamilyStore.removeUnusedSstables(cfs.metadata, compactionLogs.get(pair));
-            //ColumnFamilyStore.removeUnusedSstables(cfs.metadata, ImmutableMap.of());
-            // removes tmp files
-            ColumnFamilyStore.scrubDataDirectories(cfs.metadata);
-
-            // in-memory sstable tracking will be broken and think we have 50 sstables (the cleanup + scrub is meant to happen before the keyspace is
-            // initialized) looking on disk shows that the correct number of sstables exist at this point
-            Directories directories = new Directories(cfs.metadata);
-            Set<Integer> allGenerations = new HashSet<>();
-            for (Descriptor desc : directories.sstableLister().list().keySet())
-                allGenerations.add(desc.generation);
-            // When we don't retain the compaction log, the ancestors 2 and 3 are deleted and products 4 and 5 are retained, despite 40+ tmp files in the unfinished
-            // product not having been committed!
-            assertEquals(ImmutableSet.of(1, 2, 3), allGenerations);
-    }}
+        // in-memory sstable tracking will be broken and think we have 50 sstables (the cleanup + scrub is meant to happen before the keyspace is
+        // initialized) looking on disk shows that the correct number of sstables exist at this point
+        Directories directories = new Directories(cfs.metadata);
+        Set<Integer> allGenerations = new HashSet<>();
+        for (Descriptor desc : directories.sstableLister().list().keySet())
+            allGenerations.add(desc.generation);
+        // When we don't retain the compaction log, the ancestors 2 and 3 are deleted and products 4 and 5 are retained, despite 40+ tmp files in the unfinished
+        // product not having been committed!
+        assertEquals(ImmutableSet.of(1, 2, 3), allGenerations);
+    }
 
     private static class FailedAbortCompactionWriter extends MajorLeveledCompactionWriter
     {
