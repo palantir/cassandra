@@ -78,9 +78,4 @@ public interface IFailureDetector
      * @param listener implementation of an application provided IFailureDetectionEventListener
      */
     public void unregisterFailureDetectionEventListener(IFailureDetectionEventListener listener);
-
-    /**
-     * Get the current phi value for this endpoint. Intended for use by metrics.
-     */
-    public double getPhiValue(InetAddress ep);
 }
