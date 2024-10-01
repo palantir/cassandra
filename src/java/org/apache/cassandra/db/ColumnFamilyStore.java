@@ -719,7 +719,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         allSstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, allSstableToAncestors, unfinishedCompactions);
 
-        Set<UUID> cleanedCompactions = new HashSet<>();
+        Set<UUID> cleanedUnfinishedCompactions = new HashSet<>();
         for (Map.Entry<Descriptor, Set<Integer>> sstableToAncestors : allSstableToAncestors.entrySet())
         {
             Descriptor desc = sstableToAncestors.getKey();
@@ -733,14 +733,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 assert compactionTaskID != null;
                 logger.info("Going to delete unfinished compaction product {}", desc);
                 SSTable.delete(desc, allNonTempSstableFiles.get(desc));
-                cleanedCompactions.add(compactionTaskID);
+                cleanedUnfinishedCompactions.add(compactionTaskID);
             }
             else
             {
                 completedAncestors.addAll(ancestors);
             }
         }
-        cleanedCompactions.forEach(SystemKeyspace::finishCompaction);
+        cleanedUnfinishedCompactions.forEach(SystemKeyspace::finishCompaction);
 
         // remove old sstables from compactions that did complete
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())

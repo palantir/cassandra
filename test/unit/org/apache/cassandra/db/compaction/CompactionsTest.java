@@ -578,6 +578,9 @@ public class CompactionsTest
         catch (Throwable e)
         {
             assertNotNull(e);
+            assertTrue(e.getMessage().contains("Exception on compaction task"));
+            assertTrue(e.getCause().getMessage().contains("Exception thrown while some sstables in finish"));
+            assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
         }
 
         Collection<SSTableReader> sstablesAfter = cfs.getSSTables();
@@ -619,7 +622,6 @@ public class CompactionsTest
 
         @Override
         public void doPrepare() {
-            // figure out how to make this crash in the rewriter
             SSTableWriter writer = mock(SSTableWriter.class);
             doThrow(new SafeRuntimeException("Exception thrown while some sstables in finish, for testing")).when(writer).getFilePointer();
             sstableWriter.insertWriterTestingOnly(2, writer);
@@ -628,7 +630,7 @@ public class CompactionsTest
 
         @Override
         protected Throwable doAbort(Throwable _accumulate) {
-            return new SafeRuntimeException("Failed to do anything");
+            return new SafeRuntimeException("Failed to do anything for abort");
         }
     }
 
