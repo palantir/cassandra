@@ -279,6 +279,10 @@ public class SSTableRewriter extends Transactional.AbstractTransactional impleme
         }
     }
 
+    public void insertWriterTestingOnly(int index, SSTableWriter newWriter) {
+        writers.add(index, newWriter);
+    }
+
     public void switchWriter(SSTableWriter newWriter)
     {
         if (newWriter != null)
