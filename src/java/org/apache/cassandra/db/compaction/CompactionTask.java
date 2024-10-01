@@ -184,6 +184,8 @@ public class CompactionTask extends AbstractCompactionTask
                     if (collector != null)
                         collector.beginCompaction(ci);
 
+                    boolean abortFailed = false;
+                    boolean readyToFinish = false;
                     try (CompactionAwareWriter writer = getCompactionAwareWriter(cfs, transaction, actuallyCompact))
                     {
                         estimatedKeys = writer.estimatedKeys();
@@ -205,17 +207,24 @@ public class CompactionTask extends AbstractCompactionTask
                             }
                         }
 
-                        // don't replace old sstables yet, as we need to mark the compaction finished in the system table
+                        readyToFinish = true;
                         newSStables = writer.finish();
                     } catch (Exception e) {
-                        throw new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
+                        CompactionException exception = new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
+                        if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
+                        {
+                            abortFailed = true;
+                            logger.warn("CompactionAwareWriter failed to close correctly for {}/{}. This compaction won't be removed from " +
+                                            "system.compactions_in_progress to ensure sstable cleanup on startup proceeds correctly in case some " +
+                                            "compaction-product sstables are marked final while others remain tmp",
+                                    cfs.keyspace.getName(), cfs.name, e);
+                        }
+                        throw exception;
                     }
                     finally
                     {
                         Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-                        // point of no return -- the new sstables are live on disk; next we'll start deleting the old ones
-                        // (in replaceCompactedSSTables)
-                        if (taskId != null)
+                        if (taskId != null && (!abortFailed))
                             SystemKeyspace.finishCompaction(taskId);
 
                         if (collector != null)
