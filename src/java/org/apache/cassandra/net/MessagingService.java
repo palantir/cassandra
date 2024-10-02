@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
+import com.palantir.cassandra.net.HostnameResolver;
+import com.palantir.cassandra.net.KubernetesHostnameResolver;
+import com.palantir.cassandra.utils.InetAddressUtils;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -58,6 +61,7 @@ import org.apache.cassandra.gms.EchoMessage;
 import org.apache.cassandra.gms.GossipDigestAck;
 import org.apache.cassandra.gms.GossipDigestAck2;
 import org.apache.cassandra.gms.GossipDigestSyn;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileUtils;
@@ -980,6 +984,7 @@ public final class MessagingService implements MessagingServiceMBean
         private final ServerSocket server;
         @VisibleForTesting
         public final Set<Closeable> connections = Sets.newConcurrentHashSet();
+        private final HostnameResolver hostnameResolver = new KubernetesHostnameResolver(() -> Math.max(3, Gossiper.instance.getEndpointStates().size() + 1));
 
         SocketThread(ServerSocket server, String name)
         {
@@ -997,6 +1002,11 @@ public final class MessagingService implements MessagingServiceMBean
                 {
                     socket = server.accept();
                     InetAddress remote = socket.getInetAddress();
+                    if (Boolean.getBoolean("palantir_cassandra.use_custom_reverse_dns"))
+                    {
+                        InetAddressUtils.setHostname(remote, hostnameResolver.getHostname(remote));
+                    }
+
                     logger.trace("Attempting to accept incoming connection from {}", remote);
 
                     if (!authenticate(socket))
