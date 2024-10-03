@@ -729,19 +729,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         // remove old sstables from compactions that did complete
-        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
-        {
-            Descriptor desc = sstableFiles.getKey();
-            if (completedAncestors.contains(desc.generation))
-            {
-                // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.info("Going to delete leftover compaction ancestor {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
-                UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
-                if (compactionTaskID != null)
-                    SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
-            }
-        }
+//        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
+//        {
+//            Descriptor desc = sstableFiles.getKey();
+//            if (completedAncestors.contains(desc.generation))
+//            {
+//                // if any of the ancestors were participating in a compaction, finish that compaction
+//                logger.info("Going to delete leftover compaction ancestor {}", desc);
+//                SSTable.delete(desc, sstableFiles.getValue());
+//                UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
+//                if (compactionTaskID != null)
+//                    SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
+//            }
+//        }
     }
 
     /**
