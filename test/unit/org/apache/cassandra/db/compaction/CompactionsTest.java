@@ -23,16 +23,25 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.palantir.logsafe.exceptions.SafeIllegalStateException;
+import com.palantir.logsafe.exceptions.SafeRuntimeException;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
+import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
+import org.apache.cassandra.db.compaction.writers.MaxSSTableSizeWriter;
 import org.apache.cassandra.db.filter.QueryFilter;
+import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.db.marshal.LongType;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -45,6 +54,7 @@ import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
+import org.apache.commons.io.FileUtils;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -55,6 +65,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class CompactionsTest
@@ -64,6 +75,8 @@ public class CompactionsTest
     private static final String CF_STANDARD2 = "Standard2";
     private static final String CF_STANDARD3 = "Standard3";
     private static final String CF_STANDARD4 = "Standard4";
+    private static final String CF_STANDARD5 = "Standard5";
+    private static final String CF_STANDARD6 = "Standard6";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -81,6 +94,8 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD3),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD4),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -531,6 +546,106 @@ public class CompactionsTest
 
         cf = cfs.getColumnFamily(filter);
         assertTrue("should be empty: " + cf, cf == null || !cf.hasColumns());
+    }
+
+    @Test
+    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress() throws IOException
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        String cfName = CF_STANDARD5;
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+
+        cfs.clearUnsafe();
+        cfs.disableAutoCompaction();
+
+        SchemaLoader.insertData(KEYSPACE1, cfName, 0, 1);
+        cfs.forceBlockingFlush();
+
+        SSTableReader s = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s);
+        SSTableReader s2 = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s2);
+
+        assertEquals(3, cfs.getSSTables().size());
+
+        Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
+        LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
+        CompactionTask compaction = spy(new FailedAbortCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true));
+        try
+        {
+            compaction.runMayThrow();
+        }
+        catch (Throwable e)
+        {
+            assertNotNull(e);
+            assertTrue(e.getMessage().contains("Exception on compaction task"));
+            assertTrue(e.getCause().getMessage().contains("Exception thrown while some sstables in finish"));
+            assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
+        }
+
+        Collection<SSTableReader> sstablesAfter = cfs.getSSTables();
+        assertEquals(50, sstablesAfter.size());
+        Set<Integer> nonTmp = ImmutableSet.of(1, 2, 3, 4, 5);
+        Set<Integer> actualNonTmp = new Directories(cfs.metadata).sstableLister().skipTemporary(true).list().keySet()
+                .stream().map(desc -> desc.generation).collect(Collectors.toSet());
+        assertEquals(nonTmp, actualNonTmp);
+
+        Map<Pair<String, String>, Map<Integer, UUID>> compactionLogs = SystemKeyspace.getUnfinishedCompactions();
+        Pair<String, String> pair = Pair.create(KEYSPACE1, cfName);
+        assertTrue(compactionLogs.containsKey(pair));
+
+        // Copy to a new CF in case in-memory tracking affects testing
+        File src = new Directories(cfs.metadata).getCFDirectories().get(0);
+        File dst = Arrays.stream(src.getParentFile().listFiles())
+                .filter(file -> file.getName().contains(CF_STANDARD6)).findFirst().orElseThrow(() -> new SafeIllegalStateException("No Standard6 CF found"));
+        FileUtils.copyDirectory(src, dst);
+        CFMetaData cf2Metadata = Schema.instance.getKSMetaData(keyspace.getName()).cfMetaData().get(CF_STANDARD6);
+        // removes incomplete compaction product and tmp files
+        ColumnFamilyStore.removeUnusedSstables(cf2Metadata, compactionLogs.getOrDefault(pair, ImmutableMap.of()));
+        ColumnFamilyStore.scrubDataDirectories(cf2Metadata);
+
+        Set<Integer> allGenerations = new HashSet<>();
+        for (Descriptor desc : new Directories(cf2Metadata).sstableLister().list().keySet())
+            allGenerations.add(desc.generation);
+        // When we don't retain the compaction log, the ancestors 2 and 3 are deleted and products 4 and 5 are retained, despite 40+ tmp files in the unfinished
+        // product not having been committed!
+        assertEquals(ImmutableSet.of(1, 2, 3), allGenerations);
+    }
+
+    private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
+    {
+
+        public FailedAbortCompactionWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables, long maxSSTableSize, int level, boolean offline, OperationType compactionType)
+        {
+            super(cfs, txn, nonExpiredSSTables, maxSSTableSize, level, offline, compactionType);
+        }
+
+        @Override
+        public void doPrepare() {
+            SSTableWriter writer = mock(SSTableWriter.class);
+            doThrow(new SafeRuntimeException("Exception thrown while some sstables in finish, for testing")).when(writer).getFilePointer();
+            sstableWriter.insertWriterTestingOnly(2, writer);
+            super.doPrepare();
+        }
+
+        @Override
+        protected Throwable doAbort(Throwable _accumulate) {
+            return new SafeRuntimeException("Failed to do anything for abort");
+        }
+    }
+
+    private static class FailedAbortCompactionTask extends LeveledCompactionTask
+    {
+        public FailedAbortCompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int level, int gcBefore, long maxSSTableBytes, boolean majorCompaction)
+        {
+            super(cfs, txn, level, gcBefore, maxSSTableBytes, majorCompaction);
+        }
+
+        @Override
+        public CompactionAwareWriter getCompactionAwareWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables)
+        {
+            return new FailedAbortCompactionWriter(cfs, txn, nonExpiredSSTables, 1024 * 1024, 0, false, compactionType);
+        }
     }
 
     private static Range<Token> rangeFor(int start, int end)
