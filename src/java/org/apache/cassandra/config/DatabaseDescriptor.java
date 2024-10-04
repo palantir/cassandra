@@ -56,6 +56,7 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.scheduler.IRequestScheduler;
 import org.apache.cassandra.scheduler.NoScheduler;
 import org.apache.cassandra.service.CacheService;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.memory.*;
@@ -703,7 +704,7 @@ public class DatabaseDescriptor
 
                 if (Files.exists(systemDirectoryPath)
                     && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo)
-                    && Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true")))
+                    && StorageService.joinRing)
                 {
                     throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
                         + " Please remove this flag from configuration as it could cause split brain.", false);
