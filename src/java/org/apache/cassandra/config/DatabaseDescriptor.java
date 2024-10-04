@@ -56,6 +56,7 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.scheduler.IRequestScheduler;
 import org.apache.cassandra.scheduler.NoScheduler;
 import org.apache.cassandra.service.CacheService;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.memory.*;
@@ -701,9 +702,13 @@ public class DatabaseDescriptor
                 Path systemDirectoryPath = Paths.get(conf.data_file_directories[0] + "/system");
                 Instant fourDaysAgo = Instant.now().minus(4, ChronoUnit.DAYS);
 
-                if (Files.exists(systemDirectoryPath) && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo))
+                if (Files.exists(systemDirectoryPath)
+                    && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo)
+                    && StorageService.joinRing)
+                {
                     throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
                         + " Please remove this flag from configuration as it could cause split brain.", false);
+                }
             }
             catch (IOException e)
             {
