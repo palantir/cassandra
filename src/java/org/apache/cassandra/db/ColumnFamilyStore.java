@@ -104,6 +104,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 {
     private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
 
+    private static final boolean DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP = Boolean.getBoolean(
+                                            "palantir_cassandra.dry_run_non_compacting_unused_sstable_cleanup");
+
     private static final ExecutorService flushExecutor = new JMXEnabledThreadPoolExecutor(DatabaseDescriptor.getFlushWriters(),
                                                                                           StageManager.KEEPALIVE,
                                                                                           TimeUnit.SECONDS,
@@ -748,12 +751,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             if (completedAncestors.contains(desc.generation))
             {
-                // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.warn("Going to delete leftover compaction ancestor {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
-                UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
-                if (compactionTaskID != null)
-                    SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
+                if (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty())
+                {
+                    logger.warn("Would have deleted leftover compaction ancestor {}", desc);
+                } else
+                {
+                    // if any of the ancestors were participating in a compaction, finish that compaction
+                    logger.warn("Going to delete leftover compaction ancestor {}", desc);
+                    SSTable.delete(desc, sstableFiles.getValue());
+                    UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
+                    if (compactionTaskID != null)
+                        SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
+                }
             }
         }
     }
