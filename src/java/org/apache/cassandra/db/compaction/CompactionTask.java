@@ -139,7 +139,6 @@ public class CompactionTask extends AbstractCompactionTask
             }
         });
 
-        UUID taskId = offline ? null : SystemKeyspace.startCompaction(cfs, transaction.originals());
 
         // new sstables from flush can be added during a compaction, but only the compaction can remove them,
         // so in our single-threaded compaction world this is a valid way of determining if we're compacting
@@ -150,8 +149,6 @@ public class CompactionTask extends AbstractCompactionTask
             ssTableLoggerMsg.append(String.format("%s:level=%d, ", sstr.getFilename(), sstr.getSSTableLevel()));
         }
         ssTableLoggerMsg.append("]");
-        String taskIdLoggerMsg = taskId == null ? UUIDGen.getTimeUUID().toString() : taskId.toString();
-        logger.debug("Compacting ({}) {}", taskIdLoggerMsg, ssTableLoggerMsg);
 
         long start = System.nanoTime();
 
@@ -164,16 +161,21 @@ public class CompactionTask extends AbstractCompactionTask
 
             SSTableFormat.Type sstableFormat = getFormatType(transaction.originals());
 
-            List<SSTableReader> newSStables;
-            AbstractCompactionIterable ci;
 
             // SSTableScanners need to be closed before markCompactedSSTablesReplaced call as scanners contain references
             // to both ifile and dfile and SSTR will throw deletion errors on Windows if it tries to delete before scanner is closed.
             // See CASSANDRA-8019 and CASSANDRA-8399
             boolean abortFailed = false;
+            UUID taskId = null;
+            String taskIdLoggerMsg;
+            List<SSTableReader> newSStables;
+            AbstractCompactionIterable ci = null;
             try (Refs<SSTableReader> refs = Refs.ref(actuallyCompact);
                  AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(actuallyCompact))
             {
+                taskId = offline ? null : SystemKeyspace.startCompaction(cfs, transaction.originals());
+                taskIdLoggerMsg = taskId == null ? UUIDGen.getTimeUUID().toString() : taskId.toString();
+                logger.debug("Compacting ({}) {}", taskIdLoggerMsg, ssTableLoggerMsg);
                 ci = new CompactionIterable(compactionType, scanners.scanners, controller, sstableFormat, taskId);
                 try (CloseableIterator<AbstractCompactedRow> iter = ci.iterator())
                 {
@@ -222,15 +224,15 @@ public class CompactionTask extends AbstractCompactionTask
                         throw exception;
                     }
                 }
-                finally
-                {
-                    Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-                    if (taskId != null && (!abortFailed))
-                        SystemKeyspace.finishCompaction(taskId);
+            }
+            finally
+            {
+                Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
+                if (taskId != null && (!abortFailed))
+                    SystemKeyspace.finishCompaction(taskId);
 
-                    if (collector != null)
-                        collector.finishCompaction(ci);
-                }
+                if (collector != null && ci != null)
+                    collector.finishCompaction(ci);
             }
 
             // log a bunch of statistics about the result and save to system table compaction_history
