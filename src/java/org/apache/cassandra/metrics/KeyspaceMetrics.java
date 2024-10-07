@@ -112,6 +112,12 @@ public class KeyspaceMetrics
     public final LatencyMetrics casPropose;
     /** CAS Commit metrics */
     public final LatencyMetrics casCommit;
+    /** CAS Lock metrics */
+    public final LatencyMetrics casLockWait;
+    /** CAS Paxos System Read metrics */
+    public final LatencyMetrics casSystemRead;
+    /** CAS Paxos System Write metrics */
+    public final LatencyMetrics casSystemWrite;
     /** Number of mutation requests which were not for a row this node owned */
     public final Counter invalidMutations;
     /** Number of mutation requests which are valid */
@@ -271,6 +277,10 @@ public class KeyspaceMetrics
         casPrepare = new LatencyMetrics(factory, "CasPrepare");
         casPropose = new LatencyMetrics(factory, "CasPropose");
         casCommit = new LatencyMetrics(factory, "CasCommit");
+        casLockWait = new LatencyMetrics(factory, "CasLockWait");
+        casSystemRead = new LatencyMetrics(factory, "CasSystemRead");
+        casSystemWrite = new LatencyMetrics(factory, "CasSystemWrite");
+
         invalidMutations = Metrics.counter(factory.createMetricName("InvalidMutations"));
         validMutations = Metrics.counter(factory.createMetricName("ValidMutations"));
     }

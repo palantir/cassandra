@@ -161,6 +161,19 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics casPropose;
     /** CAS Commit metrics */
     public final LatencyMetrics casCommit;
+    /** CAS Lock metrics */
+    public final LatencyMetrics casLockWait;
+    /** CAS Paxos System Read metrics */
+    public final LatencyMetrics casSystemRead;
+    /** CAS Paxos System Write metrics */
+    public final LatencyMetrics casSystemWrite;
+
+    /** CAS lock acquired */
+    public final Meter casLock;
+
+    public final Meter casPrepareAttempts;
+    public final Meter casProposeAttempts;
+    public final Meter casCommitAttempts;
 
     /** Estimated ratio of droppable tombstones and number of cells in this table */
     public final Gauge<Double> droppableTombstoneRatio;
@@ -721,6 +734,14 @@ public class ColumnFamilyMetrics
         casPrepare = new LatencyMetrics(factory, "CasPrepare", cfs.keyspace.metric.casPrepare);
         casPropose = new LatencyMetrics(factory, "CasPropose", cfs.keyspace.metric.casPropose);
         casCommit = new LatencyMetrics(factory, "CasCommit", cfs.keyspace.metric.casCommit);
+        casLockWait = new LatencyMetrics(factory, "CasLockWait", cfs.keyspace.metric.casLockWait);
+        casSystemRead = new LatencyMetrics(factory, "CasSystemRead", cfs.keyspace.metric.casSystemRead);
+        casSystemWrite = new LatencyMetrics(factory, "CasSystemWrite", cfs.keyspace.metric.casSystemWrite);
+
+        casLock = Metrics.meter(factory.createMetricName("CasLock"));
+        casPrepareAttempts = Metrics.meter(factory.createMetricName("CasPrepareAttempts"));
+        casProposeAttempts = Metrics.meter(factory.createMetricName("CasProposeAttempts"));
+        casCommitAttempts = Metrics.meter(factory.createMetricName("CasCommitAttempts"));
 
         droppableTombstoneRatio = createColumnFamilyGauge("DroppableTombstoneRatio", cfs::getDroppableTombstoneRatio);
         liveTombstoneRatio = createColumnFamilyGauge("LiveTombstoneRatio", cfs::getLiveTombstoneRatio);
