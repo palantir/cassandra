@@ -1696,7 +1696,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         {
             if (logger.isDebugEnabled())
             {
-                logger.debug("Marking sstable compacted and obsolete",
+                logger.debug("Marking sstable compacted and obsolete: {}.{} generation {}",
                              SafeArg.of("keyspace", descriptor.ksname),
                              SafeArg.of("cf", descriptor.cfname),
                              SafeArg.of("generation", descriptor.generation));
