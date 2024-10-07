@@ -170,6 +170,7 @@ public class CompactionTask extends AbstractCompactionTask
             // SSTableScanners need to be closed before markCompactedSSTablesReplaced call as scanners contain references
             // to both ifile and dfile and SSTR will throw deletion errors on Windows if it tries to delete before scanner is closed.
             // See CASSANDRA-8019 and CASSANDRA-8399
+            boolean abortFailed = false;
             try (Refs<SSTableReader> refs = Refs.ref(actuallyCompact);
                  AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(actuallyCompact))
             {
@@ -184,7 +185,6 @@ public class CompactionTask extends AbstractCompactionTask
                     if (collector != null)
                         collector.beginCompaction(ci);
 
-                    boolean abortFailed = false;
                     boolean readyToFinish = false;
                     try (CompactionAwareWriter writer = getCompactionAwareWriter(cfs, transaction, actuallyCompact))
                     {
@@ -221,15 +221,15 @@ public class CompactionTask extends AbstractCompactionTask
                         }
                         throw exception;
                     }
-                    finally
-                    {
-                        Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-                        if (taskId != null && (!abortFailed))
-                            SystemKeyspace.finishCompaction(taskId);
+                }
+                finally
+                {
+                    Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
+                    if (taskId != null && (!abortFailed))
+                        SystemKeyspace.finishCompaction(taskId);
 
-                        if (collector != null)
-                            collector.finishCompaction(ci);
-                    }
+                    if (collector != null)
+                        collector.finishCompaction(ci);
                 }
             }
 
