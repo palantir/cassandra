@@ -261,7 +261,6 @@ public class CassandraDaemon
         Schema.instance.loadFromDisk();
 
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
-        // clean up debris in the rest of the keyspaces
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
             // Skip system as we'll already clean it after the other tables
