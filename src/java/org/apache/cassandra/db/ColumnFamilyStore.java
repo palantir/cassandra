@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.management.openmbean.*;
 
@@ -41,6 +42,8 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
@@ -685,8 +688,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         {
             HashSet<Integer> missingGenerations = new HashSet<>(unfinishedGenerations);
             missingGenerations.removeAll(allGenerations);
-            logger.info("Unfinished compactions of {}.{} reference missing sstables of generations {}",
-                         metadata.ksName, metadata.cfName, missingGenerations);
+            logger.info("Unfinished compactions reference missing sstables of generations",
+                        SafeArg.of("keyspace", metadata.ksName), SafeArg.of("cf", metadata.cfName),
+                        SafeArg.of("missingGenerations", missingGenerations));
         }
 
         // remove new sstables from compactions that didn't complete, and compute
@@ -721,6 +725,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         allSstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, allSstableToAncestors, unfinishedCompactions);
+        SafeArg<Map<Integer, Set<Integer>>> ancestorsArg = SafeArg.of("sstableToAncestors",
+                                             allSstableToAncestors.entrySet().stream()
+                                                                  .collect(Collectors.toMap(e -> e.getKey().generation,
+                                                                                            Map.Entry::getValue)));
 
         Set<UUID> cleanedUnfinishedCompactions = new HashSet<>();
         for (Map.Entry<Descriptor, Set<Integer>> sstableToAncestors : allSstableToAncestors.entrySet())
@@ -734,7 +742,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // any of the ancestors would work, so we'll just lookup the compaction task ID with the first one
                 UUID compactionTaskID = unfinishedCompactions.get(ancestors.iterator().next());
                 assert compactionTaskID != null;
-                logger.info("Going to delete unfinished compaction product {}", desc);
+                logger.info("Going to delete unfinished compaction product", UnsafeArg.of("desc", desc),
+                            SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                            SafeArg.of("generation", desc.generation), ancestorsArg);
                 SSTable.delete(desc, allNonTempSstableFiles.get(desc));
                 cleanedUnfinishedCompactions.add(compactionTaskID);
             }
@@ -753,11 +763,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             {
                 if (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty())
                 {
-                    logger.warn("Would have deleted leftover compaction ancestor {}", desc);
+                    logger.warn("Would have deleted leftover compaction ancestor", UnsafeArg.of("desc", desc),
+                                SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                                SafeArg.of("generation", desc.generation), ancestorsArg);
                 } else
                 {
                     // if any of the ancestors were participating in a compaction, finish that compaction
-                    logger.warn("Going to delete leftover compaction ancestor {}", desc);
+                    logger.warn("Going to delete leftover compaction ancestor", UnsafeArg.of("desc", desc),
+                                SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                                SafeArg.of("generation", desc.generation), ancestorsArg);
                     SSTable.delete(desc, sstableFiles.getValue());
                     UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
                     if (compactionTaskID != null)
