@@ -49,6 +49,7 @@ import org.apache.cassandra.db.lifecycle.View;
 import org.apache.cassandra.db.lifecycle.Tracker;
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
 import org.apache.cassandra.io.FSWriteError;
+import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.json.simple.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -699,8 +700,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Set<Integer> ancestors;
             try
             {
-                CompactionMetadata compactionMetadata = (CompactionMetadata) desc.getMetadataSerializer().deserialize(desc, MetadataType.COMPACTION);
-                ancestors = compactionMetadata.ancestors;
+                Map<MetadataType, MetadataComponent> compactionMetadata = desc.getMetadataSerializer().deserialize(desc, EnumSet.of(MetadataType.COMPACTION, MetadataType.VALID_ANCESTORS));
+                if (compactionMetadata.get(MetadataType.VALID_ANCESTORS) != null)
+                {
+                    ancestors = ((CompactionMetadata) compactionMetadata.get(MetadataType.COMPACTION)).ancestors;
+                }
+                else
+                {
+                    ancestors = Collections.emptySet();
+                }
             }
             catch (IOException e)
             {
@@ -735,8 +743,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             if (completedAncestors.contains(desc.generation))
             {
                 // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.info("Going to delete leftover compaction ancestor {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
+                if (Boolean.getBoolean("palantir_cassandra.dry_run_ancestor_deletion"))
+                {
+                    logger.info("Would have deleted leftover compaction ancestor {} if palantir_cassandra.dry_run_ancestor_deletion was false", desc);
+                }
+                else
+                {
+                    logger.info("Going to delete leftover compaction ancestor {}", desc);
+                    SSTable.delete(desc, sstableFiles.getValue());
+                }
                 UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
                 if (compactionTaskID != null)
                     SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
@@ -833,6 +848,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         for (Map.Entry<Descriptor, Set<Component>> entry : lister.list().entrySet())
         {
             Descriptor descriptor = entry.getKey();
+            Set<Component> components = entry.getValue();
 
             if (currentDescriptors.contains(descriptor))
                 continue; // old (initialized) SSTable found, skipping
@@ -856,28 +872,39 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 continue;
             }
 
-            // Increment the generation until we find a filename that doesn't exist. This is needed because the new
-            // SSTables that are being loaded might already use these generation numbers.
             Descriptor newDescriptor;
-            do
+            if (assumeCfIsEmpty)
             {
-                newDescriptor = new Descriptor(descriptor.version,
-                                               descriptor.directory,
-                                               descriptor.ksname,
-                                               descriptor.cfname,
-                                               fileIndexGenerator.incrementAndGet(),
-                                               Descriptor.Type.FINAL,
-                                               descriptor.formatType);
+                newDescriptor = descriptor;
             }
-            while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
+            else
+            {
+                // Increment the generation until we find a filename that doesn't exist. This is needed because the new
+                // SSTables that are being loaded might already use these generation numbers.
+                do
+                {
+                    newDescriptor = new Descriptor(descriptor.version,
+                                                   descriptor.directory,
+                                                   descriptor.ksname,
+                                                   descriptor.cfname,
+                                                   fileIndexGenerator.incrementAndGet(),
+                                                   Descriptor.Type.FINAL,
+                                                   descriptor.formatType);
+                }
+                while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
 
-            logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
-            SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
+                logger.info("Removing Statistics.db for new SSTable {} to clear old ancestor metadata", descriptor);
+                FileUtils.delete(new File(descriptor.filenameFor(Component.STATS)));
+                components = Sets.difference(components, ImmutableSet.of(Component.STATS));
+
+                logger.info("Renaming new SSTable {} to {}", descriptor, newDescriptor);
+                SSTableWriter.rename(descriptor, newDescriptor, components);
+            }
 
             SSTableReader reader;
             try
             {
-                reader = SSTableReader.open(newDescriptor, entry.getValue(), metadata, partitioner);
+                reader = SSTableReader.open(newDescriptor, components, metadata, partitioner);
             }
             catch (IOException e)
             {

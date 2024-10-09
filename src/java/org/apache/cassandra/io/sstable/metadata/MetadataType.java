@@ -27,7 +27,9 @@ public enum MetadataType
     /** Metadata only used at compaction */
     COMPACTION(CompactionMetadata.serializer),
     /** Metadata always keep in memory */
-    STATS(StatsMetadata.serializer);
+    STATS(StatsMetadata.serializer),
+    /** Meta-metadata about whether the ancestors metadata is valid **/
+    VALID_ANCESTORS(ValidAncestorsMetadata.serializer);
 
     public final IMetadataComponentSerializer<MetadataComponent> serializer;
 
