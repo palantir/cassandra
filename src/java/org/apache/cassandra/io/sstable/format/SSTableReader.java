@@ -1694,13 +1694,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         }
         if (!tidy.global.isCompacted.getAndSet(true))
         {
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("Marking sstable compacted and obsolete: {}.{} generation {}",
-                             SafeArg.of("keyspace", descriptor.ksname),
-                             SafeArg.of("cf", descriptor.cfname),
-                             SafeArg.of("generation", descriptor.generation));
-            }
+            logger.info("Marking sstable compacted and obsolete: {}.{} generation {}",
+                         SafeArg.of("keyspace", descriptor.ksname),
+                         SafeArg.of("cf", descriptor.cfname),
+                         SafeArg.of("generation", descriptor.generation));
             tidy.type.markObsolete(this, tracker);
             return true;
         }
