@@ -725,10 +725,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         allSstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, allSstableToAncestors, unfinishedCompactions);
-        SafeArg<Map<Integer, Set<Integer>>> ancestorsArg = SafeArg.of("sstableToAncestors",
-                                             allSstableToAncestors.entrySet().stream()
-                                                                  .collect(Collectors.toMap(e -> e.getKey().generation,
-                                                                                            Map.Entry::getValue)));
+        SafeArg<Map<Integer, Set<Integer>>> ancestorsArg = SafeArg.of(
+        "sstableToAncestors",
+        allSstableToAncestors.entrySet().stream()
+                             .collect(Collectors.toMap(
+                             (Map.Entry<Descriptor, Set<Integer>> e) -> e.getKey().generation,
+                             Map.Entry::getValue)));
 
         Set<UUID> cleanedUnfinishedCompactions = new HashSet<>();
         for (Map.Entry<Descriptor, Set<Integer>> sstableToAncestors : allSstableToAncestors.entrySet())
