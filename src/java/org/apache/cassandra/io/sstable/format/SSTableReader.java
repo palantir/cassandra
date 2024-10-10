@@ -36,6 +36,7 @@ import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.clearspring.analytics.stream.cardinality.ICardinality;
 import com.codahale.metrics.Counter;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.cache.CachingOptions;
 import org.apache.cassandra.cache.InstrumentingCache;
 import org.apache.cassandra.cache.KeyCacheKey;
@@ -1693,6 +1694,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         }
         if (!tidy.global.isCompacted.getAndSet(true))
         {
+            logger.info("Marking sstable compacted and obsolete: {}.{} generation {}",
+                         SafeArg.of("keyspace", descriptor.ksname),
+                         SafeArg.of("cf", descriptor.cfname),
+                         SafeArg.of("generation", descriptor.generation));
             tidy.type.markObsolete(this, tracker);
             return true;
         }
