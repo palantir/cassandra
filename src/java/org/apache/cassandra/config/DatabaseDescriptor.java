@@ -707,7 +707,7 @@ public class DatabaseDescriptor
                     && StorageService.joinRing)
                 {
                     throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
-                        + " Please remove this flag from configuration as it could cause split brain.", false);
+                        + " You must remove this flag from configuration as it could cause SEVERE DATA CORRUPTION.", false);
                 }
             }
             catch (IOException e)
