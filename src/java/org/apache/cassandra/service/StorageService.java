@@ -5046,7 +5046,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void loadNewSSTables(String ksName, String cfName)
     {
         //ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.164.0+.");
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5055,7 +5055,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
         //ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.164.0+.");
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5064,7 +5064,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public int loadNewSSTablesWithCount(String ksName, String cfName)
     {
         //return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.164.0+.");
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5073,7 +5073,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
         //return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.164.0+.");
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**

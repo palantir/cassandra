@@ -860,7 +860,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     {
         if (assumeCfIsEmpty)
         {
-            throw new UnsupportedOperationException("Loading new SSTables is not supported on version 2.2.18-1.164.0+.");
+            throw new UnsupportedOperationException("Loading new SSTables is not supported on version 2.2.18-1.165.0+.");
         }
         logger.info("Loading new SSTables for {}/{}{}...",
                 keyspace.getName(), name,
