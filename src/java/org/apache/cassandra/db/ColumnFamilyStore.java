@@ -775,9 +775,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                 SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
                                 SafeArg.of("generation", desc.generation), ancestorsArg);
                     SSTable.delete(desc, sstableFiles.getValue());
-                    UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
-                    if (compactionTaskID != null)
-                        SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
+                    Optional.ofNullable(unfinishedCompactions.get(desc.generation))
+                            .ifPresent(SystemKeyspace::finishCompaction);
                 }
             }
         }

@@ -43,7 +43,7 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
         validators.add(validator);
     }
 
-    public void deregisterValidator(IColumnFamilyStoreValidator validator)
+    public void unregisterValidator(IColumnFamilyStoreValidator validator)
     {
         validators.remove(validator);
     }
