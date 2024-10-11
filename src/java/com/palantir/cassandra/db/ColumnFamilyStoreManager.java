@@ -24,18 +24,32 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.google.common.collect.ImmutableList;
+
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.notifications.INotificationConsumer;
 
 
 public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
 {
     public static final ColumnFamilyStoreManager instance = new ColumnFamilyStoreManager();
     private final List<IColumnFamilyStoreValidator> validators;
+    private final List<INotificationConsumer> trackerSubscribers;
 
     private ColumnFamilyStoreManager()
     {
         this.validators = new CopyOnWriteArrayList<>();
+        this.trackerSubscribers = new CopyOnWriteArrayList<>();
+    }
+
+    public void registerCfTrackerSubscriber(INotificationConsumer subscriber) {
+        this.trackerSubscribers.add(subscriber);
+    }
+
+    public List<INotificationConsumer> getCfTrackerSubscribers() {
+        return ImmutableList.copyOf(trackerSubscribers);
     }
 
     public void registerValidator(IColumnFamilyStoreValidator validator)

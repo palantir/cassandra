@@ -433,6 +433,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             initialMemtable = new Memtable(new AtomicReference<>(CommitLog.instance.getContext()), this);
         data = new Tracker(initialMemtable, loadSSTables);
 
+        ColumnFamilyStoreManager.instance.getCfTrackerSubscribers().forEach(data::subscribe);
+
         // scan for sstables corresponding to this cf and load them
         if (data.loadsstables)
         {
