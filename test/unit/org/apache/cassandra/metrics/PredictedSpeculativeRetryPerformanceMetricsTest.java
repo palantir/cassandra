@@ -67,6 +67,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
     private static final List<InetAddress> replicas = ImmutableList.of(addr1, addr2);
     private static final List<Long> singleLatency = ImmutableList.of(0L);
     private Map<Threshold, PredictedSpeculativeRetryPerformanceMetrics> thresholdToMetrics;
+    private Snapshot mockSnapshot;
 
     @BeforeClass
     public static void beforeClass()
@@ -87,7 +88,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         MockSchema.cleanup();
         SimpleSnitch ss = new SimpleSnitch();
         IEndpointSnitch snitch = spy(new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode())));
-        Snapshot mockSnapshot = mock(Snapshot.class);
+        mockSnapshot = mock(Snapshot.class);
         when(mockSnapshot.get99thPercentile()).thenReturn(100.0);
         doReturn(Optional.of(mockSnapshot)).when(snitch).getSnapshot(any());
         DatabaseDescriptor.setEndpointSnitch(snitch);
@@ -172,7 +173,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
     public void testMaybeWriteMetricsIgnoresGreaterThresholds() {
         ColumnFamilyStore cfs = spy(MockSchema.newCFS());
         for (PredictedSpeculativeRetryPerformanceMetrics specMetrics : thresholdToMetrics.values()) {
-            assertThat(specMetrics.maybeWriteMetrics(cfs, singleLatency, mock(InetAddress.class))).isFalse();
+            assertThat(specMetrics.maybeWriteMetrics(cfs, singleLatency, Optional.of(mockSnapshot))).isFalse();
         }
     }
 
@@ -185,7 +186,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         List<Long> latencies = ImmutableList.of(timestamp);
 
         for (PredictedSpeculativeRetryPerformanceMetrics specMetrics : thresholdToMetrics.values()) {
-            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isTrue();
+            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot))).isTrue();
         }
     }
 
@@ -200,18 +201,18 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         long timestamp = TimeUnit.NANOSECONDS.convert(2, TimeUnit.SECONDS);
         List<Long> latencies = ImmutableList.of(timestamp);
 
-        assertThat(thresholdToMetrics.get(MILLISECONDS_100).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class)))
+        assertThat(thresholdToMetrics.get(MILLISECONDS_100).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot)))
                                                                                                             .isTrue();
-        assertThat(thresholdToMetrics.get(SECONDS_1).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class)))
+        assertThat(thresholdToMetrics.get(SECONDS_1).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot)))
                                                                                                             .isTrue();
-        assertThat(thresholdToMetrics.get(SECONDS_5).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class)))
+        assertThat(thresholdToMetrics.get(SECONDS_5).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot)))
                                                                                                             .isFalse();
 
-        assertThat(thresholdToMetrics.get(P50).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class)))
+        assertThat(thresholdToMetrics.get(P50).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot)))
                                                                                             .isEqualTo(p50 < timestamp);
-        assertThat(thresholdToMetrics.get(P95).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class)))
+        assertThat(thresholdToMetrics.get(P95).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot)))
                                                                                             .isEqualTo(p95 < timestamp);
-        assertThat(thresholdToMetrics.get(P99).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class)))
+        assertThat(thresholdToMetrics.get(P99).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot)))
                                                                                             .isEqualTo(p99 < timestamp);
     }
 
@@ -227,7 +228,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         List<Long> latencies = ImmutableList.of(timestamp);
 
         for (PredictedSpeculativeRetryPerformanceMetrics specMetrics : thresholdToMetrics.values()) {
-            specMetrics.maybeWriteMetrics(cfs, latencies, mock(InetAddress.class));
+            specMetrics.maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot));
         }
 
         verify(thresholdToMetrics.get(MILLISECONDS_100), times(1)).addNano(
@@ -251,7 +252,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         List<Long> latencies = ImmutableList.of(timestamp, timestamp);
 
         for (PredictedSpeculativeRetryPerformanceMetrics specMetrics : thresholdToMetrics.values()) {
-            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isFalse();
+            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot))).isFalse();
         }
     }
 
@@ -260,9 +261,9 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         ColumnFamilyStore cfs = spy(MockSchema.newCFS());
         long timestamp = TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS);
         List<Long> latencies = ImmutableList.of(timestamp);
-        assertThat(thresholdToMetrics.get(P99).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isFalse();
-        assertThat(thresholdToMetrics.get(P95).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isFalse();
-        assertThat(thresholdToMetrics.get(P50).maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isFalse();
+        assertThat(thresholdToMetrics.get(P99).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot))).isFalse();
+        assertThat(thresholdToMetrics.get(P95).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot))).isFalse();
+        assertThat(thresholdToMetrics.get(P50).maybeWriteMetrics(cfs, latencies, Optional.of(mockSnapshot))).isFalse();
     }
 
     @Test
@@ -276,7 +277,7 @@ public class PredictedSpeculativeRetryPerformanceMetricsTest {
         long timestamp = TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS) + 100;
         List<Long> latencies = ImmutableList.of(timestamp);
         for (PredictedSpeculativeRetryPerformanceMetrics specMetrics : thresholdToMetrics.values()) {
-            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, mock(InetAddress.class))).isFalse();
+            assertThat(specMetrics.maybeWriteMetrics(cfs, latencies, Optional.empty())).isFalse();
         }
     }
 }
