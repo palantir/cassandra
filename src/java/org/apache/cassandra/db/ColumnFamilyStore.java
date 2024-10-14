@@ -432,8 +432,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         if (DatabaseDescriptor.isDaemonInitialized())
             initialMemtable = new Memtable(new AtomicReference<>(CommitLog.instance.getContext()), this);
         data = new Tracker(initialMemtable, loadSSTables);
-
-        ColumnFamilyStoreManager.instance.getCfTrackerSubscribers().forEach(data::subscribe);
+        data.subscribe(ColumnFamilyStoreManager.instance.getCfTrackerSubscriber());
 
         // scan for sstables corresponding to this cf and load them
         if (data.loadsstables)
@@ -757,13 +756,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 completedAncestors.addAll(ancestors);
             }
         }
-        cleanedUnfinishedCompactions.forEach(SystemKeyspace::finishCompaction);
 
         // remove old sstables from compactions that did complete
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
         {
             Descriptor desc = sstableFiles.getKey();
-            if (completedAncestors.contains(desc.generation))
+            if (completedAncestors.contains(desc.generation) && ColumnFamilyStoreManager.instance.isObsolete(desc))
             {
                 if (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty())
                 {
@@ -778,10 +776,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                 SafeArg.of("generation", desc.generation), ancestorsArg);
                     SSTable.delete(desc, sstableFiles.getValue());
                     Optional.ofNullable(unfinishedCompactions.get(desc.generation))
-                            .ifPresent(SystemKeyspace::finishCompaction);
+                            .ifPresent(cleanedUnfinishedCompactions::add);
                 }
             }
         }
+        // Clean compaction information last as it is used to determine what is or is not safe to remove
+        cleanedUnfinishedCompactions.forEach(SystemKeyspace::finishCompaction);
     }
 
     /**

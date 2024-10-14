@@ -24,32 +24,28 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import com.google.common.collect.ImmutableList;
-
 import org.apache.cassandra.config.CFMetaData;
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.notifications.INotificationConsumer;
 
 
-public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
+public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, SSTableDeletionTracker
 {
     public static final ColumnFamilyStoreManager instance = new ColumnFamilyStoreManager();
     private final List<IColumnFamilyStoreValidator> validators;
-    private final List<INotificationConsumer> trackerSubscribers;
+    private final List<SSTableDeletionTracker> deletionTrackers;
+    private final INotificationConsumer cfTrackerSubscriber;
 
     private ColumnFamilyStoreManager()
     {
         this.validators = new CopyOnWriteArrayList<>();
-        this.trackerSubscribers = new CopyOnWriteArrayList<>();
+        this.deletionTrackers = new CopyOnWriteArrayList<>();
+        this.cfTrackerSubscriber = new SSTableDeletionSubscriber();
     }
 
-    public void registerCfTrackerSubscriber(INotificationConsumer subscriber) {
-        this.trackerSubscribers.add(subscriber);
-    }
-
-    public List<INotificationConsumer> getCfTrackerSubscribers() {
-        return ImmutableList.copyOf(trackerSubscribers);
+    public INotificationConsumer getCfTrackerSubscriber() {
+        return cfTrackerSubscriber;
     }
 
     public void registerValidator(IColumnFamilyStoreValidator validator)
@@ -62,6 +58,17 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
         validators.remove(validator);
     }
 
+
+    public void registerDeletionTracker(SSTableDeletionTracker tracker)
+    {
+        deletionTrackers.add(tracker);
+    }
+
+    public void unregisterDeletionTracker(SSTableDeletionTracker tracker)
+    {
+        deletionTrackers.remove(tracker);
+    }
+
     public Map<Descriptor, Set<Integer>> filterValidAncestors(CFMetaData cfMetaData, Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> unfinishedCompactions)
     {
         Map<Descriptor, Set<Integer>> filtered = sstableToCompletedAncestors;
@@ -70,5 +77,16 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
             filtered = validator.filterValidAncestors(cfMetaData, filtered, unfinishedCompactions);
         }
         return filtered;
+    }
+
+    /** All registered validators agree this SSTable is obsolete. If no validators are registered, returns true. */
+    public boolean isObsolete(Descriptor desc)
+    {
+        return deletionTrackers.stream().allMatch(tracker -> tracker.isObsolete(desc));
+    }
+
+    public void markObsoleted(SSTableReader deleting)
+    {
+        deletionTrackers.forEach(tracker -> tracker.markObsoleted(deleting));
     }
 }

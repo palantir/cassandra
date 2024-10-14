@@ -37,6 +37,7 @@ import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.db.IColumnFamilyStoreValidator;
+import com.palantir.cassandra.db.SSTableDeletionTracker;
 import org.apache.cassandra.db.index.PerRowSecondaryIndexTest;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -1996,6 +1997,53 @@ public class ColumnFamilyStoreTest
         sstables = dir.sstableLister().list();
         ImmutableSet<Descriptor> expected = ImmutableSet.of(
                 sstable3Desc.withGeneration(gen1),
+                sstable3Desc.withGeneration(gen2),
+                sstable3Desc.withGeneration(gen3),
+                sstable3Desc.withGeneration(gen5));
+        assertEquals(expected, sstables.keySet());
+    }
+    @Test
+    public void testRemoveUnusedSstablesOnlyRemovesObsolete() throws IOException
+    {
+        final String ks = KEYSPACE1;
+        final String cf = CF_STANDARD7;
+
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Keyspace.open(KEYSPACE1).getColumnFamilyStore(cf).disableAutoCompaction();
+        Directories dir = new Directories(cfmeta);
+
+        int gen1 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen2 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen3 = writeNextGenerationSstable(ImmutableSet.of(gen1, gen2), dir, cfmeta);
+        int gen4 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen5 = writeNextGenerationSstable(ImmutableSet.of(gen4), dir, cfmeta);
+
+        Map<Descriptor, Set<Component>> sstables = dir.sstableLister().list();
+        Descriptor sstable3Desc = sstables.keySet().iterator().next().withGeneration(gen3);
+        assertEquals(5, sstables.size());
+        assertTrue(sstables.containsKey(sstable3Desc));
+
+        SSTableDeletionTracker tracker = new SSTableDeletionTracker()
+        {
+            public boolean isObsolete(Descriptor desc)
+            {
+                return desc.generation == gen1 || desc.generation == gen4;
+            }
+
+            public void markObsoleted(SSTableReader deleting) {}
+        };
+
+        try {
+            ColumnFamilyStoreManager.instance.registerDeletionTracker(tracker);
+            ColumnFamilyStore.removeUnusedSstables(cfmeta, ImmutableMap.of());
+        }
+        finally
+        {
+            ColumnFamilyStoreManager.instance.unregisterDeletionTracker(tracker);
+        }
+
+        sstables = dir.sstableLister().list();
+        ImmutableSet<Descriptor> expected = ImmutableSet.of(
                 sstable3Desc.withGeneration(gen2),
                 sstable3Desc.withGeneration(gen3),
                 sstable3Desc.withGeneration(gen5));
