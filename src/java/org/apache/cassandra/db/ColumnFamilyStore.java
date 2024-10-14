@@ -2614,7 +2614,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 }
 
                 Row row = new Row(rawRow.key, data);
-                metric.rangeScanBytesRead.mark(Row.serializer.serializedSize(row, MessagingService.current_version));
+                long serializedSize = Row.serializer.serializedSize(row, MessagingService.current_version);
+                metric.rangeScanBytesRead.mark(serializedSize);
                 rows.add(row);
 
                 if (!ignoreTombstonedPartitions || !data.hasOnlyTombstones(filter.timestamp))
