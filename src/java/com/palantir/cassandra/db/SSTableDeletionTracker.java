@@ -26,4 +26,6 @@ public interface SSTableDeletionTracker
     boolean isObsolete(Descriptor desc);
 
     void markObsoleted(SSTableReader deleting);
+
+    void completeSetup();
 }

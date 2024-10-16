@@ -2031,6 +2031,8 @@ public class ColumnFamilyStoreTest
             }
 
             public void markObsoleted(SSTableReader deleting) {}
+            
+            public void completeSetup() {}
         };
 
         try {

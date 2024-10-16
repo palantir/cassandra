@@ -58,6 +58,9 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, SS
         validators.remove(validator);
     }
 
+    public void completeSetup() {
+        deletionTrackers.forEach(SSTableDeletionTracker::completeSetup);
+    }
 
     public void registerDeletionTracker(SSTableDeletionTracker tracker)
     {
