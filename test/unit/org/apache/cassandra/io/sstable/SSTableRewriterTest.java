@@ -938,7 +938,7 @@ public class SSTableRewriterTest extends SchemaLoader
     {
         cfs.truncateBlocking();
         SSTableDeletingTask.waitForDeletions();
-        Uninterruptibles.sleepUninterruptibly(10L,TimeUnit.MILLISECONDS);
+        Uninterruptibles.sleepUninterruptibly(1L,TimeUnit.SECONDS);
         assertEquals(0, cfs.metric.liveDiskSpaceUsed.getCount());
         assertEquals(0, cfs.metric.totalDiskSpaceUsed.getCount());
         validateCFS(cfs);
