@@ -25,6 +25,7 @@ import java.util.UUID;
 import com.palantir.cassandra.db.compaction.IColumnFamilyStoreWriteAheadLogger;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.utils.Pair;
 
 
 public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IColumnFamilyStoreWriteAheadLogger
@@ -76,5 +77,9 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IC
     public void markForDeletion(CFMetaData cfMetaData, Set<Descriptor> descriptors)
     {
         writeAheadLogger.markForDeletion(cfMetaData, descriptors);
+    }
+
+    public synchronized void markForDeletion(CFMetaData cfMetaData, Set<String> collect)
+    {
     }
 }
