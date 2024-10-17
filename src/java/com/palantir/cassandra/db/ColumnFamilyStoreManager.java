@@ -26,19 +26,22 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.palantir.cassandra.db.compaction.IColumnFamilyStoreWriteAheadLogger;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.utils.Pair;
 
 
-public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
+public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IColumnFamilyStoreWriteAheadLogger
 {
     public static final ColumnFamilyStoreManager instance = new ColumnFamilyStoreManager();
     private final List<IColumnFamilyStoreValidator> validators;
+    private final List<IColumnFamilyStoreWriteAheadLogger> writeAheadLoggers;
 
     private ColumnFamilyStoreManager()
     {
         this.validators = new CopyOnWriteArrayList<>();
+        this.writeAheadLoggers = new CopyOnWriteArrayList<>();
     }
 
     public void registerValidator(IColumnFamilyStoreValidator validator)
@@ -51,6 +54,15 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
         validators.remove(validator);
     }
 
+    public void registerWriteAheadLogger(IColumnFamilyStoreWriteAheadLogger writeAheadLogger) {
+        writeAheadLoggers.add(writeAheadLogger);
+    }
+
+    public void unregisterWriteAheadLogger(IColumnFamilyStoreWriteAheadLogger writeAheadLogger) {
+        writeAheadLoggers.remove(writeAheadLogger);
+    }
+
+    @Override
     public Map<Descriptor, Set<Integer>> filterValidAncestors(CFMetaData cfMetaData, Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> unfinishedCompactions)
     {
         Map<Descriptor, Set<Integer>> filtered = sstableToCompletedAncestors;
@@ -61,14 +73,17 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
         return filtered;
     }
 
-    public void markForDeletion(CFMetaData cfMetaData, Set<String> collect)
-    {
-        // consumer should synchronize on ks+cf
-        throw new UnsupportedOperationException("not yet implemented");
+    @Override
+    public boolean shouldRemoveUnusedSstables() {
+        return validators.stream()
+            .map(IColumnFamilyStoreValidator::shouldRemoveUnusedSstables)
+            .reduce(Boolean::logicalOr)
+            .orElse(true);
     }
 
-    public boolean shouldRemoveUnusedSstables() {
-        // TODO(wdey): delegate
-        return true;
+    @Override
+    public void markForDeletion(CFMetaData cfMetaData, Set<Descriptor> descriptors)
+    {
+        writeAheadLoggers.forEach(l -> l.markForDeletion(cfMetaData, descriptors));
     }
 }

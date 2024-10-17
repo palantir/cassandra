@@ -16,27 +16,28 @@
  * limitations under the License.
  */
 
-package com.palantir.cassandra.db;
+package com.palantir.cassandra.db.compaction;
 
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.io.sstable.Descriptor;
 
-public interface IColumnFamilyStoreValidator
+
+public interface IColumnFamilyStoreWriteAheadLogger
 {
     /**
-     * Depending on the operations which have taken place on this node, some sstables may point to others as ancestors
-     * from which they are not actually derived.
+     * Mark {@code descriptors} as a set of SSTables in {@code cfMetaData} needing to be atomically deleted.
+     *
+     * This method is assumed to be thread-safe.
+     * Implementors are resposible for synchronization, and treat {@code cfMetaData} as the smallest unit on which to
+     * synchronize on.
+     *
+     * @param cfMetaData Metadata of the column family in which these descriptors reside.
+     * @param descriptors Set of SSTable descriptors to be atomically deleted.
+     *
+     * @throws RuntimeException Signals that writing to the write-ahead log failed, and that none of the descriptors
+     * should be deleted in this runtime.
      */
-    Map<Descriptor, Set<Integer>> filterValidAncestors(CFMetaData cfMetaData,
-                                                       Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> unfinishedCompactions);
-
-    /**
-     * @return true if Cassandra should use ancestry metdata to cleanup unused SSTables on startup, false otherwise
-     * (e.g. if a different cleanup system is being used outside of {@link org.apache.cassandra.service.CassandraDaemon}).
-     */
-    boolean shouldRemoveUnusedSstables();
+    void markForDeletion(CFMetaData cfMetaData, Set<Descriptor> descriptors);
 }
