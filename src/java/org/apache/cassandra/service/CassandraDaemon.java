@@ -61,6 +61,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
@@ -269,7 +270,9 @@ public class CassandraDaemon
 
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
             {
-                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+                if (ColumnFamilyStoreManager.instance.shouldRemoveUnusedSstables()) {
+                    ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+                }
                 ColumnFamilyStore.scrubDataDirectories(cfm);
             }
         }
