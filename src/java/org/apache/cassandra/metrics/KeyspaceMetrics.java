@@ -116,6 +116,10 @@ public class KeyspaceMetrics
     public final Counter invalidMutations;
     /** Number of mutation requests which are valid */
     public final Counter validMutations;
+    /** Number of read requests which were not for a row this node owned */
+    public final Counter invalidReads;
+    /** Number of read requests which are valid */
+    public final Counter validReads;
     
     public final MetricNameFactory factory;
     private Keyspace keyspace;
@@ -273,6 +277,8 @@ public class KeyspaceMetrics
         casCommit = new LatencyMetrics(factory, "CasCommit");
         invalidMutations = Metrics.counter(factory.createMetricName("InvalidMutations"));
         validMutations = Metrics.counter(factory.createMetricName("ValidMutations"));
+        invalidReads = Metrics.counter(factory.createMetricName("InvalidReads"));
+        validReads = Metrics.counter(factory.createMetricName("ValidReads"));
     }
 
     /**

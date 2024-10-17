@@ -21,7 +21,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 
-import com.palantir.cassandra.utils.MutationVerificationUtils;
+import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
@@ -47,7 +47,7 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 replyTo = InetAddress.getByAddress(from);
             }
 
-            MutationVerificationUtils.verifyMutation(message.payload);
+            OwnershipVerificationUtils.verifyMutation(message.payload);
 
             message.payload.apply();
             WriteResponse response = new WriteResponse();

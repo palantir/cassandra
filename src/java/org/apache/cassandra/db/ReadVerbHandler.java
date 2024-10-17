@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 
+import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.net.IVerbHandler;
@@ -49,6 +50,8 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
                                                                       ReadResponse.serializer);
         Tracing.trace("Enqueuing response to {}", message.from);
         MessagingService.instance().sendReply(reply, id, message.from);
+
+        OwnershipVerificationUtils.verifyRead(keyspace, command.key);
     }
 
     public static ReadResponse getResponse(ReadCommand command, Row row)
