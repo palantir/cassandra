@@ -18,6 +18,8 @@
 
 package com.palantir.cassandra.db;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +28,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.utils.Pair;
 
 
 public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
@@ -56,5 +59,9 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
             filtered = validator.filterValidAncestors(cfMetaData, filtered, unfinishedCompactions);
         }
         return filtered;
+    }
+
+    public synchronized void markForDeletion(CFMetaData cfMetaData, Set<String> collect)
+    {
     }
 }
