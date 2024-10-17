@@ -61,7 +61,14 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator
         return filtered;
     }
 
-    public synchronized void markForDeletion(CFMetaData cfMetaData, Set<String> collect)
+    public void markForDeletion(CFMetaData cfMetaData, Set<String> collect)
     {
+        // consumer should synchronize on ks+cf
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    public boolean shouldRemoveUnusedSstables() {
+        // TODO(wdey): delegate
+        return true;
     }
 }
