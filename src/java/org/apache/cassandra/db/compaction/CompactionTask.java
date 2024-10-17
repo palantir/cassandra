@@ -25,11 +25,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.DefaultCompactionWriter;
@@ -155,114 +157,120 @@ public class CompactionTask extends AbstractCompactionTask
         long totalKeysWritten = 0;
 
         long estimatedKeys = 0;
-        try (CompactionController controller = getCompactionController(transaction.originals()))
+        CompactionController controller = getCompactionController(transaction.originals());
+        Set<SSTableReader> actuallyCompact = Sets.difference(transaction.originals(), controller.getFullyExpiredSSTables());
+
+        SSTableFormat.Type sstableFormat = getFormatType(transaction.originals());
+
+
+        // SSTableScanners need to be closed before markCompactedSSTablesReplaced call as scanners contain references
+        // to both ifile and dfile and SSTR will throw deletion errors on Windows if it tries to delete before scanner is closed.
+        // See CASSANDRA-8019 and CASSANDRA-8399
+        boolean abortFailed = false;
+        UUID taskId = null;
+        String taskIdLoggerMsg;
+        List<SSTableReader> newSStables;
+        AbstractCompactionIterable ci = null;
+        Refs<SSTableReader> refs = Refs.ref(actuallyCompact);
+        try (AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(actuallyCompact))
         {
-            Set<SSTableReader> actuallyCompact = Sets.difference(transaction.originals(), controller.getFullyExpiredSSTables());
-
-            SSTableFormat.Type sstableFormat = getFormatType(transaction.originals());
-
-
-            // SSTableScanners need to be closed before markCompactedSSTablesReplaced call as scanners contain references
-            // to both ifile and dfile and SSTR will throw deletion errors on Windows if it tries to delete before scanner is closed.
-            // See CASSANDRA-8019 and CASSANDRA-8399
-            boolean abortFailed = false;
-            UUID taskId = null;
-            String taskIdLoggerMsg;
-            List<SSTableReader> newSStables;
-            AbstractCompactionIterable ci = null;
-            try (Refs<SSTableReader> refs = Refs.ref(actuallyCompact);
-                 AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(actuallyCompact))
+            taskId = offline ? null : SystemKeyspace.startCompaction(cfs, transaction.originals());
+            taskIdLoggerMsg = taskId == null ? UUIDGen.getTimeUUID().toString() : taskId.toString();
+            logger.debug("Compacting ({}) {}", taskIdLoggerMsg, ssTableLoggerMsg);
+            ci = new CompactionIterable(compactionType, scanners.scanners, controller, sstableFormat, taskId);
+            try (CloseableIterator<AbstractCompactedRow> iter = ci.iterator())
             {
-                taskId = offline ? null : SystemKeyspace.startCompaction(cfs, transaction.originals());
-                taskIdLoggerMsg = taskId == null ? UUIDGen.getTimeUUID().toString() : taskId.toString();
-                logger.debug("Compacting ({}) {}", taskIdLoggerMsg, ssTableLoggerMsg);
-                ci = new CompactionIterable(compactionType, scanners.scanners, controller, sstableFormat, taskId);
-                try (CloseableIterator<AbstractCompactedRow> iter = ci.iterator())
+                long lastCheckObsoletion = start;
+
+                if (!controller.cfs.getCompactionStrategy().isActive)
+                    throw new CompactionInterruptedException(ci.getCompactionInfo());
+
+                if (collector != null)
+                    collector.beginCompaction(ci);
+
+                boolean readyToFinish = false;
+                try (CompactionAwareWriter writer = getCompactionAwareWriter(cfs, transaction, actuallyCompact))
                 {
-                    long lastCheckObsoletion = start;
-
-                    if (!controller.cfs.getCompactionStrategy().isActive)
-                        throw new CompactionInterruptedException(ci.getCompactionInfo());
-
-                    if (collector != null)
-                        collector.beginCompaction(ci);
-
-                    boolean readyToFinish = false;
-                    try (CompactionAwareWriter writer = getCompactionAwareWriter(cfs, transaction, actuallyCompact))
+                    estimatedKeys = writer.estimatedKeys();
+                    while (iter.hasNext())
                     {
-                        estimatedKeys = writer.estimatedKeys();
-                        while (iter.hasNext())
+                        if (ci.isStopRequested())
+                            throw new CompactionInterruptedException(ci.getCompactionInfo());
+
+                        try (AbstractCompactedRow row = iter.next())
                         {
-                            if (ci.isStopRequested())
-                                throw new CompactionInterruptedException(ci.getCompactionInfo());
+                            if (writer.append(row))
+                                totalKeysWritten++;
 
-                            try (AbstractCompactedRow row = iter.next())
+                            if (System.nanoTime() - lastCheckObsoletion > TimeUnit.MINUTES.toNanos(1L))
                             {
-                                if (writer.append(row))
-                                    totalKeysWritten++;
-
-                                if (System.nanoTime() - lastCheckObsoletion > TimeUnit.MINUTES.toNanos(1L))
-                                {
-                                    controller.maybeRefreshOverlaps();
-                                    lastCheckObsoletion = System.nanoTime();
-                                }
+                                controller.maybeRefreshOverlaps();
+                                lastCheckObsoletion = System.nanoTime();
                             }
                         }
-
-                        readyToFinish = true;
-                        newSStables = writer.finish();
-                    } catch (Exception e) {
-                        CompactionException exception = new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
-                        if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
-                        {
-                            abortFailed = true;
-                            logger.warn("CompactionAwareWriter failed to close correctly for {}/{}. This compaction won't be removed from " +
-                                            "system.compactions_in_progress to ensure sstable cleanup on startup proceeds correctly in case some " +
-                                            "compaction-product sstables are marked final while others remain tmp",
-                                    cfs.keyspace.getName(), cfs.name, e);
-                        }
-                        throw exception;
                     }
+
+                    readyToFinish = true;
+                    newSStables = writer.finish();
+                } catch (Exception e) {
+                    CompactionException exception = new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
+                    if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
+                    {
+                        abortFailed = true;
+                        logger.warn("CompactionAwareWriter failed to close correctly for {}/{}. This compaction won't be removed from " +
+                                        "system.compactions_in_progress to ensure sstable cleanup on startup proceeds correctly in case some " +
+                                        "compaction-product sstables are marked final while others remain tmp",
+                                cfs.keyspace.getName(), cfs.name, e);
+                    }
+                    throw exception;
                 }
             }
-            finally
-            {
-                Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-                if (taskId != null && (!abortFailed))
-                    SystemKeyspace.finishCompaction(taskId);
+        }
+        finally
+        {
+            Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
+            if (taskId != null && (!abortFailed))
+                SystemKeyspace.finishCompaction(taskId);
 
-                if (collector != null && ci != null)
-                    collector.finishCompaction(ci);
-            }
+            if (collector != null && ci != null)
+                collector.finishCompaction(ci);
+        }
 
-            // log a bunch of statistics about the result and save to system table compaction_history
-            long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-            long startsize = SSTableReader.getTotalBytes(transaction.originals());
-            long endsize = SSTableReader.getTotalBytes(newSStables);
-            double ratio = (double) endsize / (double) startsize;
+        ColumnFamilyStoreManager.instance.markForDeletion(transaction.originals()
+            .stream()
+            .filter(SSTableReader::isMarkedCompacted)
+            .map(reader -> reader.descriptor.baseFilename())
+            .collect(Collectors.toSet()));
+        refs.close();
+        controller.close();
 
-            StringBuilder newSSTableNames = new StringBuilder();
-            for (SSTableReader reader : newSStables)
-                newSSTableNames.append(reader.descriptor.baseFilename()).append(",");
+        // log a bunch of statistics about the result and save to system table compaction_history
+        long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+        long startsize = SSTableReader.getTotalBytes(transaction.originals());
+        long endsize = SSTableReader.getTotalBytes(newSStables);
+        double ratio = (double) endsize / (double) startsize;
 
-            if (offline)
-            {
-                Refs.release(Refs.selfRefs(newSStables));
-            }
-            else
-            {
-                double mbps = dTime > 0 ? (double) endsize / (1024 * 1024) / ((double) dTime / 1000) : 0;
-                long totalSourceRows = 0;
-                String mergeSummary = updateCompactionHistory(cfs.keyspace.getName(), cfs.getColumnFamilyName(), ci, startsize, endsize);
-                logger.debug(String.format("Compacted (%s) %d sstables to [%s] to level=%d.  %,d bytes to %,d (~%d%% of original) in %,dms = %fMB/s.  %,d total partitions merged to %,d.  Partition merge counts were {%s}",
-                                           taskIdLoggerMsg, transaction.originals().size(), newSSTableNames.toString(), getLevel(), startsize, endsize, (int) (ratio * 100), dTime, mbps, totalSourceRows, totalKeysWritten, mergeSummary));
-                logger.trace(String.format("CF Total Bytes Compacted: %,d", CompactionTask.addToTotalBytesCompacted(endsize)));
-                logger.trace("Actual #keys: {}, Estimated #keys:{}, Err%: {}", totalKeysWritten, estimatedKeys, ((double) (totalKeysWritten - estimatedKeys) / totalKeysWritten));
+        StringBuilder newSSTableNames = new StringBuilder();
+        for (SSTableReader reader : newSStables)
+            newSSTableNames.append(reader.descriptor.baseFilename()).append(",");
 
-                // update the metrics
-                cfs.metric.compactionBytesWritten.inc(endsize);
-                cfs.metric.compactionsCompleted.inc();
-            }
+        if (offline)
+        {
+            Refs.release(Refs.selfRefs(newSStables));
+        }
+        else
+        {
+            double mbps = dTime > 0 ? (double) endsize / (1024 * 1024) / ((double) dTime / 1000) : 0;
+            long totalSourceRows = 0;
+            String mergeSummary = updateCompactionHistory(cfs.keyspace.getName(), cfs.getColumnFamilyName(), ci, startsize, endsize);
+            logger.debug(String.format("Compacted (%s) %d sstables to [%s] to level=%d.  %,d bytes to %,d (~%d%% of original) in %,dms = %fMB/s.  %,d total partitions merged to %,d.  Partition merge counts were {%s}",
+                                       taskIdLoggerMsg, transaction.originals().size(), newSSTableNames.toString(), getLevel(), startsize, endsize, (int) (ratio * 100), dTime, mbps, totalSourceRows, totalKeysWritten, mergeSummary));
+            logger.trace(String.format("CF Total Bytes Compacted: %,d", CompactionTask.addToTotalBytesCompacted(endsize)));
+            logger.trace("Actual #keys: {}, Estimated #keys:{}, Err%: {}", totalKeysWritten, estimatedKeys, ((double) (totalKeysWritten - estimatedKeys) / totalKeysWritten));
+
+            // update the metrics
+            cfs.metric.compactionBytesWritten.inc(endsize);
+            cfs.metric.compactionsCompleted.inc();
         }
     }
 
