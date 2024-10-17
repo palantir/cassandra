@@ -38,5 +38,7 @@ public interface IColumnFamilyStoreValidator
      * @return true if Cassandra should use ancestry metdata to cleanup unused SSTables on startup, false otherwise
      * (e.g. if a different cleanup system is being used outside of {@link org.apache.cassandra.service.CassandraDaemon}).
      */
-    boolean shouldRemoveUnusedSstables();
+    default boolean shouldRemoveUnusedSstables() {
+        return true;
+    }
 }
