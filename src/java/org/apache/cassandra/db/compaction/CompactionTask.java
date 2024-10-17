@@ -101,6 +101,7 @@ public class CompactionTask extends AbstractCompactionTask
      * which are properly serialized.
      * Caller is in charge of marking/unmarking the sstables as compacting.
      */
+    @SuppressWarnings("resource") // It is dangerous to close refs for a failed transaction
     protected void runMayThrow() throws Exception
     {
         // The collection of sstables passed may be empty (but not null); even if
