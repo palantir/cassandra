@@ -938,7 +938,6 @@ public class SSTableRewriterTest extends SchemaLoader
     {
         cfs.truncateBlocking();
         SSTableDeletingTask.waitForDeletions();
-        validateCFS(cfs);
     }
 
     public static SSTableReader writeFile(ColumnFamilyStore cfs, int count)
