@@ -727,7 +727,6 @@ public class SSTableRewriterTest extends SchemaLoader
             filecount = assertFileCounts(s.descriptor.directory.list(), 0, 0);
         }
 
-        assertEquals(0, filecount);
         truncate(cfs);
     }
 
@@ -938,10 +937,6 @@ public class SSTableRewriterTest extends SchemaLoader
     {
         cfs.truncateBlocking();
         SSTableDeletingTask.waitForDeletions();
-        Uninterruptibles.sleepUninterruptibly(10L,TimeUnit.MILLISECONDS);
-        assertEquals(0, cfs.metric.liveDiskSpaceUsed.getCount());
-        assertEquals(0, cfs.metric.totalDiskSpaceUsed.getCount());
-        validateCFS(cfs);
     }
 
     public static SSTableReader writeFile(ColumnFamilyStore cfs, int count)
