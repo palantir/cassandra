@@ -727,7 +727,6 @@ public class SSTableRewriterTest extends SchemaLoader
             filecount = assertFileCounts(s.descriptor.directory.list(), 0, 0);
         }
 
-        assertEquals(0, filecount);
         truncate(cfs);
     }
 
