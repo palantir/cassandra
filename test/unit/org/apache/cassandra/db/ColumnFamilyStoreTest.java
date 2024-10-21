@@ -1959,7 +1959,6 @@ public class ColumnFamilyStoreTest
     @Test
     public void testRemoveUnusedSstablesOnlyRemovesFiltered() throws IOException
     {
-        ColumnFamilyStore.DRY_RUN_NON_COMPACTING_CLEANUP = false;
         final String ks = KEYSPACE1;
         final String cf = CF_STANDARD7;
 
