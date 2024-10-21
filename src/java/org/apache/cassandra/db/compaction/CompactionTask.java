@@ -173,6 +173,7 @@ public class CompactionTask extends AbstractCompactionTask
         List<SSTableReader> newSStables;
         AbstractCompactionIterable ci = null;
         Refs<SSTableReader> refs = Refs.ref(actuallyCompact);
+        boolean readyToFinish = false;
         try (AbstractCompactionStrategy.ScannerList scanners = strategy.getScanners(actuallyCompact))
         {
             taskId = offline ? null : SystemKeyspace.startCompaction(cfs, transaction.originals());
@@ -189,7 +190,6 @@ public class CompactionTask extends AbstractCompactionTask
                 if (collector != null)
                     collector.beginCompaction(ci);
 
-                boolean readyToFinish = false;
                 try (CompactionAwareWriter writer = getCompactionAwareWriter(cfs, transaction, actuallyCompact))
                 {
                     estimatedKeys = writer.estimatedKeys();
@@ -229,6 +229,10 @@ public class CompactionTask extends AbstractCompactionTask
         }
         finally
         {
+            if (!readyToFinish) {
+                // TODO(wdey): refactor all of the trys
+                try (Refs closedRefs = refs; CompactionController closedController = controller) {}
+            }
             Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
             if (taskId != null && (!abortFailed))
                 SystemKeyspace.finishCompaction(taskId);
