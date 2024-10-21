@@ -53,12 +53,12 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
      * has two instances, one containing modifications that are "staged" (i.e. invisible)
      * and one containing those "logged" that have been made visible through a call to checkpoint()
      */
-    private static class State
+    public static class State
     {
         // readers that are either brand new, update a previous new reader, or update one of the original readers
         final Set<SSTableReader> update = new HashSet<>();
         // disjoint from update, represents a subset of originals that is no longer needed
-        final Set<SSTableReader> obsolete = new HashSet<>();
+        public final Set<SSTableReader> obsolete = new HashSet<>();
 
         void log(State staged)
         {
@@ -104,7 +104,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
     private final Set<UniqueIdentifier> identities = Collections.newSetFromMap(new IdentityHashMap<UniqueIdentifier, Boolean>());
 
     // changes that have been made visible
-    private final State logged = new State();
+    public final State logged = new State();
     // changes that are pending
     private final State staged = new State();
 

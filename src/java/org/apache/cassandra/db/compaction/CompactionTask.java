@@ -241,10 +241,8 @@ public class CompactionTask extends AbstractCompactionTask
                 collector.finishCompaction(ci);
         }
 
-        ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.originals()
-            .stream()
-            .filter(SSTableReader::isMarkedCompacted)
-            .map(reader -> reader.descriptor)
+        ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsolete.stream()
+            .map(ssTableReader -> ssTableReader.descriptor)
             .collect(Collectors.toSet()));
         refs.close();
         controller.close();
