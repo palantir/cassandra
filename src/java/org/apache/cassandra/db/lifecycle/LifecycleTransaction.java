@@ -60,7 +60,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
         // readers that are either brand new, update a previous new reader, or update one of the original readers
         final Set<SSTableReader> update = new HashSet<>();
         // disjoint from update, represents a subset of originals that is no longer needed
-        final Set<SSTableReader> obsolete = new HashSet<>();
+        public final Set<SSTableReader> obsolete = new HashSet<>();
 
         void log(State staged)
         {
