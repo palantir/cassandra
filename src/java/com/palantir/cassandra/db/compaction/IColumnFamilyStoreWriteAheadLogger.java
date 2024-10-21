@@ -34,7 +34,7 @@ public interface IColumnFamilyStoreWriteAheadLogger
      * synchronize on.
      *
      * @param cfMetaData Metadata of the column family in which these descriptors reside.
-     * @param descriptors Set of SSTable descriptors to be atomically deleted.
+     * @param descriptors Set of SSTable descriptors to be atomically deleted. Guaranteed to be in the same columnfamily.
      *
      * @throws RuntimeException Signals that writing to the write-ahead log failed, and that none of the descriptors
      * should be deleted in this runtime.

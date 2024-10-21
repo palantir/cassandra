@@ -1959,7 +1959,6 @@ public class ColumnFamilyStoreTest
     @Test
     public void testRemoveUnusedSstablesOnlyRemovesFiltered() throws IOException
     {
-        ColumnFamilyStore.DRY_RUN_NON_COMPACTING_CLEANUP = false;
         final String ks = KEYSPACE1;
         final String cf = CF_STANDARD7;
 
@@ -1991,7 +1990,7 @@ public class ColumnFamilyStoreTest
         }
         finally
         {
-            ColumnFamilyStoreManager.instance.unregisterValidator(validator);
+            ColumnFamilyStoreManager.instance.unregisterValidator();
         }
 
         sstables = dir.sstableLister().list();

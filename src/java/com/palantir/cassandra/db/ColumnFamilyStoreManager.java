@@ -34,56 +34,52 @@ import org.apache.cassandra.utils.Pair;
 
 public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IColumnFamilyStoreWriteAheadLogger
 {
-    public static final ColumnFamilyStoreManager instance = new ColumnFamilyStoreManager();
-    private final List<IColumnFamilyStoreValidator> validators;
-    private final List<IColumnFamilyStoreWriteAheadLogger> writeAheadLoggers;
+    private static final IColumnFamilyStoreValidator NO_OP_VALIDATOR = (_cfMetaData, sstableToCompletedAncestors, _unfinishedCompactions) -> sstableToCompletedAncestors;
+    private static final IColumnFamilyStoreWriteAheadLogger NO_OP_WRITE_AHEAD_LOGGER = (cfMetaData, descriptors) -> {};
 
-    private ColumnFamilyStoreManager()
-    {
-        this.validators = new CopyOnWriteArrayList<>();
-        this.writeAheadLoggers = new CopyOnWriteArrayList<>();
-    }
+    public static final ColumnFamilyStoreManager instance = new ColumnFamilyStoreManager();
+    private volatile IColumnFamilyStoreValidator validator = NO_OP_VALIDATOR;
+    private volatile IColumnFamilyStoreWriteAheadLogger writeAheadLogger = NO_OP_WRITE_AHEAD_LOGGER;
+
+    private ColumnFamilyStoreManager() {}
 
     public void registerValidator(IColumnFamilyStoreValidator validator)
     {
-        validators.add(validator);
+        this.validator = validator;
     }
 
-    public void unregisterValidator(IColumnFamilyStoreValidator validator)
+    public void unregisterValidator()
     {
-        validators.remove(validator);
+        this.validator = NO_OP_VALIDATOR;
     }
 
     public void registerWriteAheadLogger(IColumnFamilyStoreWriteAheadLogger writeAheadLogger) {
-        writeAheadLoggers.add(writeAheadLogger);
+        this.writeAheadLogger = writeAheadLogger;
     }
 
-    public void unregisterWriteAheadLogger(IColumnFamilyStoreWriteAheadLogger writeAheadLogger) {
-        writeAheadLoggers.remove(writeAheadLogger);
+    public void unregisterWriteAheadLogger() {
+        this.writeAheadLogger = NO_OP_WRITE_AHEAD_LOGGER;
     }
 
     @Override
     public Map<Descriptor, Set<Integer>> filterValidAncestors(CFMetaData cfMetaData, Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> unfinishedCompactions)
     {
-        Map<Descriptor, Set<Integer>> filtered = sstableToCompletedAncestors;
-        for (IColumnFamilyStoreValidator validator : validators)
-        {
-            filtered = validator.filterValidAncestors(cfMetaData, filtered, unfinishedCompactions);
-        }
-        return filtered;
+        return validator.filterValidAncestors(cfMetaData, sstableToCompletedAncestors, unfinishedCompactions);
     }
 
     @Override
     public boolean shouldRemoveUnusedSstables() {
-        return validators.stream()
-            .map(IColumnFamilyStoreValidator::shouldRemoveUnusedSstables)
-            .reduce(Boolean::logicalOr)
-            .orElse(true);
+        return validator.shouldRemoveUnusedSstables();
+    }
+
+    @Override
+    public boolean shouldSkipAncestorCleanup() {
+        return validator.shouldSkipAncestorCleanup();
     }
 
     @Override
     public void markForDeletion(CFMetaData cfMetaData, Set<Descriptor> descriptors)
     {
-        writeAheadLoggers.forEach(l -> l.markForDeletion(cfMetaData, descriptors));
+        writeAheadLogger.markForDeletion(cfMetaData, descriptors);
     }
 }

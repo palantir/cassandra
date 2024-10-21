@@ -35,10 +35,20 @@ public interface IColumnFamilyStoreValidator
                                                        Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> unfinishedCompactions);
 
     /**
-     * @return true if Cassandra should use ancestry metdata to cleanup unused SSTables on startup, false otherwise
+     * @return true if Cassandra should use ancestry metdata to cleanup unused SSTables on startup by running
+     * {@link org.apache.cassandra.db.ColumnFamilyStore#removeUnusedSstables(CFMetaData, Map)}, false otherwise
      * (e.g. if a different cleanup system is being used outside of {@link org.apache.cassandra.service.CassandraDaemon}).
      */
     default boolean shouldRemoveUnusedSstables() {
         return true;
+    }
+
+    /**
+     * @return true if Cassandra should skip cleaning up ancestors during
+     * {@link org.apache.cassandra.db.ColumnFamilyStore#removeUnusedSstables(CFMetaData, Map)}, false otherwise. Note
+     * that this flag does not control whe
+     */
+    default boolean shouldSkipAncestorCleanup() {
+        return false;
     }
 }
