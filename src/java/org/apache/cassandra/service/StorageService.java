@@ -110,6 +110,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
+    public static final int SCHEMA_DELAY_MILLIS = getSchemaDelay();
+
+    private static final boolean REQUIRE_SCHEMAS = !Boolean.getBoolean("cassandra.skip_schema_check");
 
     private final JMXProgressSupport progressSupport = new JMXProgressSupport(this);
     private final CleanupStateTracker cleanupState = new CleanupStateTracker();
@@ -138,6 +141,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
         else
             return 30 * 1000;
+    }
+
+    private static int getSchemaDelay()
+    {
+        String newdelay = System.getProperty("cassandra.schema_delay_ms");
+        if (newdelay != null)
+        {
+            logger.info("Overriding SCHEMA_DELAY to {}ms", newdelay);
+            return Integer.parseInt(newdelay);
+        }
+        else
+        {
+            return 30 * 1000;
+        }
     }
 
     /* This abstraction maintains the token/endpoint metadata information */
@@ -823,6 +840,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private void prepareToJoin() throws ConfigurationException
     {
+        MigrationCoordinator.instance.start();
         if (!joined)
         {
             Map<ApplicationState, VersionedValue> appStates = new EnumMap<>(ApplicationState.class);
@@ -878,6 +896,36 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             HintedHandOffManager.instance.start();
             BatchlogManager.instance.start();
         }
+    }
+
+    public void waitForSchema(int delay)
+    {
+        // first sleep the delay to make sure we see all our peers
+        for (long i = 0; i < delay; i += 1000)
+        {
+            // if we see schema, we can proceed to the next check directly
+            if (!Schema.instance.isEmpty())
+            {
+                logger.debug("current schema version: {}", Schema.instance.getVersion());
+                break;
+            }
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
+
+        boolean schemasReceived = MigrationCoordinator.instance.awaitSchemaRequests(SCHEMA_DELAY_MILLIS);
+
+        if (schemasReceived)
+            return;
+
+        logger.warn(String.format("There are nodes in the cluster with a different schema version than us we did not merged schemas from, " +
+                        "our version : (%s), outstanding versions -> endpoints : %s. Use -Dcassandra.skip_schema_check=true " +
+                        "to ignore this.",
+                Schema.instance.getVersion(),
+                MigrationCoordinator.instance.outstandingVersions()));
+
+        if (REQUIRE_SCHEMAS)
+            throw new RuntimeException("Didn't receive schemas for all known versions within the timeout. " +
+                    "Use -Dcassandra.skip_schema_check=true to skip this check.");
     }
 
     private void joinTokenRing(int delay, boolean autoBootstrap, Collection<String> initialTokens)
@@ -951,13 +999,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 }
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
-            // if our schema hasn't matched yet, keep sleeping until it does
-            // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
-            while (!MigrationManager.isReadyForBootstrap())
-            {
-                setMode(Mode.JOINING, "waiting for schema information to complete", true);
-                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-            }
+            waitForSchema(delay);
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
@@ -2169,7 +2211,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                         break;
                     case SCHEMA:
                         SystemKeyspace.updatePeerInfo(endpoint, "schema_version", UUID.fromString(value.value));
-                        MigrationManager.instance.scheduleSchemaPull(endpoint, epState, true);
+                        MigrationCoordinator.instance.reportEndpointVersion(endpoint, UUID.fromString(value.value));
                         break;
                     case HOST_ID:
                         SystemKeyspace.updatePeerInfo(endpoint, "host_id", UUID.fromString(value.value));
@@ -2695,6 +2737,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private void removeEndpoint(InetAddress endpoint)
     {
         Gossiper.instance.removeEndpoint(endpoint);
+        MigrationCoordinator.instance.removeVersionInfoForEndpoint(endpoint);
         SystemKeyspace.removeEndpoint(endpoint);
     }
 
@@ -2886,13 +2929,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             onChange(endpoint, entry.getKey(), entry.getValue());
         }
-        MigrationManager.instance.scheduleSchemaPull(endpoint, epState);
+        MigrationCoordinator.instance.reportEndpointVersion(endpoint, epState);
     }
 
     public void onAlive(InetAddress endpoint, EndpointState state)
     {
-        MigrationManager.instance.scheduleSchemaPull(endpoint, state);
-
         if (tokenMetadata.isMember(endpoint))
         {
             HintedHandOffManager.instance.scheduleHintDelivery(endpoint, true);
@@ -4683,7 +4724,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // wait for miscellaneous tasks like sstable and commitlog segment deletion
         ScheduledExecutors.nonPeriodicTasks.shutdown();
         if (!ScheduledExecutors.nonPeriodicTasks.awaitTermination(1, MINUTES))
-            logger.warn("Failed to wait for non periodic tasks to shutdown");
+            logger.warn("Unable to terminate non-periodic tasks within 1 minute.");
 
         ColumnFamilyStore.shutdownPostFlushExecutor();
 
@@ -5374,6 +5415,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             Runtime.getRuntime().removeShutdownHook(drainOnShutdown);
         }
     }
+
+    @Override
+    public Map<String, Set<InetAddress>> getOutstandingSchemaVersions()
+    {
+        Map<UUID, Set<InetAddress>> outstanding = MigrationCoordinator.instance.outstandingVersions();
+        return outstanding.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toString(), Entry::getValue));
+    }
+
     private boolean isErrorType(NonTransientError nonTransientError, Map<String, String> errorAtrributes)
     {
         return nonTransientError.name().equals(errorAtrributes.get(StorageServiceMBean.NON_TRANSIENT_ERROR_TYPE_KEY));
