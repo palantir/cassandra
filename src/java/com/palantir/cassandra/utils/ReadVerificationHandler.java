@@ -31,11 +31,11 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
-public class ReadViolationHandler implements OwnershipViolationHandler
+public class ReadVerificationHandler implements OwnershipVerificationHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(OwnershipVerificationUtils.class);
 
-    public static final OwnershipViolationHandler INSTANCE = new MutationViolationHandler();
+    public static final OwnershipVerificationHandler INSTANCE = new MutationVerificationHandler();
 
     @Override
     public void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)

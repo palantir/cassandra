@@ -19,14 +19,13 @@
 package com.palantir.cassandra.utils;
 
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.db.Mutation;
 
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
-public interface OwnershipViolationHandler
+public interface OwnershipVerificationHandler
 {
     void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints);
 

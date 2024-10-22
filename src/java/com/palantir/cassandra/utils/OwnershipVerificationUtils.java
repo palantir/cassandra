@@ -57,7 +57,7 @@ public class OwnershipVerificationUtils
         {
             return;
         }
-        verifyOperation(keyspace, key, ReadViolationHandler.INSTANCE);
+        verifyOperation(keyspace, key, ReadVerificationHandler.INSTANCE);
     }
 
     public static void verifyMutation(Mutation mutation)
@@ -66,10 +66,10 @@ public class OwnershipVerificationUtils
         {
             return;
         }
-        verifyOperation(Keyspace.open(mutation.getKeyspaceName()), mutation.key(), MutationViolationHandler.INSTANCE);
+        verifyOperation(Keyspace.open(mutation.getKeyspaceName()), mutation.key(), MutationVerificationHandler.INSTANCE);
     }
 
-    private static void verifyOperation(Keyspace keyspace, ByteBuffer key, OwnershipViolationHandler handler)
+    private static void verifyOperation(Keyspace keyspace, ByteBuffer key, OwnershipVerificationHandler handler)
     {
         if (!(keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy))
         {
