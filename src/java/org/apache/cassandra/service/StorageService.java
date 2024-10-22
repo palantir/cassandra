@@ -41,6 +41,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,7 @@ import org.apache.cassandra.thrift.cassandraConstants;
 import org.apache.cassandra.tracing.TraceKeyspace;
 import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.concurrent.SimpleCondition;
+import org.apache.cassandra.utils.progress.ProgressListener;
 import org.apache.cassandra.utils.progress.jmx.JMXProgressSupport;
 import org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport;
 
@@ -114,6 +116,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private int cleanupOpsInProgress = 0;
 
     private final RepairTracker repairTracker = new RepairTracker();
+    private final List<ProgressListener> bootstrapListeners = new CopyOnWriteArrayList<>();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
@@ -215,7 +218,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // true when keeping strict consistency while bootstrapping
     private boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
     private static final boolean allowSimultaneousMoves = Boolean.parseBoolean(System.getProperty("cassandra.consistent.simultaneousmoves.allow", "false"));
-    private static final boolean joinRing = Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true"));
+    public static final boolean joinRing = Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true"));
     private boolean replacing;
     private UUID replacingId;
 
@@ -316,6 +319,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void unregister(IEndpointLifecycleSubscriber subscriber)
     {
         lifecycleSubscribers.remove(subscriber);
+    }
+
+    public void registerBootstrapListener(ProgressListener bootstrapListener) {
+        bootstrapListeners.add(bootstrapListener);
     }
 
     // should only be called via JMX
@@ -1371,6 +1378,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
+    public void rebuild(String sourceDc, String keyspace, String tokens, String specificSources)
+    {
+        if (tokens != null)
+        {
+            throw new UnsupportedOperationException("Rebuild with specific tokens is not supported");
+        }
+        if (specificSources != null)
+        {
+            throw new UnsupportedOperationException("Rebuild with specificSources is not supported");
+        }
+        rebuild(sourceDc, keyspace);
+    }
+
     public boolean isRebuilding()
     {
         return isRebuilding.get();
@@ -1568,6 +1588,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
+        bootstrapListeners.forEach(bootstrapper::addProgressListener);
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
         try
         {
@@ -5024,7 +5045,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void loadNewSSTables(String ksName, String cfName)
     {
-        ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
+        //ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5032,7 +5054,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
-        ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
+        //ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5040,7 +5063,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public int loadNewSSTablesWithCount(String ksName, String cfName)
     {
-        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
+        //return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5048,7 +5072,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
-        return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
+        //return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
+        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
     }
 
     /**
@@ -5077,6 +5102,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void resetLocalSchema() throws IOException
     {
         MigrationManager.resetLocalSchema();
+    }
+
+    /**
+     * This API is backported from Cassandra 3 (CASSANDRA-13954).
+     */
+    public void reloadLocalSchema()
+    {
+        LegacySchemaTables.reloadSchemaAndAnnounceVersion();
     }
 
     public void setTraceProbability(double probability)

@@ -34,24 +34,24 @@ public class CompactionHistory extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        System.out.println("Compaction History: ");
+        probe.output().out.println("Compaction History: ");
 
         TabularData tabularData = probe.getCompactionHistory();
         if (tabularData.isEmpty())
         {
-            System.out.printf("There is no compaction history");
+            probe.output().out.printf("There is no compaction history");
             return;
         }
 
         String format = "%-41s%-19s%-29s%-26s%-15s%-15s%s%n";
         List<String> indexNames = tabularData.getTabularType().getIndexNames();
-        System.out.printf(format, toArray(indexNames, Object.class));
+        probe.output().out.printf(format, toArray(indexNames, Object.class));
 
         Set<?> values = tabularData.keySet();
         for (Object eachValue : values)
         {
             List<?> value = (List<?>) eachValue;
-            System.out.printf(format, toArray(value, Object.class));
+            probe.output().out.printf(format, toArray(value, Object.class));
         }
     }
 }

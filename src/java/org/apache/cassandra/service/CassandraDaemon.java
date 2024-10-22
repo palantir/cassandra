@@ -54,6 +54,7 @@ import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -194,6 +195,8 @@ public class CassandraDaemon
 
         CLibrary.tryMlockall();
 
+        FileUtils.setDefaultUncaughtExceptionHandler();
+
         try
         {
             startupChecks.verify();
@@ -218,12 +221,12 @@ public class CassandraDaemon
 
         maybeInitJmx();
 
-        FileUtils.setDefaultUncaughtExceptionHandler();
-
         Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
 
         doNotStartupClientInterfacesIfDisabled();
         completeSetupMayThrowSstableException();
+
+        logger.debug("Completed CassandraDaemon setup.");
     }
 
     /* This functionality should only be used in a migration mode for a brand new cluster, and ensures that client
@@ -257,27 +260,20 @@ public class CassandraDaemon
         // load schema from disk
         Schema.instance.loadFromDisk();
 
-        // clean up compaction leftovers
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
-        for (Pair<String, String> kscf : unfinishedCompactions.keySet())
-        {
-            CFMetaData cfm = Schema.instance.getCFMetaData(kscf.left, kscf.right);
-            // CFMetaData can be null if CF is already dropped
-            if (cfm != null)
-                ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfm, unfinishedCompactions.get(kscf));
-        }
-        SystemKeyspace.discardCompactionsInProgress();
-
-        // clean up debris in the rest of the keyspaces
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
-            // Skip system as we've already cleaned it
+            // Skip system as we'll already clean it after the other tables
             if (keyspaceName.equals(SystemKeyspace.NAME))
                 continue;
 
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
+            {
+                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
                 ColumnFamilyStore.scrubDataDirectories(cfm);
+            }
         }
+        SystemKeyspace.discardCompactionsInProgress();
 
         Keyspace.setInitialized();
 

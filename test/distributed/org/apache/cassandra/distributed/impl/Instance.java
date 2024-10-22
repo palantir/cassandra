@@ -95,6 +95,7 @@ import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.streaming.StreamCoordinator;
 import org.apache.cassandra.tools.NodeTool;
+import org.apache.cassandra.tools.Output;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.transport.messages.ResultMessage;
@@ -716,7 +717,7 @@ public class Instance extends IsolatedExecutor implements IInvokableInstance
     public NodeToolResult nodetoolResult(boolean withNotifications, String... commandAndArgs)
     {
         return sync(() -> {
-            DTestNodeTool nodetool = new DTestNodeTool(withNotifications);
+            DTestNodeTool nodetool = new DTestNodeTool(withNotifications, Output.CONSOLE);
             int rc =  nodetool.execute(commandAndArgs);
             return new NodeToolResult(commandAndArgs, rc, new ArrayList<>(nodetool.notifications.notifications), nodetool.latestError);
         }).call();
@@ -728,8 +729,8 @@ public class Instance extends IsolatedExecutor implements IInvokableInstance
 
         private Throwable latestError;
 
-        DTestNodeTool(boolean withNotifications) {
-            super(new InternalNodeProbeFactory(withNotifications));
+        DTestNodeTool(boolean withNotifications, Output output) {
+            super(new InternalNodeProbeFactory(withNotifications), output);
             storageProxy = new InternalNodeProbe(withNotifications).getStorageService();
             storageProxy.addNotificationListener(notifications, null, null);
         }

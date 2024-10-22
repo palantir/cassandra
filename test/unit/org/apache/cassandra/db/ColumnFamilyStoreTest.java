@@ -23,28 +23,20 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.cassandra.db.IColumnFamilyStoreValidator;
 import org.apache.cassandra.db.index.PerRowSecondaryIndexTest;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -125,6 +117,7 @@ public class ColumnFamilyStoreTest
     public static final String CF_STANDARD4 = "Standard4";
     public static final String CF_STANDARD5 = "Standard5";
     public static final String CF_STANDARD6 = "Standard6";
+    public static final String CF_STANDARD7 = "Standard7";
     public static final String CF_STANDARDINT = "StandardInteger1";
     public static final String CF_SUPER1 = "Super1";
     public static final String CF_SUPER6 = "Super6";
@@ -154,6 +147,7 @@ public class ColumnFamilyStoreTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD4),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX1, true),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX2, false),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
@@ -1842,7 +1836,7 @@ public class ColumnFamilyStoreTest
     }
 
     @Test
-    public void testRemoveUnfinishedCompactionLeftovers() throws Throwable
+    public void testRemoveUnusedSstables() throws Throwable
     {
         String ks = KEYSPACE1;
         String cf = CF_STANDARD3; // should be empty
@@ -1894,7 +1888,7 @@ public class ColumnFamilyStoreTest
 
         Map<Integer, UUID> unfinishedCompaction = new HashMap<>();
         unfinishedCompaction.put(sstable1.descriptor.generation, compactionTaskID);
-        ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfmeta, unfinishedCompaction);
+        ColumnFamilyStore.removeUnusedSstables(cfmeta, unfinishedCompaction);
 
         // 2nd sstable should be removed (only 1st sstable exists in set of size 1)
         sstables = dir.sstableLister().list();
@@ -1911,7 +1905,7 @@ public class ColumnFamilyStoreTest
      * @see <a href="https://issues.apache.org/jira/browse/CASSANDRA-6086">CASSANDRA-6086</a>
      */
     @Test
-    public void testFailedToRemoveUnfinishedCompactionLeftovers() throws Throwable
+    public void testFailedToRemoveUnusedSstables() throws Throwable
     {
         final String ks = KEYSPACE1;
         final String cf = CF_STANDARD4; // should be empty
@@ -1954,12 +1948,58 @@ public class ColumnFamilyStoreTest
         UUID compactionTaskID = UUID.randomUUID();
         for (Integer ancestor : ancestors)
             unfinishedCompactions.put(ancestor, compactionTaskID);
-        ColumnFamilyStore.removeUnfinishedCompactionLeftovers(cfmeta, unfinishedCompactions);
+        ColumnFamilyStore.removeUnusedSstables(cfmeta, unfinishedCompactions);
 
         // SSTable should not be deleted
         sstables = dir.sstableLister().list();
         assert sstables.size() == 1;
         assert sstables.containsKey(sstable1.descriptor);
+    }
+
+    @Test
+    public void testRemoveUnusedSstablesOnlyRemovesFiltered() throws IOException
+    {
+        final String ks = KEYSPACE1;
+        final String cf = CF_STANDARD7;
+
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Keyspace.open(KEYSPACE1).getColumnFamilyStore(cf).disableAutoCompaction();
+        Directories dir = new Directories(cfmeta);
+
+        int gen1 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen2 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen3 = writeNextGenerationSstable(ImmutableSet.of(gen1, gen2), dir, cfmeta);
+        int gen4 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
+        int gen5 = writeNextGenerationSstable(ImmutableSet.of(gen4), dir, cfmeta);
+
+        Map<Descriptor, Set<Component>> sstables = dir.sstableLister().list();
+        Descriptor sstable3Desc = sstables.keySet().iterator().next().withGeneration(gen3);
+        assertEquals(5, sstables.size());
+        assertTrue(sstables.containsKey(sstable3Desc));
+
+        IColumnFamilyStoreValidator validator = (_cfMetaData, sstableToCompletedAncestors, _unfinishedCompactions) -> {
+            Set<Integer> allowedGenerations = ImmutableSet.of(gen1, gen2, gen4, gen5);
+            return sstableToCompletedAncestors.entrySet().stream()
+                    .filter(entry -> allowedGenerations.contains(entry.getKey().generation))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        };
+
+        try {
+            ColumnFamilyStoreManager.instance.registerValidator(validator);
+            ColumnFamilyStore.removeUnusedSstables(cfmeta, ImmutableMap.of());
+        }
+        finally
+        {
+            ColumnFamilyStoreManager.instance.unregisterValidator(validator);
+        }
+
+        sstables = dir.sstableLister().list();
+        ImmutableSet<Descriptor> expected = ImmutableSet.of(
+                sstable3Desc.withGeneration(gen1),
+                sstable3Desc.withGeneration(gen2),
+                sstable3Desc.withGeneration(gen3),
+                sstable3Desc.withGeneration(gen5));
+        assertEquals(expected, sstables.keySet());
     }
 
     @Test
@@ -2430,5 +2470,29 @@ public class ColumnFamilyStoreTest
         String unrepairedSstable = sstables.next().descriptor.relativeFilenameFor(Component.DATA);
         assertTrue(repairedAtPerSstable.containsKey(unrepairedSstable));
         assertEquals(0L, repairedAtPerSstable.get(unrepairedSstable).longValue());
+    }
+
+    private int writeNextGenerationSstable(Set<Integer> ancestors, Directories dir, CFMetaData cfmeta) throws IOException
+    {
+        SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                cfmeta, StorageService.getPartitioner())
+        {
+            protected SSTableWriter getWriter()
+            {
+                MetadataCollector collector = new MetadataCollector(cfmeta.comparator);
+                for (int ancestor : ancestors)
+                    collector.addAncestor(ancestor);
+                return SSTableWriter.create(createDescriptor(directory, metadata.ksName, metadata.cfName, DatabaseDescriptor.getSSTableFormat()),
+                        0L,
+                        ActiveRepairService.UNREPAIRED_SSTABLE,
+                        metadata,
+                        DatabaseDescriptor.getPartitioner(),
+                        collector);
+            }
+        };
+        writer.newRow(bytes("key"));
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+        return writer.getCurrentDescriptor().generation;
     }
 }

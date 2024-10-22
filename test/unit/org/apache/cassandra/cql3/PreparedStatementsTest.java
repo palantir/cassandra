@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.cql3;
 
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class PreparedStatementsTest extends SchemaLoader
         // to wait slightly before trying to connect to it. We should fix this but in the meantime using a sleep.
         Thread.sleep(500);
 
-        cluster = Cluster.builder().addContactPoint("127.0.0.1")
+        cluster = Dropwizard4Cluster.builder().addContactPoint("127.0.0.1")
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .build();
         session = cluster.connect();
@@ -116,7 +117,7 @@ public class PreparedStatementsTest extends SchemaLoader
 
         cluster.close();
 
-        cluster = Cluster.builder().addContactPoint("127.0.0.1")
+        cluster = Dropwizard4Cluster.builder().addContactPoint("127.0.0.1")
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .build();
         session = cluster.connect();

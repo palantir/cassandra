@@ -44,7 +44,7 @@ public class CompactionStats extends NodeToolCmd
     public void execute(NodeProbe probe)
     {
         CompactionManagerMBean cm = probe.getCompactionManagerProxy();
-        System.out.println("pending tasks: " + probe.getCompactionMetric("PendingTasks"));
+        probe.output().out.println("pending tasks: " + probe.getCompactionMetric("PendingTasks"));
         long remainingBytes = 0;
         List<Map<String, String>> compactions = cm.getCompactions();
         if (!compactions.isEmpty())
@@ -82,7 +82,7 @@ public class CompactionStats extends NodeToolCmd
 
             for (String[] line : lines)
             {
-                System.out.printf(format, line[0], line[1], line[2], line[3], line[4], line[5], line[6], line[7]);
+                probe.output().out.printf(format, line[0], line[1], line[2], line[3], line[4], line[5], line[6], line[7]);
             }
 
             String remainingTime = "n/a";
@@ -91,7 +91,7 @@ public class CompactionStats extends NodeToolCmd
                 long remainingTimeInSecs = remainingBytes / (1024L * 1024L * compactionThroughput);
                 remainingTime = format("%dh%02dm%02ds", remainingTimeInSecs / 3600, (remainingTimeInSecs % 3600) / 60, (remainingTimeInSecs % 60));
             }
-            System.out.printf("%25s%10s%n", "Active compaction remaining time : ", remainingTime);
+            probe.output().out.printf("%25s%10s%n", "Active compaction remaining time : ", remainingTime);
         }
     }
 

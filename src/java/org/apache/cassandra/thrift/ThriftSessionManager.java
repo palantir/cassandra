@@ -17,13 +17,18 @@
  */
 package org.apache.cassandra.thrift;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.datastax.shaded.netty.util.internal.ConcurrentSet;
+import org.apache.thrift.transport.TTransport;
 
 /**
  * Encapsulates the current client state (session).
@@ -38,6 +43,7 @@ public class ThriftSessionManager
 
     private final ThreadLocal<SocketAddress> remoteSocket = new ThreadLocal<>();
     private final ConcurrentHashMap<SocketAddress, ThriftClientState> activeSocketSessions = new ConcurrentHashMap<>();
+    private final ConcurrentSet<TTransport> activeClients = new ConcurrentSet<>();
 
     /**
      * @param socket the address on which the current thread will work on requests for until further notice
@@ -45,6 +51,15 @@ public class ThriftSessionManager
     public void setCurrentSocket(SocketAddress socket)
     {
         remoteSocket.set(socket);
+    }
+
+    public void trackClient(TTransport client)
+    {
+        activeClients.add(client);
+    }
+
+    public void untrackClient(TTransport client) {
+        activeClients.remove(client);
     }
 
     /**
@@ -81,5 +96,16 @@ public class ThriftSessionManager
     public int getConnectedClients()
     {
         return activeSocketSessions.size();
+    }
+
+    /**
+     * Currently only implemented for synchronous thrift server. This ensures that when the server socket is closed,
+     * spawned client sockets will also be closed instead of waiting for TCP timeouts.
+     */
+    public void closeActiveClients() throws IOException
+    {
+        Set<TTransport> currentActive = ImmutableSet.copyOf(activeClients);
+        currentActive.stream().filter(TTransport::isOpen).forEach(TTransport::close);
+        activeClients.removeAll(currentActive);
     }
 }

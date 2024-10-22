@@ -25,6 +25,7 @@ import javax.net.ssl.SSLContext;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.WhiteListPolicy;
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Slf4JLoggerFactory;
 import org.apache.cassandra.config.EncryptionOptions;
@@ -91,7 +92,7 @@ public class JavaDriverClient
     {
         PoolingOptions poolingOpts = new PoolingOptions();
         poolingOpts.setCoreConnectionsPerHost(HostDistance.LOCAL, 8);
-        Cluster.Builder clusterBuilder = Cluster.builder()
+        Cluster.Builder clusterBuilder = Dropwizard4Cluster.builder()
                                                 .addContactPoint(host)
                                                 .withPort(port)
                                                 .withPoolingOptions(poolingOpts)

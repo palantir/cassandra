@@ -23,11 +23,10 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.RateLimiter;
-import org.apache.cassandra.io.sstable.format.SSTableReader;
+import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
@@ -36,6 +35,8 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 
 /**
@@ -270,12 +271,14 @@ public abstract class AbstractCompactionStrategy
     @SuppressWarnings("resource")
     public ScannerList getScanners(Collection<SSTableReader> sstables, Range<Token> range)
     {
-        RateLimiter limiter = CompactionManager.instance.getRateLimiter();
         ArrayList<ISSTableScanner> scanners = new ArrayList<ISSTableScanner>();
         try
         {
             for (SSTableReader sstable : sstables)
-                scanners.add(sstable.getScanner(range, limiter));
+            {
+                scanners.add(sstable.getScanner(range, CompactionThroughputThrottler.getRateLimiter(Pair.create(sstable.getKeyspaceName(),
+                                                                                                                sstable.getColumnFamilyName()))));
+            }
         }
         catch (Throwable t)
         {

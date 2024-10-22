@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.management.openmbean.*;
 
@@ -39,6 +40,10 @@ import com.google.common.base.*;
 import com.google.common.base.Throwables;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
+
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
@@ -101,6 +106,9 @@ import static org.apache.cassandra.utils.Throwables.maybeFail;
 public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 {
     private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
+
+    private static final boolean DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP = Boolean.getBoolean(
+                                            "palantir_cassandra.dry_run_non_compacting_unused_sstable_cleanup");
 
     private static final ExecutorService flushExecutor = new JMXEnabledThreadPoolExecutor(DatabaseDescriptor.getFlushWriters(),
                                                                                           StageManager.KEEPALIVE,
@@ -667,7 +675,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      * compactions, we remove the new ones (since those may be incomplete -- under LCS, we may create multiple
      * sstables from any given ancestor).
      */
-    public static void removeUnfinishedCompactionLeftovers(CFMetaData metadata, Map<Integer, UUID> unfinishedCompactions)
+    public static void removeUnusedSstables(CFMetaData metadata, Map<Integer, UUID> unfinishedCompactions)
     {
         Directories directories = new Directories(metadata);
         Set<Integer> allGenerations = new HashSet<>();
@@ -680,14 +688,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         {
             HashSet<Integer> missingGenerations = new HashSet<>(unfinishedGenerations);
             missingGenerations.removeAll(allGenerations);
-            logger.trace("Unfinished compactions of {}.{} reference missing sstables of generations {}",
-                         metadata.ksName, metadata.cfName, missingGenerations);
+            logger.info("Unfinished compactions reference missing sstables of generations",
+                        SafeArg.of("keyspace", metadata.ksName), SafeArg.of("cf", metadata.cfName),
+                        SafeArg.of("missingGenerations", missingGenerations));
         }
 
         // remove new sstables from compactions that didn't complete, and compute
         // set of ancestors that shouldn't exist anymore
+        Map<Descriptor, Set<Integer>> allSstableToAncestors = new HashMap<>();
         Set<Integer> completedAncestors = new HashSet<>();
-        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().skipTemporary(true).list().entrySet())
+        Map<Descriptor, Set<Component>> allNonTempSstableFiles = directories.sstableLister().skipTemporary(true).list();
+        for (Map.Entry<Descriptor, Set<Component>> sstableFiles : allNonTempSstableFiles.entrySet())
         {
             // we rename the Data component last - if it does not exist as a final file, we should ignore this sstable and
             // it will be removed during startup
@@ -710,7 +721,22 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             {
                 throw new FSReadError(e, "Failed to remove unfinished compaction leftovers (file: " + desc.filenameFor(Component.STATS) + ").  See log for details.");
             }
+            allSstableToAncestors.put(desc, ancestors);
+        }
 
+        allSstableToAncestors = ColumnFamilyStoreManager.instance.filterValidAncestors(metadata, allSstableToAncestors, unfinishedCompactions);
+        SafeArg<Map<Integer, Set<Integer>>> ancestorsArg = SafeArg.of(
+            "sstableToAncestors",
+            allSstableToAncestors.entrySet().stream()
+                 .collect(Collectors.toMap(
+                         (Map.Entry<Descriptor, Set<Integer>> e) -> e.getKey().generation,
+                         Map.Entry::getValue)));
+
+        Set<UUID> cleanedUnfinishedCompactions = new HashSet<>();
+        for (Map.Entry<Descriptor, Set<Integer>> sstableToAncestors : allSstableToAncestors.entrySet())
+        {
+            Descriptor desc = sstableToAncestors.getKey();
+            Set<Integer> ancestors = sstableToAncestors.getValue();
             if (!ancestors.isEmpty()
                 && unfinishedGenerations.containsAll(ancestors)
                 && allGenerations.containsAll(ancestors))
@@ -718,15 +744,18 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // any of the ancestors would work, so we'll just lookup the compaction task ID with the first one
                 UUID compactionTaskID = unfinishedCompactions.get(ancestors.iterator().next());
                 assert compactionTaskID != null;
-                logger.trace("Going to delete unfinished compaction product {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
-                SystemKeyspace.finishCompaction(compactionTaskID);
+                logger.info("Going to delete unfinished compaction product", UnsafeArg.of("desc", desc),
+                            SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                            SafeArg.of("generation", desc.generation), ancestorsArg);
+                SSTable.delete(desc, allNonTempSstableFiles.get(desc));
+                cleanedUnfinishedCompactions.add(compactionTaskID);
             }
             else
             {
                 completedAncestors.addAll(ancestors);
             }
         }
+        cleanedUnfinishedCompactions.forEach(SystemKeyspace::finishCompaction);
 
         // remove old sstables from compactions that did complete
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
@@ -734,12 +763,21 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             if (completedAncestors.contains(desc.generation))
             {
-                // if any of the ancestors were participating in a compaction, finish that compaction
-                logger.trace("Going to delete leftover compaction ancestor {}", desc);
-                SSTable.delete(desc, sstableFiles.getValue());
-                UUID compactionTaskID = unfinishedCompactions.get(desc.generation);
-                if (compactionTaskID != null)
-                    SystemKeyspace.finishCompaction(unfinishedCompactions.get(desc.generation));
+                if (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty())
+                {
+                    logger.warn("Would have deleted leftover compaction ancestor", UnsafeArg.of("desc", desc),
+                                SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                                SafeArg.of("generation", desc.generation), ancestorsArg);
+                } else
+                {
+                    // if any of the ancestors were participating in a compaction, finish that compaction
+                    logger.warn("Going to delete leftover compaction ancestor", UnsafeArg.of("desc", desc),
+                                SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                                SafeArg.of("generation", desc.generation), ancestorsArg);
+                    SSTable.delete(desc, sstableFiles.getValue());
+                    Optional.ofNullable(unfinishedCompactions.get(desc.generation))
+                            .ifPresent(SystemKeyspace::finishCompaction);
+                }
             }
         }
     }
@@ -820,6 +858,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
     {
+        if (assumeCfIsEmpty)
+        {
+            throw new UnsupportedOperationException("Loading new SSTables is not supported on version 2.2.18-1.165.0+.");
+        }
         logger.info("Loading new SSTables for {}/{}{}...",
                 keyspace.getName(), name,
                 assumeCfIsEmpty ? " assuming the columnfamily is empty" : "");
@@ -2018,6 +2060,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         ColumnFamily result = null;
 
+        if (filter.filter instanceof SliceQueryFilter) {
+            ((SliceQueryFilter) filter.filter).setMetrics(metric);
+        }
+
         long start = System.nanoTime();
 
         int readDelay = DatabaseDescriptor.getReadDelay();
@@ -2085,7 +2131,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     private void recordMetrics(SliceQueryFilter filter) {
-        metric.droppableTombstones.mark(filter.lastReadDroppableTombstones());
         // Log the number of tombstones scanned on single key queries
         metric.tombstoneScannedHistogram.update(filter.lastTombstones());
         metric.liveScannedHistogram.update(filter.lastLive());
@@ -2093,21 +2138,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         metric.droppableTtlsReadHistogram.update(filter.lastReadDroppableTtls());
         metric.liveReadHistogram.update(filter.lastReadLive());
         metric.tombstonesReadHistogram.update(filter.lastReadTombstones());
-
-        Optional<DeletionInfo> maybeDeletionInfo = filter.lastReadDeletionInfo();
-
-        if (maybeDeletionInfo.isPresent()) {
-            DeletionInfo deletionInfo = maybeDeletionInfo.get();
-            logger.trace("Ranged tombstones read {} and droppable {} for {}.{}",
-                         deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
-                         deletionInfo.getRangeTombstoneCounter().getDroppableCount(), keyspace, getColumnFamilyName());
-
-            metric.rangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getNonDroppableCount());
-            metric.droppableRangeTombstonesReadHistogram.update(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-            metric.rangeTombstonesHistogram.update(deletionInfo.rangeCount());
-
-            metric.droppableTombstones.mark(deletionInfo.getRangeTombstoneCounter().getDroppableCount());
-        }
 
         if (filter.hitTombstoneWarnThreshold()) metric.tombstoneWarnings.inc();
     }
@@ -2544,6 +2574,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
                 if (rowIterator.needsFiltering())
                 {
+                    IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
+                    if (queryFilter instanceof SliceQueryFilter) {
+                        ((SliceQueryFilter) queryFilter).setMetrics(metric);
+                    }
+
                     IDiskAtomFilter extraFilter = filter.getExtraFilter(rawRow.key, data);
                     if (extraFilter != null)
                     {
@@ -2561,7 +2596,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                     // cut the resultset back to what was requested, if necessary
                     data = filter.prune(rawRow.key, data);
 
-                    IDiskAtomFilter queryFilter = filter.columnFilter(rawRow.key.getKey());
                     if (queryFilter instanceof SliceQueryFilter) {
                         recordMetrics((SliceQueryFilter) queryFilter);
                     }
@@ -3399,18 +3433,48 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     private double getDroppableTombstoneRatio(boolean useGcGrace)
     {
-        double allDroppable = 0;
         long allColumns = 0;
-        int localTime = (int)(System.currentTimeMillis()/1000);
+        Collection<SSTableReader> sstables = getSSTables();
+        for (SSTableReader sstable : sstables)
+        {
+            allColumns += sstable.getEstimatedColumnCount().mean() * sstable.getEstimatedColumnCount().count();
+        }
+        double allDroppable = getDroppableTombstoneCount(sstables, useGcGrace);
+        return allColumns > 0 ? allDroppable / allColumns : 0;
+    }
 
-        for (SSTableReader sstable : getSSTables())
+    public double getDroppableTombstoneCount()
+    {
+        return getDroppableTombstoneCount(true);
+    }
+
+    public double getTombstoneCount()
+    {
+        return getDroppableTombstoneCount(false);
+    }
+
+    public double getLiveTombstoneCount()
+    {
+        return getTombstoneCount() - getDroppableTombstoneCount();
+    }
+
+    private double getDroppableTombstoneCount(boolean useGcGrace)
+    {
+        return getDroppableTombstoneCount(getSSTables(), useGcGrace);
+    }
+
+    private double getDroppableTombstoneCount(Collection<SSTableReader> sstables, boolean useGcGrace)
+    {
+        double allDroppable = 0;
+        int localTime = (int) (System.currentTimeMillis() / 1000);
+
+        for (SSTableReader sstable : sstables)
         {
             int gcBefore = localTime;
             if (useGcGrace) gcBefore = localTime - sstable.metadata.getGcGraceSeconds();
             allDroppable += sstable.getDroppableTombstonesBefore(gcBefore);
-            allColumns += sstable.getEstimatedColumnCount().mean() * sstable.getEstimatedColumnCount().count();
         }
-        return allColumns > 0 ? allDroppable / allColumns : 0;
+        return allDroppable;
     }
 
     public long trueSnapshotsSize()

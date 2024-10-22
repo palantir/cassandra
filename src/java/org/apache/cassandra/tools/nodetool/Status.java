@@ -21,6 +21,7 @@ import io.airlift.command.Arguments;
 import io.airlift.command.Command;
 import io.airlift.command.Option;
 
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.text.DecimalFormat;
@@ -81,7 +82,7 @@ public class Status extends NodeToolCmd
         }
         catch (IllegalArgumentException ex)
         {
-            System.out.printf("%nError: " + ex.getMessage() + "%n");
+            probe.output().out.printf("%nError: " + ex.getMessage() + "%n");
             System.exit(1);
         }
 
@@ -97,15 +98,15 @@ public class Status extends NodeToolCmd
         for (Map.Entry<String, SetHostStat> dc : dcs.entrySet())
         {
             String dcHeader = String.format("Datacenter: %s%n", dc.getKey());
-            System.out.printf(dcHeader);
-            for (int i = 0; i < (dcHeader.length() - 1); i++) System.out.print('=');
-            System.out.println();
+            probe.output().out.printf(dcHeader);
+            for (int i = 0; i < (dcHeader.length() - 1); i++) probe.output().out.print('=');
+            probe.output().out.println();
 
             // Legend
-            System.out.println("Status=Up/Down");
-            System.out.println("|/ State=Normal/Leaving/Joining/Moving");
+            probe.output().out.println("Status=Up/Down");
+            probe.output().out.println("|/ State=Normal/Leaving/Joining/Moving");
 
-            printNodesHeader(hasEffectiveOwns, isTokenPerNode);
+            printNodesHeader(probe.output().out, hasEffectiveOwns, isTokenPerNode);
 
             ArrayListMultimap<InetAddress, HostStat> hostToTokens = ArrayListMultimap.create();
             for (HostStat stat : dc.getValue())
@@ -115,11 +116,11 @@ public class Status extends NodeToolCmd
             {
                 Float owns = ownerships.get(endpoint);
                 List<HostStat> tokens = hostToTokens.get(endpoint);
-                printNode(endpoint.getHostAddress(), owns, tokens, hasEffectiveOwns, isTokenPerNode);
+                printNode(probe.output().out, endpoint.getHostAddress(), owns, tokens, hasEffectiveOwns, isTokenPerNode);
             }
         }
 
-        System.out.printf("%n" + errors.toString());
+        probe.output().out.printf("%n" + errors.toString());
 
     }
 
@@ -135,18 +136,18 @@ public class Status extends NodeToolCmd
         }
     }
 
-    private void printNodesHeader(boolean hasEffectiveOwns, boolean isTokenPerNode)
+    private void printNodesHeader(PrintStream output, boolean hasEffectiveOwns, boolean isTokenPerNode)
     {
         String fmt = getFormat(hasEffectiveOwns, isTokenPerNode);
         String owns = hasEffectiveOwns ? "Owns (effective)" : "Owns";
 
         if (isTokenPerNode)
-            System.out.printf(fmt, "-", "-", "Address", "Load", owns, "Host ID", "Token", "Rack");
+            output.printf(fmt, "-", "-", "Address", "Load", owns, "Host ID", "Token", "Rack");
         else
-            System.out.printf(fmt, "-", "-", "Address", "Load", "Tokens", owns, "Host ID", "Rack");
+            output.printf(fmt, "-", "-", "Address", "Load", "Tokens", owns, "Host ID", "Rack");
     }
 
-    private void printNode(String endpoint, Float owns, List<HostStat> tokens, boolean hasEffectiveOwns, boolean isTokenPerNode)
+    private void printNode(PrintStream output, String endpoint, Float owns, List<HostStat> tokens, boolean hasEffectiveOwns, boolean isTokenPerNode)
     {
         String status, state, load, strOwns, hostID, rack, fmt;
         fmt = getFormat(hasEffectiveOwns, isTokenPerNode);
@@ -172,9 +173,9 @@ public class Status extends NodeToolCmd
 
         String endpointDns = tokens.get(0).ipOrDns();
         if (isTokenPerNode)
-            System.out.printf(fmt, status, state, endpointDns, load, strOwns, hostID, tokens.get(0).token, rack);
+            output.printf(fmt, status, state, endpointDns, load, strOwns, hostID, tokens.get(0).token, rack);
         else
-            System.out.printf(fmt, status, state, endpointDns, load, tokens.size(), strOwns, hostID, rack);
+            output.printf(fmt, status, state, endpointDns, load, tokens.size(), strOwns, hostID, rack);
     }
 
     private String getFormat(

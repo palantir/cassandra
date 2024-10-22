@@ -35,6 +35,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
 import com.google.common.base.Optional;
+import com.palantir.cassandra.objects.Dropwizard4Cluster;
 import org.apache.commons.lang3.StringUtils;
 
 import com.datastax.driver.core.AuthProvider;
@@ -319,7 +320,7 @@ public class CqlConfigHelper
         QueryOptions queryOptions = getReadQueryOptions(conf);
         PoolingOptions poolingOptions = getReadPoolingOptions(conf);
 
-        Cluster.Builder builder = Cluster.builder()
+        Cluster.Builder builder = Dropwizard4Cluster.builder()
                 .addContactPoints(hosts)
                 .withPort(port)
                 .withCompression(ProtocolOptions.Compression.NONE);

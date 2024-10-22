@@ -33,17 +33,17 @@ public class DescribeCluster extends NodeToolCmd
     public void execute(NodeProbe probe)
     {
         // display cluster name, snitch and partitioner
-        System.out.println("Cluster Information:");
-        System.out.println("\tName: " + probe.getClusterName());
-        System.out.println("\tSnitch: " + probe.getEndpointSnitchInfoProxy().getSnitchName());
-        System.out.println("\tPartitioner: " + probe.getPartitioner());
+        probe.output().out.println("Cluster Information:");
+        probe.output().out.println("\tName: " + probe.getClusterName());
+        probe.output().out.println("\tSnitch: " + probe.getEndpointSnitchInfoProxy().getSnitchName());
+        probe.output().out.println("\tPartitioner: " + probe.getPartitioner());
 
         // display schema version for each node
-        System.out.println("\tSchema versions:");
+        probe.output().out.println("\tSchema versions:");
         Map<String, List<String>> schemaVersions = probe.getSpProxy().getSchemaVersions();
         for (String version : schemaVersions.keySet())
         {
-            System.out.println(format("\t\t%s: %s%n", version, schemaVersions.get(version)));
+            probe.output().out.println(format("\t\t%s: %s%n", version, schemaVersions.get(version)));
         }
     }
 }

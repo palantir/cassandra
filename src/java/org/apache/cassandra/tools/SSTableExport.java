@@ -17,8 +17,11 @@
  */
 package org.apache.cassandra.tools;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.*;
 
@@ -373,11 +376,8 @@ public class SSTableExport
      * @param args command lines arguments
      * @throws ConfigurationException on configuration failure (wrong params given)
      */
-    public static void main(String[] args) throws ConfigurationException
+    public static void main(String[] args) throws ConfigurationException, IOException
     {
-        System.err.println("WARNING: please note that sstable2json is now deprecated and will be removed in Cassandra 3.0. "
-                         + "Please see https://issues.apache.org/jira/browse/CASSANDRA-9618 for details.");
-
         String usage = String.format("Usage: %s <sstable> [-k key [-k key [...]] -x key [-x key [...]]]%n", SSTableExport.class.getName());
 
         CommandLineParser parser = new PosixParser();
@@ -395,7 +395,7 @@ public class SSTableExport
 
         if (cmd.getArgs().length != 1)
         {
-            System.err.println("You must supply exactly one sstable");
+            System.err.println("You must supply exactly one sstable or directory");
             System.err.println(usage);
             System.exit(1);
         }
@@ -404,16 +404,49 @@ public class SSTableExport
 
         String[] keys = cmd.getOptionValues(KEY_OPTION);
         String[] excludes = cmd.getOptionValues(EXCLUDEKEY_OPTION);
-        String ssTableFileName = new File(cmd.getArgs()[0]).getAbsolutePath();
+        File fileOrDirectory = new File(cmd.getArgs()[0]);
 
         Schema.instance.loadFromDisk(false);
+
+        try(PrintStream printStream = new PrintStream(new BufferedOutputStream(System.out))) {
+            if (fileOrDirectory.isDirectory())
+            {
+                File[] files = Objects.requireNonNull(fileOrDirectory.listFiles((dir, name) ->
+                        name.endsWith("Data.db")
+                ), "An error occurred while listing files in the provided directory");
+                printStream.println("{");
+                int i = 0;
+                for (File file : files)
+                {
+                    if (i != 0)
+                    {
+                        printStream.println(",");
+                    }
+                    i++;
+                    String ssTableFileName = file.getAbsolutePath();
+                    printStream.printf("\"%s\":", file.getName());
+                    handleSingleSsTableFile(ssTableFileName, keys, excludes, printStream);
+                }
+                printStream.println("}");
+            }
+            else
+            {
+                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, printStream);
+            }
+        }
+
+        System.exit(0);
+    }
+
+    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, PrintStream printStream)
+    {
         Descriptor descriptor = Descriptor.fromFilename(ssTableFileName);
 
         // Start by validating keyspace name
         if (Schema.instance.getKSMetaData(descriptor.ksname) == null)
         {
             System.err.println(String.format("Filename %s references to nonexistent keyspace: %s!",
-                                             ssTableFileName, descriptor.ksname));
+                    ssTableFileName, descriptor.ksname));
             System.exit(1);
         }
         Keyspace.setInitialized();
@@ -444,14 +477,14 @@ public class SSTableExport
         {
             if (cmd.hasOption(ENUMERATEKEYS_OPTION))
             {
-                enumeratekeys(descriptor, System.out, cfStore.metadata);
+                enumeratekeys(descriptor, printStream, cfStore.metadata);
             }
             else
             {
                 if ((keys != null) && (keys.length > 0))
-                    export(descriptor, System.out, Arrays.asList(keys), excludes, cfStore.metadata);
+                    export(descriptor, printStream, Arrays.asList(keys), excludes, cfStore.metadata);
                 else
-                    export(descriptor, excludes);
+                    export(descriptor, printStream, excludes);
             }
         }
         catch (IOException e)
@@ -459,8 +492,6 @@ public class SSTableExport
             // throwing exception outside main with broken pipe causes windows cmd to hang
             e.printStackTrace(System.err);
         }
-
-        System.exit(0);
     }
 
     private static void writeJSON(PrintStream out, Object value)

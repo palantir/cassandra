@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.thrift;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
@@ -169,6 +170,11 @@ public class CustomTThreadPoolServer extends TServer
     {
         stopped = true;
         serverTransport_.interrupt();
+        try {
+            ThriftSessionManager.instance.closeActiveClients();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to close all active RPC sockets. Some connections may stay intact until timeouts are exceeded", e);
+        }
     }
 
     private class WorkerProcess implements Runnable
@@ -198,6 +204,7 @@ public class CustomTThreadPoolServer extends TServer
             TProtocol inputProtocol = null;
             TProtocol outputProtocol = null;
             SocketAddress socket = null;
+            ThriftSessionManager.instance.trackClient(client_);
             try (TTransport inputTransport = inputTransportFactory_.getTransport(client_);
                  TTransport outputTransport = outputTransportFactory_.getTransport(client_))
             {
@@ -230,6 +237,7 @@ public class CustomTThreadPoolServer extends TServer
             }
             finally
             {
+                ThriftSessionManager.instance.untrackClient(client_);
                 if (socket != null)
                 {
                     ThriftSessionManager.instance.connectionComplete(socket);

@@ -90,7 +90,7 @@ public class TableStats extends NodeToolCmd
             double keyspaceTotalReadTime = 0.0f;
             double keyspaceTotalWriteTime = 0.0f;
 
-            System.out.println("Keyspace: " + keyspaceName);
+            probe.output().out.println("Keyspace: " + keyspaceName);
             for (ColumnFamilyStoreMBean table : columnFamilies)
             {
                 String tableName = table.getColumnFamilyName();
@@ -117,42 +117,42 @@ public class TableStats extends NodeToolCmd
                                           ? keyspaceTotalWriteTime / keyspaceWriteCount / 1000
                                           : Double.NaN;
 
-            System.out.println("\tRead Count: " + keyspaceReadCount);
-            System.out.println("\tRead Latency: " + String.format("%s", keyspaceReadLatency) + " ms.");
-            System.out.println("\tWrite Count: " + keyspaceWriteCount);
-            System.out.println("\tWrite Latency: " + String.format("%s", keyspaceWriteLatency) + " ms.");
-            System.out.println("\tPending Flushes: " + keyspacePendingFlushes);
+            probe.output().out.println("\tRead Count: " + keyspaceReadCount);
+            probe.output().out.println("\tRead Latency: " + String.format("%s", keyspaceReadLatency) + " ms.");
+            probe.output().out.println("\tWrite Count: " + keyspaceWriteCount);
+            probe.output().out.println("\tWrite Latency: " + String.format("%s", keyspaceWriteLatency) + " ms.");
+            probe.output().out.println("\tPending Flushes: " + keyspacePendingFlushes);
 
             // print out column family statistics for this keyspace
             for (ColumnFamilyStoreMBean table : columnFamilies)
             {
                 String tableName = table.getColumnFamilyName();
                 if (tableName.contains("."))
-                    System.out.println("\t\tTable (index): " + tableName);
+                    probe.output().out.println("\t\tTable (index): " + tableName);
                 else
-                    System.out.println("\t\tTable: " + tableName);
+                    probe.output().out.println("\t\tTable: " + tableName);
 
-                System.out.println("\t\tSSTable count: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "LiveSSTableCount"));
+                probe.output().out.println("\t\tSSTable count: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "LiveSSTableCount"));
 
                 int[] leveledSStables = table.getSSTableCountPerLevel();
                 if (leveledSStables != null)
                 {
-                    System.out.print("\t\tSSTables in each level: [");
+                    probe.output().out.print("\t\tSSTables in each level: [");
                     for (int level = 0; level < leveledSStables.length; level++)
                     {
                         int count = leveledSStables[level];
-                        System.out.print(count);
+                        probe.output().out.print(count);
                         long maxCount = 4L; // for L0
                         if (level > 0)
                             maxCount = (long) Math.pow(10, level);
                         //  show max threshold for level when exceeded
                         if (count > maxCount)
-                            System.out.print("/" + maxCount);
+                            probe.output().out.print("/" + maxCount);
 
                         if (level < leveledSStables.length - 1)
-                            System.out.print(", ");
+                            probe.output().out.print(", ");
                         else
-                            System.out.println("]");
+                            probe.output().out.println("]");
                     }
                 }
 
@@ -179,12 +179,12 @@ public class TableStats extends NodeToolCmd
                         throw e;
                 }
 
-                System.out.println("\t\tSpace used (live): " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "LiveDiskSpaceUsed"), humanReadable));
-                System.out.println("\t\tSpace used (total): " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "TotalDiskSpaceUsed"), humanReadable));
-                System.out.println("\t\tSpace used by snapshots (total): " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "SnapshotsSize"), humanReadable));
+                probe.output().out.println("\t\tSpace used (live): " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "LiveDiskSpaceUsed"), humanReadable));
+                probe.output().out.println("\t\tSpace used (total): " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "TotalDiskSpaceUsed"), humanReadable));
+                probe.output().out.println("\t\tSpace used by snapshots (total): " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "SnapshotsSize"), humanReadable));
                 if (offHeapSize != null)
-                    System.out.println("\t\tOff heap memory used (total): " + format(offHeapSize, humanReadable));
-                System.out.println("\t\tSSTable Compression Ratio: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "CompressionRatio"));
+                    probe.output().out.println("\t\tOff heap memory used (total): " + format(offHeapSize, humanReadable));
+                probe.output().out.println("\t\tSSTable Compression Ratio: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "CompressionRatio"));
 
                 Object estimatedRowCount = probe.getColumnFamilyMetric(keyspaceName, tableName, "EstimatedRowCount");
                 if (Long.valueOf(-1L).equals(estimatedRowCount))
@@ -192,45 +192,45 @@ public class TableStats extends NodeToolCmd
                     estimatedRowCount = 0L;
                 }
 
-                System.out.println("\t\tNumber of keys (estimate): " + estimatedRowCount);
+                probe.output().out.println("\t\tNumber of keys (estimate): " + estimatedRowCount);
 
-                System.out.println("\t\tMemtable cell count: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "MemtableColumnsCount"));
-                System.out.println("\t\tMemtable data size: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MemtableLiveDataSize"), humanReadable));
+                probe.output().out.println("\t\tMemtable cell count: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "MemtableColumnsCount"));
+                probe.output().out.println("\t\tMemtable data size: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MemtableLiveDataSize"), humanReadable));
                 if (memtableOffHeapSize != null)
-                    System.out.println("\t\tMemtable off heap memory used: " + format(memtableOffHeapSize, humanReadable));
-                System.out.println("\t\tMemtable switch count: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "MemtableSwitchCount"));
-                System.out.println("\t\tLocal read count: " + ((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "ReadLatency")).getCount());
+                    probe.output().out.println("\t\tMemtable off heap memory used: " + format(memtableOffHeapSize, humanReadable));
+                probe.output().out.println("\t\tMemtable switch count: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "MemtableSwitchCount"));
+                probe.output().out.println("\t\tLocal read count: " + ((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "ReadLatency")).getCount());
                 double localReadLatency = ((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "ReadLatency")).getMean() / 1000;
                 double localRLatency = localReadLatency > 0 ? localReadLatency : Double.NaN;
-                System.out.printf("\t\tLocal read latency: %01.3f ms%n", localRLatency);
-                System.out.println("\t\tLocal write count: " + ((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "WriteLatency")).getCount());
+                probe.output().out.printf("\t\tLocal read latency: %01.3f ms%n", localRLatency);
+                probe.output().out.println("\t\tLocal write count: " + ((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "WriteLatency")).getCount());
                 double localWriteLatency = ((CassandraMetricsRegistry.JmxTimerMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "WriteLatency")).getMean() / 1000;
                 double localWLatency = localWriteLatency > 0 ? localWriteLatency : Double.NaN;
-                System.out.printf("\t\tLocal write latency: %01.3f ms%n", localWLatency);
-                System.out.println("\t\tPending flushes: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "PendingFlushes"));
-                System.out.println("\t\tBloom filter false positives: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "BloomFilterFalsePositives"));
-                System.out.printf("\t\tBloom filter false ratio: %s%n", String.format("%01.5f", probe.getColumnFamilyMetric(keyspaceName, tableName, "RecentBloomFilterFalseRatio")));
-                System.out.println("\t\tBloom filter space used: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "BloomFilterDiskSpaceUsed"), humanReadable));
+                probe.output().out.printf("\t\tLocal write latency: %01.3f ms%n", localWLatency);
+                probe.output().out.println("\t\tPending flushes: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "PendingFlushes"));
+                probe.output().out.println("\t\tBloom filter false positives: " + probe.getColumnFamilyMetric(keyspaceName, tableName, "BloomFilterFalsePositives"));
+                probe.output().out.printf("\t\tBloom filter false ratio: %s%n", String.format("%01.5f", probe.getColumnFamilyMetric(keyspaceName, tableName, "RecentBloomFilterFalseRatio")));
+                probe.output().out.println("\t\tBloom filter space used: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "BloomFilterDiskSpaceUsed"), humanReadable));
                 if (bloomFilterOffHeapSize != null)
-                    System.out.println("\t\tBloom filter off heap memory used: " + format(bloomFilterOffHeapSize, humanReadable));
+                    probe.output().out.println("\t\tBloom filter off heap memory used: " + format(bloomFilterOffHeapSize, humanReadable));
                 if (indexSummaryOffHeapSize != null)
-                    System.out.println("\t\tIndex summary off heap memory used: " + format(indexSummaryOffHeapSize, humanReadable));
+                    probe.output().out.println("\t\tIndex summary off heap memory used: " + format(indexSummaryOffHeapSize, humanReadable));
                 if (compressionMetadataOffHeapSize != null)
-                    System.out.println("\t\tCompression metadata off heap memory used: " + format(compressionMetadataOffHeapSize, humanReadable));
+                    probe.output().out.println("\t\tCompression metadata off heap memory used: " + format(compressionMetadataOffHeapSize, humanReadable));
 
-                System.out.println("\t\tCompacted partition minimum bytes: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MinRowSize"), humanReadable));
-                System.out.println("\t\tCompacted partition maximum bytes: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MaxRowSize"), humanReadable));
-                System.out.println("\t\tCompacted partition mean bytes: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MeanRowSize"), humanReadable));
+                probe.output().out.println("\t\tCompacted partition minimum bytes: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MinRowSize"), humanReadable));
+                probe.output().out.println("\t\tCompacted partition maximum bytes: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MaxRowSize"), humanReadable));
+                probe.output().out.println("\t\tCompacted partition mean bytes: " + format((Long) probe.getColumnFamilyMetric(keyspaceName, tableName, "MeanRowSize"), humanReadable));
                 CassandraMetricsRegistry.JmxHistogramMBean histogram = (CassandraMetricsRegistry.JmxHistogramMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "LiveScannedHistogram");
-                System.out.println("\t\tAverage live cells per slice (last five minutes): " + histogram.getMean());
-                System.out.println("\t\tMaximum live cells per slice (last five minutes): " + histogram.getMax());
+                probe.output().out.println("\t\tAverage live cells per slice (last five minutes): " + histogram.getMean());
+                probe.output().out.println("\t\tMaximum live cells per slice (last five minutes): " + histogram.getMax());
                 histogram = (CassandraMetricsRegistry.JmxHistogramMBean) probe.getColumnFamilyMetric(keyspaceName, tableName, "TombstoneScannedHistogram");
-                System.out.println("\t\tAverage tombstones per slice (last five minutes): " + histogram.getMean());
-                System.out.println("\t\tMaximum tombstones per slice (last five minutes): " + histogram.getMax());
+                probe.output().out.println("\t\tAverage tombstones per slice (last five minutes): " + histogram.getMean());
+                probe.output().out.println("\t\tMaximum tombstones per slice (last five minutes): " + histogram.getMax());
 
-                System.out.println("");
+                probe.output().out.println("");
             }
-            System.out.println("----------------");
+            probe.output().out.println("----------------");
         }
     }
 
