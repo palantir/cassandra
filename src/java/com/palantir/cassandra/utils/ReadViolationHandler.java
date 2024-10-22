@@ -18,6 +18,8 @@
 
 package com.palantir.cassandra.utils;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
@@ -34,12 +36,18 @@ public class ReadViolationHandler implements OwnershipViolationHandler
     private static final Logger logger = LoggerFactory.getLogger(OwnershipVerificationUtils.class);
 
     public static final OwnershipViolationHandler INSTANCE = new MutationViolationHandler();
+
     @Override
     public void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
         keyspace.metric.invalidReads.inc();
-        logger.error("Executed InvalidRead! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
-                FBUtilities.getBroadcastAddress(), Hex.bytesToHex(key.array()),keyspace.getName(), naturalEndpoints, pendingEndpoints);
+        logger.error(
+            "Executed InvalidRead! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+            SafeArg.of("address", FBUtilities.getBroadcastAddress()),
+            UnsafeArg.of("key", Hex.bytesToHex(key.array())),
+            SafeArg.of("keyspace", keyspace.getName()),
+            SafeArg.of("naturalEndpoints", naturalEndpoints),
+            SafeArg.of("pendingEndpoints", pendingEndpoints));
     }
 
     @Override

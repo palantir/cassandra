@@ -29,6 +29,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.dht.Token;
@@ -97,13 +99,12 @@ public class OwnershipVerificationUtils
             else
             {
                 logger.warn("Ignoring InvalidOwnership error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}."
-                                + " Cached owners {} and {}. Actual owners {} and {}",
-                        Hex.bytesToHex(key.array()),
-                        keyspaceName,
-                        cachedNaturalEndpoints,
-                        pendingEndpoints,
-                        refreshedNaturalEndpoints,
-                        pendingEndpoints);
+                                + " Cached owners {}. Actual owners {}. Pending owners (non-cached) {}.",
+                            UnsafeArg.of("key", Hex.bytesToHex(key.array())),
+                            SafeArg.of("keyspace", keyspaceName),
+                            SafeArg.of("cachedNaturalEndpoints", cachedNaturalEndpoints),
+                            SafeArg.of("refreshedNaturalEndpoints", refreshedNaturalEndpoints),
+                            SafeArg.of("pendingEndpoints", pendingEndpoints));
             }
         }
         handler.onValid(keyspace);
@@ -130,5 +131,4 @@ public class OwnershipVerificationUtils
     {
         lastTokenRingCacheUpdate = Instant.MIN;
     }
-
 }
