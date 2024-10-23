@@ -21,11 +21,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Function;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
@@ -73,6 +77,10 @@ public class LegacySchemaTables
     public static final String AGGREGATES = "schema_aggregates";
 
     public static final List<String> ALL = Arrays.asList(KEYSPACES, COLUMNFAMILIES, COLUMNS, TRIGGERS, USERTYPES, FUNCTIONS, AGGREGATES);
+
+    private static final int MUTATION_CACHE_MAX_SIZE = 5;
+    private static final Duration MUTATION_CACHE_EXPIRY = Duration.ofMinutes(5);
+    private static final LoadingCache<UUID, Collection<Mutation>> mutations = CacheBuilder.newBuilder().maximumSize(MUTATION_CACHE_MAX_SIZE).expireAfterAccess(MUTATION_CACHE_EXPIRY).build(new UUIDMutationCacheLoader());
 
     private static final CFMetaData Keyspaces =
         compile(KEYSPACES,
@@ -309,12 +317,7 @@ public class LegacySchemaTables
 
     public static Collection<Mutation> convertSchemaToMutations()
     {
-        Map<DecoratedKey, Mutation> mutationMap = new HashMap<>();
-
-        for (String table : ALL)
-            convertSchemaToMutations(mutationMap, table);
-
-        return mutationMap.values();
+        return mutations.getUnchecked(Schema.instance.getVersion());
     }
 
     private static void convertSchemaToMutations(Map<DecoratedKey, Mutation> mutationMap, String schemaTableName)
@@ -1506,4 +1509,15 @@ public class LegacySchemaTables
         return list.decompose(strList);
     }
 
+    private static class UUIDMutationCacheLoader extends CacheLoader<UUID, Collection<Mutation>>
+    {
+        @Override
+        public Collection<Mutation> load(UUID key)
+        {
+            Map<DecoratedKey, Mutation> mutationMap = new HashMap<>();
+            for (String table : ALL)
+                convertSchemaToMutations(mutationMap, table);
+            return mutationMap.values();
+        }
+    }
 }
