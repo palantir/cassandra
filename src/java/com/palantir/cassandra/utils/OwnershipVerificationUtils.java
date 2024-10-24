@@ -86,6 +86,7 @@ public class OwnershipVerificationUtils
             if (cacheWasRecentlyRefreshed())
             {
                 handler.onViolation(keyspace, key, cachedNaturalEndpoints, pendingEndpoints);
+                return;
             }
 
             refreshCache();
@@ -95,6 +96,7 @@ public class OwnershipVerificationUtils
             if (operationIsInvalid(refreshedNaturalEndpoints, pendingEndpoints))
             {
                 handler.onViolation(keyspace, key, cachedNaturalEndpoints, pendingEndpoints);
+                return;
             }
             else
             {
