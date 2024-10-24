@@ -21,6 +21,7 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Consumer;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
@@ -105,18 +106,22 @@ public abstract class SSTable
     {
         // remove the DATA component first if it exists
         if (components.contains(Component.DATA))
-            FileUtils.deleteWithConfirm(desc.filenameFor(Component.DATA));
+            deleteWithLog(FileUtils::deleteWithConfirm, desc.filenameFor(Component.DATA));
         for (Component component : components)
         {
             if (component.equals(Component.DATA) || component.equals(Component.SUMMARY))
                 continue;
 
-            FileUtils.deleteWithConfirm(desc.filenameFor(component));
+            deleteWithLog(FileUtils::deleteWithConfirm, desc.filenameFor(component));
         }
-        FileUtils.delete(desc.filenameFor(Component.SUMMARY));
+        deleteWithLog(FileUtils::delete, desc.filenameFor(Component.SUMMARY));
 
-        logger.info("Deleted {}", desc);
         return true;
+    }
+
+    private static void deleteWithLog(Consumer<String> deleter, String filename) {
+        deleter.accept(filename);
+        logger.info("Deleted {}", filename);
     }
 
     /**
