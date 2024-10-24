@@ -108,7 +108,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
 
     private static final boolean DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP = Boolean.getBoolean(
-        "palantir_cassandra.dry_run_non_compacting_unused_sstable_cleanup");
+                                            "palantir_cassandra.dry_run_non_compacting_unused_sstable_cleanup");
 
     private static final ExecutorService flushExecutor = new JMXEnabledThreadPoolExecutor(DatabaseDescriptor.getFlushWriters(),
                                                                                           StageManager.KEEPALIVE,
@@ -763,8 +763,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             if (completedAncestors.contains(desc.generation))
             {
-                if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata()
-                    || (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty()))
+                if (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty())
                 {
                     logger.warn("Would have deleted leftover compaction ancestor", UnsafeArg.of("desc", desc),
                                 SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),

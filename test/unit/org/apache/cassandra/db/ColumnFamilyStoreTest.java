@@ -118,7 +118,6 @@ public class ColumnFamilyStoreTest
     public static final String CF_STANDARD5 = "Standard5";
     public static final String CF_STANDARD6 = "Standard6";
     public static final String CF_STANDARD7 = "Standard7";
-    public static final String CF_STANDARD8 = "Standard8";
     public static final String CF_STANDARDINT = "StandardInteger1";
     public static final String CF_SUPER1 = "Super1";
     public static final String CF_SUPER6 = "Super6";
@@ -149,7 +148,6 @@ public class ColumnFamilyStoreTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD8),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX1, true),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX2, false),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
@@ -1986,8 +1984,7 @@ public class ColumnFamilyStoreTest
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         };
 
-        try
-        {
+        try {
             ColumnFamilyStoreManager.instance.registerValidator(validator);
             ColumnFamilyStore.removeUnusedSstables(cfmeta, ImmutableMap.of());
         }
@@ -2002,65 +1999,6 @@ public class ColumnFamilyStoreTest
                 sstable3Desc.withGeneration(gen2),
                 sstable3Desc.withGeneration(gen3),
                 sstable3Desc.withGeneration(gen5));
-        assertEquals(expected, sstables.keySet());
-    }
-
-    @Test
-    public void testShouldSkipAncestorCleanupSkipsAncestorCleanup() throws IOException
-    {
-        final String ks = KEYSPACE1;
-        final String cf = CF_STANDARD8;
-
-        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
-        Keyspace.open(KEYSPACE1).getColumnFamilyStore(cf).disableAutoCompaction();
-        Directories dir = new Directories(cfmeta);
-
-        int gen1 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
-        int gen2 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
-        int gen3 = writeNextGenerationSstable(ImmutableSet.of(gen1, gen2), dir, cfmeta);
-        int gen4 = writeNextGenerationSstable(ImmutableSet.of(), dir, cfmeta);
-        int gen5 = writeNextGenerationSstable(ImmutableSet.of(gen4), dir, cfmeta);
-
-        Map<Descriptor, Set<Component>> sstables = dir.sstableLister().list();
-        Descriptor sstable3Desc = sstables.keySet().iterator().next().withGeneration(gen3);
-        assertEquals(5, sstables.size());
-        assertTrue(sstables.containsKey(sstable3Desc));
-
-        IColumnFamilyStoreValidator validator = new IColumnFamilyStoreValidator()
-        {
-            @Override
-            public Map<Descriptor, Set<Integer>> filterValidAncestors(CFMetaData _cfMetaData, Map<Descriptor, Set<Integer>> sstableToCompletedAncestors, Map<Integer, UUID> _unfinishedCompactions)
-            {
-                Set<Integer> allowedGenerations = ImmutableSet.of(gen1, gen2, gen4, gen5);
-                return sstableToCompletedAncestors.entrySet().stream()
-                                                  .filter(entry -> allowedGenerations.contains(entry.getKey().generation))
-                                                  .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            }
-
-            @Override
-            public boolean shouldSkipAncestorCleanupBasedOnAncestorMetadata()
-            {
-                return true;
-            }
-        };
-
-        try
-        {
-            ColumnFamilyStoreManager.instance.registerValidator(validator);
-            ColumnFamilyStore.removeUnusedSstables(cfmeta, ImmutableMap.of());
-        }
-        finally
-        {
-            ColumnFamilyStoreManager.instance.unregisterValidator();
-        }
-
-        sstables = dir.sstableLister().list();
-        ImmutableSet<Descriptor> expected = ImmutableSet.of(
-        sstable3Desc.withGeneration(gen1),
-        sstable3Desc.withGeneration(gen2),
-        sstable3Desc.withGeneration(gen3),
-        sstable3Desc.withGeneration(gen4),
-        sstable3Desc.withGeneration(gen5));
         assertEquals(expected, sstables.keySet());
     }
 
