@@ -229,12 +229,12 @@ public class CompactionTask extends AbstractCompactionTask
         }
         finally
         {
-            if (!readyToFinish) {
+            if (!readyToFinish || !ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()) {
                 // TODO(wdey): refactor all of the trys
                 try (Refs closedRefs = refs; CompactionController closedController = controller) {}
             }
             Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-            if (taskId != null && (!abortFailed))
+            if (taskId != null && (!abortFailed) && !ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup())
                 SystemKeyspace.finishCompaction(taskId);
 
             if (collector != null && ci != null)
@@ -244,6 +244,9 @@ public class CompactionTask extends AbstractCompactionTask
         ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsolete.stream()
             .map(ssTableReader -> ssTableReader.descriptor)
             .collect(Collectors.toSet()));
+        if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()) {
+            SystemKeyspace.finishCompaction(taskId);
+        }
         refs.close();
         controller.close();
 

@@ -115,7 +115,7 @@ public abstract class SSTable
         }
         FileUtils.delete(desc.filenameFor(Component.SUMMARY));
 
-        logger.trace("Deleted {}", desc);
+        logger.info("Deleted {}", desc);
         return true;
     }
 
