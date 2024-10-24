@@ -95,7 +95,7 @@ public class OwnershipVerificationUtils
 
             if (operationIsInvalid(refreshedNaturalEndpoints, pendingEndpoints))
             {
-                handler.onViolation(keyspace, key, cachedNaturalEndpoints, pendingEndpoints);
+                handler.onViolation(keyspace, key, refreshedNaturalEndpoints, pendingEndpoints);
                 return;
             }
             else
