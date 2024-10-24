@@ -25,7 +25,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
