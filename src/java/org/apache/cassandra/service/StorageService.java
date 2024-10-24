@@ -141,7 +141,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     /* This abstraction maintains the token/endpoint metadata information */
-    private TokenMetadata tokenMetadata = new TokenMetadata();
+    private TokenMetadata tokenMetadata = new TokenMetadata(true);
 
     public volatile VersionedValue.VersionedValueFactory valueFactory = new VersionedValue.VersionedValueFactory(getPartitioner());
 
