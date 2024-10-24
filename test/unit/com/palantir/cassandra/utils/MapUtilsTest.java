@@ -19,13 +19,13 @@
 package com.palantir.cassandra.utils;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.*;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Range;
+import org.apache.cassandra.locator.PendingRangeMaps;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -117,6 +117,22 @@ public final class MapUtilsTest
         putAll(addressRange, rangeOf("15", "30"), ep2);
         assertThat(MapUtils.intersection(addressRange, rangesOf(rangeOf("4", "18"))))
                 .containsExactlyInAnyOrder(ep1, ep2);
+    }
+
+    @Test
+    public void coalesce_sortRanges()
+    {
+        PendingRangeMaps pendingRangeMaps = new PendingRangeMaps();
+        Range<Token> range1 = rangeOf("50", "60");
+        Range<Token> range2 = rangeOf("10", "20");
+        Range<Token> range3 = rangeOf("30", "32");
+        pendingRangeMaps.addPendingRange(range1, ep1);
+        pendingRangeMaps.addPendingRange(range2, ep1);
+        pendingRangeMaps.addPendingRange(range3, ep1);
+        assertThat(MapUtils.coalesce(pendingRangeMaps).keySet()).containsExactly(ep1);
+        assertThat(MapUtils.coalesce(pendingRangeMaps).get(ep1))
+                .isNotNull()
+                .containsExactly(range2, range3, range1);
     }
 
     @SafeVarargs

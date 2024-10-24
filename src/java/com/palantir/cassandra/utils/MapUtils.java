@@ -19,13 +19,8 @@
 package com.palantir.cassandra.utils;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -33,7 +28,6 @@ import com.google.common.collect.Sets;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.locator.PendingRangeMaps;
-import org.apache.cassandra.utils.BiMultiValMap;
 import org.apache.cassandra.utils.Pair;
 
 
@@ -82,5 +76,24 @@ public final class MapUtils
         }
 
         return intersection;
+    }
+
+    /**
+     * Merge the pending ranges per endpoint and return as a sorted list.
+     */
+    public static Map<InetAddress, List<Range<Token>>> coalesce(PendingRangeMaps pendingRangeMaps)
+    {
+        Map<InetAddress, List<Range<Token>>> coalesced = new HashMap<>();
+
+        for (Map.Entry<Range<Token>, List<InetAddress>> entry : pendingRangeMaps)
+        {
+            for (InetAddress endpoint : entry.getValue())
+            {
+                coalesced.computeIfAbsent(endpoint, _k -> new ArrayList<>()).add(entry.getKey());
+            }
+        }
+        coalesced.replaceAll((_k, tokenRanges) -> tokenRanges.stream().sorted().collect(Collectors.toList()));
+
+        return coalesced;
     }
 }

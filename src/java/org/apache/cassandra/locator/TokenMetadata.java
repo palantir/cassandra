@@ -1371,7 +1371,7 @@ public class TokenMetadata
         {
             logger.info("Pending ranges after endpoints leave",
                         SafeArg.of("leavingEndpoints", leavingEndpoints),
-                        SafeArg.of("pendingRangeMaps", pendingRangeMaps.printPendingRanges()));
+                        SafeArg.of("pendingRangeMaps", MapUtils.coalesce(pendingRangeMaps)));
         }
     }
 
