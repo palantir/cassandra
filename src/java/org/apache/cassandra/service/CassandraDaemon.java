@@ -62,6 +62,10 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
+import com.palantir.logsafe.Preconditions;
+import com.palantir.logsafe.Safe;
+import com.palantir.logsafe.SafeArg;
+import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +76,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.commitlog.CommitLog;
+import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.StartupException;
 import org.apache.cassandra.io.util.FileUtils;
@@ -259,6 +264,22 @@ public class CassandraDaemon
     private void completeSetupMayThrowSstableException() {
         // load schema from disk
         Schema.instance.loadFromDisk();
+
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
+            {
+                for (ColumnDefinition def : cfm.allColumns())
+                {
+                    Preconditions.checkState(
+                        !(def.type instanceof CounterColumnType),
+                        "Palantir Cassandra does not support counter columns",
+                        SafeArg.of("keyspace", keyspaceName),
+                        SafeArg.of("columnFamily", cfm.cfName),
+                        SafeArg.of("columnName", def.name));
+                }
+            }
+        }
 
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
         for (String keyspaceName : Schema.instance.getKeyspaces())
