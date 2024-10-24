@@ -228,12 +228,12 @@ public class CompactionTask extends AbstractCompactionTask
         }
         finally
         {
-            if (!readyToFinish || !ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()) {
+            if (!readyToFinish || !ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata()) {
                 // TODO(wdey): refactor all of the trys
                 try (Refs closedRefs = refs; CompactionController closedController = controller) {}
             }
             Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-            if (taskId != null && (!abortFailed) && !ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup())
+            if (taskId != null && (!abortFailed) && !ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata())
                 SystemKeyspace.finishCompaction(taskId);
 
             if (collector != null && ci != null)
@@ -241,7 +241,7 @@ public class CompactionTask extends AbstractCompactionTask
         }
 
         ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
-        if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()) {
+        if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata()) {
             SystemKeyspace.finishCompaction(taskId);
         }
         refs.close();

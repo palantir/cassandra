@@ -763,7 +763,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             if (completedAncestors.contains(desc.generation))
             {
-                if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()
+                if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata()
                     || (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty()))
                 {
                     logger.warn("Would have deleted leftover compaction ancestor", UnsafeArg.of("desc", desc),

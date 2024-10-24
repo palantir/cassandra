@@ -2038,7 +2038,7 @@ public class ColumnFamilyStoreTest
             }
 
             @Override
-            public boolean shouldSkipAncestorCleanup()
+            public boolean shouldSkipAncestorCleanupBasedOnAncestorMetadata()
             {
                 return true;
             }

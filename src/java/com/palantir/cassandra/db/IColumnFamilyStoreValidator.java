@@ -48,7 +48,7 @@ public interface IColumnFamilyStoreValidator
      * {@link org.apache.cassandra.db.ColumnFamilyStore#removeUnusedSstables(CFMetaData, Map)}, false otherwise. Note
      * that this flag does not control whe
      */
-    default boolean shouldSkipAncestorCleanup() {
+    default boolean shouldSkipAncestorCleanupBasedOnAncestorMetadata() {
         return false;
     }
 }

@@ -68,8 +68,8 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IC
     }
 
     @Override
-    public boolean shouldSkipAncestorCleanup() {
-        return validator.shouldSkipAncestorCleanup();
+    public boolean shouldSkipAncestorCleanupBasedOnAncestorMetadata() {
+        return validator.shouldSkipAncestorCleanupBasedOnAncestorMetadata();
     }
 
     @Override
