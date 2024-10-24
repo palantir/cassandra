@@ -18,6 +18,7 @@
 package org.apache.cassandra.db.lifecycle;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.compaction.OperationType;
+import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.SSTableReader.UniqueIdentifier;
 import org.apache.cassandra.utils.concurrent.Transactional;
@@ -53,7 +55,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
      * has two instances, one containing modifications that are "staged" (i.e. invisible)
      * and one containing those "logged" that have been made visible through a call to checkpoint()
      */
-    private static class State
+    public static class State
     {
         // readers that are either brand new, update a previous new reader, or update one of the original readers
         final Set<SSTableReader> update = new HashSet<>();
@@ -84,6 +86,12 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
             obsolete.clear();
         }
 
+        public Set<Descriptor> obsoleteDescriptors() {
+            return obsolete.stream()
+                .map(ssTableReader -> ssTableReader.descriptor)
+                .collect(Collectors.toSet());
+        }
+
         @Override
         public String toString()
         {
@@ -104,7 +112,7 @@ public class LifecycleTransaction extends Transactional.AbstractTransactional
     private final Set<UniqueIdentifier> identities = Collections.newSetFromMap(new IdentityHashMap<UniqueIdentifier, Boolean>());
 
     // changes that have been made visible
-    private final State logged = new State();
+    public final State logged = new State();
     // changes that are pending
     private final State staged = new State();
 
