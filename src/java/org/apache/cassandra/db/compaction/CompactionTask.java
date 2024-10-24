@@ -241,9 +241,7 @@ public class CompactionTask extends AbstractCompactionTask
                 collector.finishCompaction(ci);
         }
 
-        ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsolete.stream()
-            .map(ssTableReader -> ssTableReader.descriptor)
-            .collect(Collectors.toSet()));
+        ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
         if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()) {
             SystemKeyspace.finishCompaction(taskId);
         }
