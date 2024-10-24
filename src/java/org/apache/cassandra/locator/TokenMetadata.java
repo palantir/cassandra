@@ -28,7 +28,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.*;
-import com.palantir.logsafe.UnsafeArg;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1357,12 +1356,14 @@ public class TokenMetadata
             Map<InetAddress, Pair<List<Token>, List<Token>>> sortedSymmetricDifference = new HashMap<>();
 
             for (Map.Entry<InetAddress, Pair<Set<Token>, Set<Token>>> entry : symmetricDifference.entrySet()) {
-                List<Token> before = new ArrayList<>(entry.getValue().left).stream().sorted().collect(Collectors.toList());
-                List<Token> after = new ArrayList<>(entry.getValue().right).stream().sorted().collect(Collectors.toList());
-                sortedSymmetricDifference.put(entry.getKey(), Pair.create(before, after));
+                if (entry.getValue().left.size() + entry.getValue().right.size() > 0) {
+                    List<Token> before = new ArrayList<>(entry.getValue().left).stream().sorted().collect(Collectors.toList());
+                    List<Token> after = new ArrayList<>(entry.getValue().right).stream().sorted().collect(Collectors.toList());
+                    sortedSymmetricDifference.put(entry.getKey(), Pair.create(before, after));
+                }
             }
 
-            logger.info(messagePrefix, SafeArg.of("Difference", sortedSymmetricDifference));
+            logger.info(messagePrefix, SafeArg.of("Symmetric difference", sortedSymmetricDifference));
         }
     }
 
@@ -1370,21 +1371,30 @@ public class TokenMetadata
     {
         if (shouldLogTokenChanges && !leavingEndpoints.isEmpty())
         {
-            logger.info("Pending ranges after endpoints leave",
-                        UnsafeArg.of("keyspace", keyspace),
+            Map<InetAddress, List<Range<Token>>> endpointToPendingRange = MapUtils.coalesce(pendingRangeMaps);
+            Map<InetAddress, Integer> endpointToPendingRangeCount = endpointToPendingRange
+                    .entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().size()));
+
+            logger.info("Pending ranges for leaving endpoints",
+                        SafeArg.of("keyspace", keyspace),
                         SafeArg.of("leavingEndpoints", leavingEndpoints),
-                        SafeArg.of("pendingRangeMaps", MapUtils.coalesce(pendingRangeMaps)));
+                        SafeArg.of("pendingRangePerEndpoint", endpointToPendingRangeCount));
+            logger.debug("PendingRangeMaps for leaving endpoints", endpointToPendingRange);
         }
     }
 
-    private void logBootstrapDifference(InetAddress endpoint, Multimap<Range<Token>, InetAddress> snapshot, Collection<Range<Token>> newTokenRanges)
+    private void logBootstrapDifference(String keyspace, InetAddress endpoint, Multimap<Range<Token>, InetAddress> snapshot, Collection<Range<Token>> newTokenRanges)
     {
         if (shouldLogTokenChanges)
         {
-            logger.info("Existing nodes that will give up ownership after bootstrap completes",
+            logger.info("Pending ranges for bootstrapping endpoint",
+                        SafeArg.of("keyspace", keyspace),
                         SafeArg.of("bootstrapingEndpoint", endpoint),
-                        SafeArg.of("newTokenRanges", newTokenRanges),
-                        SafeArg.of("previousNodes", MapUtils.intersection(snapshot, newTokenRanges)));
+                        SafeArg.of("previousOwners", MapUtils.intersection(snapshot, newTokenRanges)),
+                        SafeArg.of("pendingRangeCount", newTokenRanges.size()));
+            logger.debug("Pending range for endpoint", newTokenRanges);
         }
     }
 
