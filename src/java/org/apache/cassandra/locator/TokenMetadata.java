@@ -28,6 +28,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.*;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -955,7 +956,7 @@ public class TokenMetadata
             }
         }
 
-        logLeavingEndpointDifference(leavingEndpoints, newPendingRanges);
+        logLeavingEndpointDifference(strategy.keyspaceName, leavingEndpoints, newPendingRanges);
 
         // At this stage newPendingRanges has been updated according to leave operations. We can
         // now continue the calculation by checking bootstrapping nodes.
@@ -1365,11 +1366,12 @@ public class TokenMetadata
         }
     }
 
-    private void logLeavingEndpointDifference(Set<InetAddress> leavingEndpoints, PendingRangeMaps pendingRangeMaps)
+    private void logLeavingEndpointDifference(String keyspace, Set<InetAddress> leavingEndpoints, PendingRangeMaps pendingRangeMaps)
     {
         if (shouldLogTokenChanges && !leavingEndpoints.isEmpty())
         {
             logger.info("Pending ranges after endpoints leave",
+                        UnsafeArg.of("keyspace", keyspace),
                         SafeArg.of("leavingEndpoints", leavingEndpoints),
                         SafeArg.of("pendingRangeMaps", MapUtils.coalesce(pendingRangeMaps)));
         }
