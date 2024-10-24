@@ -18,13 +18,14 @@
 
 package com.palantir.cassandra.utils;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.*;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import org.apache.cassandra.dht.RandomPartitioner;
+import org.apache.cassandra.dht.Range;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,15 +43,25 @@ public final class MapUtilsTest
 
     private static final Token TOKEN_2 = token("token2");
 
+    private InetAddress ep1;
+
+    private InetAddress ep2;
+
     private Multimap<String, Token> v1;
 
     private Multimap<String, Token> v2;
 
+    private Multimap<Range<Token>, InetAddress> addressRange;
+
     @Before
-    public void before()
+    public void before() throws Exception
     {
         v1 = HashMultimap.<String, Token>create();
         v2 = HashMultimap.<String, Token>create();
+        addressRange = HashMultimap.create();
+
+        ep1 = InetAddress.getByName("127.0.0.1");
+        ep2 = InetAddress.getByName("127.0.0.2");
     }
 
     @Test
@@ -58,7 +69,7 @@ public final class MapUtilsTest
     {
         putAll(v1, KEY_1, TOKEN_1);
         putAll(v2, KEY_1, TOKEN_1);
-        Map<String, Pair<Collection<Token>, Collection<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
+        Map<String, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
         assertThat(symmetricDifference.keySet()).containsExactly(KEY_1);
         assertThat(symmetricDifference.get(KEY_1)).isNotNull().satisfies(pair -> {
             assertThat(pair.left).isEmpty();
@@ -71,7 +82,7 @@ public final class MapUtilsTest
     {
         putAll(v1, KEY_1, TOKEN_1);
         putAll(v2, KEY_1, TOKEN_1, TOKEN_2);
-        Map<String, Pair<Collection<Token>, Collection<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
+        Map<String, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
         assertThat(symmetricDifference.keySet()).containsExactly(KEY_1);
         assertThat(symmetricDifference.get(KEY_1)).isNotNull().satisfies(pair -> {
             assertThat(pair.left).isEmpty();
@@ -84,7 +95,7 @@ public final class MapUtilsTest
     {
         putAll(v1, KEY_1, TOKEN_1, TOKEN_2);
         putAll(v2, KEY_1, TOKEN_1);
-        Map<String, Pair<Collection<Token>, Collection<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
+        Map<String, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
         assertThat(symmetricDifference.keySet()).containsExactly(KEY_1);
         assertThat(symmetricDifference.get(KEY_1)).isNotNull().satisfies(pair -> {
             assertThat(pair.left).containsExactlyInAnyOrder(TOKEN_2);
@@ -92,8 +103,36 @@ public final class MapUtilsTest
         });
     }
 
-    private void putAll(Multimap<String, Token> map, String key, Token... tokens)
+    @Test
+    public void intersection_noIntersectionReturnsEmptySet()
+    {
+        putAll(addressRange, rangeOf("0", "8"), ep1);
+        assertThat(MapUtils.intersection(addressRange, rangesOf(rangeOf("10", "12")))).isEmpty();
+    }
+
+    @Test
+    public void intersection_overlappingIntervalReturnsNonEmptySet()
+    {
+        putAll(addressRange, rangeOf("0", "10"), ep1);
+        putAll(addressRange, rangeOf("15", "30"), ep2);
+        assertThat(MapUtils.intersection(addressRange, rangesOf(rangeOf("4", "18"))))
+                .containsExactlyInAnyOrder(ep1, ep2);
+    }
+
+    @SafeVarargs
+    private final <U, V> void putAll(Multimap<U, V> map, U key, V... tokens)
     {
         map.putAll(key, Arrays.asList(tokens));
+    }
+
+    @SafeVarargs
+    private final List<Range<Token>> rangesOf(Range<Token>... ranges)
+    {
+        return new ArrayList<>(Arrays.asList(ranges));
+    }
+
+    private Range<Token> rangeOf(String leftBound, String rightBound)
+    {
+        return new Range<>(new RandomPartitioner.BigIntegerToken(leftBound), new RandomPartitioner.BigIntegerToken(rightBound));
     }
 }

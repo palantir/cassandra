@@ -48,10 +48,10 @@ public final class MapUtils
      * For a given key, {@link Pair#left} are values that exist only in the first map and {@link Pair#right} are values
      * that exist only in the second map.
      */
-    public static <U, V> Map<U, Pair<Collection<V>, Collection<V>>> symmetricDifference(Multimap<U, V> v1, Multimap<U, V> v2)
+    public static <U, V> Map<U, Pair<Set<V>, Set<V>>> symmetricDifference(Multimap<U, V> v1, Multimap<U, V> v2)
     {
         Set<U> keys = Sets.union(v1.keySet(), v2.keySet()).immutableCopy();
-        Map<U, Pair<Collection<V>, Collection<V>>> symmetricDifference = new HashMap<>();
+        Map<U, Pair<Set<V>, Set<V>>> symmetricDifference = new HashMap<>();
 
         for (U key : keys)
         {

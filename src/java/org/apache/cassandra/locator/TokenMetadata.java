@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.*;
 import org.apache.commons.lang3.StringUtils;
@@ -962,11 +963,9 @@ public class TokenMetadata
         // For each of the bootstrapping nodes, simply add and remove them one by one to
         // allLeftMetadata and check in between what their ranges would be.
         Multimap<InetAddress, Token> bootstrapAddresses = bootstrapTokens.inverse();
+        Multimap<Range<Token>, InetAddress> addressRangesSnapshot = strategy.getRangeAddresses(allLeftMetadata);
         for (InetAddress endpoint : bootstrapAddresses.keySet())
         {
-            // Needs to before call to updateNormalTokens
-            Multimap<Range<Token>, InetAddress> addressRangesSnapshot = strategy.getRangeAddresses(allLeftMetadata);
-
             Collection<Token> tokens = bootstrapAddresses.get(endpoint);
             allLeftMetadata.updateNormalTokens(tokens, endpoint);
             Collection<Range<Token>> addressRangesForEndpoint = strategy.getAddressRanges(allLeftMetadata).get(endpoint);
@@ -1353,18 +1352,16 @@ public class TokenMetadata
     {
         if (shouldLogTokenChanges)
         {
-            Map<InetAddress, Pair<Collection<Token>, Collection<Token>>> symmetricDifference = MapUtils.symmetricDifference(snapshot, changes);
-            Map<InetAddress, Pair<Collection<Token>, Collection<Token>>> nonEmptyDifference = new HashMap<>();
-            symmetricDifference
-            .entrySet()
-            .stream()
-            .filter(entry -> entry.getValue().left.size() + entry.getValue().right.size() > 0)
-            .forEach(entry -> nonEmptyDifference.put(entry.getKey(), entry.getValue()));
+            Map<InetAddress, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(snapshot, changes);
+            Map<InetAddress, Pair<List<Token>, List<Token>>> sortedSymmetricDifference = new HashMap<>();
 
-            if (!nonEmptyDifference.isEmpty())
-            {
-                logger.info(messagePrefix, SafeArg.of("Difference", symmetricDifference));
+            for (Map.Entry<InetAddress, Pair<Set<Token>, Set<Token>>> entry : symmetricDifference.entrySet()) {
+                List<Token> before = new ArrayList<>(entry.getValue().left).stream().sorted().collect(Collectors.toList());
+                List<Token> after = new ArrayList<>(entry.getValue().right).stream().sorted().collect(Collectors.toList());
+                sortedSymmetricDifference.put(entry.getKey(), Pair.create(before, after));
             }
+
+            logger.info(messagePrefix, SafeArg.of("Difference", sortedSymmetricDifference));
         }
     }
 
