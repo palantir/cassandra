@@ -30,6 +30,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.DefaultCompactionWriter;
@@ -234,6 +235,8 @@ public class CompactionTask extends AbstractCompactionTask
                 if (collector != null && ci != null)
                     collector.finishCompaction(ci);
             }
+
+            ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
 
             // log a bunch of statistics about the result and save to system table compaction_history
             long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
