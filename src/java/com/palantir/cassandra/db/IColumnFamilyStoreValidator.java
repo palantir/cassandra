@@ -39,7 +39,7 @@ public interface IColumnFamilyStoreValidator
      * {@link org.apache.cassandra.db.ColumnFamilyStore#removeUnusedSstables(CFMetaData, Map)}, false otherwise
      * (e.g. if a different cleanup system is being used outside of {@link org.apache.cassandra.service.CassandraDaemon}).
      */
-    default boolean shouldRemoveUnusedSstables() {
+    default boolean shouldRemoveUnusedSstablesBasedOnAncestorMetadata() {
         return true;
     }
 

@@ -18,18 +18,13 @@
 
 package com.palantir.cassandra.db;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.palantir.cassandra.db.compaction.IColumnFamilyStoreWriteAheadLogger;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.io.sstable.Descriptor;
-import org.apache.cassandra.utils.Pair;
 
 
 public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IColumnFamilyStoreWriteAheadLogger
@@ -68,8 +63,8 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IC
     }
 
     @Override
-    public boolean shouldRemoveUnusedSstables() {
-        return validator.shouldRemoveUnusedSstables();
+    public boolean shouldRemoveUnusedSstablesBasedOnAncestorMetadata() {
+        return validator.shouldRemoveUnusedSstablesBasedOnAncestorMetadata();
     }
 
     @Override
