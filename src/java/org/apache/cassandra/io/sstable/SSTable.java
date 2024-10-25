@@ -30,6 +30,8 @@ import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.BufferDecoratedKey;
 import org.apache.cassandra.db.DecoratedKey;
@@ -39,7 +41,6 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.cassandra.utils.concurrent.RefCounted;
 import org.apache.cassandra.utils.memory.HeapAllocator;
 import org.apache.cassandra.utils.Pair;
 
@@ -106,22 +107,27 @@ public abstract class SSTable
     {
         // remove the DATA component first if it exists
         if (components.contains(Component.DATA))
-            deleteWithLog(FileUtils::deleteWithConfirm, desc.filenameFor(Component.DATA));
+            deleteWithLog(FileUtils::deleteWithConfirm, desc, Component.DATA);
         for (Component component : components)
         {
             if (component.equals(Component.DATA) || component.equals(Component.SUMMARY))
                 continue;
 
-            deleteWithLog(FileUtils::deleteWithConfirm, desc.filenameFor(component));
+            deleteWithLog(FileUtils::deleteWithConfirm, desc, component);
         }
-        deleteWithLog(FileUtils::delete, desc.filenameFor(Component.SUMMARY));
+        deleteWithLog(FileUtils::delete, desc, Component.SUMMARY);
 
         return true;
     }
 
-    private static void deleteWithLog(Consumer<String> deleter, String filename) {
+    private static void deleteWithLog(Consumer<String> deleter, Descriptor desc, Component component) {
+        String filename = desc.filenameFor(component);
         deleter.accept(filename);
-        logger.info("Deleted {}", filename);
+        logger.info("Deleted SSTable file {}",
+            UnsafeArg.of("filename", filename),
+            SafeArg.of("keyspace", desc.ksname),
+            SafeArg.of("columnFamily", desc.cfname),
+            SafeArg.of("relativeFilename", desc.relativeFilenameFor(component)));
     }
 
     /**
