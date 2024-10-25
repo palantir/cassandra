@@ -28,7 +28,7 @@ public class ReadOnlyHistogram extends Histogram
 
     private final Supplier<Snapshot> snapshotSupplier;
 
-    private int size = -1;
+    private int size = 0;
 
     public ReadOnlyHistogram(Supplier<Snapshot> snapshotSupplier)
     {
