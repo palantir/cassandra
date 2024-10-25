@@ -394,8 +394,8 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
 }
 
 /*
-This class is not thread safe.
-*/
+ This class is not thread safe.
+ */
 class ArrayBackedBoundedStats
 {
     private final long[] arrivalIntervals;
@@ -411,13 +411,13 @@ class ArrayBackedBoundedStats
 
     public void add(long interval)
     {
-        if (index == arrivalIntervals.length)
+        if(index == arrivalIntervals.length)
         {
             isFilled = true;
             index = 0;
         }
 
-        if (isFilled)
+        if(isFilled)
             sum = sum - arrivalIntervals[index];
 
         arrivalIntervals[index++] = interval;
@@ -523,13 +523,13 @@ class ArrivalWindow
         return lastReportedPhi;
     }
 
-    public String toString()
-    {
-        return Arrays.toString(arrivalIntervals.getArrivalIntervals());
-    }
-
     public long getLastInterval()
     {
         return arrivalIntervals.getLastInterval();
+    }
+
+    public String toString()
+    {
+        return Arrays.toString(arrivalIntervals.getArrivalIntervals());
     }
 }
