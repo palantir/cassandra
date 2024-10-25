@@ -27,12 +27,11 @@ import java.util.concurrent.TimeUnit;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.*;
 
-import com.google.common.collect.ImmutableMap;
-
-import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
+import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.metrics.FailureDetectorMetrics;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
@@ -294,7 +293,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         {
             StorageService.instance.unsafeDisableNode();
             logger.error("Detected local pause longer than Gossiper failed bootstrap timeout (nanos) {}"
-                         + "whilst node was bootstrapping", MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS);
+                   + "whilst node was bootstrapping", MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS);
             StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR,
                                                             ImmutableMap.of("timeoutDuringBootstrap", "true"));
             throw new BootstrappingSafetyException("Bootstrap failed due to gossip timeout");
