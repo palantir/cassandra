@@ -968,14 +968,14 @@ public class TokenMetadata
         {
             Collection<Token> tokens = bootstrapAddresses.get(endpoint);
             allLeftMetadata.updateNormalTokens(tokens, endpoint);
-            Collection<Range<Token>> addressRangesForEndpoint = strategy.getAddressRanges(allLeftMetadata).get(endpoint);
-            for (Range<Token> range : addressRangesForEndpoint)
+            Collection<Range<Token>> tokenRangeForEndpoint = strategy.getAddressRanges(allLeftMetadata).get(endpoint);
+            for (Range<Token> range : tokenRangeForEndpoint)
             {
                 newPendingRanges.addPendingRange(range, endpoint);
             }
             allLeftMetadata.removeEndpoint(endpoint);
 
-            logBootstrapDifference(endpoint, addressRangesSnapshot, addressRangesForEndpoint);
+            logBootstrapDifference(strategy.keyspaceName, endpoint, addressRangesSnapshot, tokenRangeForEndpoint);
         }
 
         // At this stage newPendingRanges has been updated according to leaving and bootstrapping nodes.
@@ -1385,16 +1385,16 @@ public class TokenMetadata
         }
     }
 
-    private void logBootstrapDifference(String keyspace, InetAddress endpoint, Multimap<Range<Token>, InetAddress> snapshot, Collection<Range<Token>> newTokenRanges)
+    private void logBootstrapDifference(String keyspace, InetAddress endpoint, Multimap<Range<Token>, InetAddress> snapshot, Collection<Range<Token>> tokenRangeForEndpoint)
     {
         if (shouldLogTokenChanges)
         {
             logger.info("Pending ranges for bootstrapping endpoint",
                         SafeArg.of("keyspace", keyspace),
                         SafeArg.of("bootstrapingEndpoint", endpoint),
-                        SafeArg.of("previousOwners", MapUtils.intersection(snapshot, newTokenRanges)),
-                        SafeArg.of("pendingRangeCount", newTokenRanges.size()));
-            logger.debug("Pending range for endpoint", newTokenRanges);
+                        SafeArg.of("previousOwners", MapUtils.intersection(snapshot, tokenRangeForEndpoint)),
+                        SafeArg.of("pendingRangeCount", tokenRangeForEndpoint.size()));
+            logger.debug("Pending range for endpoint", SafeArg.of("pendingRange", tokenRangeForEndpoint));
         }
     }
 
