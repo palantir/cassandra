@@ -20,32 +20,57 @@ package org.apache.cassandra.tools;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.EnumSet;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.collect.Sets;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.metadata.*;
+import org.apache.commons.cli.*;
 
 /**
  * Shows the contents of sstable metadata
  */
 public class SSTableMetadataViewer
 {
+    private static final String ANCESTOR_OPTION = "a";
+    private static final Options options = new Options();
+    private static CommandLine cmd;
+
+    static
+    {
+        Option optKey = new Option(ANCESTOR_OPTION, true, "Ancestor generation");
+        // Number of times -a <ancestor> can be passed on the command line.
+        optKey.setArgs(500);
+        options.addOption(optKey);
+    }
+
     /**
      * @param args a list of sstables whose metadata we're interested in
      */
     public static void main(String[] args) throws IOException
     {
+        String usage = "Usage: sstablemetadata <sstable filenames> [-a ancestor [-a ancestor [...]]";
         PrintStream out = System.out;
-        if (args.length == 0)
+
+        CommandLineParser parser = new PosixParser();
+        try
         {
-            out.println("Usage: sstablemetadata <sstable filenames>");
+            cmd = parser.parse(options, args);
+        }
+        catch (ParseException e1)
+        {
+            System.err.println(e1.getMessage());
+            System.err.println(usage);
             System.exit(1);
         }
 
         Util.initDatabaseDescriptor();
 
-        for (String fname : args)
+        Set<String> ancestors = Arrays.stream(cmd.getOptionValues(ANCESTOR_OPTION)).collect(Collectors.toSet());
+        boolean filterAncestors = !ancestors.isEmpty();
+        for (String fname : cmd.getArgs())
         {
             if (new File(fname).exists())
             {
@@ -54,6 +79,9 @@ public class SSTableMetadataViewer
                 ValidationMetadata validation = (ValidationMetadata) metadata.get(MetadataType.VALIDATION);
                 StatsMetadata stats = (StatsMetadata) metadata.get(MetadataType.STATS);
                 CompactionMetadata compaction = (CompactionMetadata) metadata.get(MetadataType.COMPACTION);
+                if (filterAncestors && Sets.intersection(ancestors, compaction.ancestors).isEmpty()) {
+                    continue;
+                }
 
                 out.printf("SSTable: %s%n", descriptor);
                 if (validation != null)
