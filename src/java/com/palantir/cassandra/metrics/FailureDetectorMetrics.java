@@ -34,16 +34,16 @@ public class FailureDetectorMetrics
     public static void register(
         InetAddress ep, Gauge<Double> phiSupplier, Gauge<Long> lastIntervalSupplier, Supplier<Snapshot> snapshotSupplier)
     {
-        Metrics.register(createMetricName(ep, "failureDetectorPhi"), phiSupplier);
-        Metrics.register(createMetricName(ep, "failureDetectorLastInterval"), lastIntervalSupplier);
-        Metrics.register(createMetricName(ep, "failureDetectorArrivalIntervals"), new ReadOnlyHistogram(snapshotSupplier));
+        Metrics.register(createMetricName(ep, "FailureDetectorPhi"), phiSupplier);
+        Metrics.register(createMetricName(ep, "FailureDetectorLastInterval"), lastIntervalSupplier);
+        Metrics.register(createMetricName(ep, "FailureDetectorArrivalIntervals"), new ReadOnlyHistogram(snapshotSupplier));
     }
 
     public static void unregister(InetAddress ep)
     {
-        Metrics.remove(createMetricName(ep, "failureDetectorPhi"));
-        Metrics.remove(createMetricName(ep, "failureDetectorLastInterval"));
-        Metrics.remove(createMetricName(ep, "failureDetectorArrivalIntervals"));
+        Metrics.remove(createMetricName(ep, "FailureDetectorPhi"));
+        Metrics.remove(createMetricName(ep, "FailureDetectorLastInterval"));
+        Metrics.remove(createMetricName(ep, "FailureDetectorArrivalIntervals"));
     }
 
     private static CassandraMetricsRegistry.MetricName createMetricName(InetAddress ep, String name)
