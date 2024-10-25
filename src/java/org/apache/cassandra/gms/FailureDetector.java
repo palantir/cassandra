@@ -424,7 +424,7 @@ class ArrayBackedBoundedStats
 
         arrivalIntervals[index++] = interval;
         sum += interval;
-        mean = (double) sum / size();
+        mean = (double)sum / size();
     }
 
     private int size()
