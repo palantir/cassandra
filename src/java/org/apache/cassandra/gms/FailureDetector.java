@@ -31,6 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
+
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.UniformSnapshot;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.metrics.FailureDetectorMetrics;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -276,7 +279,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
                 previousHeartbeatWindow.add(now, ep);
                 heartbeatWindow = previousHeartbeatWindow;
             }
-            FailureDetectorMetrics.register(ep, heartbeatWindow);
+            FailureDetectorMetrics.register(ep, heartbeatWindow::getLastReportedPhi, heartbeatWindow::getLastInterval, heartbeatWindow::getSnapshot);
         }
         else
         {
@@ -525,6 +528,11 @@ class ArrivalWindow
     public long getLastInterval()
     {
         return arrivalIntervals.getLastInterval();
+    }
+
+    public Snapshot getSnapshot()
+    {
+        return new UniformSnapshot(arrivalIntervals.getArrivalIntervals());
     }
 
     public String toString()

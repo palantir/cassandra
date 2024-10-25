@@ -18,22 +18,45 @@
 
 package com.palantir.cassandra.metrics;
 
+import java.util.function.Supplier;
+
 import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Reservoir;
+import com.codahale.metrics.Snapshot;
 
-public class ReservoirHistogram extends Histogram
+public class ReadOnlyHistogram extends Histogram
 {
-    private final Reservoir reservoir;
 
-    public ReservoirHistogram(Reservoir reservoir)
+    private final Supplier<Snapshot> snapshotSupplier;
+
+    private int size = -1;
+
+    public ReadOnlyHistogram(Supplier<Snapshot> snapshotSupplier)
     {
-        super(reservoir);
-        this.reservoir = reservoir;
+        super(null);
+        this.snapshotSupplier = snapshotSupplier;
+    }
+
+    @Override
+    public void update(int _value)
+    {
+    }
+
+    @Override
+    public void update(long _value)
+    {
     }
 
     @Override
     public long getCount()
     {
-        return reservoir.size();
+        return size;
+    }
+
+    @Override
+    public Snapshot getSnapshot()
+    {
+        Snapshot snapshot = snapshotSupplier.get();
+        size = snapshot.size();
+        return snapshot;
     }
 }

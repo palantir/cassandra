@@ -19,32 +19,31 @@
 package com.palantir.cassandra.metrics;
 
 import java.net.InetAddress;
+import java.util.function.Supplier;
 
 import com.google.common.net.InetAddresses;
 
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Snapshot;
-import com.codahale.metrics.UniformSnapshot;
-import org.apache.cassandra.gms.FailureDetector.ArrivalWindow;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
 public class FailureDetectorMetrics
 {
-    public static void register(InetAddress ep, ArrivalWindow window)
+    public static void register(
+        InetAddress ep, Gauge<Double> phiSupplier, Gauge<Long> lastIntervalSupplier, Supplier<Snapshot> snapshotSupplier)
     {
-        Metrics.register(createMetricName(ep, "failureDetectorPhi"), (Gauge<Double>) window::getLastReportedPhi);
-        Metrics.register(createMetricName(ep, "failureDetectorArrivalIntervals"), new ReservoirHistogram(window));
-        Metrics.register(createMetricName(ep, "failureDetectorLastInterval"), (Gauge<Long>) window::getLastInterval);
+        Metrics.register(createMetricName(ep, "failureDetectorPhi"), phiSupplier);
+        Metrics.register(createMetricName(ep, "failureDetectorLastInterval"), lastIntervalSupplier);
+        Metrics.register(createMetricName(ep, "failureDetectorArrivalIntervals"), new ReadOnlyHistogram(snapshotSupplier));
     }
 
     public static void unregister(InetAddress ep)
     {
         Metrics.remove(createMetricName(ep, "failureDetectorPhi"));
-        Metrics.remove(createMetricName(ep, "failureDetectorArrivalIntervals"));
         Metrics.remove(createMetricName(ep, "failureDetectorLastInterval"));
+        Metrics.remove(createMetricName(ep, "failureDetectorArrivalIntervals"));
     }
 
     private static CassandraMetricsRegistry.MetricName createMetricName(InetAddress ep, String name)
@@ -59,19 +58,5 @@ public class FailureDetectorMetrics
         mbeanName.append(",name=").append(name);
 
         return new CassandraMetricsRegistry.MetricName(groupName, "FailureDetector", name, endpoint, mbeanName.toString());
-    }
-
-    public Snapshot getSnapshot()
-    {
-        // Based on https://github.com/dropwizard/metrics/blob/release/4.2.x/metrics-core/src/main/java/com/codahale/metrics/SlidingWindowReservoir.java#L35
-        long[] values = new long[size()];
-        for (int i = 0; i < values.length; i++)
-        {
-            synchronized (this)
-            {
-                values[i] = arrivalIntervals[i];
-            }
-        }
-        return new UniformSnapshot(values);
     }
 }
