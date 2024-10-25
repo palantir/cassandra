@@ -24,6 +24,8 @@ import com.google.common.net.InetAddresses;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.UniformSnapshot;
 import org.apache.cassandra.gms.FailureDetector.ArrivalWindow;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 
@@ -57,5 +59,19 @@ public class FailureDetectorMetrics
         mbeanName.append(",name=").append(name);
 
         return new CassandraMetricsRegistry.MetricName(groupName, "FailureDetector", name, endpoint, mbeanName.toString());
+    }
+
+    public Snapshot getSnapshot()
+    {
+        // Based on https://github.com/dropwizard/metrics/blob/release/4.2.x/metrics-core/src/main/java/com/codahale/metrics/SlidingWindowReservoir.java#L35
+        long[] values = new long[size()];
+        for (int i = 0; i < values.length; i++)
+        {
+            synchronized (this)
+            {
+                values[i] = arrivalIntervals[i];
+            }
+        }
+        return new UniformSnapshot(values);
     }
 }
