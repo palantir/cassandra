@@ -27,7 +27,6 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 
-import org.apache.cassandra.gms.FailureDetector.ArrivalWindow;
 import org.apache.cassandra.utils.FBUtilities;
 
 public class ArrivalWindowTest
