@@ -33,16 +33,16 @@ public class FailureDetectorMetrics
 {
     public static void register(InetAddress ep, ArrivalWindow window)
     {
-        Metrics.register(createMetricName(ep, "phi"), (Gauge<Double>) window::getLastReportedPhi);
-        Metrics.register(createMetricName(ep, "interval_histogram"), new Histogram(window));
-        Metrics.register(createMetricName(ep, "last_interval"), (Gauge<Long>) window::getLastInterval);
+        Metrics.register(createMetricName(ep, "failureDetectorPhi"), (Gauge<Double>) window::getLastReportedPhi);
+        Metrics.register(createMetricName(ep, "failureDetectorArrivalIntervals"), new ReservoirHistogram(window));
+        Metrics.register(createMetricName(ep, "failureDetectorLastInterval"), (Gauge<Long>) window::getLastInterval);
     }
 
     public static void unregister(InetAddress ep)
     {
-        Metrics.remove(createMetricName(ep, "phi"));
-        Metrics.remove(createMetricName(ep, "interval_histogram"));
-        Metrics.remove(createMetricName(ep, "last_interval"));
+        Metrics.remove(createMetricName(ep, "failureDetectorPhi"));
+        Metrics.remove(createMetricName(ep, "failureDetectorArrivalIntervals"));
+        Metrics.remove(createMetricName(ep, "failureDetectorLastInterval"));
     }
 
     private static CassandraMetricsRegistry.MetricName createMetricName(InetAddress ep, String name)
