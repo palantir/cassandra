@@ -30,10 +30,9 @@ import javax.management.openmbean.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableMap;
-
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.UniformSnapshot;
+import com.google.common.collect.ImmutableMap;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.metrics.FailureDetectorMetrics;
 import org.apache.cassandra.config.DatabaseDescriptor;
