@@ -519,17 +519,17 @@ class ArrivalWindow
         return lastReportedPhi;
     }
 
-    public double getLastReportedPhi()
+    double getLastReportedPhi()
     {
         return lastReportedPhi;
     }
 
-    public long getLastInterval()
+    long getLastInterval()
     {
         return arrivalIntervals.getLastInterval();
     }
 
-    public Snapshot getSnapshot()
+    Snapshot getSnapshot()
     {
         return new UniformSnapshot(arrivalIntervals.getArrivalIntervals());
     }
