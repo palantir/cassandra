@@ -74,4 +74,18 @@ public class ArrayBackedBoundedStatsTest {
         long [] expected = new long[] {1000,999,998,997, 996};
         assertArrivalIntervals(bsd, expected);
     }
+
+    @Test
+    public void testGetLastInterval()
+    {
+        int size = 5;
+        ArrayBackedBoundedStats bsd = new ArrayBackedBoundedStats(size);
+
+        assertEquals(0, bsd.getLastInterval());
+        for(long i=0; i <= 1000; i++)
+        {
+            bsd.add(i);
+            assertEquals(i, bsd.getLastInterval());
+        }
+    }
 }

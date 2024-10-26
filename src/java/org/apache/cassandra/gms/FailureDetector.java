@@ -444,7 +444,7 @@ class ArrayBackedBoundedStats
 
     public long getLastInterval()
     {
-        return arrivalIntervals[index % arrivalIntervals.length];
+        return arrivalIntervals[Math.floorMod(index-1, arrivalIntervals.length)];
     }
 }
 
