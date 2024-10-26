@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.cassandra.db;
 
-import com.palantir.cassandra.utils.OwnershipVerificationUtils;
-import org.apache.cassandra.net.IVerbHandler;
-import org.apache.cassandra.net.MessageIn;
-import org.apache.cassandra.net.MessagingService;
+package com.palantir.cassandra.utils;
 
-public class ReadRepairVerbHandler implements IVerbHandler<Mutation>
+import org.apache.cassandra.db.Keyspace;
+
+import java.net.InetAddress;
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.List;
+
+public interface OwnershipVerificationHandler
 {
-    public void doVerb(MessageIn<Mutation> message, int id)
-    {
-        OwnershipVerificationUtils.verifyMutation(message.payload);
-        message.payload.apply();
-        WriteResponse response = new WriteResponse();
-        MessagingService.instance().sendReply(response.createMessage(), id, message.from);
-    }
+    void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints);
+
+    void onValid(Keyspace keyspace);
 }

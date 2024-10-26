@@ -41,7 +41,7 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class MutationVerificationUtilsTest
+public class OwnershipVerificationUtilsTest
 {
     public static final String KEYSPACE5 = "Keyspace5";
     public static final String CF_STANDARD1 = "Standard1";
@@ -81,7 +81,7 @@ public class MutationVerificationUtilsTest
         SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
         StorageService.instance.setTokens(Collections.singletonList(StorageService.getPartitioner().getToken(ByteBufferUtil.bytes("a"))));
         tmd.updateNormalToken(StorageService.getPartitioner().getToken(ByteBufferUtil.bytes("b")), REMOTE);
-        MutationVerificationUtils.clearLastTokenRingCacheUpdate();
+        OwnershipVerificationUtils.clearLastTokenRingCacheUpdate();
     }
 
     @Test
@@ -89,7 +89,7 @@ public class MutationVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("a");
         Mutation mutation = new Mutation(KEYSPACE5, key);
-        MutationVerificationUtils.verifyMutation(mutation);
+        OwnershipVerificationUtils.verifyMutation(mutation);
     }
 
     @Test
@@ -97,7 +97,7 @@ public class MutationVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("b");
         Mutation mutation = new Mutation(KEYSPACE5, key);
-        assertThatThrownBy(() -> MutationVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
     }
 
     @Test
@@ -107,7 +107,7 @@ public class MutationVerificationUtilsTest
         Mutation mutation = new Mutation(KEYSPACE5, key);
 
         long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
-        MutationVerificationUtils.verifyMutation(mutation);
+        OwnershipVerificationUtils.verifyMutation(mutation);
         long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
         assertThat(initialRingVersion).isEqualTo(finalRingVersion);
     }
@@ -119,7 +119,7 @@ public class MutationVerificationUtilsTest
         Mutation mutation = new Mutation(KEYSPACE5, key);
 
         long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
-        assertThatThrownBy(() -> MutationVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
         long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
         assertThat(initialRingVersion).isNotEqualTo(finalRingVersion);
     }
