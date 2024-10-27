@@ -27,11 +27,14 @@ import java.util.concurrent.TimeUnit;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.*;
 
-import com.google.common.collect.ImmutableMap;
-import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.UniformSnapshot;
+import com.google.common.collect.ImmutableMap;
+import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.metrics.FailureDetectorMetrics;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
@@ -268,16 +271,21 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
             // avoid adding an empty ArrivalWindow to the Map
             heartbeatWindow = new ArrivalWindow(SAMPLE_SIZE);
             heartbeatWindow.add(now, ep);
-            heartbeatWindow = arrivalSamples.putIfAbsent(ep, heartbeatWindow);
-            if (heartbeatWindow != null)
-                heartbeatWindow.add(now, ep);
+            ArrivalWindow previousHeartbeatWindow = arrivalSamples.putIfAbsent(ep, heartbeatWindow);
+            if (previousHeartbeatWindow != null)
+            {
+                // Another thread beat us to registering the ArrivalWindow.
+                previousHeartbeatWindow.add(now, ep);
+                heartbeatWindow = previousHeartbeatWindow;
+            }
+            FailureDetectorMetrics.register(ep, heartbeatWindow::getLastReportedPhi, heartbeatWindow::getLastInterval, heartbeatWindow::getSnapshot);
         }
         else
         {
             heartbeatWindow.add(now, ep);
         }
 
-        if (logger.isTraceEnabled() && heartbeatWindow != null)
+        if (logger.isTraceEnabled())
             logger.trace("Average for {} is {}", ep, heartbeatWindow.mean());
     }
 
@@ -355,6 +363,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
     public void remove(InetAddress ep)
     {
         arrivalSamples.remove(ep);
+        FailureDetectorMetrics.unregister(ep);
     }
 
     public void registerFailureDetectionEventListener(IFailureDetectionEventListener listener)
@@ -432,6 +441,10 @@ class ArrayBackedBoundedStats
         return arrivalIntervals;
     }
 
+    public long getLastInterval()
+    {
+        return arrivalIntervals[Math.floorMod(index-1, arrivalIntervals.length)];
+    }
 }
 
 class ArrivalWindow
@@ -511,9 +524,18 @@ class ArrivalWindow
         return lastReportedPhi;
     }
 
+    long getLastInterval()
+    {
+        return arrivalIntervals.getLastInterval();
+    }
+
+    Snapshot getSnapshot()
+    {
+        return new UniformSnapshot(arrivalIntervals.getArrivalIntervals());
+    }
+
     public String toString()
     {
         return Arrays.toString(arrivalIntervals.getArrivalIntervals());
     }
 }
-
