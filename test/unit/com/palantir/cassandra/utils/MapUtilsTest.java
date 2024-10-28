@@ -26,81 +26,30 @@ import com.google.common.collect.Multimap;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.locator.PendingRangeMaps;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.ByteBufferUtil;
 import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.utils.Pair;
 
-import static org.apache.cassandra.Util.token;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class MapUtilsTest
 {
-    private static final String KEY_1 = "key1";
-
-    private static final Token TOKEN_1 = token("token1");
-
-    private static final Token TOKEN_2 = token("token2");
-
     private InetAddress ep1;
 
     private InetAddress ep2;
-
-    private Multimap<String, Token> v1;
-
-    private Multimap<String, Token> v2;
 
     private Multimap<Range<Token>, InetAddress> addressRange;
 
     @Before
     public void before() throws Exception
     {
-        v1 = HashMultimap.<String, Token>create();
-        v2 = HashMultimap.<String, Token>create();
         addressRange = HashMultimap.create();
 
         ep1 = InetAddress.getByName("127.0.0.1");
         ep2 = InetAddress.getByName("127.0.0.2");
-    }
-
-    @Test
-    public void symmetricDifference_sameMapContentHasEmptySet()
-    {
-        putAll(v1, KEY_1, TOKEN_1);
-        putAll(v2, KEY_1, TOKEN_1);
-        Map<String, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
-        assertThat(symmetricDifference.keySet()).containsExactly(KEY_1);
-        assertThat(symmetricDifference.get(KEY_1)).isNotNull().satisfies(pair -> {
-            assertThat(pair.left).isEmpty();
-            assertThat(pair.right).isEmpty();
-        });
-    }
-
-    @Test
-    public void symmetricDifference_appendedValuesAreIncludedInSet2()
-    {
-        putAll(v1, KEY_1, TOKEN_1);
-        putAll(v2, KEY_1, TOKEN_1, TOKEN_2);
-        Map<String, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
-        assertThat(symmetricDifference.keySet()).containsExactly(KEY_1);
-        assertThat(symmetricDifference.get(KEY_1)).isNotNull().satisfies(pair -> {
-            assertThat(pair.left).isEmpty();
-            assertThat(pair.right).containsExactlyInAnyOrder(TOKEN_2);
-        });
-    }
-
-    @Test
-    public void symmetricDifference_remainingValuesAreIncludedInSet1()
-    {
-        putAll(v1, KEY_1, TOKEN_1, TOKEN_2);
-        putAll(v2, KEY_1, TOKEN_1);
-        Map<String, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(v1, v2);
-        assertThat(symmetricDifference.keySet()).containsExactly(KEY_1);
-        assertThat(symmetricDifference.get(KEY_1)).isNotNull().satisfies(pair -> {
-            assertThat(pair.left).containsExactlyInAnyOrder(TOKEN_2);
-            assertThat(pair.right).isEmpty();
-        });
     }
 
     @Test
@@ -135,6 +84,18 @@ public final class MapUtilsTest
                 .containsExactly(range2, range3, range1);
     }
 
+    @Test
+    public void coalesce_sortTokens()
+    {
+        Multimap<InetAddress, Token> endpointToken = HashMultimap.create();
+        putAll(endpointToken, ep1, token("f"), token("0"), token("a"));
+        Map<InetAddress, List<Token>> sortedEndpointToken = MapUtils.coalesce(endpointToken);
+        assertThat(sortedEndpointToken.keySet()).containsExactly(ep1);
+        assertThat(sortedEndpointToken.get(ep1))
+                .isNotNull()
+                .containsExactly(token("0"), token("a"), token("f"));
+    }
+
     @SafeVarargs
     private final <U, V> void putAll(Multimap<U, V> map, U key, V... tokens)
     {
@@ -150,5 +111,10 @@ public final class MapUtilsTest
     private Range<Token> rangeOf(String leftBound, String rightBound)
     {
         return new Range<>(new RandomPartitioner.BigIntegerToken(leftBound), new RandomPartitioner.BigIntegerToken(rightBound));
+    }
+
+    public static Token token(String key)
+    {
+        return StorageService.getPartitioner().getToken(ByteBufferUtil.bytes(key));
     }
 }

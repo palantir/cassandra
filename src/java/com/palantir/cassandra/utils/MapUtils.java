@@ -38,26 +38,6 @@ public final class MapUtils
     }
 
     /**
-     * For each key in the union of all keys, find their symmetric difference between the versions of the map.
-     * For a given key, {@link Pair#left} are values that exist only in the first map and {@link Pair#right} are values
-     * that exist only in the second map.
-     */
-    public static <U, V> Map<U, Pair<Set<V>, Set<V>>> symmetricDifference(Multimap<U, V> v1, Multimap<U, V> v2)
-    {
-        Set<U> keys = Sets.union(v1.keySet(), v2.keySet()).immutableCopy();
-        Map<U, Pair<Set<V>, Set<V>>> symmetricDifference = new HashMap<>();
-
-        for (U key : keys)
-        {
-            Set<V> valuesFromV1 = new HashSet<>(v1.get(key));
-            Set<V> valuesFromV2 = new HashSet<>(v2.get(key));
-            symmetricDifference.put(key, Pair.create(Sets.difference(valuesFromV1, valuesFromV2), Sets.difference(valuesFromV2, valuesFromV1)));
-        }
-
-        return symmetricDifference;
-    }
-
-    /**
      * Returns a list of endpoints where its token range intersect with any token ranges in the input list.
      */
     public static Set<InetAddress> intersection(Multimap<Range<Token>, InetAddress> addressRanges, Collection<Range<Token>> tokenRanges)
@@ -92,8 +72,27 @@ public final class MapUtils
                 coalesced.computeIfAbsent(endpoint, _k -> new ArrayList<>()).add(entry.getKey());
             }
         }
-        coalesced.replaceAll((_k, tokenRanges) -> tokenRanges.stream().sorted().collect(Collectors.toList()));
+        coalesced.replaceAll((_k, tokenRanges) -> sort(tokenRanges));
 
         return coalesced;
+    }
+
+    /**
+     * Similar to {@link MapUtils#coalesce(Multimap)}
+     */
+    public static Map<InetAddress, List<Token>> coalesce(Multimap<InetAddress, Token> endpointToken)
+    {
+        Map<InetAddress, List<Token>> coalesced = new HashMap<>();
+
+        for (InetAddress endpoint : endpointToken.keys())
+        {
+            coalesced.put(endpoint, sort(endpointToken.get(endpoint)));
+        }
+
+        return coalesced;
+    }
+
+    private static <T> List<T> sort(Collection<T> collection) {
+        return collection.stream().sorted().collect(Collectors.toList());
     }
 }

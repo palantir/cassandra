@@ -198,12 +198,15 @@ public class TokenMetadata
         if (endpointTokens.isEmpty())
             return;
 
+        if (StorageService.instance.isSetupCompleted())
+        {
+            logger.info("updateNormalTokens", SafeArg.of("endpointTokens", MapUtils.coalesce(endpointTokens)));
+        }
+
         publicLock.readLock().lock();
         lock.writeLock().lock();
         try
         {
-            Multimap<InetAddress, Token> tokenToEndpointMapSnapshot = HashMultimap.create(tokenToEndpointMap.inverse());
-
             boolean shouldSortTokens = false;
             for (InetAddress endpoint : endpointTokens.keySet())
             {
@@ -232,8 +235,6 @@ public class TokenMetadata
 
             if (shouldSortTokens)
                 sortedTokens = sortTokens();
-
-            logMultiMapDifference("tokenToEndpointMap changes", tokenToEndpointMapSnapshot, tokenToEndpointMap.inverse());
         }
         finally
         {
@@ -351,8 +352,6 @@ public class TokenMetadata
         lock.writeLock().lock();
         try
         {
-            Multimap<InetAddress, Token> bootstrapTokensSnapshot = HashMultimap.create(bootstrapTokens.inverse());
-
             InetAddress oldEndpoint;
 
             for (Token token : tokens)
@@ -370,8 +369,6 @@ public class TokenMetadata
 
             for (Token token : tokens)
                 bootstrapTokens.put(token, endpoint);
-
-            logMultiMapDifference(String.format("bootstrapTokens changes for %s", original == null ? "bootstrap" : "node replacement"), bootstrapTokensSnapshot, bootstrapTokens.inverse());
         }
         finally
         {
@@ -1348,25 +1345,6 @@ public class TokenMetadata
         cachedTokenMap.set(null);
     }
 
-    private void logMultiMapDifference(String messagePrefix, Multimap<InetAddress, Token> snapshot, Multimap<InetAddress, Token> changes)
-    {
-        if (shouldLogTokenChanges)
-        {
-            Map<InetAddress, Pair<Set<Token>, Set<Token>>> symmetricDifference = MapUtils.symmetricDifference(snapshot, changes);
-            Map<InetAddress, Pair<List<Token>, List<Token>>> sortedSymmetricDifference = new HashMap<>();
-
-            for (Map.Entry<InetAddress, Pair<Set<Token>, Set<Token>>> entry : symmetricDifference.entrySet()) {
-                if (entry.getValue().left.size() + entry.getValue().right.size() > 0) {
-                    List<Token> before = new ArrayList<>(entry.getValue().left).stream().sorted().collect(Collectors.toList());
-                    List<Token> after = new ArrayList<>(entry.getValue().right).stream().sorted().collect(Collectors.toList());
-                    sortedSymmetricDifference.put(entry.getKey(), Pair.create(before, after));
-                }
-            }
-
-            logger.info(messagePrefix, SafeArg.of("Symmetric difference", sortedSymmetricDifference));
-        }
-    }
-
     private void logLeavingEndpointDifference(String keyspace, Set<InetAddress> leavingEndpoints, PendingRangeMaps pendingRangeMaps)
     {
         if (shouldLogTokenChanges && !leavingEndpoints.isEmpty())
@@ -1394,7 +1372,7 @@ public class TokenMetadata
                         SafeArg.of("bootstrapingEndpoint", endpoint),
                         SafeArg.of("previousOwners", MapUtils.intersection(snapshot, tokenRangeForEndpoint)),
                         SafeArg.of("pendingRangeCount", tokenRangeForEndpoint.size()));
-            logger.debug("Pending range for endpoint", SafeArg.of("pendingRange", tokenRangeForEndpoint));
+            logger.debug("Pending range for endpoint", SafeArg.of("pendingRange", tokenRangeForEndpoint.stream().sorted().collect(Collectors.toList())));
         }
     }
 
