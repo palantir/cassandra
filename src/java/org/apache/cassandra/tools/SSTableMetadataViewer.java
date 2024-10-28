@@ -68,8 +68,7 @@ public class SSTableMetadataViewer
 
         Util.initDatabaseDescriptor();
 
-        String[] ancestorsMaybeNull = cmd.getOptionValues(ANCESTOR_OPTION);
-        Set<Integer> ancestors = Arrays.stream(ancestorsMaybeNull != null ? ancestorsMaybeNull : new String[0]).map(Integer::parseInt).collect(Collectors.toSet());
+        Set<Integer> ancestors = Arrays.stream(Optional.ofNullable(cmd.getOptionValues(ANCESTOR_OPTION)).orElseGet(() -> new String[0])).map(Integer::parseInt).collect(Collectors.toSet());
         boolean filterAncestors = !ancestors.isEmpty();
         for (String fname : cmd.getArgs())
         {
