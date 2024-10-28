@@ -107,7 +107,6 @@ public class MutationVerificationUtils
 
     private static void refreshCache()
     {
-        logger.info("Refreshing TokenMetadata cache");
         StorageService.instance.getTokenMetadata().invalidateCachedRings();
         lastTokenRingCacheUpdate = Instant.now();
     }
