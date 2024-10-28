@@ -1990,7 +1990,7 @@ public class ColumnFamilyStoreTest
         }
         finally
         {
-            ColumnFamilyStoreManager.instance.unregisterValidator(validator);
+            ColumnFamilyStoreManager.instance.unregisterValidator();
         }
 
         sstables = dir.sstableLister().list();
