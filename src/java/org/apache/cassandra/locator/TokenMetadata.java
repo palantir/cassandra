@@ -28,6 +28,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.*;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,7 +199,7 @@ public class TokenMetadata
         if (endpointTokens.isEmpty())
             return;
 
-        if (StorageService.instance.isSetupCompleted() && shouldLogTokenChanges)
+        if (StorageService.instance.hasJoined() && shouldLogTokenChanges)
         {
             logger.info("updateNormalTokens", SafeArg.of("endpointTokens", MapUtils.coalesce(endpointTokens)));
         }
