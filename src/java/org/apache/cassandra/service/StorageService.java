@@ -41,12 +41,10 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
-import com.palantir.logsafe.Arg;
 import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.schema.LegacySchemaTables;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
