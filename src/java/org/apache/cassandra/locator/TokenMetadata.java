@@ -198,7 +198,7 @@ public class TokenMetadata
         if (endpointTokens.isEmpty())
             return;
 
-        if (StorageService.instance.isSetupCompleted())
+        if (StorageService.instance.isSetupCompleted() && shouldLogTokenChanges)
         {
             logger.info("updateNormalTokens", SafeArg.of("endpointTokens", MapUtils.coalesce(endpointTokens)));
         }
