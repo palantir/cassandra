@@ -41,6 +41,8 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import com.palantir.logsafe.Safe;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -1533,14 +1535,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     @VisibleForTesting
-    void setMode(Mode m, String msg, boolean log)
+    void setMode(Mode m, @Safe String msg, boolean log)
     {
         operationMode = m;
-        String logMsg = msg == null ? m.toString() : String.format("%s: %s", m, msg);
         if (log)
-            logger.info(logMsg);
+            logger.info(m.toString(), SafeArg.of("msg", msg));
         else
-            logger.debug(logMsg);
+            logger.debug(m.toString(), SafeArg.of("msg", msg));
     }
 
     /**
