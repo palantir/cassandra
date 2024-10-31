@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.collect.Iterables;
+
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.IMutation;
@@ -44,10 +46,20 @@ public class FrozenTimestampMutationVerifier implements MutationVerifier
     @Override
     public UncheckedAutoCloseable verifyMutations(Collection<? extends IMutation> mutations) throws IllegalLogicalTimestampException
     {
+        if (mutations.size() == 1)
+        {
+            return verifyMutation(Iterables.getOnlyElement(mutations));
+        }
         Map<String, Long> keyspaceToMaxWriteTimestamp = computeKeyspaceToMaxWriteTimestamp(mutations);
         List<UncheckedAutoCloseable> locks = acquireAllLocks(keyspaceToMaxWriteTimestamp);
 
         return () -> locks.forEach(UncheckedAutoCloseable::close);
+    }
+
+    @Override
+    public UncheckedAutoCloseable verifyMutation(IMutation mutation) throws IllegalLogicalTimestampException
+    {
+        return acquireLock(mutation.getKeyspaceName(), maxTimestamp(mutation));
     }
 
     private List<UncheckedAutoCloseable> acquireAllLocks(Map<String, Long> keyspaceToMaxWriteTimestamp) throws IllegalLogicalTimestampException
@@ -58,11 +70,16 @@ public class FrozenTimestampMutationVerifier implements MutationVerifier
         {
             String keyspaceName = keyspaceAndMaxWriteTimestamp.getKey();
             Long maxWriteTimestamp = keyspaceAndMaxWriteTimestamp.getValue();
-            locks.add(namespaceToFrozenTimestampTracker.computeIfAbsent(
-                keyspaceName,
-                ignored -> frozenTimestampTrackerFactory.create()).checkAndLockForMutation(maxWriteTimestamp));
+            locks.add(acquireLock(keyspaceName, maxWriteTimestamp));
         }
         return locks;
+    }
+
+    private UncheckedAutoCloseable acquireLock(String keyspaceName, Long maxWriteTimestamp) throws IllegalLogicalTimestampException
+    {
+        return namespaceToFrozenTimestampTracker.computeIfAbsent(
+                    keyspaceName,
+                    ignored -> frozenTimestampTrackerFactory.create()).checkAndLockForMutation(maxWriteTimestamp);
     }
 
     private static Map<String, Long> computeKeyspaceToMaxWriteTimestamp(Collection<? extends IMutation> mutations)
@@ -71,24 +88,24 @@ public class FrozenTimestampMutationVerifier implements MutationVerifier
 
         for (IMutation mutation : mutations)
         {
-            for (ColumnFamily columnFamily : mutation.getColumnFamilies())
-            {
-                long maxTimestamp = maxTimestamp(columnFamily);
-
-                keyspaceToMaxWriteTimestamp.compute(
-                    mutation.getKeyspaceName(),
-                    (ignored, current) -> current != null ? Long.max(current, maxTimestamp) : maxTimestamp);
-            }
+            String keyspaceName = mutation.getKeyspaceName();
+            long maxTimestamp = maxTimestamp(mutation);
+            keyspaceToMaxWriteTimestamp.compute(
+                keyspaceName,
+                (ignored, current) -> current != null ? Long.max(current, maxTimestamp) : maxTimestamp);
         }
         return keyspaceToMaxWriteTimestamp;
     }
 
-    private static long maxTimestamp(ColumnFamily columnFamily)
+    private static long maxTimestamp(IMutation mutation)
     {
         ColumnStats.MaxLongTracker tracker = new ColumnStats.MaxLongTracker(Long.MIN_VALUE);
-        for (Cell cell : columnFamily)
+        for (ColumnFamily columnFamily : mutation.getColumnFamilies())
         {
-            tracker.update(cell.timestamp());
+            for (Cell cell : columnFamily)
+            {
+                tracker.update(cell.timestamp());
+            }
         }
         return tracker.get();
     }

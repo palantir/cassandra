@@ -25,4 +25,6 @@ import org.apache.cassandra.db.IMutation;
 public interface MutationVerifier
 {
     UncheckedAutoCloseable verifyMutations(Collection<? extends IMutation> mutations) throws IllegalLogicalTimestampException;
+
+    UncheckedAutoCloseable verifyMutation(IMutation mutation) throws IllegalLogicalTimestampException;
 }
