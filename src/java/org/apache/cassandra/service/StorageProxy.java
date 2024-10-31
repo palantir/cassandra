@@ -33,6 +33,11 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
+import com.palantir.cassandra.logicalts.CollectionBasedFrozenTimestampTracker;
+import com.palantir.cassandra.logicalts.FrozenTimestampMutationVerifier;
+import com.palantir.cassandra.logicalts.IllegalLogicalTimestampException;
+import com.palantir.cassandra.logicalts.MutationVerifier;
+import com.palantir.cassandra.logicalts.UncheckedAutoCloseable;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -99,6 +104,8 @@ public class StorageProxy implements StorageProxyMBean
     private static final CASClientRequestMetrics casReadMetrics = new CASClientRequestMetrics("CASRead");
 
     private static final double CONCURRENT_SUBREQUESTS_MARGIN = 0.10;
+
+    private static final MutationVerifier mutationVerifier = new FrozenTimestampMutationVerifier(CollectionBasedFrozenTimestampTracker::new);
 
     private StorageProxy() {}
 
@@ -570,7 +577,7 @@ public class StorageProxy implements StorageProxyMBean
 
         ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
 
-        try
+        try (UncheckedAutoCloseable ignored = mutationVerifier.verifyMutations(mutations))
         {
             for (IMutation mutation : mutations)
             {
@@ -626,6 +633,11 @@ public class StorageProxy implements StorageProxyMBean
             writeMetrics.unavailables.mark();
             Tracing.trace("Overloaded");
             throw e;
+        }
+        catch (IllegalLogicalTimestampException e)
+        {
+            // TODO(rhuffman): handle properly
+            throw new RuntimeException(e);
         }
         finally
         {
