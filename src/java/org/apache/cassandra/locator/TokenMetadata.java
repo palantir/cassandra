@@ -128,7 +128,7 @@ public class TokenMetadata
              new Topology(), shouldLogTokenChanges);
     }
 
-    private TokenMetadata(BiMultiValMap<Token, InetAddress> tokenToEndpointMap, BiMap<InetAddress, UUID> endpointsMap , Topology topology, boolean shouldLogTokenChanges)
+    private TokenMetadata(BiMultiValMap<Token, InetAddress> tokenToEndpointMap, BiMap<InetAddress, UUID> endpointsMap, Topology topology, boolean shouldLogTokenChanges)
     {
         this.tokenToEndpointMap = tokenToEndpointMap;
         this.topology = topology;
