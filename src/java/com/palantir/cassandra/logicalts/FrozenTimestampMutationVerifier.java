@@ -25,8 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.IMutation;
+import org.apache.cassandra.io.sstable.ColumnStats;
 
 public class FrozenTimestampMutationVerifier implements MutationVerifier
 {
@@ -71,8 +73,7 @@ public class FrozenTimestampMutationVerifier implements MutationVerifier
         {
             for (ColumnFamily columnFamily : mutation.getColumnFamilies())
             {
-                // TODO(rhuffman): getColumnStats() is expensive. Replace this
-                long maxTimestamp = columnFamily.getColumnStats().maxTimestamp;
+                long maxTimestamp = maxTimestamp(columnFamily);
 
                 keyspaceToMaxWriteTimestamp.compute(
                     mutation.getKeyspaceName(),
@@ -80,5 +81,15 @@ public class FrozenTimestampMutationVerifier implements MutationVerifier
             }
         }
         return keyspaceToMaxWriteTimestamp;
+    }
+
+    private static long maxTimestamp(ColumnFamily columnFamily)
+    {
+        ColumnStats.MaxLongTracker tracker = new ColumnStats.MaxLongTracker(Long.MIN_VALUE);
+        for (Cell cell : columnFamily)
+        {
+            tracker.update(cell.timestamp());
+        }
+        return tracker.get();
     }
 }
