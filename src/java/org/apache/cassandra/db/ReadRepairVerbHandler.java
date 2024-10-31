@@ -17,6 +17,9 @@
  */
 package org.apache.cassandra.db;
 
+import com.palantir.cassandra.logicalts.IllegalLogicalTimestampException;
+import com.palantir.cassandra.logicalts.MutationVerifier;
+import com.palantir.cassandra.logicalts.UncheckedAutoCloseable;
 import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
@@ -27,8 +30,15 @@ public class ReadRepairVerbHandler implements IVerbHandler<Mutation>
     public void doVerb(MessageIn<Mutation> message, int id)
     {
         OwnershipVerificationUtils.verifyMutation(message.payload);
-        message.payload.apply();
-        WriteResponse response = new WriteResponse();
-        MessagingService.instance().sendReply(response.createMessage(), id, message.from);
+        try(UncheckedAutoCloseable ignored = MutationVerifier.INSTANCE.verifyMutation(message.payload))
+        {
+            message.payload.apply();
+            WriteResponse response = new WriteResponse();
+            MessagingService.instance().sendReply(response.createMessage(), id, message.from);
+        }
+        catch (IllegalLogicalTimestampException e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 }

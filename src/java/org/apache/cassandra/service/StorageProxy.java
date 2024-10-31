@@ -105,8 +105,6 @@ public class StorageProxy implements StorageProxyMBean
 
     private static final double CONCURRENT_SUBREQUESTS_MARGIN = 0.10;
 
-    private static final MutationVerifier mutationVerifier = new FrozenTimestampMutationVerifier(CollectionBasedFrozenTimestampTracker::new);
-
     private StorageProxy() {}
 
     static
@@ -577,7 +575,7 @@ public class StorageProxy implements StorageProxyMBean
 
         ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
 
-        try (UncheckedAutoCloseable ignored = mutationVerifier.verifyMutations(mutations))
+        try (UncheckedAutoCloseable ignored = MutationVerifier.INSTANCE.verifyMutations(mutations))
         {
             for (IMutation mutation : mutations)
             {
