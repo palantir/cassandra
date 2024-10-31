@@ -16,6 +16,7 @@
 
 package com.palantir.cassandra.db;
 
+import java.util.EnumMap;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.db.Keyspace;
@@ -52,15 +53,25 @@ import com.palantir.common.concurrent.CoalescingSupplier;
 public class CompactionsInProgressFlusher {
     private static final boolean COALESCE_FLUSHES = Boolean.getBoolean("palantir_cassandra.coalesce_cip_flushes");
 
-    public static final CompactionsInProgressFlusher INSTANCE = new CompactionsInProgressFlusher();
-    
-    private final Supplier<ReplayPosition> flusher = () -> FBUtilities.waitOnFuture(
-            Keyspace.open(SystemKeyspace.NAME)
-                    .getColumnFamilyStore(SystemKeyspace.COMPACTIONS_IN_PROGRESS)
-                    .forceFlush("CompactionsInProgressFlusher"));
-    private final Supplier<ReplayPosition> coalescingFlusher = new CoalescingSupplier<ReplayPosition>(flusher);
-    
-    private CompactionsInProgressFlusher() { }
+    public static final EnumMap<SystemKeyspace.CompactionsInProgressTable, CompactionsInProgressFlusher> INSTANCES = new EnumMap<>(SystemKeyspace.CompactionsInProgressTable.class);
+
+    static {
+        INSTANCES.put(SystemKeyspace.CompactionsInProgressTable.DEFAULT, new CompactionsInProgressFlusher(SystemKeyspace.CompactionsInProgressTable.DEFAULT));
+        INSTANCES.put(SystemKeyspace.CompactionsInProgressTable.WAL, new CompactionsInProgressFlusher(SystemKeyspace.CompactionsInProgressTable.WAL));
+    }
+
+    private final SystemKeyspace.CompactionsInProgressTable compactionsInProgressTable;
+    private final Supplier<ReplayPosition> flusher;
+    private final Supplier<ReplayPosition> coalescingFlusher;
+
+    private CompactionsInProgressFlusher(SystemKeyspace.CompactionsInProgressTable compactionsInProgressTable) {
+        this.compactionsInProgressTable = compactionsInProgressTable;
+        flusher = () -> FBUtilities.waitOnFuture(
+        Keyspace.open(SystemKeyspace.NAME)
+                .getColumnFamilyStore(compactionsInProgressTable.toString())
+                .forceFlush("CompactionsInProgressFlusher"));
+        coalescingFlusher = new CoalescingSupplier<>(flusher);
+    }
     
     public ReplayPosition forceBlockingFlush() {
         if (COALESCE_FLUSHES) {

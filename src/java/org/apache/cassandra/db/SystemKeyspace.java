@@ -95,6 +95,24 @@ public final class SystemKeyspace
     public static final String SIZE_ESTIMATES = "size_estimates";
     public static final String AVAILABLE_RANGES = "available_ranges";
 
+    public enum CompactionsInProgressTable
+    {
+        DEFAULT("compactions_in_progress"),
+        WAL("post_wal_compactions_in_progress");
+
+        private final String name;
+
+        CompactionsInProgressTable(String name)
+        {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
     public static final CFMetaData Hints =
         compile(HINTS,
                 "hints awaiting delivery",
@@ -212,8 +230,20 @@ public final class SystemKeyspace
         }
         return val;
     }
-    private static int compactionsInProgressMaxCompactionThreshold = getCompactionsInProgresStcsMaxThreshold();
-    private static final CFMetaData CompactionsInProgress =
+    private static final int compactionsInProgressMaxCompactionThreshold = getCompactionsInProgresStcsMaxThreshold();
+    private static final CFMetaData DefaultCompactionsInProgress =
+        compile(COMPACTIONS_IN_PROGRESS,
+                "unfinished compactions",
+                "CREATE TABLE %s ("
+                + "id uuid,"
+                + "columnfamily_name text,"
+                + "inputs set<int>,"
+                + "keyspace_name text,"
+                + "PRIMARY KEY ((id)))")
+                .maxCompactionThreshold(compactionsInProgressMaxCompactionThreshold)
+                .compactionStrategyClass(SizeTieredCompactionStrategy.class)
+                .compactionStrategyOptions(Collections.singletonMap("max_threshold", Integer.toString(compactionsInProgressMaxCompactionThreshold)));
+    private static final CFMetaData WalCompactionsInProgress =
         compile(COMPACTIONS_IN_PROGRESS,
                 "unfinished compactions",
                 "CREATE TABLE %s ("
@@ -290,7 +320,8 @@ public final class SystemKeyspace
                                            Peers,
                                            PeerEvents,
                                            RangeXfers,
-                                           CompactionsInProgress,
+                                           DefaultCompactionsInProgress,
+                                           WalCompactionsInProgress,
                                            CompactionHistory,
                                            SSTableActivity,
                                            SizeEstimates,
@@ -370,8 +401,10 @@ public final class SystemKeyspace
             }
         });
         String req = "INSERT INTO system.%s (id, keyspace_name, columnfamily_name, inputs) VALUES (?, ?, ?, ?)";
-        executeInternal(String.format(req, COMPACTIONS_IN_PROGRESS), compactionId, cfs.keyspace.getName(), cfs.name, Sets.newHashSet(generations));
-        CompactionsInProgressFlusher.INSTANCE.forceBlockingFlush();
+        CompactionsInProgressFlusher.INSTANCES.forEach((table, flusher) -> {
+            executeInternal(String.format(req, table.toString()), compactionId, cfs.keyspace.getName(), cfs.name, Sets.newHashSet(generations));
+            flusher.forceBlockingFlush();
+        });
         return compactionId;
     }
 
@@ -380,22 +413,22 @@ public final class SystemKeyspace
      * to complete successfully for this to be called.
      * @param taskId what was returned from {@code startCompaction}
      */
-    public static void finishCompaction(UUID taskId)
+    public static void finishCompaction(UUID taskId, CompactionsInProgressTable table)
     {
         assert taskId != null;
 
-        executeInternal(String.format("DELETE FROM system.%s WHERE id = ?", COMPACTIONS_IN_PROGRESS), taskId);
-        CompactionsInProgressFlusher.INSTANCE.forceBlockingFlush();
+        executeInternal(String.format("DELETE FROM system.%s WHERE id = ?", table.toString()), taskId);
+        CompactionsInProgressFlusher.INSTANCES.get(table).forceBlockingFlush();
     }
 
     /**
      * Returns a Map whose keys are KS.CF pairs and whose values are maps from sstable generation numbers to the
      * task ID of the compaction they were participating in.
      */
-    public static Map<Pair<String, String>, Map<Integer, UUID>> getUnfinishedCompactions()
+    public static Map<Pair<String, String>, Map<Integer, UUID>> getUnfinishedCompactions(CompactionsInProgressTable table)
     {
         String req = "SELECT * FROM system.%s";
-        UntypedResultSet resultSet = executeInternal(String.format(req, COMPACTIONS_IN_PROGRESS));
+        UntypedResultSet resultSet = executeInternal(String.format(req, table.toString()));
 
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = new HashMap<>();
         for (UntypedResultSet.Row row : resultSet)
@@ -418,9 +451,9 @@ public final class SystemKeyspace
         return unfinishedCompactions;
     }
 
-    public static void discardCompactionsInProgress()
+    public static void discardCompactionsInProgress(CompactionsInProgressTable table)
     {
-        ColumnFamilyStore compactionLog = Keyspace.open(NAME).getColumnFamilyStore(COMPACTIONS_IN_PROGRESS);
+        ColumnFamilyStore compactionLog = Keyspace.open(NAME).getColumnFamilyStore(table.toString());
         compactionLog.truncateBlocking(false);
     }
 

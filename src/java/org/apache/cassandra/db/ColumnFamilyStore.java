@@ -755,7 +755,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 completedAncestors.addAll(ancestors);
             }
         }
-        cleanedUnfinishedCompactions.forEach(SystemKeyspace::finishCompaction);
+        cleanedUnfinishedCompactions.forEach(uuid -> SystemKeyspace.finishCompaction(uuid, SystemKeyspace.CompactionsInProgressTable.DEFAULT));
 
         // remove old sstables from compactions that did complete
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
@@ -763,7 +763,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Descriptor desc = sstableFiles.getKey();
             if (completedAncestors.contains(desc.generation))
             {
-                if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanup()
+                if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata()
                     || (DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP && unfinishedCompactions.isEmpty()))
                 {
                     logger.warn("Would have deleted leftover compaction ancestor", UnsafeArg.of("desc", desc),
@@ -777,7 +777,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                 SafeArg.of("generation", desc.generation), ancestorsArg);
                     SSTable.delete(desc, sstableFiles.getValue());
                     Optional.ofNullable(unfinishedCompactions.get(desc.generation))
-                            .ifPresent(SystemKeyspace::finishCompaction);
+                            .ifPresent(uuid -> SystemKeyspace.finishCompaction(uuid, SystemKeyspace.CompactionsInProgressTable.DEFAULT));
                 }
             }
         }

@@ -234,7 +234,7 @@ public class CompactionTask extends AbstractCompactionTask
             }
             Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
             if (taskId != null && (!abortFailed))
-                SystemKeyspace.finishCompaction(taskId);
+                SystemKeyspace.finishCompaction(taskId, SystemKeyspace.CompactionsInProgressTable.DEFAULT);
 
             if (collector != null && ci != null)
                 collector.finishCompaction(ci);
@@ -243,6 +243,10 @@ public class CompactionTask extends AbstractCompactionTask
         ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
         refs.close();
         controller.close();
+        if (taskId != null)
+        {
+            SystemKeyspace.finishCompaction(taskId, SystemKeyspace.CompactionsInProgressTable.WAL);
+        }
 
         // log a bunch of statistics about the result and save to system table compaction_history
         long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
