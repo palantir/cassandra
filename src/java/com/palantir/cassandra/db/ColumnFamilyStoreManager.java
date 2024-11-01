@@ -77,4 +77,9 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IC
     {
         writeAheadLogger.markForDeletion(cfMetaData, descriptors);
     }
+
+    public boolean shouldRemoveUnusedSstables() {
+        // TODO(wdey): delegate
+        return true;
+    }
 }

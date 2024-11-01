@@ -61,9 +61,9 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import com.palantir.logsafe.Preconditions;
-import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.config.Config;
@@ -281,7 +281,7 @@ public class CassandraDaemon
             }
         }
 
-        Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
+        Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions(SystemKeyspace.CompactionsInProgressTable.DEFAULT);
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
             // Skip system as we'll already clean it after the other tables
@@ -290,11 +290,13 @@ public class CassandraDaemon
 
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
             {
-                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+                if (ColumnFamilyStoreManager.instance.shouldRemoveUnusedSstablesBasedOnAncestorMetadata()) {
+                    ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+                }
                 ColumnFamilyStore.scrubDataDirectories(cfm);
             }
         }
-        SystemKeyspace.discardCompactionsInProgress();
+        SystemKeyspace.discardCompactionsInProgress(SystemKeyspace.CompactionsInProgressTable.DEFAULT);
 
         Keyspace.setInitialized();
 
