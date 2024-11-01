@@ -25,12 +25,16 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.*;
+import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.utils.MapUtils;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
@@ -97,6 +101,8 @@ public class TokenMetadata
 
     private final Topology topology;
 
+    private boolean shouldLogTokenChanges;
+
     private static final Comparator<InetAddress> inetaddressCmp = new Comparator<InetAddress>()
     {
         public int compare(InetAddress o1, InetAddress o2)
@@ -112,13 +118,21 @@ public class TokenMetadata
     {
         this(SortedBiMultiValMap.<Token, InetAddress>create(null, inetaddressCmp),
              HashBiMap.<InetAddress, UUID>create(),
-             new Topology());
+             new Topology(), false);
     }
 
-    private TokenMetadata(BiMultiValMap<Token, InetAddress> tokenToEndpointMap, BiMap<InetAddress, UUID> endpointsMap, Topology topology)
+    public TokenMetadata(boolean shouldLogTokenChanges)
+    {
+        this(SortedBiMultiValMap.<Token, InetAddress>create(null, inetaddressCmp),
+             HashBiMap.<InetAddress, UUID>create(),
+             new Topology(), shouldLogTokenChanges);
+    }
+
+    private TokenMetadata(BiMultiValMap<Token, InetAddress> tokenToEndpointMap, BiMap<InetAddress, UUID> endpointsMap, Topology topology, boolean shouldLogTokenChanges)
     {
         this.tokenToEndpointMap = tokenToEndpointMap;
         this.topology = topology;
+        this.shouldLogTokenChanges = shouldLogTokenChanges;
         endpointToHostIdMap = endpointsMap;
         sortedTokens = sortTokens();
     }
@@ -184,6 +198,11 @@ public class TokenMetadata
     {
         if (endpointTokens.isEmpty())
             return;
+
+        if (StorageService.instance.hasJoined() && shouldLogTokenChanges)
+        {
+            logger.info("updateNormalTokens", SafeArg.of("endpointTokens", MapUtils.coalesce(endpointTokens)));
+        }
 
         publicLock.readLock().lock();
         lock.writeLock().lock();
@@ -654,7 +673,7 @@ public class TokenMetadata
         {
             return new TokenMetadata(SortedBiMultiValMap.create(tokenToEndpointMap, null, inetaddressCmp),
                                      HashBiMap.create(endpointToHostIdMap),
-                                     new Topology(topology));
+                                     new Topology(topology), false);
         }
         finally
         {
@@ -904,7 +923,7 @@ public class TokenMetadata
     /**
      * @see TokenMetadata#calculatePendingRanges(AbstractReplicationStrategy, String)
      */
-    private static PendingRangeMaps calculatePendingRanges(AbstractReplicationStrategy strategy,
+    private PendingRangeMaps calculatePendingRanges(AbstractReplicationStrategy strategy,
                                                            TokenMetadata metadata,
                                                            BiMultiValMap<Token, InetAddress> bootstrapTokens,
                                                            Set<InetAddress> leavingEndpoints,
@@ -934,22 +953,27 @@ public class TokenMetadata
             }
         }
 
+        logLeavingEndpointDifference(strategy.keyspaceName, leavingEndpoints, newPendingRanges);
+
         // At this stage newPendingRanges has been updated according to leave operations. We can
         // now continue the calculation by checking bootstrapping nodes.
 
         // For each of the bootstrapping nodes, simply add and remove them one by one to
         // allLeftMetadata and check in between what their ranges would be.
         Multimap<InetAddress, Token> bootstrapAddresses = bootstrapTokens.inverse();
+        Multimap<Range<Token>, InetAddress> addressRangesSnapshot = strategy.getRangeAddresses(allLeftMetadata);
         for (InetAddress endpoint : bootstrapAddresses.keySet())
         {
             Collection<Token> tokens = bootstrapAddresses.get(endpoint);
-
             allLeftMetadata.updateNormalTokens(tokens, endpoint);
-            for (Range<Token> range : strategy.getAddressRanges(allLeftMetadata).get(endpoint))
+            Collection<Range<Token>> tokenRangeForEndpoint = strategy.getAddressRanges(allLeftMetadata).get(endpoint);
+            for (Range<Token> range : tokenRangeForEndpoint)
             {
                 newPendingRanges.addPendingRange(range, endpoint);
             }
             allLeftMetadata.removeEndpoint(endpoint);
+
+            logBootstrapDifference(strategy.keyspaceName, endpoint, addressRangesSnapshot, tokenRangeForEndpoint);
         }
 
         // At this stage newPendingRanges has been updated according to leaving and bootstrapping nodes.
@@ -1320,6 +1344,37 @@ public class TokenMetadata
     {
         ringVersion++;
         cachedTokenMap.set(null);
+    }
+
+    private void logLeavingEndpointDifference(String keyspace, Set<InetAddress> leavingEndpoints, PendingRangeMaps pendingRangeMaps)
+    {
+        if (shouldLogTokenChanges && !leavingEndpoints.isEmpty())
+        {
+            Map<InetAddress, List<Range<Token>>> endpointToPendingRange = MapUtils.coalesce(pendingRangeMaps);
+            Map<InetAddress, Integer> endpointToPendingRangeCount = endpointToPendingRange
+                    .entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().size()));
+
+            logger.info("Pending ranges for leaving endpoints",
+                        SafeArg.of("keyspace", keyspace),
+                        SafeArg.of("leavingEndpoints", leavingEndpoints),
+                        SafeArg.of("pendingRangePerEndpoint", endpointToPendingRangeCount));
+            logger.debug("PendingRangeMaps for leaving endpoints", endpointToPendingRange);
+        }
+    }
+
+    private void logBootstrapDifference(String keyspace, InetAddress endpoint, Multimap<Range<Token>, InetAddress> snapshot, Collection<Range<Token>> tokenRangeForEndpoint)
+    {
+        if (shouldLogTokenChanges)
+        {
+            logger.info("Pending ranges for bootstrapping endpoint",
+                        SafeArg.of("keyspace", keyspace),
+                        SafeArg.of("bootstrapingEndpoint", endpoint),
+                        SafeArg.of("previousOwners", MapUtils.intersection(snapshot, tokenRangeForEndpoint)),
+                        SafeArg.of("pendingRangeCount", tokenRangeForEndpoint.size()));
+            logger.debug("Pending range for endpoint", SafeArg.of("pendingRange", tokenRangeForEndpoint.stream().sorted().collect(Collectors.toList())));
+        }
     }
 
     /**
