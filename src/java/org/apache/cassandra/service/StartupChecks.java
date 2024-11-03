@@ -420,7 +420,7 @@ public class StartupChecks
             String restrictedIp = System.getProperty("palantir_cassandra.restricted_ip", null);
             if (restrictedIp != null)
             {
-                String currentIp = FBUtilities.getLocalAddress().getHostAddress();
+                String currentIp = FBUtilities.getBroadcastAddress().getHostAddress();
                 if (currentIp.equals(restrictedIp))
                 {
                     {
