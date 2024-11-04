@@ -284,13 +284,17 @@ public class CassandraDaemon
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
+            for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
+            {
+                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+            }
+
             // Skip system as we'll already clean it after the other tables
             if (keyspaceName.equals(SystemKeyspace.NAME))
                 continue;
 
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
             {
-                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
                 ColumnFamilyStore.scrubDataDirectories(cfm);
             }
         }
