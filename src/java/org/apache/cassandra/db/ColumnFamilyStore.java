@@ -108,7 +108,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
 
     private static final boolean DRY_RUN_NON_COMPACTING_UNUSED_SSTABLE_CLEANUP = Boolean.getBoolean(
-                                            "palantir_cassandra.dry_run_non_compacting_unused_sstable_cleanup");
+        "palantir_cassandra.dry_run_non_compacting_unused_sstable_cleanup");
+    private static final boolean DISABLE_COMPACTION_PRODUCT_CLEANUP = Boolean.getBoolean(
+        "palantir_cassandra.disable_compaction_product_cleanup");
 
     private static final ExecutorService flushExecutor = new JMXEnabledThreadPoolExecutor(DatabaseDescriptor.getFlushWriters(),
                                                                                           StageManager.KEEPALIVE,
@@ -744,10 +746,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 // any of the ancestors would work, so we'll just lookup the compaction task ID with the first one
                 UUID compactionTaskID = unfinishedCompactions.get(ancestors.iterator().next());
                 assert compactionTaskID != null;
-                logger.info("Going to delete unfinished compaction product", UnsafeArg.of("desc", desc),
-                            SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
-                            SafeArg.of("generation", desc.generation), ancestorsArg);
-                SSTable.delete(desc, allNonTempSstableFiles.get(desc));
+                if (DISABLE_COMPACTION_PRODUCT_CLEANUP)
+                {
+                    logger.info("Would have deleted unfinished compaction product", UnsafeArg.of("desc", desc),
+                                SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                                SafeArg.of("generation", desc.generation), ancestorsArg);
+                }
+                else
+                {
+                    logger.info("Going to delete unfinished compaction product", UnsafeArg.of("desc", desc),
+                                SafeArg.of("keyspace", desc.ksname), SafeArg.of("cf", desc.cfname),
+                                SafeArg.of("generation", desc.generation), ancestorsArg);
+                    SSTable.delete(desc, allNonTempSstableFiles.get(desc));
+                }
                 cleanedUnfinishedCompactions.add(compactionTaskID);
             }
             else
