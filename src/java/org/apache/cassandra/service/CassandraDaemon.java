@@ -289,7 +289,6 @@ public class CassandraDaemon
                 ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
             }
 
-            // Skip system as we'll already clean it after the other tables
             if (keyspaceName.equals(SystemKeyspace.NAME))
                 continue;
 
