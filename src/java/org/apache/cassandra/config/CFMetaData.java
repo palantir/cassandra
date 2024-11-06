@@ -34,6 +34,8 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.Preconditions;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.cache.CachingOptions;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.QueryProcessor;
@@ -1046,6 +1048,16 @@ public final class CFMetaData
             for (ColumnDefinition def : allColumns())
                 if (def.type instanceof CounterColumnType)
                     throw new ConfigurationException("Cannot add a counter column (" + def.name + ") in a non counter column family");
+        }
+
+        for (ColumnDefinition def : allColumns())
+        {
+            Preconditions.checkArgument(
+                !(def.type instanceof CounterColumnType),
+                "Palantir Cassandra does not support counter columns",
+                SafeArg.of("keyspace", ksName),
+                SafeArg.of("columnFamily", cfName),
+                SafeArg.of("columnName", def.name));
         }
 
         // initialize a set of names NOT in the CF under consideration
