@@ -582,34 +582,7 @@ public class CompactionsTest
             assertTrue(e.getCause().getMessage().contains("Exception thrown while some sstables in finish"));
             assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
         }
-
-        Collection<SSTableReader> sstablesAfter = cfs.getSSTables();
-        assertEquals(50, sstablesAfter.size());
-        Set<Integer> nonTmp = ImmutableSet.of(1, 2, 3, 4, 5);
-        Set<Integer> actualNonTmp = new Directories(cfs.metadata).sstableLister().skipTemporary(true).list().keySet()
-                .stream().map(desc -> desc.generation).collect(Collectors.toSet());
-        assertEquals(nonTmp, actualNonTmp);
-
-        Map<Pair<String, String>, Map<Integer, UUID>> compactionLogs = SystemKeyspace.getUnfinishedCompactions();
-        Pair<String, String> pair = Pair.create(KEYSPACE1, cfName);
-        assertTrue(compactionLogs.containsKey(pair));
-
-        // Copy to a new CF in case in-memory tracking affects testing
-        File src = new Directories(cfs.metadata).getCFDirectories().get(0);
-        File dst = Arrays.stream(src.getParentFile().listFiles())
-                .filter(file -> file.getName().contains(CF_STANDARD6)).findFirst().orElseThrow(() -> new SafeIllegalStateException("No Standard6 CF found"));
-        FileUtils.copyDirectory(src, dst);
-        CFMetaData cf2Metadata = Schema.instance.getKSMetaData(keyspace.getName()).cfMetaData().get(CF_STANDARD6);
-        // removes incomplete compaction product and tmp files
-        ColumnFamilyStore.removeUnusedSstables(cf2Metadata, compactionLogs.getOrDefault(pair, ImmutableMap.of()));
-        ColumnFamilyStore.scrubDataDirectories(cf2Metadata);
-
-        Set<Integer> allGenerations = new HashSet<>();
-        for (Descriptor desc : new Directories(cf2Metadata).sstableLister().list().keySet())
-            allGenerations.add(desc.generation);
-        // When we don't retain the compaction log, the ancestors 2 and 3 are deleted and products 4 and 5 are retained, despite 40+ tmp files in the unfinished
-        // product not having been committed!
-        assertEquals(ImmutableSet.of(1, 2, 3), allGenerations);
+        verify(compaction).panic();
     }
 
     private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter

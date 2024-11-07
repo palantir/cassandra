@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -217,7 +218,7 @@ public class CompactionTask extends AbstractCompactionTask
                         {
                             logger.error("CompactionAwareWriter failed to close correctly for {}/{}. Continuing to compact now can cause resurrection. Exiting",
                                     cfs.keyspace.getName(), cfs.name, e);
-                            System.exit(1);
+                            panic();
                         }
                         throw exception;
                     }
@@ -241,7 +242,7 @@ public class CompactionTask extends AbstractCompactionTask
             {
                 logger.error("Failed to write to the write-ahead log for {}/{}. Continuing to compact now can cause resurrection. Exiting",
                              cfs.keyspace.getName(), cfs.name, e);
-                System.exit(1);
+                panic();
             }
 
             // log a bunch of statistics about the result and save to system table compaction_history
@@ -273,6 +274,11 @@ public class CompactionTask extends AbstractCompactionTask
                 cfs.metric.compactionsCompleted.inc();
             }
         }
+    }
+
+    @VisibleForTesting
+    void panic() {
+        System.exit(1);
     }
 
     @Override
