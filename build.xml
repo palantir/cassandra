@@ -368,7 +368,6 @@
           <dependency groupId="com.google.guava" artifactId="guava" version="33.1.0-jre"/>
           <dependency groupId="com.github.luben" artifactId="zstd-jni" version="1.5.0-4"/>
           <dependency groupId="commons-cli" artifactId="commons-cli" version="1.1"/>
-          <dependency groupId="commons-codec" artifactId="commons-codec" version="1.2"/>
           <dependency groupId="org.apache.commons" artifactId="commons-lang3" version="3.1"/>
           <dependency groupId="org.apache.commons" artifactId="commons-math3" version="3.2"/>
           <dependency groupId="com.googlecode.concurrentlinkedhashmap" artifactId="concurrentlinkedhashmap-lru" version="1.4"/>
@@ -612,7 +611,6 @@
         <dependency groupId="com.ning" artifactId="compress-lzf"/>
         <dependency groupId="com.google.guava" artifactId="guava"/>
         <dependency groupId="commons-cli" artifactId="commons-cli"/>
-        <dependency groupId="commons-codec" artifactId="commons-codec"/>
         <dependency groupId="org.apache.commons" artifactId="commons-lang3"/>
         <dependency groupId="org.apache.commons" artifactId="commons-math3"/>
         <dependency groupId="com.googlecode.concurrentlinkedhashmap" artifactId="concurrentlinkedhashmap-lru"/>
