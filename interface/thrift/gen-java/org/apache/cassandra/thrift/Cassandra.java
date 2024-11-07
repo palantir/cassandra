@@ -2069,7 +2069,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class login_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class login_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private AuthenticationRequest auth_request;
       public login_call(AuthenticationRequest auth_request, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
@@ -2084,13 +2084,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws AuthenticationException, AuthorizationException, org.apache.thrift.TException {
+      public Void getResult() throws AuthenticationException, AuthorizationException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_login();
+        return null;
       }
     }
 
@@ -2101,7 +2102,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class set_keyspace_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class set_keyspace_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private String keyspace;
       public set_keyspace_call(String keyspace, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
@@ -2116,13 +2117,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_set_keyspace();
+        return null;
       }
     }
 
@@ -2212,7 +2214,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class get_count_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class get_count_call extends org.apache.thrift.async.TAsyncMethodCall<Integer> {
       private ByteBuffer key;
       private ColumnParent column_parent;
       private SlicePredicate predicate;
@@ -2236,7 +2238,7 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public int getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Integer getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
@@ -2496,7 +2498,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class insert_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class insert_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private ByteBuffer key;
       private ColumnParent column_parent;
       private Column column;
@@ -2520,13 +2522,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_insert();
+        return null;
       }
     }
 
@@ -2537,7 +2540,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class add_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class add_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private ByteBuffer key;
       private ColumnParent column_parent;
       private CounterColumn column;
@@ -2561,13 +2564,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_add();
+        return null;
       }
     }
 
@@ -2669,7 +2673,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class remove_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class remove_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private ByteBuffer key;
       private ColumnPath column_path;
       private long timestamp;
@@ -2693,13 +2697,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_remove();
+        return null;
       }
     }
 
@@ -2710,7 +2715,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class remove_counter_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class remove_counter_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private ByteBuffer key;
       private ColumnPath path;
       private ConsistencyLevel consistency_level;
@@ -2731,13 +2736,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_remove_counter();
+        return null;
       }
     }
 
@@ -2748,7 +2754,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class batch_mutate_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class batch_mutate_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map;
       private ConsistencyLevel consistency_level;
       public batch_mutate_call(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
@@ -2766,13 +2772,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_batch_mutate();
+        return null;
       }
     }
 
@@ -2783,7 +2790,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class atomic_batch_mutate_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class atomic_batch_mutate_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map;
       private ConsistencyLevel consistency_level;
       public atomic_batch_mutate_call(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
@@ -2801,13 +2808,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_atomic_batch_mutate();
+        return null;
       }
     }
 
@@ -2818,7 +2826,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class truncate_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class truncate_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private String cfname;
       public truncate_call(String cfname, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
@@ -2833,13 +2841,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_truncate();
+        return null;
       }
     }
 
@@ -3729,7 +3738,7 @@ public class Cassandra {
       ___manager.call(method_call);
     }
 
-    public static class set_cql_version_call extends org.apache.thrift.async.TAsyncMethodCall {
+    public static class set_cql_version_call extends org.apache.thrift.async.TAsyncMethodCall<Void> {
       private String version;
       public set_cql_version_call(String version, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
@@ -3744,13 +3753,14 @@ public class Cassandra {
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws InvalidRequestException, org.apache.thrift.TException {
+      public Void getResult() throws InvalidRequestException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         (new Client(prot)).recv_set_cql_version();
+        return null;
       }
     }
 
