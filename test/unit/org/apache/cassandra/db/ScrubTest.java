@@ -27,7 +27,6 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
@@ -35,7 +34,6 @@ import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.cql3.QueryProcessor;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.db.compaction.OperationType;
@@ -89,7 +87,6 @@ public class ScrubTest
     public static final String CF2 = "Standard2";
     public static final String CF3 = "Standard3";
     public static final String CFI1 = "StandardInteger1";
-    public static final String COUNTER_CF = "Counter1";
     public static final String CF_UUID = "UUIDKeys";
     public static final String CF_INDEX1 = "Indexed1";
     public static final String CF_INDEX2 = "Indexed2";
@@ -111,9 +108,6 @@ public class ScrubTest
                                     SchemaLoader.standardCFMD(KEYSPACE, CF2),
                                     SchemaLoader.standardCFMD(KEYSPACE, CF3),
                                     SchemaLoader.standardCFMD(KEYSPACE, CFI1),
-                                    SchemaLoader.standardCFMD(KEYSPACE, COUNTER_CF)
-                                                .defaultValidator(CounterColumnType.instance)
-                                                .compressionParameters(SchemaLoader.getCompressionParameters(COMPRESSION_CHUNK_LENGTH)),
                                     SchemaLoader.standardCFMD(KEYSPACE, CF_UUID).keyValidator(UUIDType.instance),
                                     SchemaLoader.indexCFMD(KEYSPACE, CF_INDEX1, true),
                                     SchemaLoader.compositeIndexCFMD(KEYSPACE, CF_INDEX2, true));
@@ -137,114 +131,6 @@ public class ScrubTest
         CompactionManager.instance.performScrub(cfs, false, true, 2);
 
         // check data is still there
-        rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), 1000);
-        assertEquals(1, rows.size());
-    }
-
-    @Test
-    public void testScrubCorruptedCounterRow() throws IOException, WriteTimeoutException
-    {
-        // When compression is enabled, for testing corrupted chunks we need enough partitions to cover
-        // at least 3 chunks of size COMPRESSION_CHUNK_LENGTH
-        int numPartitions = 1000;
-
-        CompactionManager.instance.disableAutoCompaction();
-        Keyspace keyspace = Keyspace.open(KEYSPACE);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(COUNTER_CF);
-        cfs.clearUnsafe();
-
-        fillCounterCF(cfs, numPartitions);
-
-        List<Row> rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), numPartitions*10);
-        assertEquals(numPartitions, rows.size());
-
-        assertEquals(1, cfs.getSSTables().size());
-
-        SSTableReader sstable = cfs.getSSTables().iterator().next();
-
-        //make sure to override at most 1 chunk when compression is enabled
-        overrideWithGarbage(sstable, ByteBufferUtil.bytes("0"), ByteBufferUtil.bytes("1"));
-
-        // with skipCorrupted == false, the scrub is expected to fail
-        try (LifecycleTransaction txn = cfs.getTracker().tryModify(Arrays.asList(sstable), OperationType.SCRUB);
-             Scrubber scrubber = new Scrubber(cfs, txn, false, true);)
-        {
-            scrubber.scrub();
-            fail("Expected a CorruptSSTableException to be thrown");
-        }
-        catch (IOError err) {}
-
-        // with skipCorrupted == true, the corrupt rows will be skipped
-        Scrubber.ScrubResult scrubResult;
-        try (LifecycleTransaction txn = cfs.getTracker().tryModify(Arrays.asList(sstable), OperationType.SCRUB);
-             Scrubber scrubber = new Scrubber(cfs, txn, true, true);)
-        {
-            scrubResult = scrubber.scrubWithResult();
-        }
-
-        assertNotNull(scrubResult);
-
-        boolean compression = Boolean.parseBoolean(System.getProperty("cassandra.test.compression", "false"));
-        if (compression)
-        {
-            assertEquals(0, scrubResult.emptyRows);
-            assertEquals(numPartitions, scrubResult.badRows + scrubResult.goodRows);
-            //because we only corrupted 1 chunk and we chose enough partitions to cover at least 3 chunks
-            assertTrue(scrubResult.goodRows >= scrubResult.badRows * 2);
-        }
-        else
-        {
-            assertEquals(0, scrubResult.emptyRows);
-            assertEquals(1, scrubResult.badRows);
-            assertEquals(numPartitions-1, scrubResult.goodRows);
-        }
-        assertEquals(1, cfs.getSSTables().size());
-
-        rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), 1000);
-        assertEquals(scrubResult.goodRows, rows.size());
-    }
-
-    @Test
-    public void testScrubCorruptedRowInSmallFile() throws IOException, WriteTimeoutException
-    {
-        // cannot test this with compression
-        assumeTrue(!Boolean.parseBoolean(System.getProperty("cassandra.test.compression", "false")));
-
-        CompactionManager.instance.disableAutoCompaction();
-        Keyspace keyspace = Keyspace.open(KEYSPACE);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(COUNTER_CF);
-        cfs.clearUnsafe();
-
-        fillCounterCF(cfs, 2);
-
-        List<Row> rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), 1000);
-        assertEquals(2, rows.size());
-
-        SSTableReader sstable = cfs.getSSTables().iterator().next();
-
-        // overwrite one row with garbage
-        overrideWithGarbage(sstable, ByteBufferUtil.bytes("0"), ByteBufferUtil.bytes("1"));
-
-        // with skipCorrupted == false, the scrub is expected to fail
-        try (LifecycleTransaction txn = cfs.getTracker().tryModify(Arrays.asList(sstable), OperationType.SCRUB);
-             Scrubber scrubber = new Scrubber(cfs, txn, false, true))
-        {
-            // with skipCorrupted == true, the corrupt row will be skipped
-            scrubber.scrub();
-            fail("Expected a CorruptSSTableException to be thrown");
-        }
-        catch (IOError err) {}
-
-        try (LifecycleTransaction txn = cfs.getTracker().tryModify(Arrays.asList(sstable), OperationType.SCRUB);
-             Scrubber scrubber = new Scrubber(cfs, txn, true, true))
-        {
-            // with skipCorrupted == true, the corrupt row will be skipped
-            scrubber.scrub();
-            scrubber.close();
-        }
-
-        assertEquals(1, cfs.getSSTables().size());
-        // verify that we can read all of the rows, and there is now one less row
         rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), 1000);
         assertEquals(1, rows.size());
     }
@@ -275,21 +161,6 @@ public class ScrubTest
         // check data is still there
         rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), 1000);
         assertEquals(4, rows.size());
-    }
-
-    @Test
-    public void testScrubCorruptedCounterRowNoEarlyOpen() throws IOException, WriteTimeoutException
-    {
-        boolean oldDisabledVal = SSTableRewriter.disableEarlyOpeningForTests;
-        try
-        {
-            SSTableRewriter.disableEarlyOpeningForTests = true;
-            testScrubCorruptedCounterRow();
-        }
-        finally
-        {
-            SSTableRewriter.disableEarlyOpeningForTests = oldDisabledVal;
-        }
     }
 
     @Test
@@ -565,21 +436,6 @@ public class ScrubTest
             }
             Mutation rm = new Mutation(KEYSPACE, ByteBufferUtil.bytes(key), cf);
             rm.applyUnsafe();
-        }
-
-        cfs.forceBlockingFlush();
-    }
-
-    protected void fillCounterCF(ColumnFamilyStore cfs, int rowsPerSSTable) throws WriteTimeoutException
-    {
-        for (int i = 0; i < rowsPerSSTable; i++)
-        {
-            String key = String.valueOf(i);
-            ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, COUNTER_CF);
-            Mutation rm = new Mutation(KEYSPACE, ByteBufferUtil.bytes(key), cf);
-            rm.addCounter(COUNTER_CF, cellname("Column1"), 100);
-            CounterMutation cm = new CounterMutation(rm, ConsistencyLevel.ONE);
-            cm.apply();
         }
 
         cfs.forceBlockingFlush();

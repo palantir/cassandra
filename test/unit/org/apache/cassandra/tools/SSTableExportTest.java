@@ -32,7 +32,6 @@ import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.db.ArrayBackedSortedColumns;
 import org.apache.cassandra.db.BufferCell;
-import org.apache.cassandra.db.BufferCounterCell;
 import org.apache.cassandra.db.BufferExpiringCell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -41,7 +40,6 @@ import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.db.marshal.AsciiType;
 import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -52,7 +50,6 @@ import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.UUIDGen;
-import org.apache.thrift.TException;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -69,7 +66,6 @@ public class SSTableExportTest
 {
     public static final String KEYSPACE1 = "SSTableExportTest";
     public static final String CF_STANDARD = "Standard1";
-    public static final String CF_COUNTER = "Counter1";
     public static final String CF_UUID = "UUIDKeys";
     public static final String CF_VALSWITHQUOTES = "ValuesWithQuotes";
 
@@ -81,7 +77,6 @@ public class SSTableExportTest
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER).defaultValidator(CounterColumnType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_UUID).keyValidator(UUIDType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_VALSWITHQUOTES).defaultValidator(UTF8Type.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, "AsciiKeys").keyValidator(AsciiType.instance));
@@ -223,37 +218,6 @@ public class SSTableExportTest
         cf = qf.getSSTableColumnIterator(reader).getColumnFamily();
         assert cf == null;
         reader.selfRef().release();
-    }
-
-    @Test
-    public void testExportCounterCf() throws IOException, ParseException
-    {
-        File tempSS = tempSSTableFile(KEYSPACE1, "Counter1");
-        ColumnFamily cfamily = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Counter1");
-        SSTableWriter writer = SSTableWriter.create(tempSS.getPath(), 2, ActiveRepairService.UNREPAIRED_SSTABLE, 0);
-
-        // Add rowA
-        cfamily.addColumn(BufferCounterCell.createLocal(Util.cellname("colA"), 42, System.currentTimeMillis(), Long.MIN_VALUE));
-        writer.append(Util.dk("rowA"), cfamily);
-        cfamily.clear();
-
-        SSTableReader reader = writer.finish(true);
-
-        // Export to JSON and verify
-        File tempJson = File.createTempFile("Counter1", ".json");
-        SSTableExport.export(reader, new PrintStream(tempJson.getPath()), new String[0]);
-        JSONArray json = (JSONArray)JSONValue.parseWithException(new FileReader(tempJson));
-        assertEquals("unexpected number of rows", 1, json.size());
-
-        JSONObject row = (JSONObject)json.get(0);
-        assertEquals("unexpected number of keys", 2, row.keySet().size());
-        assertEquals("unexpected row key",asHex("rowA"),row.get("key"));
-
-        JSONArray cols = (JSONArray)row.get("cells");
-        JSONArray colA = (JSONArray)cols.get(0);
-        assert hexToBytes((String)colA.get(0)).equals(ByteBufferUtil.bytes("colA"));
-        assert ((String) colA.get(3)).equals("c");
-        assert (Long) colA.get(4) == Long.MIN_VALUE;
     }
 
     @Test

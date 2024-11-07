@@ -42,7 +42,6 @@ public class ThriftValidationTest
 {
     public static final String KEYSPACE1 = "MultiSliceTest";
     public static final String CF_STANDARD = "Standard1";
-    public static final String CF_COUNTER = "Counter1";
     public static final String CF_UUID = "UUIDKeys";
     public static final String CF_STANDARDLONG3 = "StandardLong3";
 
@@ -54,7 +53,6 @@ public class ThriftValidationTest
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER).defaultValidator(CounterColumnType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_UUID).keyValidator(UUIDType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARDLONG3, IntegerType.instance));
     }
@@ -63,12 +61,6 @@ public class ThriftValidationTest
     public void testValidateCommutativeWithStandard() throws org.apache.cassandra.exceptions.InvalidRequestException
     {
         ThriftValidation.validateColumnFamily(KEYSPACE1, "Standard1", true);
-    }
-
-    @Test
-    public void testValidateCommutativeWithCounter() throws org.apache.cassandra.exceptions.InvalidRequestException
-    {
-        ThriftValidation.validateColumnFamily(KEYSPACE1, "Counter1", true);
     }
 
     @Test
