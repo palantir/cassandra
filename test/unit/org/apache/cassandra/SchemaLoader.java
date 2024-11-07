@@ -113,7 +113,6 @@ public class SchemaLoader
         String ks6 = testName + "Keyspace6";
         String ks_kcs = testName + "KeyCacheSpace";
         String ks_rcs = testName + "RowCacheSpace";
-        String ks_ccs = testName + "CounterCacheSpace";
         String ks_nocommit = testName + "NoCommitlogSpace";
         String ks_prsi = testName + "PerRowSecondaryIndex";
         String ks_cql = testName + "cql_keyspace";
@@ -166,8 +165,6 @@ public class SchemaLoader
                                            indexCFMD(ks1, "Indexed2", false),
                                            CFMetaData.denseCFMetaData(ks1, "StandardInteger1", IntegerType.instance),
                                            CFMetaData.denseCFMetaData(ks1, "StandardLong3", IntegerType.instance),
-                                           CFMetaData.denseCFMetaData(ks1, "Counter1", bytes).defaultValidator(CounterColumnType.instance),
-                                           CFMetaData.denseCFMetaData(ks1, "SuperCounter1", bytes, bytes).defaultValidator(CounterColumnType.instance),
                                            superCFMD(ks1, "SuperDirectGC", BytesType.instance).gcGraceSeconds(0),
                                            jdbcSparseCFMD(ks1, "JdbcInteger", IntegerType.instance).addColumnDefinition(integerColumn(ks1, "JdbcInteger")),
                                            jdbcSparseCFMD(ks1, "JdbcUtf8", UTF8Type.instance).addColumnDefinition(utf8Column(ks1, "JdbcUtf8")),
@@ -234,9 +231,7 @@ public class SchemaLoader
         schema.add(KSMetaData.testMetadata(ks5,
                                            simple,
                                            opts_rf2,
-                                           standardCFMD(ks5, "Standard1"),
-                                           standardCFMD(ks5, "Counter1")
-                                                   .defaultValidator(CounterColumnType.instance)));
+                                           standardCFMD(ks5, "Standard1")));
 
         // Keyspace 6
         schema.add(KSMetaData.testMetadata(ks6,
@@ -262,13 +257,6 @@ public class SchemaLoader
                                                    defaultValidator(IntegerType.instance).
                                                    caching(new CachingOptions(new CachingOptions.KeyCache(CachingOptions.KeyCache.Type.ALL),
                                                                                   new CachingOptions.RowCache(CachingOptions.RowCache.Type.HEAD, 100)))));
-
-        // CounterCacheSpace
-        schema.add(KSMetaData.testMetadata(ks_ccs,
-                                           simple,
-                                           opts_rf1,
-                                           standardCFMD(ks_ccs, "Counter1").defaultValidator(CounterColumnType.instance),
-                                           standardCFMD(ks_ccs, "Counter2").defaultValidator(CounterColumnType.instance)));
 
         schema.add(KSMetaData.testMetadataNotDurable(ks_nocommit,
                                                      simple,
