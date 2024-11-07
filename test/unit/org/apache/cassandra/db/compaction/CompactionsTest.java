@@ -570,7 +570,7 @@ public class CompactionsTest
 
         Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
         LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
-        CompactionTask compaction = spy(new FailedAbortCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true));
+        FailedAbortCompactionTask compaction = spy(new FailedAbortCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true));
         try
         {
             compaction.runMayThrow();
@@ -582,7 +582,7 @@ public class CompactionsTest
             assertTrue(e.getCause().getMessage().contains("Exception thrown while some sstables in finish"));
             assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
         }
-        verify(compaction).panic();
+        assertTrue(compaction.panicked);
     }
 
     private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
@@ -609,6 +609,8 @@ public class CompactionsTest
 
     private static class FailedAbortCompactionTask extends LeveledCompactionTask
     {
+        private boolean panicked;
+
         public FailedAbortCompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int level, int gcBefore, long maxSSTableBytes, boolean majorCompaction)
         {
             super(cfs, txn, level, gcBefore, maxSSTableBytes, majorCompaction);
@@ -618,6 +620,12 @@ public class CompactionsTest
         public CompactionAwareWriter getCompactionAwareWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables)
         {
             return new FailedAbortCompactionWriter(cfs, txn, nonExpiredSSTables, 1024 * 1024, 0, false, compactionType);
+        }
+
+        @Override
+        protected void panic()
+        {
+            panicked = true;
         }
     }
 

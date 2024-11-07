@@ -276,8 +276,7 @@ public class CompactionTask extends AbstractCompactionTask
         }
     }
 
-    @VisibleForTesting
-    void panic() {
+    protected void panic() {
         System.exit(1);
     }
 
