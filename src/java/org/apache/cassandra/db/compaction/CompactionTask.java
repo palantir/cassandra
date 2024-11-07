@@ -217,10 +217,9 @@ public class CompactionTask extends AbstractCompactionTask
                         if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
                         {
                             abortFailed = true;
-                            logger.warn("CompactionAwareWriter failed to close correctly for {}/{}. This compaction won't be removed from " +
-                                            "system.compactions_in_progress to ensure sstable cleanup on startup proceeds correctly in case some " +
-                                            "compaction-product sstables are marked final while others remain tmp",
+                            logger.error("CompactionAwareWriter failed to close correctly for {}/{}. Continuing to compact now can cause resurrection. Exiting",
                                     cfs.keyspace.getName(), cfs.name, e);
+                            System.exit(1);
                         }
                         throw exception;
                     }
@@ -236,7 +235,16 @@ public class CompactionTask extends AbstractCompactionTask
                     collector.finishCompaction(ci);
             }
 
-            ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
+            try
+            {
+                ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
+            }
+            catch (Exception e)
+            {
+                logger.error("Failed to write to the write-ahead log for {}/{}. Continuing to compact now can cause resurrection. Exiting",
+                             cfs.keyspace.getName(), cfs.name, e);
+                System.exit(1);
+            }
 
             // log a bunch of statistics about the result and save to system table compaction_history
             long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
