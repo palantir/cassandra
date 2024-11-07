@@ -166,7 +166,6 @@ public class CompactionTask extends AbstractCompactionTask
             // SSTableScanners need to be closed before markCompactedSSTablesReplaced call as scanners contain references
             // to both ifile and dfile and SSTR will throw deletion errors on Windows if it tries to delete before scanner is closed.
             // See CASSANDRA-8019 and CASSANDRA-8399
-            boolean abortFailed = false;
             UUID taskId = null;
             String taskIdLoggerMsg;
             List<SSTableReader> newSStables;
@@ -216,7 +215,6 @@ public class CompactionTask extends AbstractCompactionTask
                         CompactionException exception = new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
                         if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
                         {
-                            abortFailed = true;
                             logger.error("CompactionAwareWriter failed to close correctly for {}/{}. Continuing to compact now can cause resurrection. Exiting",
                                     cfs.keyspace.getName(), cfs.name, e);
                             System.exit(1);
@@ -228,7 +226,7 @@ public class CompactionTask extends AbstractCompactionTask
             finally
             {
                 Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-                if (taskId != null && (!abortFailed))
+                if (taskId != null)
                     SystemKeyspace.finishCompaction(taskId);
 
                 if (collector != null && ci != null)
