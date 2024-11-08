@@ -78,7 +78,7 @@ public class LegacySchemaTables
 
     public static final List<String> ALL = Arrays.asList(KEYSPACES, COLUMNFAMILIES, COLUMNS, TRIGGERS, USERTYPES, FUNCTIONS, AGGREGATES);
 
-    private static final int MUTATION_CACHE_MAX_SIZE = 2;
+    private static final int MUTATION_CACHE_MAX_SIZE = 1;
     private static final Duration MUTATION_CACHE_EXPIRY = Duration.ofMinutes(5);
     private static final LoadingCache<UUID, Collection<Mutation>> mutations = CacheBuilder.newBuilder().maximumSize(MUTATION_CACHE_MAX_SIZE).expireAfterAccess(MUTATION_CACHE_EXPIRY).build(new UUIDMutationCacheLoader());
 
