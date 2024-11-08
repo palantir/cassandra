@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -166,7 +167,6 @@ public class CompactionTask extends AbstractCompactionTask
             // SSTableScanners need to be closed before markCompactedSSTablesReplaced call as scanners contain references
             // to both ifile and dfile and SSTR will throw deletion errors on Windows if it tries to delete before scanner is closed.
             // See CASSANDRA-8019 and CASSANDRA-8399
-            boolean abortFailed = false;
             UUID taskId = null;
             String taskIdLoggerMsg;
             List<SSTableReader> newSStables;
@@ -216,11 +216,9 @@ public class CompactionTask extends AbstractCompactionTask
                         CompactionException exception = new CompactionException(taskIdLoggerMsg, ssTableLoggerMsg.toString(), e);
                         if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
                         {
-                            abortFailed = true;
-                            logger.warn("CompactionAwareWriter failed to close correctly for {}/{}. This compaction won't be removed from " +
-                                            "system.compactions_in_progress to ensure sstable cleanup on startup proceeds correctly in case some " +
-                                            "compaction-product sstables are marked final while others remain tmp",
+                            logger.error("CompactionAwareWriter failed to close correctly for {}/{}. Continuing to compact now can cause resurrection. Exiting",
                                     cfs.keyspace.getName(), cfs.name, e);
+                            panic();
                         }
                         throw exception;
                     }
@@ -229,14 +227,23 @@ public class CompactionTask extends AbstractCompactionTask
             finally
             {
                 Directories.removeExpectedSpaceUsedByCompaction(expectedWriteSize, CONSIDER_CONCURRENT_COMPACTIONS);
-                if (taskId != null && (!abortFailed))
+                if (taskId != null)
                     SystemKeyspace.finishCompaction(taskId);
 
                 if (collector != null && ci != null)
                     collector.finishCompaction(ci);
             }
 
-            ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
+            try
+            {
+                ColumnFamilyStoreManager.instance.markForDeletion(cfs.metadata, transaction.logged.obsoleteDescriptors());
+            }
+            catch (Exception e)
+            {
+                logger.error("Failed to write to the write-ahead log for {}/{}. Continuing to compact now can cause resurrection. Exiting",
+                             cfs.keyspace.getName(), cfs.name, e);
+                panic();
+            }
 
             // log a bunch of statistics about the result and save to system table compaction_history
             long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
@@ -267,6 +274,10 @@ public class CompactionTask extends AbstractCompactionTask
                 cfs.metric.compactionsCompleted.inc();
             }
         }
+    }
+
+    protected void panic() {
+        System.exit(1);
     }
 
     @Override
