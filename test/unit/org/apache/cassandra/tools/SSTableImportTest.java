@@ -229,6 +229,14 @@ public class SSTableImportTest
         assertThat(result, hasItem(withElements(2, "CA", 2014)));
         reader.selfRef().release();
     }
+
+    @Test(expected=AssertionError.class)
+    public void shouldRejectEmptyCellNamesForNonCqlTables() throws IOException, URISyntaxException
+    {
+        String jsonUrl = resourcePath("CQLTable.json");
+        File tempSS = tempSSTableFile(KEYSPACE1, CF_STANDARD);
+        new SSTableImport(true).importJson(jsonUrl, KEYSPACE1, CF_STANDARD, tempSS.getPath());
+    }
     
     private static Matcher<UntypedResultSet.Row> withElements(final int key, final String v1, final int v2) {
         return new TypeSafeMatcher<UntypedResultSet.Row>()
