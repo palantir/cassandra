@@ -25,12 +25,27 @@ import com.google.common.net.InetAddresses;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Snapshot;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
 public class FailureDetectorMetrics
 {
+    private static final String groupName = FailureDetectorMetrics.class.getPackage().getName();
+    static
+    {
+        Metrics.register(
+            new CassandraMetricsRegistry.MetricName(groupName, "FailureDetector", "FailureDetectorPhiThreshold", null), new Gauge<Double>()
+        {
+            public Double getValue()
+            {
+                return DatabaseDescriptor.getPhiConvictThreshold();
+            }
+        });
+    }
+
     public static void register(
         InetAddress ep, Gauge<Double> phiSupplier, Gauge<Long> lastIntervalSupplier, Supplier<Snapshot> snapshotSupplier)
     {
@@ -49,7 +64,6 @@ public class FailureDetectorMetrics
     private static CassandraMetricsRegistry.MetricName createMetricName(InetAddress ep, String name)
     {
         String endpoint = InetAddresses.toAddrString(ep);
-        String groupName = FailureDetectorMetrics.class.getPackage().getName();
 
         StringBuilder mbeanName = new StringBuilder();
         mbeanName.append(groupName).append(":");
