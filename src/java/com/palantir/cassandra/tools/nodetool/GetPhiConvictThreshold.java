@@ -21,6 +21,8 @@ package com.palantir.cassandra.tools.nodetool;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
+import io.airlift.command.Command;
+
 @Command(name = "getphiconvictthreshold", description = "Get failure detector phi threshold value")
 public class GetPhiConvictThreshold extends NodeTool.NodeToolCmd
 {
