@@ -589,8 +589,7 @@ public class CompactionsTest
             assertTrue(e.getCause().getMessage().contains("Exception thrown while some sstables in finish"));
             assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
         }
-        assertTrue(compaction.panicked);
-        assertTrue(compaction.compactionController.closed);
+        assertTrue("failed compaction abort panicked", compaction.panicked);
     }
 
     @Test
@@ -621,8 +620,7 @@ public class CompactionsTest
             throw new RuntimeException();
         });
         compaction.runMayThrow();
-        assertTrue(compaction.panicked);
-        assertFalse(compaction.compactionController.closed);
+        assertTrue("panicked on failed WAL write", compaction.panicked);
     }
 
     @Test
@@ -651,8 +649,8 @@ public class CompactionsTest
 
         ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
         compaction.runMayThrow();
-        assertFalse(compaction.panicked);
-        assertTrue(compaction.compactionController.closed);
+        assertFalse("successful WAL write did not cause a panic", compaction.panicked);
+        assertTrue("compaction resources were closed successfully after a WAL write", compaction.compactionController.closed);
     }
 
     @Test
@@ -694,8 +692,8 @@ public class CompactionsTest
         } catch (CompactionInterruptedException e) {
             assertNotNull(e);
         }
-        assertFalse(compaction.panicked);
-        assertTrue(compaction.compactionController.closed);
+        assertFalse("interrupted compaction did not cause a panic", compaction.panicked);
+        assertTrue("compaction resources were closed successfully after an interrupted compaction", compaction.compactionController.closed);
     }
 
     private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
