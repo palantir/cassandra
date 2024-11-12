@@ -24,12 +24,13 @@ import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.Schema;
+import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.SimpleStrategy;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 
 @RunWith(OrderedJUnit4ClassRunner.class)
 public class LegacySchemaTablesTest
@@ -38,6 +39,13 @@ public class LegacySchemaTablesTest
     private static final String KEYSPACE2 = "Keyspace2";
     private static final String CF_STANDARD1 = "Standard1";
     private static final String CF_STANDARD2 = "Standard2";
+
+    @BeforeClass
+    public static void defineSchema() throws ConfigurationException
+    {
+        SchemaLoader.prepareServer();
+        SchemaLoader.startGossiper();
+    }
 
     @Test
     public void testSchemaToMutationsCache() {
