@@ -80,7 +80,8 @@ public class CompactionsTest
     private static final String CF_STANDARD4 = "Standard4";
     private static final String CF_STANDARD5 = "Standard5";
     private static final String CF_STANDARD6 = "Standard6";
-    private static final String CF_STANDARD7= "Standard6";
+    private static final String CF_STANDARD7 = "Standard7";
+    private static final String CF_STANDARD8 = "Standard8";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -101,6 +102,7 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD8),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -649,6 +651,49 @@ public class CompactionsTest
 
         ColumnFamilyStoreManager.instance.registerWriteAheadLogger((cfMetaData, descriptors) -> {});
         compaction.runMayThrow();
+        assertFalse(compaction.panicked);
+        assertTrue(compaction.compactionController.closed);
+    }
+
+    @Test
+    public void interruptedCompactionWithSuccessfulRollbackCloses() throws Exception
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        String cfName = CF_STANDARD8;
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+
+        cfs.clearUnsafe();
+        cfs.disableAutoCompaction();
+
+        SchemaLoader.insertData(KEYSPACE1, cfName, 0, 1);
+        cfs.forceBlockingFlush();
+
+        SSTableReader s = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s);
+        SSTableReader s2 = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s2);
+
+        assertEquals(3, cfs.getSSTables().size());
+
+        Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
+        LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
+        PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
+
+        ColumnFamilyStoreManager.instance.registerWriteAheadLogger((cfMetaData, descriptors) -> {});
+        compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
+        {
+            public void beginCompaction(CompactionInfo.Holder ci)
+            {
+                ci.stop();
+            }
+
+            public void finishCompaction(CompactionInfo.Holder ci) {}
+        });
+        try {
+            compaction.runMayThrow();
+        } catch (CompactionInterruptedException e) {
+            assertNotNull(e);
+        }
         assertFalse(compaction.panicked);
         assertTrue(compaction.compactionController.closed);
     }
