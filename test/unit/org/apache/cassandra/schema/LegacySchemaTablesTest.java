@@ -50,6 +50,8 @@ public class LegacySchemaTablesTest
     @Test
     public void testSchemaToMutationsCache() {
         SchemaLoader.createKeyspace(KEYSPACE1,
+                                    true,
+                                    false,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
@@ -60,6 +62,8 @@ public class LegacySchemaTablesTest
         Assert.assertTrue(LegacySchemaTables.mutations.asMap().containsKey(initialSchemaUUID));
 
         SchemaLoader.createKeyspace(KEYSPACE2,
+                                    true,
+                                    false,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
