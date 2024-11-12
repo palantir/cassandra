@@ -37,6 +37,7 @@ import javax.management.openmbean.TabularDataSupport;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
@@ -704,6 +705,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             @Override
             public void runMayThrow() throws InterruptedException
             {
+                Stopwatch watch = Stopwatch.createStarted();
+                logger.info("Executing drainOnShutdown hook");
+
                 inShutdownHook = true;
                 ExecutorService counterMutationStage = StageManager.getStage(Stage.COUNTER_MUTATION);
                 ExecutorService mutationStage = StageManager.getStage(Stage.MUTATION);
@@ -754,6 +758,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 ScheduledExecutors.nonPeriodicTasks.shutdown();
                 if (!ScheduledExecutors.nonPeriodicTasks.awaitTermination(1, MINUTES))
                     logger.warn("Miscellaneous task executor still busy after one minute; proceeding with shutdown");
+
+                logger.info("DrainOnShutdown completed in {} ms", SafeArg.of("ms", watch.elapsed(TimeUnit.MILLISECONDS)));
             }
         }, "StorageServiceShutdownHook");
         Runtime.getRuntime().addShutdownHook(drainOnShutdown);
@@ -4602,6 +4608,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public synchronized void drain() throws IOException, InterruptedException, ExecutionException
     {
+        Stopwatch watch = Stopwatch.createStarted();
+
         inShutdownHook = true;
 
         ExecutorService counterMutationStage = StageManager.getStage(Stage.COUNTER_MUTATION);
@@ -4689,6 +4697,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ColumnFamilyStore.shutdownPostFlushExecutor();
 
         setMode(Mode.DRAINED, true);
+
+        logger.info("Drain completed in {} ms", SafeArg.of("ms", watch.elapsed(TimeUnit.MILLISECONDS)));
     }
 
     // Never ever do this at home. Used by tests.
