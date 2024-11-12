@@ -549,7 +549,7 @@ public class CompactionsTest
     }
 
     @Test
-    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress() throws IOException
+    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress()
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE1);
         String cfName = CF_STANDARD5;
@@ -583,6 +583,7 @@ public class CompactionsTest
             assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
         }
         assertTrue(compaction.panicked);
+        assertTrue(compaction.compactionController.closed);
     }
 
     private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
@@ -610,6 +611,7 @@ public class CompactionsTest
     private static class FailedAbortCompactionTask extends LeveledCompactionTask
     {
         private boolean panicked;
+        private FailedAbortCompactionController compactionController;
 
         public FailedAbortCompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int level, int gcBefore, long maxSSTableBytes, boolean majorCompaction)
         {
@@ -626,6 +628,29 @@ public class CompactionsTest
         protected void panic()
         {
             panicked = true;
+        }
+
+        @Override
+        protected CompactionController getCompactionController(Set<SSTableReader> toCompact)
+        {
+            return compactionController = new FailedAbortCompactionController(cfs, toCompact, gcBefore);
+        }
+    }
+
+    private static class FailedAbortCompactionController extends CompactionController
+    {
+        private boolean closed;
+
+        private FailedAbortCompactionController(ColumnFamilyStore cfs, Set<SSTableReader> compacting, int gcBefore)
+        {
+            super(cfs, compacting, gcBefore);
+        }
+
+        @Override
+        public void close()
+        {
+            super.close();
+            closed = true;
         }
     }
 
