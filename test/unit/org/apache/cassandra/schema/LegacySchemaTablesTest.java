@@ -18,9 +18,12 @@
 
 package org.apache.cassandra.schema;
 
+import java.util.UUID;
+
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.KSMetaData;
+import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.locator.SimpleStrategy;
 
 import org.junit.Assert;
@@ -43,15 +46,20 @@ public class LegacySchemaTablesTest
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2));
+        UUID initialSchemaUUID = Schema.instance.getVersion();
         LegacySchemaTables.convertSchemaToMutations();
         Assert.assertEquals(LegacySchemaTables.mutations.size(), 1);
+        Assert.assertTrue(LegacySchemaTables.mutations.asMap().containsKey(initialSchemaUUID));
 
         SchemaLoader.createKeyspace(KEYSPACE2,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2));
+        UUID updatedSchemaUUID = Schema.instance.getVersion();
         LegacySchemaTables.convertSchemaToMutations();
         Assert.assertEquals(LegacySchemaTables.mutations.size(), 1);
+        Assert.assertFalse(LegacySchemaTables.mutations.asMap().containsKey(initialSchemaUUID));
+        Assert.assertTrue(LegacySchemaTables.mutations.asMap().containsKey(updatedSchemaUUID));
     }
 }
