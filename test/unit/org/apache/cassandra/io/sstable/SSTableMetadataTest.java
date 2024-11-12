@@ -33,18 +33,14 @@ import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
-import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.composites.*;
-import org.apache.cassandra.db.context.CounterContext;
 import org.apache.cassandra.db.marshal.*;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.cassandra.utils.CounterId;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import static org.apache.cassandra.Util.cellname;
@@ -56,7 +52,6 @@ public class SSTableMetadataTest
     public static final String CF_STANDARD2 = "Standard2";
     public static final String CF_STANDARD3 = "Standard3";
     public static final String CF_STANDARDCOMPOSITE2 = "StandardComposite2";
-    public static final String CF_COUNTER1 = "Counter1";
 
     @BeforeClass
     public static void defineSchema() throws Exception
@@ -69,8 +64,7 @@ public class SSTableMetadataTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD3),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARDCOMPOSITE2, compositeMaxMin),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER1).defaultValidator(CounterColumnType.instance));
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARDCOMPOSITE2, compositeMaxMin));
     }
 
     @Test
@@ -285,55 +279,5 @@ public class SSTableMetadataTest
             assertEquals("a0", ByteBufferUtil.string(sstable.getSSTableMetadata().minColumnNames.get(0)));
             assertEquals(0, ByteBufferUtil.toInt(sstable.getSSTableMetadata().minColumnNames.get(1)));
         }
-    }
-
-    @Test
-    public void testLegacyCounterShardTracking()
-    {
-        ColumnFamilyStore cfs = Keyspace.open(KEYSPACE1).getColumnFamilyStore("Counter1");
-
-        // A cell with all shards
-        CounterContext.ContextState state = CounterContext.ContextState.allocate(1, 1, 1);
-        state.writeGlobal(CounterId.fromInt(1), 1L, 1L);
-        state.writeLocal(CounterId.fromInt(2), 1L, 1L);
-        state.writeRemote(CounterId.fromInt(3), 1L, 1L);
-        ColumnFamily cells = ArrayBackedSortedColumns.factory.create(cfs.metadata);
-        cells.addColumn(new BufferCounterCell(cellname("col"), state.context, 1L, Long.MIN_VALUE));
-        new Mutation(Util.dk("k").getKey(), cells).applyUnsafe();
-        cfs.forceBlockingFlush();
-        assertTrue(cfs.getSSTables().iterator().next().getSSTableMetadata().hasLegacyCounterShards);
-        cfs.truncateBlocking();
-
-        // A cell with global and remote shards
-        state = CounterContext.ContextState.allocate(0, 1, 1);
-        state.writeLocal(CounterId.fromInt(2), 1L, 1L);
-        state.writeRemote(CounterId.fromInt(3), 1L, 1L);
-        cells = ArrayBackedSortedColumns.factory.create(cfs.metadata);
-        cells.addColumn(new BufferCounterCell(cellname("col"), state.context, 1L, Long.MIN_VALUE));
-        new Mutation(Util.dk("k").getKey(), cells).applyUnsafe();
-        cfs.forceBlockingFlush();
-        assertTrue(cfs.getSSTables().iterator().next().getSSTableMetadata().hasLegacyCounterShards);
-        cfs.truncateBlocking();
-
-        // A cell with global and local shards
-        state = CounterContext.ContextState.allocate(1, 1, 0);
-        state.writeGlobal(CounterId.fromInt(1), 1L, 1L);
-        state.writeLocal(CounterId.fromInt(2), 1L, 1L);
-        cells = ArrayBackedSortedColumns.factory.create(cfs.metadata);
-        cells.addColumn(new BufferCounterCell(cellname("col"), state.context, 1L, Long.MIN_VALUE));
-        new Mutation(Util.dk("k").getKey(), cells).applyUnsafe();
-        cfs.forceBlockingFlush();
-        assertTrue(cfs.getSSTables().iterator().next().getSSTableMetadata().hasLegacyCounterShards);
-        cfs.truncateBlocking();
-
-        // A cell with global only
-        state = CounterContext.ContextState.allocate(1, 0, 0);
-        state.writeGlobal(CounterId.fromInt(1), 1L, 1L);
-        cells = ArrayBackedSortedColumns.factory.create(cfs.metadata);
-        cells.addColumn(new BufferCounterCell(cellname("col"), state.context, 1L, Long.MIN_VALUE));
-        new Mutation(Util.dk("k").getKey(), cells).applyUnsafe();
-        cfs.forceBlockingFlush();
-        assertFalse(cfs.getSSTables().iterator().next().getSSTableMetadata().hasLegacyCounterShards);
-        cfs.truncateBlocking();
     }
 }

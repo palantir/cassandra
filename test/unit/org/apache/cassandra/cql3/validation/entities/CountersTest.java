@@ -21,106 +21,14 @@ package org.apache.cassandra.cql3.validation.entities;
 import org.junit.Test;
 
 import org.apache.cassandra.cql3.CQLTester;
-import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.exceptions.InvalidRequestException;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class CountersTest extends CQLTester
 {
-    /**
-     * Check for a table with counters,
-     * migrated from cql_tests.py:TestCQL.counters_test()
-     */
     @Test
-    public void testCounters() throws Throwable
-    {
-        createTable("CREATE TABLE %s (userid int, url text, total counter, PRIMARY KEY (userid, url)) WITH COMPACT STORAGE");
-
-        execute("UPDATE %s SET total = total + 1 WHERE userid = 1 AND url = 'http://foo.com'");
-        assertRows(execute("SELECT total FROM %s WHERE userid = 1 AND url = 'http://foo.com'"),
-                   row(1L));
-
-        execute("UPDATE %s SET total = total - 4 WHERE userid = 1 AND url = 'http://foo.com'");
-        assertRows(execute("SELECT total FROM %s WHERE userid = 1 AND url = 'http://foo.com'"),
-                   row(-3L));
-
-        execute("UPDATE %s SET total = total+1 WHERE userid = 1 AND url = 'http://foo.com'");
-        assertRows(execute("SELECT total FROM %s WHERE userid = 1 AND url = 'http://foo.com'"),
-                   row(-2L));
-
-        execute("UPDATE %s SET total = total -2 WHERE userid = 1 AND url = 'http://foo.com'");
-        assertRows(execute("SELECT total FROM %s WHERE userid = 1 AND url = 'http://foo.com'"),
-                   row(-4L));
+    public void testCounterColumnsRejected() {
+        assertThatThrownBy(() -> createTable("CREATE TABLE %s (userid int, url text, total counter, PRIMARY KEY (userid, url)) WITH COMPACT STORAGE"))
+            .hasStackTraceContaining("Palantir Cassandra does not support counter columns");
     }
-
-    /**
-     * Test for the validation bug of #4706,
-     * migrated from cql_tests.py:TestCQL.validate_counter_regular_test()
-     */
-    @Test
-    public void testRegularCounters() throws Throwable
-    {
-        assertInvalidThrowMessage("Cannot add a non counter column",
-                                  ConfigurationException.class,
-                                  String.format("CREATE TABLE %s.%s (id bigint PRIMARY KEY, count counter, things set<text>)", KEYSPACE, createTableName()));
-    }
-
-    /**
-     * Migrated from cql_tests.py:TestCQL.collection_counter_test()
-     */
-    @Test
-    public void testCountersOnCollections() throws Throwable
-    {
-        String tableName = KEYSPACE + "." + createTableName();
-        assertInvalidThrow(InvalidRequestException.class,
-                           String.format("CREATE TABLE %s (k int PRIMARY KEY, l list<counter>)", tableName));
-
-        tableName = KEYSPACE + "." + createTableName();
-        assertInvalidThrow(InvalidRequestException.class,
-                           String.format("CREATE TABLE %s (k int PRIMARY KEY, s set<counter>)", tableName));
-
-        tableName = KEYSPACE + "." + createTableName();
-        assertInvalidThrow(InvalidRequestException.class,
-                           String.format("CREATE TABLE %s (k int PRIMARY KEY, m map<text, counter>)", tableName));
-    }
-
-    @Test
-    public void testCounterUpdatesWithUnset() throws Throwable
-    {
-        createTable("CREATE TABLE %s (k int PRIMARY KEY, c counter)");
-
-        // set up
-        execute("UPDATE %s SET c = c + 1 WHERE k = 10");
-        assertRows(execute("SELECT c FROM %s WHERE k = 10"),
-                   row(1L)
-        );
-        // increment
-        execute("UPDATE %s SET c = c + ? WHERE k = 10", 1L);
-        assertRows(execute("SELECT c FROM %s WHERE k = 10"),
-                   row(2L)
-        );
-        execute("UPDATE %s SET c = c + ? WHERE k = 10", unset());
-        assertRows(execute("SELECT c FROM %s WHERE k = 10"),
-                   row(2L) // no change to the counter value
-        );
-        // decrement
-        execute("UPDATE %s SET c = c - ? WHERE k = 10", 1L);
-        assertRows(execute("SELECT c FROM %s WHERE k = 10"),
-                   row(1L)
-        );
-        execute("UPDATE %s SET c = c - ? WHERE k = 10", unset());
-        assertRows(execute("SELECT c FROM %s WHERE k = 10"),
-                   row(1L) // no change to the counter value
-        );
-    }
-
-    /**
-     * Test for the validation bug of #9395.
-     */
-    @Test
-    public void testProhibitReversedCounterAsPartOfPrimaryKey() throws Throwable
-    {
-        assertInvalidThrowMessage("counter type is not supported for PRIMARY KEY part a",
-                                  InvalidRequestException.class, String.format("CREATE TABLE %s.%s (a counter, b int, PRIMARY KEY (b, a)) WITH CLUSTERING ORDER BY (a desc);", KEYSPACE, createTableName()));
-    }
-
 }

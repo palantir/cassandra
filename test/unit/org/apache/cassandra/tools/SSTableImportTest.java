@@ -47,7 +47,6 @@ import org.apache.cassandra.db.ArrayBackedSortedColumns;
 import org.apache.cassandra.db.BufferDeletedCell;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
-import org.apache.cassandra.db.CounterCell;
 import org.apache.cassandra.db.DeletionInfo;
 import org.apache.cassandra.db.ExpiringCell;
 import org.apache.cassandra.cql3.QueryProcessor;
@@ -57,7 +56,6 @@ import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.db.marshal.AsciiType;
 import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.locator.SimpleStrategy;
@@ -66,7 +64,6 @@ public class SSTableImportTest
 {
     public static final String KEYSPACE1 = "SSTableImportTest";
     public static final String CF_STANDARD = "Standard1";
-    public static final String CF_COUNTER = "Counter1";
     public static final String CQL_TABLE = "table1";
 
     @BeforeClass
@@ -77,7 +74,6 @@ public class SSTableImportTest
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER).defaultValidator(CounterColumnType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, "AsciiKeys").keyValidator(AsciiType.instance),
                                     CFMetaData.compile("CREATE TABLE table1 (k int PRIMARY KEY, v1 text, v2 int)", KEYSPACE1));
     }
@@ -175,26 +171,6 @@ public class SSTableImportTest
     }
 
     @Test
-    public void testImportCounterCf() throws IOException, URISyntaxException
-    {
-        // Import JSON to temp SSTable file
-        String jsonUrl = resourcePath("CounterCF.json");
-        File tempSS = tempSSTableFile(KEYSPACE1, "Counter1");
-        new SSTableImport(true).importJson(jsonUrl, KEYSPACE1, "Counter1", tempSS.getPath());
-
-        // Verify results
-        SSTableReader reader = SSTableReader.open(Descriptor.fromFilename(tempSS.getPath()));
-        QueryFilter qf = QueryFilter.getIdentityFilter(Util.dk("rowA"), "Counter1", System.currentTimeMillis());
-        OnDiskAtomIterator iter = qf.getSSTableColumnIterator(reader);
-        ColumnFamily cf = cloneForAdditions(iter);
-        while (iter.hasNext()) cf.addAtom(iter.next());
-        Cell c = cf.getColumn(Util.cellname("colAA"));
-        assert c instanceof CounterCell : c;
-        assert ((CounterCell) c).total() == 42;
-        reader.selfRef().release();
-    }
-
-    @Test
     public void testImportWithAsciiKeyValidator() throws IOException, URISyntaxException
     {
         // Import JSON to temp SSTable file
@@ -258,8 +234,8 @@ public class SSTableImportTest
     public void shouldRejectEmptyCellNamesForNonCqlTables() throws IOException, URISyntaxException
     {
         String jsonUrl = resourcePath("CQLTable.json");
-        File tempSS = tempSSTableFile(KEYSPACE1, CF_COUNTER);
-        new SSTableImport(true).importJson(jsonUrl, KEYSPACE1, CF_COUNTER, tempSS.getPath());
+        File tempSS = tempSSTableFile(KEYSPACE1, CF_STANDARD);
+        new SSTableImport(true).importJson(jsonUrl, KEYSPACE1, CF_STANDARD, tempSS.getPath());
     }
     
     private static Matcher<UntypedResultSet.Row> withElements(final int key, final String v1, final int v2) {

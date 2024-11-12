@@ -68,7 +68,6 @@ public class ThriftIntegrationTest extends ThriftCQLTester
     {
         final String denseTableName = createTableName();
         final String sparseTableName =  currentSparseTable();
-        final String counterTableName = currentCounterTable();
 
         CfDef cfDef = new CfDef().setColumn_type("Super")
                                  .setSubcomparator_type(Int32Type.instance.toString())
@@ -87,17 +86,9 @@ public class ThriftIntegrationTest extends ThriftCQLTester
                                        .setKeyspace(KEYSPACE)
                                        .setName(sparseTableName);
 
-        CfDef counterCfDef = new CfDef().setColumn_type("Super")
-                                        .setSubcomparator_type(AsciiType.instance.toString())
-                                        .setComparator_type(AsciiType.instance.toString())
-                                        .setDefault_validation_class(CounterColumnType.instance.toString())
-                                        .setKey_validation_class(AsciiType.instance.toString())
-                                        .setKeyspace(KEYSPACE)
-                                        .setName(counterTableName);
-
         KsDef ksDef = new KsDef(KEYSPACE,
                                 SimpleStrategy.class.getName(),
-                                Arrays.asList(cfDef, sparseCfDef, counterCfDef));
+                                Arrays.asList(cfDef, sparseCfDef));
 
         ksDef.setStrategy_options(Collections.singletonMap("replication_factor", "1"));
 
@@ -110,103 +101,6 @@ public class ThriftIntegrationTest extends ThriftCQLTester
     public void tearDown() throws Throwable
     {
         getClient().send_system_drop_keyspace(KEYSPACE);
-    }
-
-    @Test
-    public void testReadCounter() throws Throwable
-    {
-        populateCounterTable();
-
-        UntypedResultSet resultSet = execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable()));
-        assertRows(resultSet,
-                   row("key1", "ck1", "counter1", 10L),
-                   row("key1", "ck1", "counter2", 5L),
-                   row("key2", "ck1", "counter1", 10L),
-                   row("key2", "ck1", "counter2", 5L));
-    }
-
-    @Test
-    public void testCounterTableThriftUpdates() throws Throwable
-    {
-        populateCounterTable();
-
-        Cassandra.Client client = getClient();
-        Mutation mutation = new Mutation();
-        ColumnOrSuperColumn csoc = new ColumnOrSuperColumn();
-        csoc.setCounter_super_column(new CounterSuperColumn(ByteBufferUtil.bytes("ck1"),
-                                                            Arrays.asList(new CounterColumn(ByteBufferUtil.bytes("counter1"), 1))));
-        mutation.setColumn_or_supercolumn(csoc);
-
-        Mutation mutation2 = new Mutation();
-        ColumnOrSuperColumn csoc2 = new ColumnOrSuperColumn();
-        csoc2.setCounter_super_column(new CounterSuperColumn(ByteBufferUtil.bytes("ck1"),
-                                                             Arrays.asList(new CounterColumn(ByteBufferUtil.bytes("counter1"), 100))));
-        mutation2.setColumn_or_supercolumn(csoc2);
-        client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key1"),
-                                                     Collections.singletonMap(currentCounterTable(), Arrays.asList(mutation))),
-                            ONE);
-        client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key2"),
-                                                     Collections.singletonMap(currentCounterTable(), Arrays.asList(mutation2))),
-                            ONE);
-
-        UntypedResultSet resultSet = execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable()));
-        assertRows(resultSet,
-                   row("key1", "ck1", "counter1", 11L),
-                   row("key1", "ck1", "counter2", 5L),
-                   row("key2", "ck1", "counter1", 110L),
-                   row("key2", "ck1", "counter2", 5L));
-    }
-
-    @Test
-    public void testCounterTableCqlUpdates() throws Throwable
-    {
-        populateCounterTable();
-
-        execute(String.format("UPDATE %s.%s set value = value + 1 WHERE key = ? AND column1 = ? AND column2 = ?", KEYSPACE, currentCounterTable()),
-                "key1", "ck1", "counter1");
-        execute(String.format("UPDATE %s.%s set value = value + 100 WHERE key = 'key2' AND column1 = 'ck1' AND column2 = 'counter1'", KEYSPACE, currentCounterTable()));
-
-        execute(String.format("UPDATE %s.%s set value = value - ? WHERE key = 'key1' AND column1 = 'ck1' AND column2 = 'counter2'", KEYSPACE, currentCounterTable()), 2L);
-        execute(String.format("UPDATE %s.%s set value = value - ? WHERE key = 'key2' AND column1 = 'ck1' AND column2 = 'counter2'", KEYSPACE, currentCounterTable()), 100L);
-
-        UntypedResultSet resultSet = execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable()));
-        assertRows(resultSet,
-                   row("key1", "ck1", "counter1", 11L),
-                   row("key1", "ck1", "counter2", 3L),
-                   row("key2", "ck1", "counter1", 110L),
-                   row("key2", "ck1", "counter2", -95L));
-    }
-
-    @Test
-    public void testCounterTableCqlDeletes() throws Throwable
-    {
-        populateCounterTable();
-
-        assertRows(execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable())),
-                   row("key1", "ck1", "counter1", 10L),
-                   row("key1", "ck1", "counter2", 5L),
-                   row("key2", "ck1", "counter1", 10L),
-                   row("key2", "ck1", "counter2", 5L));
-
-        execute(String.format("DELETE value FROM %s.%s WHERE key = ? AND column1 = ? AND column2 = ?", KEYSPACE, currentCounterTable()),
-                "key1", "ck1", "counter1");
-
-        assertRows(execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable())),
-                   row("key1", "ck1", "counter2", 5L),
-                   row("key2", "ck1", "counter1", 10L),
-                   row("key2", "ck1", "counter2", 5L));
-
-        execute(String.format("DELETE FROM %s.%s WHERE key = ? AND column1 = ?", KEYSPACE, currentCounterTable()),
-                "key1", "ck1");
-
-        assertRows(execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable())),
-                   row("key2", "ck1", "counter1", 10L),
-                   row("key2", "ck1", "counter2", 5L));
-
-        execute(String.format("DELETE FROM %s.%s WHERE key = ?", KEYSPACE, currentCounterTable()),
-                "key2");
-
-        assertEmpty(execute(String.format("select * from %s.%s", KEYSPACE, currentCounterTable())));
     }
 
     @Test
@@ -824,41 +718,6 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key2"),
                                                      Collections.singletonMap(currentSparseTable(), Arrays.asList(mutation, mutation2))),
                             ONE);
-    }
-
-    private void populateCounterTable() throws Throwable
-    {
-        Cassandra.Client client = getClient();
-
-        ColumnParent cp = new ColumnParent(currentCounterTable());
-        cp.setSuper_column(ByteBufferUtil.bytes("ck1"));
-        client.add(ByteBufferUtil.bytes("key1"),
-                   cp,
-                   new CounterColumn(ByteBufferUtil.bytes("counter1"), 10L),
-                   ONE);
-        cp = new ColumnParent(currentCounterTable());
-        cp.setSuper_column(ByteBufferUtil.bytes("ck1"));
-        client.add(ByteBufferUtil.bytes("key1"),
-                   cp,
-                   new CounterColumn(ByteBufferUtil.bytes("counter2"), 5L),
-                   ONE);
-        cp = new ColumnParent(currentCounterTable());
-        cp.setSuper_column(ByteBufferUtil.bytes("ck1"));
-        client.add(ByteBufferUtil.bytes("key2"),
-                   cp,
-                   new CounterColumn(ByteBufferUtil.bytes("counter1"), 10L),
-                   ONE);
-        cp = new ColumnParent(currentCounterTable());
-        cp.setSuper_column(ByteBufferUtil.bytes("ck1"));
-        client.add(ByteBufferUtil.bytes("key2"),
-                   cp,
-                   new CounterColumn(ByteBufferUtil.bytes("counter2"), 5L),
-                   ONE);
-    }
-
-    private String currentCounterTable()
-    {
-        return currentTable() + "_counter";
     }
 
     private String currentSparseTable()
