@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -80,7 +81,9 @@ public class LegacySchemaTables
 
     private static final int MUTATION_CACHE_MAX_SIZE = 1;
     private static final Duration MUTATION_CACHE_EXPIRY = Duration.ofMinutes(5);
-    private static final LoadingCache<UUID, Collection<Mutation>> mutations = CacheBuilder.newBuilder().maximumSize(MUTATION_CACHE_MAX_SIZE).expireAfterAccess(MUTATION_CACHE_EXPIRY).build(new UUIDMutationCacheLoader());
+
+    @VisibleForTesting
+    static final LoadingCache<UUID, Collection<Mutation>> mutations = CacheBuilder.newBuilder().maximumSize(MUTATION_CACHE_MAX_SIZE).expireAfterAccess(MUTATION_CACHE_EXPIRY).build(new UUIDMutationCacheLoader());
 
     private static final CFMetaData Keyspaces =
         compile(KEYSPACES,
@@ -315,7 +318,7 @@ public class LegacySchemaTables
                                                            System.currentTimeMillis());
     }
 
-    public static Collection<Mutation> convertSchemaToMutations()
+    public static synchronized Collection<Mutation> convertSchemaToMutations()
     {
         return mutations.getUnchecked(Schema.instance.getVersion());
     }
