@@ -706,6 +706,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             public void runMayThrow() throws InterruptedException
             {
                 Stopwatch watch = Stopwatch.createStarted();
+                logger.info("Executing drainOnShutdown hook");
 
                 inShutdownHook = true;
                 ExecutorService counterMutationStage = StageManager.getStage(Stage.COUNTER_MUTATION);
