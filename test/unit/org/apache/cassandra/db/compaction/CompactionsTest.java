@@ -649,7 +649,7 @@ public class CompactionsTest
         LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
         PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
 
-        ColumnFamilyStoreManager.instance.registerWriteAheadLogger((cfMetaData, descriptors) -> {});
+        ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
         compaction.runMayThrow();
         assertFalse(compaction.panicked);
         assertTrue(compaction.compactionController.closed);
@@ -679,7 +679,7 @@ public class CompactionsTest
         LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
         PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
 
-        ColumnFamilyStoreManager.instance.registerWriteAheadLogger((cfMetaData, descriptors) -> {});
+        ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
         compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
         {
             public void beginCompaction(CompactionInfo.Holder ci)
