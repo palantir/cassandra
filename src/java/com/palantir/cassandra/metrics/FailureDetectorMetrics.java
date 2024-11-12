@@ -38,14 +38,7 @@ public class FailureDetectorMetrics
     private static final String groupName = FailureDetectorMetrics.class.getPackage().getName();
     static
     {
-        Metrics.register(
-            createMetricName("FailureDetectorPhiThreshold"), new Gauge<Double>()
-        {
-            public Double getValue()
-            {
-                return DatabaseDescriptor.getPhiConvictThreshold();
-            }
-        });
+        Metrics.register(createMetricName("FailureDetectorPhiThreshold"), (Gauge<Double>) DatabaseDescriptor::getPhiConvictThreshold);
     }
 
     public static void register(
