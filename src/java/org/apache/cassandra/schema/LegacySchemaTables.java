@@ -83,7 +83,7 @@ public class LegacySchemaTables
     private static final Duration MUTATION_CACHE_EXPIRY = Duration.ofMinutes(5);
 
     @VisibleForTesting
-    static final LoadingCache<UUID, Collection<Mutation>> mutations = CacheBuilder.newBuilder().maximumSize(MUTATION_CACHE_MAX_SIZE).expireAfterAccess(MUTATION_CACHE_EXPIRY).build(new UUIDMutationCacheLoader());
+    public static final LoadingCache<UUID, Collection<Mutation>> mutations = CacheBuilder.newBuilder().maximumSize(MUTATION_CACHE_MAX_SIZE).expireAfterAccess(MUTATION_CACHE_EXPIRY).build(new UUIDMutationCacheLoader());
 
     private static final CFMetaData Keyspaces =
         compile(KEYSPACES,

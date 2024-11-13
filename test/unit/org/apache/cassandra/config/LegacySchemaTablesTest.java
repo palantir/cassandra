@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.UUID;
 
 import com.google.common.collect.Iterables;
 
@@ -44,6 +45,7 @@ import org.apache.cassandra.thrift.ThriftConversion;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -56,6 +58,7 @@ import static org.junit.Assert.assertTrue;
 public class LegacySchemaTablesTest
 {
     private static final String KEYSPACE1 = "CFMetaDataTest1";
+    private static final String KEYSPACE2 = "CFMetaDataTest2";
     private static final String CF_STANDARD1 = "Standard1";
     private static final String CF_STANDARD2 = "Standard2";
 
@@ -186,6 +189,34 @@ public class LegacySchemaTablesTest
                 checkInverses(withCompression);
             }
         }
+    }
+
+    @Test
+    public void testSchemaToMutationsCache() {
+        SchemaLoader.createKeyspace(KEYSPACE1,
+                                    true,
+                                    false,
+                                    SimpleStrategy.class,
+                                    KSMetaData.optsWithRF(1),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2));
+        UUID initialSchemaUUID = Schema.instance.getVersion();
+        LegacySchemaTables.convertSchemaToMutations();
+        Assert.assertEquals(LegacySchemaTables.mutations.size(), 1);
+        Assert.assertTrue(LegacySchemaTables.mutations.asMap().containsKey(initialSchemaUUID));
+
+        SchemaLoader.createKeyspace(KEYSPACE2,
+                                    true,
+                                    false,
+                                    SimpleStrategy.class,
+                                    KSMetaData.optsWithRF(1),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2));
+        UUID updatedSchemaUUID = Schema.instance.getVersion();
+        LegacySchemaTables.convertSchemaToMutations();
+        Assert.assertEquals(LegacySchemaTables.mutations.size(), 1);
+        Assert.assertFalse(LegacySchemaTables.mutations.asMap().containsKey(initialSchemaUUID));
+        Assert.assertTrue(LegacySchemaTables.mutations.asMap().containsKey(updatedSchemaUUID));
     }
 
     private void checkInverses(CFMetaData cfm) throws Exception
