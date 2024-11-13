@@ -32,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.DefaultCompactionWriter;
@@ -217,7 +218,9 @@ public class CompactionTask extends AbstractCompactionTask
                     if (readyToFinish && e.getSuppressed() != null && e.getSuppressed().length != 0)
                     {
                         logger.error("CompactionAwareWriter failed to close correctly for {}/{}. Continuing to compact now can cause resurrection. Exiting",
-                                cfs.keyspace.getName(), cfs.name, e);
+                            SafeArg.of("keyspace", cfs.keyspace.getName()),
+                            SafeArg.of("columnFamily", cfs.name),
+                            e);
                         panic();
                     }
                     throw exception;
@@ -245,7 +248,9 @@ public class CompactionTask extends AbstractCompactionTask
         catch (Exception e)
         {
             logger.error("Failed to write to the write-ahead log for {}/{}. Continuing to compact now can cause resurrection. Exiting",
-                         cfs.keyspace.getName(), cfs.name, e);
+                SafeArg.of("keyspace", cfs.keyspace.getName()),
+                SafeArg.of("columnFamily", cfs.name),
+                e);
             panic();
         }
         refs.close();
