@@ -61,6 +61,8 @@ public class LegacySchemaTablesTest
     private static final String KEYSPACE2 = "CFMetaDataTest2";
     private static final String CF_STANDARD1 = "Standard1";
     private static final String CF_STANDARD2 = "Standard2";
+    private static final boolean DEFAULT_DURABLE = true;
+    private static final boolean DEFAULT_ANNOUNCE = true;
 
     private static List<ColumnDef> columnDefs = new ArrayList<ColumnDef>();
 
@@ -79,8 +81,9 @@ public class LegacySchemaTablesTest
     public static void defineSchema() throws ConfigurationException
     {
         SchemaLoader.prepareServer();
-        SchemaLoader.startGossiper();
         SchemaLoader.createKeyspace(KEYSPACE1,
+                                    DEFAULT_DURABLE,
+                                    DEFAULT_ANNOUNCE,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1));
@@ -200,8 +203,8 @@ public class LegacySchemaTablesTest
         Assert.assertTrue(LegacySchemaTables.mutations.asMap().containsKey(initialSchemaUUID));
 
         SchemaLoader.createKeyspace(KEYSPACE2,
-                                    true,
-                                    false,
+                                    DEFAULT_DURABLE,
+                                    DEFAULT_ANNOUNCE,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
