@@ -27,6 +27,9 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+
+import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.cassandra.db.compaction.IColumnFamilyStoreWriteAheadLogger;
 import com.palantir.logsafe.exceptions.SafeIllegalStateException;
 import com.palantir.logsafe.exceptions.SafeRuntimeException;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
@@ -77,6 +80,8 @@ public class CompactionsTest
     private static final String CF_STANDARD4 = "Standard4";
     private static final String CF_STANDARD5 = "Standard5";
     private static final String CF_STANDARD6 = "Standard6";
+    private static final String CF_STANDARD7 = "Standard7";
+    private static final String CF_STANDARD8 = "Standard8";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -96,6 +101,8 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD4),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD5),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD8),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -549,7 +556,7 @@ public class CompactionsTest
     }
 
     @Test
-    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress() throws IOException
+    public void incompletedCompactionAbortNotRemovedFromCompactionsInProgress()
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE1);
         String cfName = CF_STANDARD5;
@@ -582,7 +589,116 @@ public class CompactionsTest
             assertTrue(e.getCause().getMessage().contains("Exception thrown while some sstables in finish"));
             assertTrue(e.getCause().getSuppressed()[0].getMessage().contains("Failed to do anything for abort"));
         }
-        assertTrue(compaction.panicked);
+        assertTrue("failed compaction abort panicked", compaction.panicked);
+    }
+
+    @Test
+    public void failedWalWritePanics() throws Exception
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        String cfName = CF_STANDARD6;
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+
+        cfs.clearUnsafe();
+        cfs.disableAutoCompaction();
+
+        SchemaLoader.insertData(KEYSPACE1, cfName, 0, 1);
+        cfs.forceBlockingFlush();
+
+        SSTableReader s = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s);
+        SSTableReader s2 = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s2);
+
+        assertEquals(3, cfs.getSSTables().size());
+
+        Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
+        LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
+        PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
+
+        ColumnFamilyStoreManager.instance.registerWriteAheadLogger((cfMetaData, descriptors) -> {
+            throw new RuntimeException();
+        });
+        try
+        {
+            compaction.runMayThrow();
+        }
+        finally
+        {
+            ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
+        }
+        assertTrue("panicked on failed WAL write", compaction.panicked);
+    }
+
+    @Test
+    public void successfulWalWriteCloses() throws Exception
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        String cfName = CF_STANDARD7;
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+
+        cfs.clearUnsafe();
+        cfs.disableAutoCompaction();
+
+        SchemaLoader.insertData(KEYSPACE1, cfName, 0, 1);
+        cfs.forceBlockingFlush();
+
+        SSTableReader s = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s);
+        SSTableReader s2 = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s2);
+
+        assertEquals(3, cfs.getSSTables().size());
+
+        Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
+        LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
+        PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
+
+        compaction.runMayThrow();
+        assertFalse("successful WAL write did not cause a panic", compaction.panicked);
+        assertTrue("compaction resources were closed successfully after a WAL write", compaction.compactionController.closed);
+    }
+
+    @Test
+    public void interruptedCompactionWithSuccessfulRollbackCloses() throws Exception
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        String cfName = CF_STANDARD8;
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+
+        cfs.clearUnsafe();
+        cfs.disableAutoCompaction();
+
+        SchemaLoader.insertData(KEYSPACE1, cfName, 0, 1);
+        cfs.forceBlockingFlush();
+
+        SSTableReader s = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s);
+        SSTableReader s2 = SSTableRewriterTest.writeFile(cfs, 1000);
+        cfs.addSSTable(s2);
+
+        assertEquals(3, cfs.getSSTables().size());
+
+        Set<SSTableReader> compacting = Sets.newHashSet(s, s2);
+        LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
+        PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
+
+        try {
+            compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
+            {
+                public void beginCompaction(CompactionInfo.Holder ci)
+                {
+                    ci.stop();
+                }
+
+                public void finishCompaction(CompactionInfo.Holder ci) {}
+            });
+        } catch (Exception e) {
+            assertNotNull(e);
+            assertTrue(e.getCause().getCause() instanceof CompactionInterruptedException);
+        }
+        assertFalse("interrupted compaction did not cause a panic", compaction.panicked);
+        assertTrue("compaction resources were closed successfully after an interrupted compaction", compaction.compactionController.closed);
     }
 
     private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
@@ -607,10 +723,48 @@ public class CompactionsTest
         }
     }
 
-    private static class FailedAbortCompactionTask extends LeveledCompactionTask
+    private static class PanicTrackingCompactionTask extends LeveledCompactionTask
     {
-        private boolean panicked;
+        protected boolean panicked;
+        protected CloseTrackingCompactionController compactionController;
 
+        public PanicTrackingCompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int level, int gcBefore, long maxSSTableBytes, boolean majorCompaction)
+        {
+            super(cfs, txn, level, gcBefore, maxSSTableBytes, majorCompaction);
+        }
+
+        @Override
+        protected void panic()
+        {
+            panicked = true;
+        }
+
+        @Override
+        protected CompactionController getCompactionController(Set<SSTableReader> toCompact)
+        {
+            return compactionController = new CloseTrackingCompactionController(cfs, toCompact, gcBefore);
+        }
+    }
+
+    private static class CloseTrackingCompactionController extends CompactionController
+    {
+        private boolean closed;
+
+        private CloseTrackingCompactionController(ColumnFamilyStore cfs, Set<SSTableReader> compacting, int gcBefore)
+        {
+            super(cfs, compacting, gcBefore);
+        }
+
+        @Override
+        public void close()
+        {
+            super.close();
+            closed = true;
+        }
+    }
+
+    private static class FailedAbortCompactionTask extends PanicTrackingCompactionTask
+    {
         public FailedAbortCompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int level, int gcBefore, long maxSSTableBytes, boolean majorCompaction)
         {
             super(cfs, txn, level, gcBefore, maxSSTableBytes, majorCompaction);
@@ -620,12 +774,6 @@ public class CompactionsTest
         public CompactionAwareWriter getCompactionAwareWriter(ColumnFamilyStore cfs, LifecycleTransaction txn, Set<SSTableReader> nonExpiredSSTables)
         {
             return new FailedAbortCompactionWriter(cfs, txn, nonExpiredSSTables, 1024 * 1024, 0, false, compactionType);
-        }
-
-        @Override
-        protected void panic()
-        {
-            panicked = true;
         }
     }
 
