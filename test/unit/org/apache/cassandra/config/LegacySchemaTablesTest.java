@@ -61,8 +61,8 @@ public class LegacySchemaTablesTest
     private static final String KEYSPACE2 = "CFMetaDataTest2";
     private static final String CF_STANDARD1 = "Standard1";
     private static final String CF_STANDARD2 = "Standard2";
+    private static final boolean DEFAULT_ANNOUNCE_LOCALLY = false;
     private static final boolean DEFAULT_DURABLE = true;
-    private static final boolean DEFAULT_ANNOUNCE = true;
 
     private static List<ColumnDef> columnDefs = new ArrayList<ColumnDef>();
 
@@ -83,7 +83,7 @@ public class LegacySchemaTablesTest
         SchemaLoader.prepareServer();
         SchemaLoader.createKeyspace(KEYSPACE1,
                                     DEFAULT_DURABLE,
-                                    DEFAULT_ANNOUNCE,
+                                    DEFAULT_ANNOUNCE_LOCALLY,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1));
@@ -204,7 +204,7 @@ public class LegacySchemaTablesTest
 
         SchemaLoader.createKeyspace(KEYSPACE2,
                                     DEFAULT_DURABLE,
-                                    DEFAULT_ANNOUNCE,
+                                    DEFAULT_ANNOUNCE_LOCALLY,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
