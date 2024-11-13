@@ -193,13 +193,6 @@ public class LegacySchemaTablesTest
 
     @Test
     public void testSchemaToMutationsCache() {
-        SchemaLoader.createKeyspace(KEYSPACE1,
-                                    true,
-                                    false,
-                                    SimpleStrategy.class,
-                                    KSMetaData.optsWithRF(1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD2));
         UUID initialSchemaUUID = Schema.instance.getVersion();
         LegacySchemaTables.convertSchemaToMutations();
         Assert.assertEquals(LegacySchemaTables.mutations.size(), 1);
