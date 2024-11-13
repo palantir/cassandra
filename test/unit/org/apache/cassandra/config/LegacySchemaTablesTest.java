@@ -79,6 +79,7 @@ public class LegacySchemaTablesTest
     public static void defineSchema() throws ConfigurationException
     {
         SchemaLoader.prepareServer();
+        SchemaLoader.startGossiper();
         SchemaLoader.createKeyspace(KEYSPACE1,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
