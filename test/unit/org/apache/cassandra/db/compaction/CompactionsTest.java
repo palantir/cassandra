@@ -619,7 +619,14 @@ public class CompactionsTest
         ColumnFamilyStoreManager.instance.registerWriteAheadLogger((cfMetaData, descriptors) -> {
             throw new RuntimeException();
         });
-        compaction.runMayThrow();
+        try
+        {
+            compaction.runMayThrow();
+        }
+        finally
+        {
+            ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
+        }
         assertTrue("panicked on failed WAL write", compaction.panicked);
     }
 
@@ -647,7 +654,6 @@ public class CompactionsTest
         LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
         PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
 
-        ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
         compaction.runMayThrow();
         assertFalse("successful WAL write did not cause a panic", compaction.panicked);
         assertTrue("compaction resources were closed successfully after a WAL write", compaction.compactionController.closed);
@@ -677,7 +683,6 @@ public class CompactionsTest
         LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
         PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
 
-        ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
         try {
             compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
             {
