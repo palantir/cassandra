@@ -678,19 +678,19 @@ public class CompactionsTest
         PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
 
         ColumnFamilyStoreManager.instance.unregisterWriteAheadLogger();
-        compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
-        {
-            public void beginCompaction(CompactionInfo.Holder ci)
-            {
-                ci.stop();
-            }
-
-            public void finishCompaction(CompactionInfo.Holder ci) {}
-        });
         try {
-            compaction.runMayThrow();
-        } catch (CompactionInterruptedException e) {
+            compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
+            {
+                public void beginCompaction(CompactionInfo.Holder ci)
+                {
+                    ci.stop();
+                }
+
+                public void finishCompaction(CompactionInfo.Holder ci) {}
+            });
+        } catch (Exception e) {
             assertNotNull(e);
+            assertTrue(e.getCause().getCause() instanceof CompactionInterruptedException);
         }
         assertFalse("interrupted compaction did not cause a panic", compaction.panicked);
         assertTrue("compaction resources were closed successfully after an interrupted compaction", compaction.compactionController.closed);
