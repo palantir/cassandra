@@ -62,10 +62,13 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
+    public static final Set<UUID> outstandingSchemaPulls = new ConcurrentSkipListSet<>();
+
     public static final int MIGRATION_DELAY_IN_MS = 60000;
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
-    
+
+
     private MigrationManager() {}
 
     public void register(MigrationListener listener)
@@ -103,7 +106,7 @@ public class MigrationManager
             return;
         }
 
-        if ((Schema.instance.getVersion() != null && Schema.instance.getVersion().equals(theirVersion)) || !shouldPullSchemaFrom(endpoint))
+        if ((Schema.instance.getVersion() != null && Schema.instance.getVersion().equals(theirVersion)) || !shouldPullSchemaFrom(endpoint, theirVersion))
         {
             logger.debug("Not pulling schema because versions match or shouldPullSchemaFrom returned false");
             return;
@@ -113,7 +116,7 @@ public class MigrationManager
         {
             // If we think we may be bootstrapping or have recently started, submit MigrationTask immediately
             logger.debug("Submitting migration task for {}", endpoint);
-            submitMigrationTask(endpoint);
+            submitMigrationTask(endpoint, theirVersion);
         }
 
         if (onChange && Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
@@ -161,7 +164,7 @@ public class MigrationManager
                             endpoint,
                             currentVersion,
                             Schema.instance.getVersion());
-                    submitMigrationTask(endpoint);
+                    submitMigrationTask(endpoint, currentVersion);
                 }
             };
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
@@ -177,6 +180,19 @@ public class MigrationManager
         return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint));
     }
 
+    /**
+     *
+     */
+    private static Future<?> submitMigrationTask(InetAddress endpoint, UUID theirVersion)
+    {
+        /*
+         * Do not de-ref the future because that causes distributed deadlock (CASSANDRA-3832) because we are
+         * running in the gossip stage.
+         */
+        outstandingSchemaPulls.add(theirVersion);
+        return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint, theirVersion));
+    }
+
     public static boolean shouldPullSchemaFrom(InetAddress endpoint)
     {
         /*
@@ -186,6 +202,21 @@ public class MigrationManager
         return MessagingService.instance().knowsVersion(endpoint)
                 && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                 && !Gossiper.instance.isGossipOnlyMember(endpoint);
+    }
+
+    public static boolean shouldPullSchemaFrom(InetAddress endpoint, UUID theirVersion)
+    {
+        /*
+         * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
+         * Don't request schema from fat clients
+         * Don't request schema from bootstrapping nodes (?)
+         * Don't request schema if we have an outstanding request for that schema version
+         */
+        return MessagingService.instance().knowsVersion(endpoint)
+               && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
+               && !Gossiper.instance.isGossipOnlyMember(endpoint)
+               && !Schema.emptyVersion.equals(theirVersion)
+               && !outstandingSchemaPulls.contains(theirVersion);
     }
 
     public static boolean isReadyForBootstrap()

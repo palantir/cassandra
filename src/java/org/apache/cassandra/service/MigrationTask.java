@@ -20,6 +20,8 @@ package org.apache.cassandra.service;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,55 +42,71 @@ class MigrationTask extends WrappedRunnable
     private static final Logger logger = LoggerFactory.getLogger(MigrationTask.class);
 
     private final InetAddress endpoint;
+    private final Optional<UUID> version;
 
     MigrationTask(InetAddress endpoint)
     {
         this.endpoint = endpoint;
+        this.version = Optional.empty();
+    }
+
+    MigrationTask(InetAddress endpoint, UUID version)
+    {
+        this.endpoint = endpoint;
+        this.version = Optional.of(version);
     }
 
     public void runMayThrow() throws Exception
     {
-        if (!FailureDetector.instance.isAlive(endpoint))
+        try
         {
-            logger.warn("Can't send schema pull request: node {} is down.", endpoint);
-            return;
-        }
-
-        // There is a chance that quite some time could have passed between now and the MM#maybeScheduleSchemaPull(),
-        // potentially enough for the endpoint node to restart - which is an issue if it does restart upgraded, with
-        // a higher major.
-        if (!MigrationManager.shouldPullSchemaFrom(endpoint))
-        {
-            logger.info("Skipped sending a migration request: node {} has a higher major version now.", endpoint);
-            return;
-        }
-
-        MessageOut message = new MessageOut<>(MessagingService.Verb.MIGRATION_REQUEST, null, MigrationManager.MigrationsSerializer.instance);
-
-        IAsyncCallback<Collection<Mutation>> cb = new IAsyncCallback<Collection<Mutation>>()
-        {
-            @Override
-            public void response(MessageIn<Collection<Mutation>> message)
+            if (!FailureDetector.instance.isAlive(endpoint))
             {
-                try
-                {
-                    LegacySchemaTables.mergeSchema(message.payload);
-                }
-                catch (IOException e)
-                {
-                    logger.error("IOException merging remote schema", e);
-                }
-                catch (ConfigurationException e)
-                {
-                    logger.error("Configuration exception merging remote schema", e);
-                }
+                logger.warn("Can't send schema pull request: node {} is down.", endpoint);
+                return;
             }
 
-            public boolean isLatencyForSnitch()
+            // There is a chance that quite some time could have passed between now and the MM#maybeScheduleSchemaPull(),
+            // potentially enough for the endpoint node to restart - which is an issue if it does restart upgraded, with
+            // a higher major.
+            if (!MigrationManager.shouldPullSchemaFrom(endpoint))
             {
-                return false;
+                logger.info("Skipped sending a migration request: node {} has a higher major version now.", endpoint);
+                return;
             }
-        };
-        MessagingService.instance().sendRR(message, endpoint, cb);
+
+            MessageOut message = new MessageOut<>(MessagingService.Verb.MIGRATION_REQUEST, null, MigrationManager.MigrationsSerializer.instance);
+
+            IAsyncCallback<Collection<Mutation>> cb = new IAsyncCallback<Collection<Mutation>>()
+            {
+                @Override
+                public void response(MessageIn<Collection<Mutation>> message)
+                {
+                    try
+                    {
+                        LegacySchemaTables.mergeSchema(message.payload);
+                    }
+                    catch (IOException e)
+                    {
+                        logger.error("IOException merging remote schema", e);
+                    }
+                    catch (ConfigurationException e)
+                    {
+                        logger.error("Configuration exception merging remote schema", e);
+                    }
+                }
+
+                public boolean isLatencyForSnitch()
+                {
+                    return false;
+                }
+            };
+            MessagingService.instance().sendRR(message, endpoint, cb);
+        }
+        finally
+        {
+            // always attempt to clean up our outstanding schema pull request if created with a version
+            version.ifPresent(MigrationManager.outstandingSchemaPulls::remove);
+        }
     }
 }
