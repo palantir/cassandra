@@ -768,6 +768,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
         cleanedUnfinishedCompactions.forEach(SystemKeyspace::finishCompaction);
 
+        if (ColumnFamilyStoreManager.instance.shouldSkipAncestorCleanupBasedOnAncestorMetadata()) {
+            return;
+        }
+
         // remove old sstables from compactions that did complete
         for (Map.Entry<Descriptor, Set<Component>> sstableFiles : directories.sstableLister().list().entrySet())
         {
