@@ -160,7 +160,7 @@ public class MigrationManager
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
                         return;
                     }
-                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
+                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
                             endpoint,
                             currentVersion,
                             Schema.instance.getVersion());
@@ -212,11 +212,14 @@ public class MigrationManager
          * Don't request schema from bootstrapping nodes (?)
          * Don't request schema if we have an outstanding request for that schema version
          */
+        boolean isOtherSchemaNonEmpty = !Schema.emptyVersion.equals(theirVersion);
+        boolean noOutstandingRequests = !outstandingSchemaPulls.contains(theirVersion);
+        logger.debug("Evaluating schema pull criteria: other schema empty {}, no outstanding requests {}", isOtherSchemaNonEmpty, outstandingSchemaPulls);
         return MessagingService.instance().knowsVersion(endpoint)
                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                && !Gossiper.instance.isGossipOnlyMember(endpoint)
-               && !Schema.emptyVersion.equals(theirVersion)
-               && !outstandingSchemaPulls.contains(theirVersion);
+               && isOtherSchemaNonEmpty
+               && noOutstandingRequests;
     }
 
     public static boolean isReadyForBootstrap()
