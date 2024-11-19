@@ -330,6 +330,11 @@ public class OutboundTcpConnection extends Thread
                     {
                         throw new AssertionError(e1);
                     }
+                } else {
+                    CallbackInfo registeredCallbackInfo = MessagingService.instance().getRegisteredCallback(qm.id);
+                    if (registeredCallbackInfo != null && registeredCallbackInfo.isFailureCallback()) {
+                        ((IAsyncCallbackWithFailure) MessagingService.instance().removeRegisteredCallback(qm.id).callback).onFailure(poolReference.endPoint());
+                    }
                 }
             }
             else
@@ -397,7 +402,7 @@ public class OutboundTcpConnection extends Thread
             logger.trace("attempting to connect to {}", poolReference.endPoint());
 
         long start = System.nanoTime();
-        long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getRpcTimeout());
+        long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getInternodeConnectionTimeout());
         while (System.nanoTime() - start < timeout && !isStopped)
         {
             targetVersion = MessagingService.instance().getVersion(poolReference.endPoint());

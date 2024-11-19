@@ -1077,6 +1077,12 @@ public class DatabaseDescriptor
         return conf.rpc_listen_backlog;
     }
 
+
+    public static long getInternodeConnectionTimeout()
+    {
+        return conf.request_timeout_in_ms;
+    }
+
     public static long getRpcTimeout()
     {
         return conf.request_timeout_in_ms;

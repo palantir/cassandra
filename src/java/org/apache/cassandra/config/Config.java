@@ -88,6 +88,8 @@ public class Config
 
     public long native_transport_idle_timeout_in_ms = 0L;
 
+    public volatile Long internode_connect_timeout_in_ms = 1000L;
+
     public volatile Long request_timeout_in_ms = 10000L;
 
     public volatile Long read_request_timeout_in_ms = 5000L;
