@@ -766,10 +766,6 @@ public final class MessagingService implements MessagingServiceMBean
         // We may need to schedule hints on the mutation stage, so it's erroneous to shut down the mutation stage first
         assert !StageManager.getStage(Stage.MUTATION).isShutdown();
 
-        // the important part
-        if (!callbacks.shutdownBlocking())
-            logger.warn("Failed to wait for messaging service callbacks shutdown");
-
         // attempt to humor tests that try to stop and restart MS
         try
         {
@@ -790,7 +786,13 @@ public final class MessagingService implements MessagingServiceMBean
         catch (IOException e)
         {
             throw new IOError(e);
+        } finally
+        {
+            // the important part
+            if (!callbacks.shutdownBlocking())
+                logger.warn("Failed to wait for messaging service callbacks shutdown");
         }
+
     }
 
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
