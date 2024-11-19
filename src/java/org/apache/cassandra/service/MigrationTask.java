@@ -106,7 +106,7 @@ class MigrationTask extends WrappedRunnable
         finally
         {
             // always attempt to clean up our outstanding schema pull request if created with a version
-            version.ifPresent(MigrationManager.outstandingSchemaPulls::remove);
+            version.ifPresent(MigrationManager.scheduledSchemaPulls::remove);
         }
     }
 }

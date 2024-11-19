@@ -62,7 +62,7 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
-    public static final Set<UUID> outstandingSchemaPulls = new ConcurrentSkipListSet<>();
+    public static final Set<UUID> scheduledSchemaPulls = new ConcurrentSkipListSet<>();
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
 
@@ -139,6 +139,7 @@ public class MigrationManager
                     if (epState == null)
                     {
                         logger.debug("epState vanished for {}, not submitting migration task", endpoint);
+                        scheduledSchemaPulls.remove(theirVersion);
                         return;
                     }
                     VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
@@ -152,12 +153,14 @@ public class MigrationManager
                                 endpoint,
                                 theirVersion,
                                 currentVersion);
+                        scheduledSchemaPulls.remove(theirVersion);
                         return;
                     }
 
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
+                        scheduledSchemaPulls.remove(theirVersion);
                         return;
                     }
                     logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
@@ -167,6 +170,7 @@ public class MigrationManager
                     submitMigrationTask(endpoint, currentVersion);
                 }
             };
+            scheduledSchemaPulls.add(theirVersion);
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
         }
     }
@@ -189,7 +193,6 @@ public class MigrationManager
          * Do not de-ref the future because that causes distributed deadlock (CASSANDRA-3832) because we are
          * running in the gossip stage.
          */
-        outstandingSchemaPulls.add(theirVersion);
         return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint, theirVersion));
     }
 
@@ -210,16 +213,16 @@ public class MigrationManager
          * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
          * Don't request schema from fat clients
          * Don't request schema from bootstrapping nodes (?)
-         * Don't request schema if we have an outstanding request for that schema version
+         * Don't request schema if we have scheduled a pull request for that schema version
          */
         boolean isOtherSchemaNonEmpty = !Schema.emptyVersion.equals(theirVersion);
-        boolean noOutstandingRequests = !outstandingSchemaPulls.contains(theirVersion);
-        logger.debug("Evaluating schema pull criteria: other schema empty {}, no outstanding requests {}", isOtherSchemaNonEmpty, outstandingSchemaPulls);
+        boolean noScheduledRequests = !scheduledSchemaPulls.contains(theirVersion);
+        logger.debug("Evaluating schema pull criteria: other schema empty {}, no scheduled requests {}", isOtherSchemaNonEmpty, noScheduledRequests);
         return MessagingService.instance().knowsVersion(endpoint)
                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                && !Gossiper.instance.isGossipOnlyMember(endpoint)
                && isOtherSchemaNonEmpty
-               && noOutstandingRequests;
+               && noScheduledRequests;
     }
 
     public static boolean isReadyForBootstrap()
