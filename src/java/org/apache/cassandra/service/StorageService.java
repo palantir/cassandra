@@ -978,7 +978,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             final String localSchemaVersion = currentLocalSchemaVersion;
 
-
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
