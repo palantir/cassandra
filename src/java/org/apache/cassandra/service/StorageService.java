@@ -948,17 +948,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
-            // first sleep the delay to make sure we see all our peers
-            for (int i = 0; i < delay; i += 1000)
+            // first sleep until we receive schema from a peer
+            while (Schema.instance.getVersion().equals(Schema.emptyVersion))
             {
-                // if we see schema, we can proceed to the next check directly
-                if (!Schema.instance.getVersion().equals(Schema.emptyVersion))
-                {
-                    logger.debug("got schema: {}", Schema.instance.getVersion());
-                    break;
-                }
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
+            logger.info("got schema: {}", Schema.instance.getVersion());
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
             while (!MigrationManager.isReadyForBootstrap())
@@ -966,6 +961,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 setMode(Mode.JOINING, "waiting for schema information to complete", true);
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
+
+            String currentLocalSchemaVersion = Schema.instance.getVersion().toString();
+            while(!isSchemaConsistent(currentLocalSchemaVersion))
+            {
+                logger.info(
+                    "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
+                    SafeArg.of("localSchemaVersion", currentLocalSchemaVersion));
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+                currentLocalSchemaVersion = Schema.instance.getVersion().toString();
+            }
+            final String localSchemaVersion = currentLocalSchemaVersion;
+
+
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
@@ -1048,6 +1056,18 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 unsafeDisableNode();
                 throw new BootstrappingSafetyException("Bootstrap streaming failed.");
             }
+
+            if(!localSchemaVersion.equals(Schema.instance.getVersion().toString()) || !isSchemaConsistent(localSchemaVersion))
+            {
+                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("schemaConsistencyFailed", "true"));
+                unsafeDisableNode();
+                logger.error(
+                    "Schema has changed after bootstrapping started, or is inconsistent across nodes. initial: {}, current: {}",
+                    SafeArg.of("initialSchemaVersion", localSchemaVersion),
+                    SafeArg.of("currentSchemaVersion", Schema.instance.getVersion().toString()));
+                throw new BootstrappingSafetyException("Schema was not consistent after bootstrap streaming");
+            }
+
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
                         "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
             try
@@ -1128,6 +1148,20 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             else
                 logger.warn("Some data streaming failed. Use nodetool to check bootstrap state and resume. For more, see `nodetool help bootstrap`. {}", SystemKeyspace.getBootstrapState());
         }
+    }
+
+    private static boolean isSchemaConsistent(String localSchemaVersion)
+    {
+        Set<Entry<InetAddress, EndpointState>> endpointStates = Gossiper.instance.getEndpointStates();
+        for (Entry<InetAddress, EndpointState> entry : endpointStates)
+        {
+            String remoteSchemaVersion = entry.getValue().getApplicationState(ApplicationState.SCHEMA).value;
+            if (!localSchemaVersion.equals(remoteSchemaVersion))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void joinTokenRing(int delay) throws ConfigurationException
