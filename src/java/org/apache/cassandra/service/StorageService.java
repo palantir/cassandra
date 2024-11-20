@@ -948,12 +948,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
-            // first sleep until we receive schema from a peer
-            while (Schema.instance.getVersion().equals(Schema.emptyVersion))
+            // first sleep the delay to make sure we see all our peers
+            for (int i = 0; i < delay; i += 1000)
             {
+                // if we see schema, we can proceed to the next check directly
+                if (!Schema.instance.getVersion().equals(Schema.emptyVersion))
+                {
+                    logger.debug("got schema: {}", Schema.instance.getVersion());
+                    break;
+                }
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
-            logger.info("got schema: {}", Schema.instance.getVersion());
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
             while (!MigrationManager.isReadyForBootstrap())
