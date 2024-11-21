@@ -4613,7 +4613,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
         else
         {
-            throw new IllegalStateException("Cannot drain a node that is bootstrapping");
+            throw new IllegalStateException("Cannot drain a node that is initializing or bootstrapping");
         }
     }
 
