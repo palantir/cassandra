@@ -2638,7 +2638,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Received removenode gossip about myself. Is this node rejoining after an explicit removenode?");
             try
             {
-                drain();
+                drainInternal();
             }
             catch (Exception e)
             {
@@ -4602,11 +4602,22 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     /**
      * Shuts node off to writes, empties memtables and the commit log.
-     * There are two differences between drain and the normal shutdown hook:
-     * - Drain waits for in-progress streaming to complete
+     * There is one difference between drain and the normal shutdown hook:
      * - Drain flushes *all* columnfamilies (shutdown hook only flushes non-durable CFs)
      */
-    public synchronized void drain() throws IOException, InterruptedException, ExecutionException
+    public void drain() throws IOException, InterruptedException, ExecutionException
+    {
+        if (daemon.setupCompleted())
+        {
+            drainInternal();
+        }
+        else
+        {
+            throw new IllegalStateException("Cannot drain a node that is initializing or bootstrapping");
+        }
+    }
+
+    private synchronized void drainInternal() throws IOException, InterruptedException, ExecutionException
     {
         Stopwatch watch = Stopwatch.createStarted();
 
