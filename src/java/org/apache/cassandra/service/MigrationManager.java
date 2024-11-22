@@ -25,11 +25,16 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ConcurrentHashMultiset;
 import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 
+import org.cliffc.high_scale_lib.ConcurrentAutoTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,9 +67,10 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
-    public static final Set<UUID> scheduledSchemaPulls = new ConcurrentSkipListSet<>();
+    public static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
+    public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -139,7 +145,14 @@ public class MigrationManager
                     if (epState == null)
                     {
                         logger.debug("epState vanished for {}, not submitting migration task", endpoint);
-                        scheduledSchemaPulls.remove(theirVersion);
+                        scheduledSchemaPulls.computeIfPresent(theirVersion, (v, s) -> {
+                            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, theirVersion, s);
+                            s.remove(endpoint);
+                            if (!s.isEmpty()) {
+                                return s;
+                            }
+                            return null;
+                        });
                         return;
                     }
                     VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
@@ -153,14 +166,28 @@ public class MigrationManager
                                 endpoint,
                                 theirVersion,
                                 currentVersion);
-                        scheduledSchemaPulls.remove(theirVersion);
+                        scheduledSchemaPulls.computeIfPresent(theirVersion, (v, s) -> {
+                            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, theirVersion, s);
+                            s.remove(endpoint);
+                            if (!s.isEmpty()) {
+                                return s;
+                            }
+                            return null;
+                        });
                         return;
                     }
 
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
-                        scheduledSchemaPulls.remove(theirVersion);
+                        scheduledSchemaPulls.computeIfPresent(theirVersion, (v, s) -> {
+                            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, theirVersion, s);
+                            s.remove(endpoint);
+                            if (!s.isEmpty()) {
+                                return s;
+                            }
+                            return null;
+                        });
                         return;
                     }
                     logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
@@ -170,7 +197,7 @@ public class MigrationManager
                     submitMigrationTask(endpoint, currentVersion);
                 }
             };
-            scheduledSchemaPulls.add(theirVersion);
+            scheduledSchemaPulls.computeIfAbsent(theirVersion, v -> new ConcurrentSkipListSet<>()).add(endpoint);
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
         }
     }
@@ -215,13 +242,14 @@ public class MigrationManager
          * Don't request schema from bootstrapping nodes (?)
          * Don't request schema if we have scheduled a pull request for that schema version
          */
-        boolean isOtherSchemaNonEmpty = !Schema.emptyVersion.equals(theirVersion);
-        boolean noScheduledRequests = !scheduledSchemaPulls.contains(theirVersion);
-        logger.debug("Evaluating schema pull criteria: other schema empty {}, no scheduled requests {}", isOtherSchemaNonEmpty, noScheduledRequests);
+        Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
+        boolean noScheduledRequests = currentlyScheduledRequests.size() <= MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
+                                      && !currentlyScheduledRequests.contains(endpoint);
+        logger.debug("Evaluating schema pull criteria: currently scheduled requests for version {}: {}", theirVersion, currentlyScheduledRequests);
         return MessagingService.instance().knowsVersion(endpoint)
                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                && !Gossiper.instance.isGossipOnlyMember(endpoint)
-               && isOtherSchemaNonEmpty
+               && !Schema.emptyVersion.equals(theirVersion)
                && noScheduledRequests;
     }
 
