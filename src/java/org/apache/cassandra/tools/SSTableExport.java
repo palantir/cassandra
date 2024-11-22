@@ -23,7 +23,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.commons.cli.*;
@@ -49,6 +51,7 @@ public class SSTableExport
     private static final ObjectMapper jsonMapper = new ObjectMapper();
 
     private static final String KEY_OPTION = "k";
+    private static final String PREFIX_OPTION = "p";
     private static final String EXCLUDEKEY_OPTION = "x";
     private static final String ENUMERATEKEYS_OPTION = "e";
 
@@ -66,6 +69,11 @@ public class SSTableExport
         // Number of times -x <key> can be passed on the command line.
         excludeKey.setArgs(500);
         options.addOption(excludeKey);
+
+        Option prefixKey = new Option(PREFIX_OPTION, true, "Prefix of row key");
+        // Number of times -p <prefix> can be passed on the command line.
+        prefixKey.setArgs(1);
+        options.addOption(prefixKey);
 
         Option optEnumerate = new Option(ENUMERATEKEYS_OPTION, false, "enumerate keys only");
         options.addOption(optEnumerate);
@@ -305,6 +313,66 @@ public class SSTableExport
         }
     }
 
+    public static void export(Descriptor desc, PrintStream outs, String prefix, String[] excludes, CFMetaData metadata) throws IOException
+    {
+        Set<String> excludedKeys = Arrays.stream(excludes).collect(Collectors.toSet());
+        SSTableReader sstable = SSTableReader.open(desc);
+
+        try (RandomAccessReader dfile = sstable.openDataReader())
+        {
+            IPartitioner partitioner = sstable.partitioner;
+
+            outs.println("[");
+
+            // last key to compare order
+            DecoratedKey decoratedKey = partitioner.decorateKey(metadata.getKeyValidator().fromString(prefix));
+            DecoratedKey lastKey = null;
+            int keysCount = 0;
+            while (keysCount < 5000) {
+                if (lastKey != null && lastKey.compareTo(decoratedKey) > 0)
+                    throw new IOException("Key in sstable are out of order despite scanning in order! " + lastKey + " > " + decoratedKey);
+
+                RowIndexEntry entry;
+                if (keysCount == 0) {
+                    entry = sstable.getPosition(decoratedKey, SSTableReader.Operator.GE);
+                } else {
+                    entry = sstable.getPosition(lastKey, SSTableReader.Operator.GT);
+                }
+
+                if (entry == null)
+                    break;
+
+                lastKey = decoratedKey;
+
+                dfile.seek(entry.position);
+                ByteBuffer keyBytes = ByteBufferUtil.readWithShortLength(dfile);
+                decoratedKey = partitioner.decorateKey(keyBytes); // row key
+                String keyString = metadata.getKeyValidator().getString(keyBytes);
+
+                if (!keyString.startsWith(prefix)) {
+                    break;
+                }
+
+                if (excludedKeys.contains(keyString)) {
+                    continue;
+                }
+
+                DeletionInfo deletionInfo = new DeletionInfo(DeletionTime.serializer.deserialize(dfile));
+
+                Iterator<OnDiskAtom> atomIterator = sstable.metadata.getOnDiskIterator(dfile, sstable.descriptor.version);
+                checkStream(outs);
+
+                if (keysCount != 0)
+                    outs.println(",");
+                keysCount++;
+                serializeRow(deletionInfo, atomIterator, sstable.metadata, decoratedKey, outs);
+            }
+
+            outs.println("\n]");
+            outs.flush();
+        }
+    }
+
     // This is necessary to accommodate the test suite since you cannot open a Reader more
     // than once from within the same process.
     static void export(SSTableReader reader, PrintStream outs, String[] excludes) throws IOException
@@ -404,6 +472,14 @@ public class SSTableExport
 
         String[] keys = cmd.getOptionValues(KEY_OPTION);
         String[] excludes = cmd.getOptionValues(EXCLUDEKEY_OPTION);
+        String prefix = cmd.getOptionValue(PREFIX_OPTION);
+
+        if ((keys != null) && (keys.length > 0) && (prefix != null))
+        {
+            System.err.println("Cannot specify keys and prefix at the same time");
+            System.exit(1);
+        }
+
         File fileOrDirectory = new File(cmd.getArgs()[0]);
 
         Schema.instance.loadFromDisk(false);
@@ -425,20 +501,20 @@ public class SSTableExport
                     i++;
                     String ssTableFileName = file.getAbsolutePath();
                     printStream.printf("\"%s\":", file.getName());
-                    handleSingleSsTableFile(ssTableFileName, keys, excludes, printStream);
+                    handleSingleSsTableFile(ssTableFileName, keys, excludes, prefix, printStream);
                 }
                 printStream.println("}");
             }
             else
             {
-                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, printStream);
+                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, printStream);
             }
         }
 
         System.exit(0);
     }
 
-    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, PrintStream printStream)
+    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, String prefix, PrintStream printStream)
     {
         Descriptor descriptor = Descriptor.fromFilename(ssTableFileName);
 
@@ -483,6 +559,8 @@ public class SSTableExport
             {
                 if ((keys != null) && (keys.length > 0))
                     export(descriptor, printStream, Arrays.asList(keys), excludes, cfStore.metadata);
+                else if (prefix != null)
+                    export(descriptor, printStream, prefix, excludes, cfStore.metadata);
                 else
                     export(descriptor, printStream, excludes);
             }
