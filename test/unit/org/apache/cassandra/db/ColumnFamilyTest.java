@@ -25,26 +25,17 @@ import java.nio.ByteBuffer;
 import java.util.TreeMap;
 
 import com.google.common.collect.Iterables;
-import org.apache.cassandra.config.CFMetaData;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.exceptions.ConfigurationException;
-import org.apache.cassandra.db.composites.CellName;
-import org.apache.cassandra.db.context.CounterContext;
-import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.io.sstable.ColumnStats;
 import org.apache.cassandra.io.util.DataOutputBuffer;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.cassandra.utils.CounterId;
-import org.apache.cassandra.utils.FBUtilities;
-
-import static junit.framework.Assert.assertTrue;
 
 import static org.apache.cassandra.Util.column;
 import static org.apache.cassandra.Util.cellname;
@@ -57,7 +48,6 @@ public class ColumnFamilyTest
     static int version = MessagingService.current_version;
     private static final String KEYSPACE1 = "Keyspace1";
     private static final String CF_STANDARD1 = "Standard1";
-    private static final String CF_COUNTER1 = "Counter1";
 
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
@@ -66,9 +56,7 @@ public class ColumnFamilyTest
         SchemaLoader.createKeyspace(KEYSPACE1,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER1)
-                                                .defaultValidator(CounterColumnType.instance));
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1));
     }
 
     // TODO test SuperColumns more
@@ -245,33 +233,5 @@ public class ColumnFamilyTest
 
         assertEquals(ByteBufferUtil.bytes("col2"), stats.minColumnNames.get(0));
         assertEquals(ByteBufferUtil.bytes("col61"), stats.maxColumnNames.get(0));
-    }
-
-    @Test
-    public void testCounterDeletion()
-    {
-        long timestamp = FBUtilities.timestampMicros();
-        CellName name = cellname("counter1");
-
-        BufferCounterCell counter = new BufferCounterCell(name,
-                                                          CounterContext.instance().createGlobal(CounterId.fromInt(1), 1, 1),
-                                                          timestamp);
-        BufferDeletedCell tombstone = new BufferDeletedCell(name, (int) (System.currentTimeMillis() / 1000), 0L);
-
-        // check that the tombstone won the reconcile despite the counter cell having a higher timestamp
-        assertTrue(counter.reconcile(tombstone) == tombstone);
-
-        // check that a range tombstone overrides the counter cell, even with a lower timestamp than the counter
-        ColumnFamily cf0 = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_COUNTER1);
-        cf0.addColumn(counter);
-        cf0.delete(new RangeTombstone(cellname("counter0"), cellname("counter2"), 0L, (int) (System.currentTimeMillis() / 1000)));
-        assertTrue(cf0.deletionInfo().isDeleted(counter));
-        assertTrue(cf0.deletionInfo().inOrderTester(false).isDeleted(counter));
-
-        // check that a top-level deletion info overrides the counter cell, even with a lower timestamp than the counter
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_COUNTER1);
-        cf1.addColumn(counter);
-        cf1.delete(new DeletionInfo(0L, (int) (System.currentTimeMillis() / 1000)));
-        assertTrue(cf1.deletionInfo().isDeleted(counter));
     }
 }

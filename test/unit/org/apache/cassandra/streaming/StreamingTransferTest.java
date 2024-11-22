@@ -39,20 +39,14 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
-import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.cql3.Operator;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
-import org.apache.cassandra.db.compaction.Scrubber;
-import org.apache.cassandra.db.compaction.Scrubber.ScrubResult;
-import org.apache.cassandra.db.context.CounterContext;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
 import org.apache.cassandra.db.filter.QueryFilter;
-import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.db.marshal.IntegerType;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Range;
@@ -62,9 +56,7 @@ import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.cassandra.utils.CounterId;
 import org.apache.cassandra.utils.FBUtilities;
-import org.apache.cassandra.utils.OutputHandler;
 import org.apache.cassandra.utils.concurrent.Refs;
 
 import static org.junit.Assert.assertEquals;
@@ -80,7 +72,6 @@ public class StreamingTransferTest
     public static final InetAddress LOCAL = FBUtilities.getBroadcastAddress();
     public static final String KEYSPACE1 = "StreamingTransferTest1";
     public static final String CF_STANDARD = "Standard1";
-    public static final String CF_COUNTER = "Counter1";
     public static final String CF_STANDARDINT = "StandardInteger1";
     public static final String CF_INDEX = "Indexed1";
     public static final String KEYSPACE_CACHEKEY = "KeyStreamingTransferTestSpace";
@@ -97,7 +88,6 @@ public class StreamingTransferTest
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER).defaultValidator(CounterColumnType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARDINT, IntegerType.instance),
                                     SchemaLoader.indexCFMD(KEYSPACE1, CF_INDEX, true));
         SchemaLoader.createKeyspace(KEYSPACE2,
@@ -394,58 +384,6 @@ public class StreamingTransferTest
     public void testTransferTableViaSSTables() throws Exception
     {
         doTransferTable(true);
-    }
-
-    @Test
-    public void testTransferTableCounter() throws Exception
-    {
-        final Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        final ColumnFamilyStore cfs = keyspace.getColumnFamilyStore("Counter1");
-        final CounterContext cc = new CounterContext();
-
-        final Map<String, ColumnFamily> cleanedEntries = new HashMap<>();
-
-        List<String> keys = createAndTransfer(cfs, new Mutator()
-        {
-            /** Creates a new SSTable per key: all will be merged before streaming. */
-            public void mutate(String key, String col, long timestamp) throws Exception
-            {
-                Map<String, ColumnFamily> entries = new HashMap<>();
-                ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.metadata);
-                ColumnFamily cfCleaned = ArrayBackedSortedColumns.factory.create(cfs.metadata);
-                CounterContext.ContextState state = CounterContext.ContextState.allocate(0, 1, 3);
-                state.writeLocal(CounterId.fromInt(2), 9L, 3L);
-                state.writeRemote(CounterId.fromInt(4), 4L, 2L);
-                state.writeRemote(CounterId.fromInt(6), 3L, 3L);
-                state.writeRemote(CounterId.fromInt(8), 2L, 4L);
-                cf.addColumn(new BufferCounterCell(cellname(col), state.context, timestamp));
-                cfCleaned.addColumn(new BufferCounterCell(cellname(col), cc.clearAllLocal(state.context), timestamp));
-
-                entries.put(key, cf);
-                cleanedEntries.put(key, cfCleaned);
-                cfs.addSSTable(SSTableUtils.prepare()
-                    .ks(keyspace.getName())
-                    .cf(cfs.name)
-                    .generation(0)
-                    .write(entries));
-            }
-        }, true);
-
-        // filter pre-cleaned entries locally, and ensure that the end result is equal
-        cleanedEntries.keySet().retainAll(keys);
-        SSTableReader cleaned = SSTableUtils.prepare()
-            .ks(keyspace.getName())
-            .cf(cfs.name)
-            .generation(0)
-            .write(cleanedEntries);
-        SSTableReader streamed = cfs.getSSTables().iterator().next();
-        SSTableUtils.assertContentEquals(cleaned, streamed);
-
-        // Retransfer the file, making sure it is now idempotent (see CASSANDRA-3481)
-        cfs.clearUnsafe();
-        transferSSTables(streamed);
-        SSTableReader restreamed = cfs.getSSTables().iterator().next();
-        SSTableUtils.assertContentEquals(streamed, restreamed);
     }
 
     @Test

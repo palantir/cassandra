@@ -19,18 +19,28 @@
 package com.palantir.cassandra.metrics;
 
 import java.net.InetAddress;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import com.google.common.net.InetAddresses;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Snapshot;
+import com.sun.istack.internal.NotNull;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
 public class FailureDetectorMetrics
 {
+    private static final String groupName = FailureDetectorMetrics.class.getPackage().getName();
+    static
+    {
+        Metrics.register(createMetricName("FailureDetectorPhiThreshold"), (Gauge<Double>) DatabaseDescriptor::getPhiConvictThreshold);
+    }
+
     public static void register(
         InetAddress ep, Gauge<Double> phiSupplier, Gauge<Long> lastIntervalSupplier, Supplier<Snapshot> snapshotSupplier)
     {
@@ -46,17 +56,25 @@ public class FailureDetectorMetrics
         Metrics.remove(createMetricName(ep, "FailureDetectorArrivalIntervals"));
     }
 
-    private static CassandraMetricsRegistry.MetricName createMetricName(InetAddress ep, String name)
+    private static CassandraMetricsRegistry.MetricName createMetricName(String name)
+    {
+        return new CassandraMetricsRegistry.MetricName(groupName, "FailureDetector", name, mBeanName("", name));
+    }
+
+    private static CassandraMetricsRegistry.MetricName createMetricName(@NotNull InetAddress ep, String name)
     {
         String endpoint = InetAddresses.toAddrString(ep);
-        String groupName = FailureDetectorMetrics.class.getPackage().getName();
+        return new CassandraMetricsRegistry.MetricName(groupName, "FailureDetector", name, endpoint, mBeanName(endpoint, name));
+    }
 
+    private static String mBeanName(String endpoint, String name)
+    {
         StringBuilder mbeanName = new StringBuilder();
         mbeanName.append(groupName).append(":");
         mbeanName.append("type=FailureDetector");
-        mbeanName.append(",endpoint=").append(endpoint);
+        if(!endpoint.isEmpty())
+            mbeanName.append(",endpoint=").append(endpoint);
         mbeanName.append(",name=").append(name);
-
-        return new CassandraMetricsRegistry.MetricName(groupName, "FailureDetector", name, endpoint, mbeanName.toString());
+        return mbeanName.toString();
     }
 }

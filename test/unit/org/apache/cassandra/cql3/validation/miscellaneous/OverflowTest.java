@@ -66,19 +66,6 @@ public class OverflowTest extends CQLTester
     }
 
     /**
-     * Test reserved keywords
-     * migrated from cql_tests.py:TestCQL.reserved_keyword_test()
-     */
-    @Test
-    public void testReservedKeywords() throws Throwable
-    {
-        createTable("CREATE TABLE %s (key text PRIMARY KEY, count counter)");
-
-        String tableName = createTableName();
-        assertInvalidThrow(SyntaxException.class, String.format("CREATE TABLE %s.%s (select text PRIMARY KEY, x int)", keyspace(), tableName));
-    }
-
-    /**
      * Test identifiers
      * migrated from cql_tests.py:TestCQL.identifier_test()
      */

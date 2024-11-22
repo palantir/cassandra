@@ -1011,6 +1011,16 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getInterDCStreamThroughputMbPerSec();
     }
 
+    public void setPhiConvictThreshold(double value)
+    {
+        fdProxy.setPhiConvictThreshold(value);
+    }
+
+    public double getPhiConvictThreshold()
+    {
+        return fdProxy.getPhiConvictThreshold();
+    }
+
     public void setRowCountFailureThreshold(int value)
     {
         ssProxy.setRowCountFailureThreshold(value);

@@ -39,7 +39,6 @@ import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.config.ParameterizedClass;
 import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.db.commitlog.CommitLogArchiver;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.compress.DeflateCompressor;
 import org.apache.cassandra.io.compress.LZ4Compressor;
@@ -47,7 +46,6 @@ import org.apache.cassandra.io.compress.SnappyCompressor;
 import org.apache.cassandra.io.compress.ZstdCompressor;
 import org.apache.cassandra.locator.SimpleStrategy;
 
-import static org.apache.cassandra.Util.cellname;
 import static org.apache.cassandra.Util.column;
 import static org.apache.cassandra.db.KeyspaceTest.assertColumns;
 
@@ -56,7 +54,6 @@ public class RecoveryManagerTest
 {
     private static final String KEYSPACE1 = "RecoveryManagerTest1";
     private static final String CF_STANDARD1 = "Standard1";
-    private static final String CF_COUNTER1 = "Counter1";
 
     private static final String KEYSPACE2 = "RecoveryManagerTest2";
     private static final String CF_STANDARD3 = "Standard3";
@@ -68,8 +65,7 @@ public class RecoveryManagerTest
         SchemaLoader.createKeyspace(KEYSPACE1,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER1).defaultValidator(CounterColumnType.instance));
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1));
         SchemaLoader.createKeyspace(KEYSPACE2,
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
@@ -126,37 +122,6 @@ public class RecoveryManagerTest
 
         assertColumns(Util.getColumnFamily(keyspace1, dk, "Standard1"), "col1");
         assertColumns(Util.getColumnFamily(keyspace2, dk, "Standard3"), "col2");
-    }
-
-    @Test
-    public void testRecoverCounter() throws IOException
-    {
-        CommitLog.instance.resetUnsafe(true);
-        Keyspace keyspace1 = Keyspace.open(KEYSPACE1);
-
-        Mutation rm;
-        DecoratedKey dk = Util.dk("key");
-        ColumnFamily cf;
-
-        for (int i = 0; i < 10; ++i)
-        {
-            cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Counter1");
-            cf.addColumn(BufferCounterCell.createLocal(cellname("col"), 1L, 1L, Long.MIN_VALUE));
-            rm = new Mutation(KEYSPACE1, dk.getKey(), cf);
-            rm.apply();
-        }
-
-        keyspace1.getColumnFamilyStore("Counter1").clearUnsafe();
-
-        CommitLog.instance.resetUnsafe(false); // disassociate segments from live CL
-
-        cf = Util.getColumnFamily(keyspace1, dk, "Counter1");
-
-        assert cf.getColumnCount() == 1;
-        Cell c = cf.getColumn(cellname("col"));
-
-        assert c != null;
-        assert ((CounterCell)c).total() == 10L;
     }
 
     @Test

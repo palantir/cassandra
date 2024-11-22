@@ -37,6 +37,7 @@ import javax.management.openmbean.TabularDataSupport;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
@@ -704,6 +705,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             @Override
             public void runMayThrow() throws InterruptedException
             {
+                Stopwatch watch = Stopwatch.createStarted();
+                logger.info("Executing drainOnShutdown hook");
+
                 inShutdownHook = true;
                 ExecutorService counterMutationStage = StageManager.getStage(Stage.COUNTER_MUTATION);
                 ExecutorService mutationStage = StageManager.getStage(Stage.MUTATION);
@@ -754,6 +758,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 ScheduledExecutors.nonPeriodicTasks.shutdown();
                 if (!ScheduledExecutors.nonPeriodicTasks.awaitTermination(1, MINUTES))
                     logger.warn("Miscellaneous task executor still busy after one minute; proceeding with shutdown");
+
+                logger.info("DrainOnShutdown completed in {} ms", SafeArg.of("ms", watch.elapsed(TimeUnit.MILLISECONDS)));
             }
         }, "StorageServiceShutdownHook");
         Runtime.getRuntime().addShutdownHook(drainOnShutdown);
@@ -2632,7 +2638,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.info("Received removenode gossip about myself. Is this node rejoining after an explicit removenode?");
             try
             {
-                drain();
+                drainInternal();
             }
             catch (Exception e)
             {
@@ -4596,12 +4602,25 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     /**
      * Shuts node off to writes, empties memtables and the commit log.
-     * There are two differences between drain and the normal shutdown hook:
-     * - Drain waits for in-progress streaming to complete
+     * There is one difference between drain and the normal shutdown hook:
      * - Drain flushes *all* columnfamilies (shutdown hook only flushes non-durable CFs)
      */
-    public synchronized void drain() throws IOException, InterruptedException, ExecutionException
+    public void drain() throws IOException, InterruptedException, ExecutionException
     {
+        if (daemon.setupCompleted())
+        {
+            drainInternal();
+        }
+        else
+        {
+            throw new IllegalStateException("Cannot drain a node that is initializing or bootstrapping");
+        }
+    }
+
+    private synchronized void drainInternal() throws IOException, InterruptedException, ExecutionException
+    {
+        Stopwatch watch = Stopwatch.createStarted();
+
         inShutdownHook = true;
 
         ExecutorService counterMutationStage = StageManager.getStage(Stage.COUNTER_MUTATION);
@@ -4616,10 +4635,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ScheduledExecutors.optionalTasks.shutdown();
         Gossiper.instance.stop();
 
-        setMode(Mode.DRAINING, "shutting down MessageService", false);
+        setMode(Mode.DRAINING, "shutting down MessageService", true);
         MessagingService.instance().shutdown();
 
-        setMode(Mode.DRAINING, "clearing mutation stage", false);
+        setMode(Mode.DRAINING, "clearing mutation stage", true);
         counterMutationStage.shutdown();
         mutationStage.shutdown();
         counterMutationStage.awaitTermination(3600, TimeUnit.SECONDS);
@@ -4627,7 +4646,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         StorageProxy.instance.verifyNoHintsInProgress();
 
-        setMode(Mode.DRAINING, "flushing column families", false);
+        setMode(Mode.DRAINING, "flushing column families", true);
         // count CFs first, since forceFlush could block for the flushWriter to get a queue slot empty
         totalCFs = 0;
         for (Keyspace keyspace : Keyspace.nonSystem())
@@ -4649,6 +4668,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             remainingCFs--;
         }
 
+        setMode(Mode.DRAINING, "shutdown BatchlogManager", true);
         try
         {
             /* not clear this is reasonable time, but propagated from prior embedded behaviour */
@@ -4659,6 +4679,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.error("Batchlog manager timed out shutting down", t);
         }
 
+        setMode(Mode.DRAINING, "shutdown CompactionManager", true);
         // Interrupt on going compaction and shutdown to prevent further compaction
         CompactionManager.instance.forceShutdown();
 
@@ -4667,6 +4688,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // Flush system tables after stopping the batchlog manager and compactions since they both modify
         // system tables (for example compactions can obsolete sstables and the tidiers in SSTableReader update
         // system tables, see SSTableReader.GlobalTidy)
+        setMode(Mode.DRAINING, "flush system tables", true);
         flushes.clear();
         for (Keyspace keyspace : Keyspace.system())
         {
@@ -4675,12 +4697,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
         FBUtilities.waitOnFutures(flushes);
 
+        setMode(Mode.DRAINING, "shutdown Commitlog", true);
         // whilst we've flushed all the CFs, which will have recycled all completed segments, we want to ensure
         // there are no segments to replay, so we force the recycling of any remaining (should be at most one)
         CommitLog.instance.forceRecycleAllSegments("Drain");
 
         CommitLog.instance.shutdownBlocking();
 
+        setMode(Mode.DRAINING, "shutdown non-periodic tasks", true);
         // wait for miscellaneous tasks like sstable and commitlog segment deletion
         ScheduledExecutors.nonPeriodicTasks.shutdown();
         if (!ScheduledExecutors.nonPeriodicTasks.awaitTermination(1, MINUTES))
@@ -4689,6 +4713,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ColumnFamilyStore.shutdownPostFlushExecutor();
 
         setMode(Mode.DRAINED, true);
+
+        logger.info("Drain completed in {} ms", SafeArg.of("ms", watch.elapsed(TimeUnit.MILLISECONDS)));
     }
 
     // Never ever do this at home. Used by tests.

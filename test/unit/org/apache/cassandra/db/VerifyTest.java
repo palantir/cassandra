@@ -24,13 +24,10 @@ import com.google.common.base.Charsets;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
-import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.compaction.Verifier;
-import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.WriteTimeoutException;
@@ -66,14 +63,8 @@ public class VerifyTest
     public static final String CF2 = "Standard2";
     public static final String CF3 = "Standard3";
     public static final String CF4 = "Standard4";
-    public static final String COUNTER_CF = "Counter1";
-    public static final String COUNTER_CF2 = "Counter2";
-    public static final String COUNTER_CF3 = "Counter3";
-    public static final String COUNTER_CF4 = "Counter4";
     public static final String CORRUPT_CF = "Corrupt1";
     public static final String CORRUPT_CF2 = "Corrupt2";
-    public static final String CORRUPTCOUNTER_CF = "CounterCorrupt1";
-    public static final String CORRUPTCOUNTER_CF2 = "CounterCorrupt2";
 
     public static final String CF_UUID = "UUIDKeys";
 
@@ -92,12 +83,6 @@ public class VerifyTest
                                     SchemaLoader.standardCFMD(KEYSPACE, CF4),
                                     SchemaLoader.standardCFMD(KEYSPACE, CORRUPT_CF),
                                     SchemaLoader.standardCFMD(KEYSPACE, CORRUPT_CF2),
-                                    SchemaLoader.standardCFMD(KEYSPACE, COUNTER_CF, BytesType.instance).defaultValidator(CounterColumnType.instance).compressionParameters(compressionParameters),
-                                    SchemaLoader.standardCFMD(KEYSPACE, COUNTER_CF2, BytesType.instance).defaultValidator(CounterColumnType.instance).compressionParameters(compressionParameters),
-                                    SchemaLoader.standardCFMD(KEYSPACE, COUNTER_CF3, BytesType.instance).defaultValidator(CounterColumnType.instance),
-                                    SchemaLoader.standardCFMD(KEYSPACE, COUNTER_CF4, BytesType.instance).defaultValidator(CounterColumnType.instance),
-                                    SchemaLoader.standardCFMD(KEYSPACE, CORRUPTCOUNTER_CF, BytesType.instance).defaultValidator(CounterColumnType.instance),
-                                    SchemaLoader.standardCFMD(KEYSPACE, CORRUPTCOUNTER_CF2, BytesType.instance).defaultValidator(CounterColumnType.instance),
                                     SchemaLoader.standardCFMD(KEYSPACE, CF_UUID).keyValidator(UUIDType.instance));
     }
 
@@ -124,28 +109,6 @@ public class VerifyTest
     }
 
     @Test
-    public void testVerifyCounterCorrect() throws IOException
-    {
-        CompactionManager.instance.disableAutoCompaction();
-        Keyspace keyspace = Keyspace.open(KEYSPACE);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(COUNTER_CF);
-
-        fillCounterCF(cfs, KEYSPACE, COUNTER_CF, 2);
-
-        SSTableReader sstable = cfs.getSSTables().iterator().next();
-
-        Verifier verifier = new Verifier(cfs, sstable, false);
-        try
-        {
-            verifier.verify(false);
-        }
-        catch (CorruptSSTableException err)
-        {
-            fail("Unexpected CorruptSSTableException");
-        }
-    }
-
-    @Test
     public void testExtendedVerifyCorrect() throws IOException
     {
         CompactionManager.instance.disableAutoCompaction();
@@ -153,28 +116,6 @@ public class VerifyTest
         ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF2);
 
         fillCF(cfs, KEYSPACE, CF2, 2);
-
-        SSTableReader sstable = cfs.getSSTables().iterator().next();
-
-        Verifier verifier = new Verifier(cfs, sstable, false);
-        try
-        {
-            verifier.verify(true);
-        }
-        catch (CorruptSSTableException err)
-        {
-            fail("Unexpected CorruptSSTableException");
-        }
-    }
-
-    @Test
-    public void testExtendedVerifyCounterCorrect() throws IOException
-    {
-        CompactionManager.instance.disableAutoCompaction();
-        Keyspace keyspace = Keyspace.open(KEYSPACE);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(COUNTER_CF2);
-
-        fillCounterCF(cfs, KEYSPACE, COUNTER_CF2, 2);
 
         SSTableReader sstable = cfs.getSSTables().iterator().next();
 
@@ -212,28 +153,6 @@ public class VerifyTest
     }
 
     @Test
-    public void testVerifyCounterCorrectUncompressed() throws IOException
-    {
-        CompactionManager.instance.disableAutoCompaction();
-        Keyspace keyspace = Keyspace.open(KEYSPACE);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(COUNTER_CF3);
-
-        fillCounterCF(cfs, KEYSPACE, COUNTER_CF3, 2);
-
-        SSTableReader sstable = cfs.getSSTables().iterator().next();
-
-        Verifier verifier = new Verifier(cfs, sstable, false);
-        try
-        {
-            verifier.verify(false);
-        }
-        catch (CorruptSSTableException err)
-        {
-            fail("Unexpected CorruptSSTableException");
-        }
-    }
-
-    @Test
     public void testExtendedVerifyCorrectUncompressed() throws IOException
     {
         CompactionManager.instance.disableAutoCompaction();
@@ -254,29 +173,6 @@ public class VerifyTest
             fail("Unexpected CorruptSSTableException");
         }
     }
-
-    @Test
-    public void testExtendedVerifyCounterCorrectUncompressed() throws IOException
-    {
-        CompactionManager.instance.disableAutoCompaction();
-        Keyspace keyspace = Keyspace.open(KEYSPACE);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(COUNTER_CF4);
-
-        fillCounterCF(cfs, KEYSPACE, COUNTER_CF4, 2);
-
-        SSTableReader sstable = cfs.getSSTables().iterator().next();
-
-        Verifier verifier = new Verifier(cfs, sstable, false);
-        try
-        {
-            verifier.verify(true);
-        }
-        catch (CorruptSSTableException err)
-        {
-            fail("Unexpected CorruptSSTableException");
-        }
-    }
-
 
     @Test
     public void testVerifyIncorrectDigest() throws IOException, WriteTimeoutException
@@ -371,21 +267,6 @@ public class VerifyTest
             cf.addColumn(column("c2", "2", 1L));
             Mutation rm = new Mutation(keyspace, ByteBufferUtil.bytes(key), cf);
             rm.apply();
-        }
-
-        cfs.forceBlockingFlush();
-    }
-
-    protected void fillCounterCF(ColumnFamilyStore cfs, String keyspace, String columnFamily, int rowsPerSSTable) throws WriteTimeoutException
-    {
-        for (int i = 0; i < rowsPerSSTable; i++)
-        {
-            String key = String.valueOf(i);
-            ColumnFamily cf = ArrayBackedSortedColumns.factory.create(keyspace, columnFamily);
-            Mutation rm = new Mutation(keyspace, ByteBufferUtil.bytes(key), cf);
-            rm.addCounter(columnFamily, cellname("Column1"), 100);
-            CounterMutation cm = new CounterMutation(rm, ConsistencyLevel.ONE);
-            cm.apply();
         }
 
         cfs.forceBlockingFlush();

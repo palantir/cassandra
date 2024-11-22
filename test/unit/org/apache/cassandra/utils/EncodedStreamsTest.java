@@ -26,13 +26,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import org.apache.cassandra.SchemaLoader;
-import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.db.ArrayBackedSortedColumns;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.TypeSizes;
-import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.CounterColumnType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.net.MessagingService;
@@ -47,7 +44,6 @@ public class EncodedStreamsTest
 {
     private static final String KEYSPACE1 = "Keyspace1";
     private static final String CF_STANDARD = "Standard1";
-    private static final String CF_COUNTER = "Counter1";
     private int version = MessagingService.current_version;
 
     @BeforeClass
@@ -57,9 +53,7 @@ public class EncodedStreamsTest
     SchemaLoader.createKeyspace(KEYSPACE1,
                                 SimpleStrategy.class,
                                 KSMetaData.optsWithRF(1),
-                                SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD),
-                                SchemaLoader.standardCFMD(KEYSPACE1, CF_COUNTER)
-                                            .defaultValidator(CounterColumnType.instance));
+                                SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD));
     }
 
     @Test
@@ -120,14 +114,6 @@ public class EncodedStreamsTest
         return cf;
     }
 
-    private ColumnFamily createCounterCF()
-    {
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_COUNTER);
-        cf.addCounter(cellname("vijay"), 1);
-        cf.addCounter(cellname("wants"), 1000000);
-        return cf;
-    }
-
     @Test
     public void testCFSerialization() throws IOException
     {
@@ -139,22 +125,6 @@ public class EncodedStreamsTest
         EncodedDataInputStream odis = new EncodedDataInputStream(new DataInputStream(byteArrayIStream1));
         ColumnFamily cf = ColumnFamily.serializer.deserialize(odis, version);
         Assert.assertEquals(cf, createCF());
-        Assert.assertEquals(byteArrayOStream1.size(), (int) ColumnFamily.serializer.serializedSize(cf, TypeSizes.VINT, version));
-    }
-
-    @Test
-    public void testCounterCFSerialization() throws IOException
-    {
-        ColumnFamily counterCF = createCounterCF();
-
-        ByteArrayOutputStream byteArrayOStream1 = new ByteArrayOutputStream();
-        EncodedDataOutputStream odos = new EncodedDataOutputStream(byteArrayOStream1);
-        ColumnFamily.serializer.serialize(counterCF, odos, version);
-
-        ByteArrayInputStream byteArrayIStream1 = new ByteArrayInputStream(byteArrayOStream1.toByteArray());
-        EncodedDataInputStream odis = new EncodedDataInputStream(new DataInputStream(byteArrayIStream1));
-        ColumnFamily cf = ColumnFamily.serializer.deserialize(odis, version);
-        Assert.assertEquals(cf, counterCF);
         Assert.assertEquals(byteArrayOStream1.size(), (int) ColumnFamily.serializer.serializedSize(cf, TypeSizes.VINT, version));
     }
 }

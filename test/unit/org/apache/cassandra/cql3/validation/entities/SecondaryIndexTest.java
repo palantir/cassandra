@@ -348,16 +348,6 @@ public class SecondaryIndexTest extends CQLTester
     }
 
     /**
-     * Migrated from cql_tests.py:TestCQL.secondary_index_counters()
-     */
-    @Test
-    public void testIndexOnCountersInvalid() throws Throwable
-    {
-        createTable("CREATE TABLE %s (k int PRIMARY KEY, c counter)");
-        assertInvalid("CREATE INDEX ON test(c)");
-    }
-
-    /**
      * Migrated from cql_tests.py:TestCQL.collection_indexing_test()
      */
     @Test

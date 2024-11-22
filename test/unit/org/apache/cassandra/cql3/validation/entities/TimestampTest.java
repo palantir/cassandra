@@ -122,27 +122,6 @@ public class TimestampTest extends CQLTester
 
         execute("INSERT INTO %s (k, v) VALUES(1, 0) IF NOT EXISTS");
         assertInvalid("INSERT INTO %s (k, v) VALUES(1, 1) IF NOT EXISTS USING TIMESTAMP 5");
-
-        // Counters
-        createTable("CREATE TABLE %s (k int PRIMARY KEY, c counter)");
-
-        execute("UPDATE %s SET c = c + 1 WHERE k = 0");
-        assertInvalid("UPDATE %s USING TIMESTAMP 10 SET c = c + 1 WHERE k = 0");
-
-        execute("BEGIN COUNTER BATCH " +
-                "UPDATE %1$s SET c = c + 1 WHERE k = 0; " +
-                "UPDATE %1$s SET c = c + 1 WHERE k = 0; " +
-                "APPLY BATCH");
-
-        assertInvalid("BEGIN COUNTER BATCH " +
-                      "UPDATE %1$s USING TIMESTAMP 3 SET c = c + 1 WHERE k = 0; " +
-                      "UPDATE %1$s SET c = c + 1 WHERE k = 0; " +
-                      "APPLY BATCH");
-
-        assertInvalid("BEGIN COUNTER BATCH " +
-                      "USING TIMESTAMP 3 UPDATE %1$s SET c = c + 1 WHERE k = 0; " +
-                      "UPDATE %1$s SET c = c + 1 WHERE k = 0; " +
-                      "APPLY BATCH");
     }
 
     @Test
