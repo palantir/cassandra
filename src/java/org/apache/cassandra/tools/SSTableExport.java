@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.commons.cli.*;
 
@@ -315,7 +316,7 @@ public class SSTableExport
 
     public static void export(Descriptor desc, PrintStream outs, String prefix, String[] excludes, CFMetaData metadata) throws IOException
     {
-        Set<String> excludedKeys = Arrays.stream(excludes).collect(Collectors.toSet());
+        Set<String> excludedKeys = excludes != null ? Arrays.stream(excludes).collect(Collectors.toSet()) : ImmutableSet.of();
         SSTableReader sstable = SSTableReader.open(desc);
 
         try (RandomAccessReader dfile = sstable.openDataReader())
@@ -332,12 +333,7 @@ public class SSTableExport
                 if (lastKey != null && lastKey.compareTo(decoratedKey) > 0)
                     throw new IOException("Key in sstable are out of order despite scanning in order! " + lastKey + " > " + decoratedKey);
 
-                RowIndexEntry entry;
-                if (keysCount == 0) {
-                    entry = sstable.getPosition(decoratedKey, SSTableReader.Operator.GE);
-                } else {
-                    entry = sstable.getPosition(lastKey, SSTableReader.Operator.GT);
-                }
+                RowIndexEntry entry = sstable.getPosition(decoratedKey, keysCount == 0 ? SSTableReader.Operator.GE : SSTableReader.Operator.GT);
 
                 if (entry == null)
                     break;
