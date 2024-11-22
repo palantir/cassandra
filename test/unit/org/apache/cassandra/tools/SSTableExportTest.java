@@ -404,7 +404,7 @@ public class SSTableExportTest
 
         // Export to JSON and verify
         File tempJson = File.createTempFile("Standard1", ".json");
-        SSTableExport.export(Descriptor.fromFilename(writer.getFilename()), new PrintStream(tempJson.getPath()), asHex("ban"), null, cfamily.metadata());
+        SSTableExport.export(Descriptor.fromFilename(writer.getFilename()), new PrintStream(tempJson.getPath()), asHex("ban"), null, null, cfamily.metadata());
 
         JSONArray json = (JSONArray)JSONValue.parseWithException(new FileReader(tempJson));
         assertEquals("unexpected number of rows", 2, json.size());
@@ -413,5 +413,63 @@ public class SSTableExportTest
         assertEquals("unexpected row key",asHex("ban"),rowBan.get("key"));
         JSONObject rowBanana = (JSONObject)json.get(1);
         assertEquals("unexpected row key",asHex("banana"),rowBanana.get("key"));
+    }
+
+    @Test
+    public void testExportPrefixRangeFilter() throws IOException, ParseException
+    {
+        File tempSS = tempSSTableFile(KEYSPACE1, "Standard1");
+        ColumnFamily cfamily = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Standard1");
+        SSTableWriter writer = SSTableWriter.create(tempSS.getPath(), 2, ActiveRepairService.UNREPAIRED_SSTABLE, 0);
+
+        int nowInSec = (int)(System.currentTimeMillis() / 1000) + 42; //live for 42 seconds
+        // Add rows
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("apple"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("bam"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("ban"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("banana"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("bar"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("zebra"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("zebra1"), cfamily);
+        cfamily.clear();
+
+        writer.finish(true);
+
+        // Export to JSON and verify
+        File tempJson = File.createTempFile("Standard1", ".json");
+        SSTableExport.export(Descriptor.fromFilename(writer.getFilename()), new PrintStream(tempJson.getPath()), asHex("bam"), asHex("zebra1"), null, cfamily.metadata());
+
+        JSONArray json = (JSONArray)JSONValue.parseWithException(new FileReader(tempJson));
+        assertEquals("unexpected number of rows", 5, json.size());
+
+        JSONObject rowBam = (JSONObject)json.get(0);
+        assertEquals("unexpected row key",asHex("bam"),rowBam.get("key"));
+        JSONObject rowBan = (JSONObject)json.get(1);
+        assertEquals("unexpected row key",asHex("ban"),rowBan.get("key"));
+        JSONObject rowBanana = (JSONObject)json.get(2);
+        assertEquals("unexpected row key",asHex("banana"),rowBanana.get("key"));
+        JSONObject rowBar = (JSONObject)json.get(3);
+        assertEquals("unexpected row key",asHex("bar"),rowBar.get("key"));
+        JSONObject rowZebra = (JSONObject)json.get(4);
+        assertEquals("unexpected row key",asHex("zebra"),rowZebra.get("key"));
     }
 }

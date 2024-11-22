@@ -53,6 +53,8 @@ public class SSTableExport
 
     private static final String KEY_OPTION = "k";
     private static final String PREFIX_OPTION = "p";
+
+    private static final String UNTIL_PREFIX_OPTION = "u";
     private static final String EXCLUDEKEY_OPTION = "x";
     private static final String ENUMERATEKEYS_OPTION = "e";
 
@@ -75,6 +77,12 @@ public class SSTableExport
         // Number of times -p <prefix> can be passed on the command line.
         prefixKey.setArgs(1);
         options.addOption(prefixKey);
+
+        Option untilPrefixKey = new Option(UNTIL_PREFIX_OPTION, true, "Prefix of row key used in range scan. When specified, " +
+                "the query will filter keys within the range [prefix, until_prefix)");
+        // Number of times -u <prefix> can be passed on the command line.
+        untilPrefixKey.setArgs(1);
+        options.addOption(untilPrefixKey);
 
         Option optEnumerate = new Option(ENUMERATEKEYS_OPTION, false, "enumerate keys only");
         options.addOption(optEnumerate);
@@ -314,7 +322,7 @@ public class SSTableExport
         }
     }
 
-    public static void export(Descriptor desc, PrintStream outs, String prefix, String[] excludes, CFMetaData metadata) throws IOException
+    public static void export(Descriptor desc, PrintStream outs, String prefix, String untilPrefix, String[] excludes, CFMetaData metadata) throws IOException
     {
         Set<String> excludedKeys = excludes != null ? Arrays.stream(excludes).collect(Collectors.toSet()) : ImmutableSet.of();
         SSTableReader sstable = SSTableReader.open(desc);
@@ -325,13 +333,13 @@ public class SSTableExport
 
             outs.println("[");
 
-            // last key to compare order
             DecoratedKey decoratedKey = partitioner.decorateKey(metadata.getKeyValidator().fromString(prefix));
+            // last key to compare order
             DecoratedKey lastKey = null;
             int keysCount = 0;
             while (keysCount < 5000) {
                 if (lastKey != null && lastKey.compareTo(decoratedKey) > 0)
-                    throw new IOException("Key in sstable are out of order despite scanning in order! " + lastKey + " > " + decoratedKey);
+                    throw new IOException("Keys in sstable are out of order despite scanning in order! " + lastKey + " > " + decoratedKey);
 
                 RowIndexEntry entry = sstable.getPosition(decoratedKey, keysCount == 0 ? SSTableReader.Operator.GE : SSTableReader.Operator.GT);
 
@@ -345,7 +353,13 @@ public class SSTableExport
                 decoratedKey = partitioner.decorateKey(keyBytes); // row key
                 String keyString = metadata.getKeyValidator().getString(keyBytes);
 
-                if (!keyString.startsWith(prefix)) {
+                if (untilPrefix == null && !keyString.startsWith(prefix)) {
+                    // we are not doing a range query. if the current key does not begin with the prefix, we are past the valid range of keys
+                    break;
+                }
+
+                if (untilPrefix != null && keyString.compareTo(untilPrefix) >= 0) {
+                    // we are doing a range query. if the current key if >= the untilPrefix, we are past the valid range of keys
                     break;
                 }
 
@@ -469,10 +483,16 @@ public class SSTableExport
         String[] keys = cmd.getOptionValues(KEY_OPTION);
         String[] excludes = cmd.getOptionValues(EXCLUDEKEY_OPTION);
         String prefix = cmd.getOptionValue(PREFIX_OPTION);
+        String untilPrefix = cmd.getOptionValue(UNTIL_PREFIX_OPTION);
 
         if ((keys != null) && (keys.length > 0) && (prefix != null))
         {
             System.err.println("Cannot specify keys and prefix at the same time");
+            System.exit(1);
+        }
+
+        if ((untilPrefix != null) && (prefix == null)) {
+            System.err.println("Cannot specify untilPrefix without specifying prefix.");
             System.exit(1);
         }
 
@@ -497,20 +517,20 @@ public class SSTableExport
                     i++;
                     String ssTableFileName = file.getAbsolutePath();
                     printStream.printf("\"%s\":", file.getName());
-                    handleSingleSsTableFile(ssTableFileName, keys, excludes, prefix, printStream);
+                    handleSingleSsTableFile(ssTableFileName, keys, excludes, prefix, untilPrefix, printStream);
                 }
                 printStream.println("}");
             }
             else
             {
-                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, printStream);
+                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, untilPrefix, printStream);
             }
         }
 
         System.exit(0);
     }
 
-    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, String prefix, PrintStream printStream)
+    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, String prefix, String untilPrefix, PrintStream printStream)
     {
         Descriptor descriptor = Descriptor.fromFilename(ssTableFileName);
 
@@ -556,7 +576,7 @@ public class SSTableExport
                 if ((keys != null) && (keys.length > 0))
                     export(descriptor, printStream, Arrays.asList(keys), excludes, cfStore.metadata);
                 else if (prefix != null)
-                    export(descriptor, printStream, prefix, excludes, cfStore.metadata);
+                    export(descriptor, printStream, prefix, untilPrefix, excludes, cfStore.metadata);
                 else
                     export(descriptor, printStream, excludes);
             }
