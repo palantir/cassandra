@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.db.BootstrappingSafetyException;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.Keyspace;
@@ -37,6 +39,7 @@ import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.locator.AbstractReplicationStrategy;
 import org.apache.cassandra.locator.TokenMetadata;
+import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.streaming.*;
 import org.apache.cassandra.utils.progress.ProgressEvent;
@@ -53,6 +56,8 @@ public class BootStrapper extends ProgressEventNotifierSupport
     protected final Collection<Token> tokens;
     protected final TokenMetadata tokenMetadata;
 
+    private final AtomicReference<UUID> initialLocalSchemaVersion = new AtomicReference<>(Schema.instance.getVersion());
+
     public BootStrapper(InetAddress address, Collection<Token> tokens, TokenMetadata tmd)
     {
         assert address != null;
@@ -66,6 +71,8 @@ public class BootStrapper extends ProgressEventNotifierSupport
     public ListenableFuture<StreamState> bootstrap(StreamStateStore stateStore, boolean useStrictConsistency)
     {
         logger.trace("Beginning bootstrap process");
+
+        initialLocalSchemaVersion.set(Schema.instance.getVersion());
 
         RangeStreamer streamer = new RangeStreamer(tokenMetadata,
                                                    tokens,
@@ -95,6 +102,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
                 switch (event.eventType)
                 {
                     case STREAM_PREPARED:
+                        verifySchemaIsConsistent();
                         StreamEvent.SessionPreparedEvent prepared = (StreamEvent.SessionPreparedEvent) event;
                         int currentTotal = totalFilesToReceive.addAndGet((int) prepared.session.getTotalFilesToReceive());
                         ProgressEvent prepareProgress = new ProgressEvent(ProgressEventType.PROGRESS, receivedFiles.get(), currentTotal, "prepare with " + prepared.session.peer + " complete");
@@ -210,6 +218,14 @@ public class BootStrapper extends ProgressEventNotifierSupport
         public long serializedSize(String s, int version)
         {
             return TypeSizes.NATIVE.sizeof(s);
+        }
+    }
+
+    private void verifySchemaIsConsistent() throws BootstrappingSafetyException
+    {
+        if (!initialLocalSchemaVersion.get().equals(Schema.instance.getVersion()) || !MigrationManager.isReadyForBootstrap())
+        {
+            StorageService.instance.recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
         }
     }
 }

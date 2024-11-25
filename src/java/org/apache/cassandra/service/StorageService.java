@@ -932,11 +932,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
             if (!noPreviousDataFound)
             {
-                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR,
-                                        ImmutableMap.of("previousDataFound", "true"));
-                unsafeDisableNode();
-                // leave node in non-transient error state and prevent it from bootstrapping into the cluster
-                throw new BootstrappingSafetyException("Detected data from previous bootstrap, failing.");
+                recordBootstrapErrorAndThrow("previousDataFound");
             }
 
             if (SystemKeyspace.bootstrapInProgress())
@@ -1056,20 +1052,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             dataAvailable = bootstrap(bootstrapTokens);
             if (!dataAvailable)
             {
-                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("streamingFailed", "true"));
-                unsafeDisableNode();
-                throw new BootstrappingSafetyException("Bootstrap streaming failed.");
+                recordBootstrapErrorAndThrow("streamingFailed");
             }
 
             if(!localSchemaVersion.equals(Schema.instance.getVersion().toString()) || !isSchemaConsistent(localSchemaVersion))
             {
-                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("schemaConsistencyFailed", "true"));
-                unsafeDisableNode();
                 logger.error(
                     "Schema has changed after bootstrapping started, or is inconsistent across nodes. initial: {}, current: {}",
                     SafeArg.of("initialSchemaVersion", localSchemaVersion),
                     SafeArg.of("currentSchemaVersion", Schema.instance.getVersion().toString()));
-                throw new BootstrappingSafetyException("Schema was not consistent after bootstrap streaming");
+                recordBootstrapErrorAndThrow("schemaConsistencyFailed");
             }
 
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
@@ -1080,11 +1072,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 boolean timeoutExceeded = !finishBootstrapCondition.await(30, MINUTES);
                 if (timeoutExceeded)
                 {
-                    recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("bootstrapSafetyCheckFailed", "true"));
-                    unsafeDisableNode();
-                    String message = "Finish bootstrap was not called within 30 minutes. Bootstrap safety check failed.";
-                    logger.error(message);
-                    throw new BootstrappingSafetyException(message);
+                    logger.error("Finish bootstrap was not called within 30 minutes. Bootstrap safety check failed.");
+                    recordBootstrapErrorAndThrow("bootstrapSafetyCheckFailed");
                 }
             }
             catch (InterruptedException e)
@@ -1743,6 +1732,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public Set<Map<String, String>> getNonTransientErrors() {
         return ImmutableSet.copyOf(nonTransientErrors);
+    }
+
+    public void recordBootstrapErrorAndThrow(@Safe String reason) throws BootstrappingSafetyException
+    {
+        recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of(reason, "true"));
+        unsafeDisableNode();
+        throw new BootstrappingSafetyException(reason);
     }
 
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
