@@ -72,7 +72,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
     {
         logger.trace("Beginning bootstrap process");
 
-        initialLocalSchemaVersion.set(Schema.instance.getVersion());
+        final UUID initialLocalSchemaVersion = Schema.instance.getVersion();
 
         RangeStreamer streamer = new RangeStreamer(tokenMetadata,
                                                    tokens,
@@ -90,6 +90,11 @@ public class BootStrapper extends ProgressEventNotifierSupport
             streamer.addRanges(keyspaceName, strategy.getPendingAddressRanges(tokenMetadata, tokens, address));
         }
 
+        if (!initialLocalSchemaVersion.equals(Schema.instance.getVersion()) || !MigrationManager.isReadyForBootstrap())
+        {
+            StorageService.instance.recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
+        }
+
         StreamResultFuture bootstrapStreamResult = streamer.fetchAsync();
         bootstrapStreamResult.addEventListener(new StreamEventHandler()
         {
@@ -102,7 +107,6 @@ public class BootStrapper extends ProgressEventNotifierSupport
                 switch (event.eventType)
                 {
                     case STREAM_PREPARED:
-                        verifySchemaIsConsistent();
                         StreamEvent.SessionPreparedEvent prepared = (StreamEvent.SessionPreparedEvent) event;
                         int currentTotal = totalFilesToReceive.addAndGet((int) prepared.session.getTotalFilesToReceive());
                         ProgressEvent prepareProgress = new ProgressEvent(ProgressEventType.PROGRESS, receivedFiles.get(), currentTotal, "prepare with " + prepared.session.peer + " complete");
@@ -218,14 +222,6 @@ public class BootStrapper extends ProgressEventNotifierSupport
         public long serializedSize(String s, int version)
         {
             return TypeSizes.NATIVE.sizeof(s);
-        }
-    }
-
-    private void verifySchemaIsConsistent() throws BootstrappingSafetyException
-    {
-        if (!initialLocalSchemaVersion.get().equals(Schema.instance.getVersion()) || !MigrationManager.isReadyForBootstrap())
-        {
-            StorageService.instance.recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
         }
     }
 }
