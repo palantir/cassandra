@@ -963,16 +963,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
 
-            String currentLocalSchemaVersion = Schema.instance.getVersion().toString();
-            while(!isSchemaConsistent(currentLocalSchemaVersion))
+            while(!isSchemaConsistent())
             {
                 logger.info(
                     "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
-                    SafeArg.of("localSchemaVersion", currentLocalSchemaVersion));
+                    SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-                currentLocalSchemaVersion = Schema.instance.getVersion().toString();
             }
-            final String localSchemaVersion = currentLocalSchemaVersion;
 
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
@@ -1134,8 +1131,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    private static boolean isSchemaConsistent(String localSchemaVersion)
+    private static boolean isSchemaConsistent()
     {
+        String localSchemaVersion = Schema.instance.getVersion().toString();
         Set<Entry<InetAddress, EndpointState>> endpointStates = Gossiper.instance.getEndpointStates();
         for (Entry<InetAddress, EndpointState> entry : endpointStates)
         {
