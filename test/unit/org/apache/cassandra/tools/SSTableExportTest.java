@@ -366,4 +366,51 @@ public class SSTableExportTest
         // check row key
         assertEquals("key", row.get("key"));
     }
+
+    @Test
+    public void testExportPrefixFilter() throws IOException, ParseException
+    {
+        File tempSS = tempSSTableFile(KEYSPACE1, "Standard1");
+        ColumnFamily cfamily = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Standard1");
+        SSTableWriter writer = SSTableWriter.create(tempSS.getPath(), 2, ActiveRepairService.UNREPAIRED_SSTABLE, 0);
+
+        // Add rows
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("apple"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("bam"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("ban"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("banana"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("bar"), cfamily);
+        cfamily.clear();
+
+        cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
+        writer.append(Util.dk("zebra"), cfamily);
+        cfamily.clear();
+
+        SSTableReader sstable = writer.finish(true);
+
+        // Export to JSON and verify
+        File tempJson = File.createTempFile("Standard1", ".json");
+        SSTableExport.export(sstable, new PrintStream(tempJson.getPath()), asHex("ban"), null, cfamily.metadata());
+
+        JSONArray json = (JSONArray)JSONValue.parseWithException(new FileReader(tempJson));
+        assertEquals("unexpected number of rows", 2, json.size());
+
+        JSONObject rowBan = (JSONObject)json.get(0);
+        assertEquals("unexpected row key",asHex("ban"),rowBan.get("key"));
+        JSONObject rowBanana = (JSONObject)json.get(1);
+        assertEquals("unexpected row key",asHex("banana"),rowBanana.get("key"));
+    }
 }
