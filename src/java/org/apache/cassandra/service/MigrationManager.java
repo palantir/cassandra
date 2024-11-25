@@ -26,15 +26,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ConcurrentHashMultiset;
 import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.util.function.BiFunction;
 
-import org.cliffc.high_scale_lib.ConcurrentAutoTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,14 +142,7 @@ public class MigrationManager
                     if (epState == null)
                     {
                         logger.debug("epState vanished for {}, not submitting migration task", endpoint);
-                        scheduledSchemaPulls.computeIfPresent(theirVersion, (v, s) -> {
-                            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, theirVersion, s);
-                            s.remove(endpoint);
-                            if (!s.isEmpty()) {
-                                return s;
-                            }
-                            return null;
-                        });
+                        scheduledSchemaPulls.computeIfPresent(theirVersion, removeEndpointFromSchemaPulls(endpoint));
                         return;
                     }
                     VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
@@ -166,28 +156,14 @@ public class MigrationManager
                                 endpoint,
                                 theirVersion,
                                 currentVersion);
-                        scheduledSchemaPulls.computeIfPresent(theirVersion, (v, s) -> {
-                            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, theirVersion, s);
-                            s.remove(endpoint);
-                            if (!s.isEmpty()) {
-                                return s;
-                            }
-                            return null;
-                        });
+                        scheduledSchemaPulls.computeIfPresent(theirVersion, removeEndpointFromSchemaPulls(endpoint));
                         return;
                     }
 
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
-                        scheduledSchemaPulls.computeIfPresent(theirVersion, (v, s) -> {
-                            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, theirVersion, s);
-                            s.remove(endpoint);
-                            if (!s.isEmpty()) {
-                                return s;
-                            }
-                            return null;
-                        });
+                        scheduledSchemaPulls.computeIfPresent(theirVersion, removeEndpointFromSchemaPulls(endpoint));
                         return;
                     }
                     logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
@@ -197,9 +173,20 @@ public class MigrationManager
                     submitMigrationTask(endpoint, currentVersion);
                 }
             };
-            scheduledSchemaPulls.computeIfAbsent(theirVersion, v -> new ConcurrentSkipListSet<>()).add(endpoint);
+            scheduledSchemaPulls.computeIfAbsent(theirVersion, v -> new HashSet<>()).add(endpoint);
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
         }
+    }
+
+    private static BiFunction<UUID, Set<InetAddress>, Set<InetAddress>> removeEndpointFromSchemaPulls(InetAddress endpoint) {
+        return (v, s) -> {
+            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, v, s);
+            s.remove(endpoint);
+            if (!s.isEmpty()) {
+                return s;
+            }
+            return null;
+        };
     }
 
     private static Future<?> submitMigrationTask(InetAddress endpoint)
