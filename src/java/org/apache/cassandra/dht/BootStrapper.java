@@ -56,8 +56,6 @@ public class BootStrapper extends ProgressEventNotifierSupport
     protected final Collection<Token> tokens;
     protected final TokenMetadata tokenMetadata;
 
-    private final AtomicReference<UUID> initialLocalSchemaVersion = new AtomicReference<>(Schema.instance.getVersion());
-
     public BootStrapper(InetAddress address, Collection<Token> tokens, TokenMetadata tmd)
     {
         assert address != null;
