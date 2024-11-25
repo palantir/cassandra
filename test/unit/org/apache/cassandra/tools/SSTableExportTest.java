@@ -374,7 +374,6 @@ public class SSTableExportTest
         ColumnFamily cfamily = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Standard1");
         SSTableWriter writer = SSTableWriter.create(tempSS.getPath(), 2, ActiveRepairService.UNREPAIRED_SSTABLE, 0);
 
-        int nowInSec = (int)(System.currentTimeMillis() / 1000) + 42; //live for 42 seconds
         // Add rows
         cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
         writer.append(Util.dk("apple"), cfamily);
@@ -400,11 +399,11 @@ public class SSTableExportTest
         writer.append(Util.dk("zebra"), cfamily);
         cfamily.clear();
 
-        writer.finish(true);
+        SSTableReader sstable = writer.finish(true);
 
         // Export to JSON and verify
         File tempJson = File.createTempFile("Standard1", ".json");
-        SSTableExport.export(Descriptor.fromFilename(writer.getFilename()), new PrintStream(tempJson.getPath()), asHex("ban"), null, null, cfamily.metadata());
+        SSTableExport.export(sstable, new PrintStream(tempJson.getPath()), asHex("ban"), null, null, cfamily.metadata());
 
         JSONArray json = (JSONArray)JSONValue.parseWithException(new FileReader(tempJson));
         assertEquals("unexpected number of rows", 2, json.size());
@@ -422,7 +421,6 @@ public class SSTableExportTest
         ColumnFamily cfamily = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Standard1");
         SSTableWriter writer = SSTableWriter.create(tempSS.getPath(), 2, ActiveRepairService.UNREPAIRED_SSTABLE, 0);
 
-        int nowInSec = (int)(System.currentTimeMillis() / 1000) + 42; //live for 42 seconds
         // Add rows
         cfamily.addColumn(Util.cellname("col"), ByteBufferUtil.bytes("val"), System.currentTimeMillis());
         writer.append(Util.dk("apple"), cfamily);
@@ -452,11 +450,11 @@ public class SSTableExportTest
         writer.append(Util.dk("zebra1"), cfamily);
         cfamily.clear();
 
-        writer.finish(true);
+        SSTableReader sstable = writer.finish(true);
 
         // Export to JSON and verify
         File tempJson = File.createTempFile("Standard1", ".json");
-        SSTableExport.export(Descriptor.fromFilename(writer.getFilename()), new PrintStream(tempJson.getPath()), asHex("bam"), asHex("zebra1"), null, cfamily.metadata());
+        SSTableExport.export(sstable, new PrintStream(tempJson.getPath()), asHex("bam"), asHex("zebra1"), null, cfamily.metadata());
 
         JSONArray json = (JSONArray)JSONValue.parseWithException(new FileReader(tempJson));
         assertEquals("unexpected number of rows", 5, json.size());

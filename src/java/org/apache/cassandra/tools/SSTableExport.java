@@ -322,10 +322,13 @@ public class SSTableExport
         }
     }
 
-    public static void export(Descriptor desc, PrintStream outs, String prefix, String untilPrefix, String[] excludes, CFMetaData metadata) throws IOException
+    public static void export(Descriptor desc, PrintStream outs, String prefix, String untilPrefix, String[] excludes, CFMetaData metadata) throws IOException {
+        export(SSTableReader.open(desc), outs, prefix, untilPrefix, excludes, metadata);
+    }
+
+    public static void export(SSTableReader sstable, PrintStream outs, String prefix, String untilPrefix, String[] excludes, CFMetaData metadata) throws IOException
     {
         Set<String> excludedKeys = excludes != null ? Arrays.stream(excludes).collect(Collectors.toSet()) : ImmutableSet.of();
-        SSTableReader sstable = SSTableReader.open(desc);
 
         try (RandomAccessReader dfile = sstable.openDataReader())
         {
