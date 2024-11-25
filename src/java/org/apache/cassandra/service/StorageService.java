@@ -1055,15 +1055,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 recordBootstrapErrorAndThrow("streamingFailed");
             }
 
-            if(!localSchemaVersion.equals(Schema.instance.getVersion().toString()) || !isSchemaConsistent(localSchemaVersion))
-            {
-                logger.error(
-                    "Schema has changed after bootstrapping started, or is inconsistent across nodes. initial: {}, current: {}",
-                    SafeArg.of("initialSchemaVersion", localSchemaVersion),
-                    SafeArg.of("currentSchemaVersion", Schema.instance.getVersion().toString()));
-                recordBootstrapErrorAndThrow("schemaConsistencyFailed");
-            }
-
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
                         "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
             try
