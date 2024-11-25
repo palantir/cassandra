@@ -25,7 +25,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
-
 import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
@@ -70,7 +69,6 @@ public class MigrationManager
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
-
 
     private MigrationManager() {}
 
@@ -178,7 +176,7 @@ public class MigrationManager
         }
     }
 
-    private static BiFunction<UUID, Set<InetAddress>, Set<InetAddress>> removeEndpointFromSchemaPulls(InetAddress endpoint) {
+    static BiFunction<UUID, Set<InetAddress>, Set<InetAddress>> removeEndpointFromSchemaPulls(InetAddress endpoint) {
         return (v, s) -> {
             logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, v, s);
             s.remove(endpoint);
@@ -230,7 +228,7 @@ public class MigrationManager
          * Don't request schema if we have scheduled a pull request for that schema version
          */
         Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
-        boolean noScheduledRequests = currentlyScheduledRequests.size() <= MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
+        boolean noScheduledRequests = currentlyScheduledRequests.size() < MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
                                       && !currentlyScheduledRequests.contains(endpoint);
         logger.debug("Evaluating schema pull criteria: currently scheduled requests for version {}: {}", theirVersion, currentlyScheduledRequests);
         return MessagingService.instance().knowsVersion(endpoint)

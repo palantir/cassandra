@@ -96,14 +96,10 @@ class MigrationTask extends WrappedRunnable
                 finally
                 {
                     // always attempt to clean up our outstanding schema pull request if created with a version
-                    version.ifPresent(v -> MigrationManager.scheduledSchemaPulls.computeIfPresent(v, (_v, s) -> {
-                        logger.debug("Successfully processed response to schema pull, removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, v, s);
-                        s.remove(endpoint);
-                        if (!s.isEmpty()) {
-                            return s;
-                        }
-                        return null;
-                    }));
+                    version.ifPresent(v -> {
+                        logger.debug("Successfully processed response to schema pull, removing endpoint from scheduled schema pulls {}: {}", endpoint, v);
+                        MigrationManager.scheduledSchemaPulls.computeIfPresent(v, MigrationManager.removeEndpointFromSchemaPulls(endpoint));
+                    });
                 }
             }
 
@@ -111,14 +107,10 @@ class MigrationTask extends WrappedRunnable
             public void onFailure(InetAddress from)
             {
                 // always attempt to clean up our outstanding schema pull request if created with a version
-                version.ifPresent(v -> MigrationManager.scheduledSchemaPulls.computeIfPresent(v, (_v, s) -> {
-                    logger.debug("Timed out waiting for response to schema pull, removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, v, s);
-                    s.remove(endpoint);
-                    if (!s.isEmpty()) {
-                        return s;
-                    }
-                    return null;
-                }));
+                version.ifPresent(v -> {
+                    logger.debug("Timed out waiting for response to schema pull, removing endpoint from scheduled schema pulls {}: {}", endpoint, v);
+                    MigrationManager.scheduledSchemaPulls.computeIfPresent(v, MigrationManager.removeEndpointFromSchemaPulls(endpoint));
+                });
             }
 
             public boolean isLatencyForSnitch()
