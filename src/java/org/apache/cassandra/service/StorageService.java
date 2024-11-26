@@ -957,7 +957,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
-
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
@@ -1038,7 +1037,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             {
                 recordBootstrapErrorAndThrow("streamingFailed");
             }
-
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
                         "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
             try
@@ -1601,7 +1599,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
         }
-
         try
         {
             bootstrapStream.get();
