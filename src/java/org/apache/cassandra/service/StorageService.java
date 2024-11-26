@@ -1121,16 +1121,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static boolean isSchemaConsistent()
     {
         String localSchemaVersion = Schema.instance.getVersion().toString();
-        Set<Entry<InetAddress, EndpointState>> endpointStates = Gossiper.instance.getEndpointStates();
-        for (Entry<InetAddress, EndpointState> entry : endpointStates)
-        {
-            String remoteSchemaVersion = entry.getValue().getApplicationState(ApplicationState.SCHEMA).value;
-            if (!localSchemaVersion.equals(remoteSchemaVersion))
-            {
-                return false;
-            }
-        }
-        return true;
+        return Gossiper.instance.getEndpointStates().stream()
+                                .map(entry -> entry.getValue().getApplicationState(ApplicationState.SCHEMA).value)
+                                .allMatch(localSchemaVersion::equals);
     }
 
     private void joinTokenRing(int delay) throws ConfigurationException
