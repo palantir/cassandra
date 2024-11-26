@@ -945,16 +945,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
             // first sleep the delay to make sure we see all our peers
-            for (int i = 0; i < delay; i += 1000)
-            {
-                // if we see schema, we can proceed to the next check directly
-                if (!Schema.instance.getVersion().equals(Schema.emptyVersion))
-                {
-                    logger.debug("got schema: {}", Schema.instance.getVersion());
-                    break;
-                }
-                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-            }
+            Uninterruptibles.sleepUninterruptibly(delay, TimeUnit.MILLISECONDS);
+
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
             while (!MigrationManager.isReadyForBootstrap())
@@ -1612,7 +1604,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
         bootstrapListeners.forEach(bootstrapper::addProgressListener);
+
+        final UUID initialLocalSchemaVersion = Schema.instance.getVersion();
+
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
+
+        if (!MigrationManager.isReadyForBootstrap() || !initialLocalSchemaVersion.equals(Schema.instance.getVersion()))
+        {
+            recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
+        }
+
         try
         {
             bootstrapStream.get();

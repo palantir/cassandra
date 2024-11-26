@@ -68,8 +68,6 @@ public class BootStrapper extends ProgressEventNotifierSupport
     {
         logger.trace("Beginning bootstrap process");
 
-        final UUID initialLocalSchemaVersion = Schema.instance.getVersion();
-
         RangeStreamer streamer = new RangeStreamer(tokenMetadata,
                                                    tokens,
                                                    address,
@@ -84,11 +82,6 @@ public class BootStrapper extends ProgressEventNotifierSupport
         {
             AbstractReplicationStrategy strategy = Keyspace.open(keyspaceName).getReplicationStrategy();
             streamer.addRanges(keyspaceName, strategy.getPendingAddressRanges(tokenMetadata, tokens, address));
-        }
-
-        if (!initialLocalSchemaVersion.equals(Schema.instance.getVersion()) || !MigrationManager.isReadyForBootstrap())
-        {
-            StorageService.instance.recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
         }
 
         StreamResultFuture bootstrapStreamResult = streamer.fetchAsync();
