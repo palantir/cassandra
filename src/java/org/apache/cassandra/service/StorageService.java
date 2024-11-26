@@ -1719,7 +1719,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return ImmutableSet.copyOf(nonTransientErrors);
     }
 
-    public void recordBootstrapErrorAndThrow(@Safe String reason) throws BootstrappingSafetyException
+    private void recordBootstrapErrorAndThrow(@Safe String reason) throws BootstrappingSafetyException
     {
         recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of(reason, "true"));
         unsafeDisableNode();
