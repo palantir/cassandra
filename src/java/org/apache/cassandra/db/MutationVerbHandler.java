@@ -21,9 +21,6 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.*;
@@ -32,7 +29,6 @@ import org.apache.cassandra.tracing.Tracing;
 public class MutationVerbHandler implements IVerbHandler<Mutation>
 {
     private static final boolean TEST_FAIL_WRITES = System.getProperty("cassandra.test.fail_writes", "false").equalsIgnoreCase("true");
-    private static final Logger logger = LoggerFactory.getLogger(MutationVerbHandler.class);
 
     public void doVerb(MessageIn<Mutation> message, int id)  throws IOException
     {
@@ -53,12 +49,7 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
 
             OwnershipVerificationUtils.verifyMutation(message.payload);
 
-            try {
-                message.payload.apply();
-            } catch (Exception e) {
-                logger.error("FAiled mutation", e);
-                throw e;
-            }
+            message.payload.apply();
             WriteResponse response = new WriteResponse();
             Tracing.trace("Enqueuing response to {}", replyTo);
             MessagingService.instance().sendReply(response.createMessage(), id, replyTo);
