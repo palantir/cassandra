@@ -21,8 +21,11 @@
 package org.apache.cassandra.net;
 
 import java.net.InetAddress;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,13 +46,17 @@ import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.WriteType;
 import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.exceptions.WriteFailureException;
+import org.apache.cassandra.exceptions.WriteTimeoutException;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.service.AbstractWriteResponseHandler;
+import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.service.WriteResponseHandler;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -106,14 +113,22 @@ public class MessagingServiceTest
         mutation.add(CF_STANDARD1, Util.cellname("Column1"), ByteBufferUtil.bytes("asdf"), 0);
         //mutation.applyUnsafe();
         AtomicBoolean response = new AtomicBoolean(false);
-        TestHandler handler = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), null, ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
         MessageOut<Mutation> message = mutation.createMessage();
+        List<MessagingService.SocketThread> incomingAcceptThreads;
         try
         {
             messagingService.listen();
+            assertTrue(messagingService.isListening());
+            assertFalse(MessagingService.instance().isListening());
+            incomingAcceptThreads = messagingService.getSocketThreads();
+            assertTrue(incomingAcceptThreads.size() > 0);
 
+            TestHandler handler = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
             MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler, false);
-            Thread.sleep(1000);
+            // Wait for response
+            handler.get();
+            assertTrue(response.get());
+            response.set(false);
             //MessagingService.instance().receive();
 //            while (true)
 //            {
@@ -130,11 +145,51 @@ public class MessagingServiceTest
         {
             messagingService.shutdown();
         }
-        assertTrue(response.get());
 
-        MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler, false);
-        Thread.sleep(1000);
-        assertTrue(response.get());
+        incomingAcceptThreads.forEach(thread -> assertFalse(thread.isAlive()));
+        // throws IOException b/c broken pipe MessagingService.instance().getConnectionPool(FBUtilities.getLocalAddress()).smallMessages.out.flush();
+        TestHandler handler2 = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+        MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler2, false);
+        TestHandler handler3 = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+        MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler3, false);
+        TestHandler handler4 = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+        MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler4, false);
+        // Wait for response
+        int timeouts = 0;
+        int failures = 0;
+        try {
+            handler2.get();
+        } catch (WriteTimeoutException e) {
+            timeouts++;
+        } catch (WriteFailureException e)
+        {
+            failures++;
+        }
+        try {
+            handler3.get();
+        } catch (WriteTimeoutException e) {
+            timeouts++;
+        } catch (WriteFailureException e)
+        {
+            failures++;
+        }
+        try {
+            handler4.get();
+        } catch (WriteTimeoutException e) {
+            timeouts++;
+        } catch (WriteFailureException e)
+        {
+            failures++;
+        }
+        System.out.println(failures);
+        System.out.println(timeouts);
+
+        // Comfortable buffer to assert we're not timing out when we know we will fail
+        assertTrue(failures > 0);
+
+//        MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler, false);
+//        Thread.sleep(1000);
+//        assertTrue(response.get());
 
         // Create incoming tcp connection
         // call shutdown

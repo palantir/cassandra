@@ -330,6 +330,11 @@ public class OutboundTcpConnection extends Thread
                     {
                         throw new AssertionError(e1);
                     }
+                } else {
+                    CallbackInfo registeredCallbackInfo = MessagingService.instance().getRegisteredCallback(qm.id);
+                    if (registeredCallbackInfo != null && registeredCallbackInfo.isFailureCallback()) {
+                        ((IAsyncCallbackWithFailure) MessagingService.instance().removeRegisteredCallback(qm.id).callback).onFailure(poolReference.endPoint());
+                    }
                 }
             }
             else
