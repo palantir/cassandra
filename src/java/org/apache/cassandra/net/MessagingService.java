@@ -770,9 +770,10 @@ public final class MessagingService implements MessagingServiceMBean
         try
         {
             clearMessageSinks();
-            for (SocketThread th : socketThreads)
+            for (SocketThread th : socketThreads) {
                 try
                 {
+                    // Close incoming connections
                     th.close();
                 }
                 catch (IOException e)
@@ -781,18 +782,17 @@ public final class MessagingService implements MessagingServiceMBean
                     handleIOException(e);
                 }
 
+            }
+            // Wait to finish callbacks before closing outbound connections
+            if (!callbacks.shutdownBlocking())
+                logger.warn("Failed to wait for messaging service callbacks shutdown");
+
             connectionManagers.values().forEach(OutboundTcpConnectionPool::close);
         }
         catch (IOException e)
         {
             throw new IOError(e);
-        } finally
-        {
-            // the important part
-            if (!callbacks.shutdownBlocking())
-                logger.warn("Failed to wait for messaging service callbacks shutdown");
         }
-
     }
 
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
