@@ -83,12 +83,15 @@ class MigrationTask extends WrappedRunnable
             {
                 try
                 {
-                    LegacySchemaTables.mergeSchema(message.payload);
+                    // TODO: testing always failed merges
+                    //LegacySchemaTables.mergeSchema(message.payload);
                 }
+                /*
                 catch (IOException e)
                 {
                     logger.error("IOException merging remote schema", e);
                 }
+                */
                 catch (ConfigurationException e)
                 {
                     logger.error("Configuration exception merging remote schema", e);
