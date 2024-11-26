@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.net.IAsyncCallbackWithFailure;
@@ -83,15 +84,13 @@ class MigrationTask extends WrappedRunnable
             {
                 try
                 {
-                    // TODO: testing always failed merges
-                    //LegacySchemaTables.mergeSchema(message.payload);
+                    logger.debug("Processing response to schema pull from endpoint", SafeArg.of("endpoint", endpoint));
+                    LegacySchemaTables.mergeSchema(message.payload);
                 }
-                /*
                 catch (IOException e)
                 {
                     logger.error("IOException merging remote schema", e);
                 }
-                */
                 catch (ConfigurationException e)
                 {
                     logger.error("Configuration exception merging remote schema", e);
@@ -100,7 +99,9 @@ class MigrationTask extends WrappedRunnable
                 {
                     // always attempt to clean up our outstanding schema pull request if created with a version
                     version.ifPresent(v -> {
-                        logger.debug("Successfully processed response to schema pull, removing endpoint from scheduled schema pulls {}: {}", endpoint, v);
+                        logger.debug("Successfully processed response to schema pull",
+                                     SafeArg.of("endpoint", endpoint),
+                                     SafeArg.of("schemaVersion", v));
                         MigrationManager.scheduledSchemaPulls.computeIfPresent(v, MigrationManager.removeEndpointFromSchemaPulls(endpoint));
                     });
                 }
@@ -111,7 +112,9 @@ class MigrationTask extends WrappedRunnable
             {
                 // always attempt to clean up our outstanding schema pull request if created with a version
                 version.ifPresent(v -> {
-                    logger.debug("Timed out waiting for response to schema pull, removing endpoint from scheduled schema pulls {}: {}", endpoint, v);
+                    logger.debug("Timed out waiting for response to schema pull",
+                                 SafeArg.of("endpoint", endpoint),
+                                 SafeArg.of("schemaVersion", v));
                     MigrationManager.scheduledSchemaPulls.computeIfPresent(v, MigrationManager.removeEndpointFromSchemaPulls(endpoint));
                 });
             }

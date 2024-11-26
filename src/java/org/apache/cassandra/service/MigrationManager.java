@@ -25,6 +25,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
+
+import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
@@ -165,9 +167,9 @@ public class MigrationManager
                         return;
                     }
                     logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
-                            endpoint,
-                            currentVersion,
-                            Schema.instance.getVersion());
+                            SafeArg.of("endpoint", endpoint),
+                            SafeArg.of("endpointVersion", currentVersion),
+                            SafeArg.of("schemaVersion", Schema.instance.getVersion()));
                     submitMigrationTask(endpoint, currentVersion);
                 }
             };
@@ -178,7 +180,10 @@ public class MigrationManager
 
     static BiFunction<UUID, Set<InetAddress>, Set<InetAddress>> removeEndpointFromSchemaPulls(InetAddress endpoint) {
         return (v, s) -> {
-            logger.debug("Removing endpoint from scheduled schema pulls {}: {} ({})", endpoint, v, s);
+            logger.debug("Removing endpoint from scheduled schema pulls",
+                         SafeArg.of("endpoint", endpoint),
+                         SafeArg.of("schemaVersion", v),
+                         SafeArg.of("scheduledPulls", s));
             s.remove(endpoint);
             if (!s.isEmpty()) {
                 return s;
@@ -211,7 +216,7 @@ public class MigrationManager
     public static boolean shouldPullSchemaFrom(InetAddress endpoint)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
+         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
          * Don't request schema from fat clients
          */
         return MessagingService.instance().knowsVersion(endpoint)
@@ -222,7 +227,7 @@ public class MigrationManager
     public static boolean shouldPullSchemaFrom(InetAddress endpoint, UUID theirVersion)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
+         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
          * Don't request schema from fat clients
          * Don't request schema from bootstrapping nodes (?)
          * Don't request schema if we have scheduled a pull request for that schema version
@@ -230,7 +235,7 @@ public class MigrationManager
         Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
         boolean noScheduledRequests = currentlyScheduledRequests.size() < MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
                                       && !currentlyScheduledRequests.contains(endpoint);
-        logger.debug("Evaluating schema pull criteria: currently scheduled requests for version {}: {}", theirVersion, currentlyScheduledRequests);
+        logger.debug("Evaluating schema pull criteria", SafeArg.of("schemaVersion", theirVersion), SafeArg.of("scheduledPulls", currentlyScheduledRequests));
         return MessagingService.instance().knowsVersion(endpoint)
                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                && !Gossiper.instance.isGossipOnlyMember(endpoint)
