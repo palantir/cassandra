@@ -948,8 +948,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
+
+            int sleepDelay = bootstrapDelayFactor() * delay;
             // first sleep the delay to make sure we see all our peers
-            for (int i = 0; i < delay; i += 1000)
+            for (int i = 0; i < sleepDelay; i += 1000)
             {
                 // if we see schema, we can proceed to the next check directly
                 if (!Schema.instance.getVersion().equals(Schema.emptyVersion))
@@ -5288,6 +5290,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public boolean localQuorumReadsForSerialCasEnabled() {
         return LocalQuorumReadForSerialCasSetting.instance.isTrue();
+    }
+
+
+    public int bootstrapDelayFactor()
+    {
+        return Integer.parseInt(System.getProperty("palantir_cassandra.bootstrap_delay_factor", "1"));
     }
 
     @Override
