@@ -42,6 +42,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import com.palantir.cassandra.utils.SchemaAgreementCheck;
 import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.schema.LegacySchemaTables;
@@ -949,7 +950,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
-            while (!MigrationManager.isReadyForBootstrap() || !isSchemaConsistent())
+            SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+            while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement())
             {
                 setMode(Mode.JOINING, "waiting for schema information to complete", true);
                 logger.info(
@@ -1114,14 +1116,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             else
                 logger.warn("Some data streaming failed. Use nodetool to check bootstrap state and resume. For more, see `nodetool help bootstrap`. {}", SystemKeyspace.getBootstrapState());
         }
-    }
-
-    private static boolean isSchemaConsistent()
-    {
-        String localSchemaVersion = Schema.instance.getVersion().toString();
-        return Gossiper.instance.getEndpointStates().stream()
-                                .map(entry -> entry.getValue().getApplicationState(ApplicationState.SCHEMA).value)
-                                .allMatch(localSchemaVersion::equals);
     }
 
     private void joinTokenRing(int delay) throws ConfigurationException
