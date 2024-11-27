@@ -405,7 +405,7 @@ public class OutboundTcpConnection extends Thread
             logger.trace("attempting to connect to {}", poolReference.endPoint());
 
         long start = System.nanoTime();
-        long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getRpcTimeout());
+        long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getInternodeConnectionTimeout());
         while (System.nanoTime() - start < timeout && !isStopped)
         {
             targetVersion = MessagingService.instance().getVersion(poolReference.endPoint());
