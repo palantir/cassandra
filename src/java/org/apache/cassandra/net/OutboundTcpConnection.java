@@ -281,7 +281,6 @@ public class OutboundTcpConnection extends Thread
     {
         try
         {
-            System.out.println("Writing " + qm.id);
             byte[] sessionBytes = qm.message.parameters.get(Tracing.TRACE_HEADER);
             if (sessionBytes != null)
             {
@@ -309,7 +308,6 @@ public class OutboundTcpConnection extends Thread
             completed++;
             if (flush)
                 out.flush();
-            System.out.println("Successfully wrote " + qm.id);
         }
         catch (Throwable e)
         {
@@ -335,7 +333,6 @@ public class OutboundTcpConnection extends Thread
                 } else {
                     CallbackInfo registeredCallbackInfo = MessagingService.instance().getRegisteredCallback(qm.id);
                     if (registeredCallbackInfo != null && registeredCallbackInfo.isFailureCallback()) {
-                        System.out.println("Failed " + qm.id);
                         ((IAsyncCallbackWithFailure) MessagingService.instance().removeRegisteredCallback(qm.id).callback).onFailure(poolReference.endPoint());
                     }
                 }
