@@ -34,6 +34,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 import java.util.zip.Checksum;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -42,6 +43,7 @@ import javax.net.ssl.SSLSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -65,6 +67,7 @@ import org.xerial.snappy.SnappyOutputStream;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 
@@ -216,8 +219,9 @@ public class OutboundTcpConnection extends Thread
             //The timestamp of the first message has already been provided to the coalescing strategy
             //so skip logging it.
             inner:
-            for (QueuedMessage qm : drainedMessages)
+            for (int i = 0; i < drainedMessages.size(); i++)
             {
+                QueuedMessage qm = drainedMessages.get(i);
                 try
                 {
                     MessageOut<?> m = qm.message;
@@ -236,8 +240,10 @@ public class OutboundTcpConnection extends Thread
                     else
                     {
                         // clear out the queue, else gossip messages back up.
-                        drainedMessages.clear();
-                        backlog.clear();
+                        int cleared = clearQueueWithFailureCallback(i, drainedMessages, drainedMessageSize, backlog);
+                        logger.warn("Failed to connect to endpoint. Cleared backlog and invoked failure callbacks",
+                                    SafeArg.of("clearedMessages", cleared),
+                                    SafeArg.of("endpoint", poolReference.endPoint()));
                         currentMsgBufferCount = 0;
                         break inner;
                     }
@@ -253,6 +259,24 @@ public class OutboundTcpConnection extends Thread
             }
             drainedMessages.clear();
         }
+    }
+
+    @VisibleForTesting
+    int clearQueueWithFailureCallback(int currentMessage, List<QueuedMessage> bufferedMessages, int bufferSize, BlockingQueue<QueuedMessage> queue) {
+        bufferedMessages.stream().skip(currentMessage).forEach(this::invokeFailureCallback);
+        int initialCleared = bufferedMessages.size() - currentMessage;
+        bufferedMessages.clear();
+
+        int queueSize = queue.size();
+        int remaining = queueSize;
+        while (remaining > 0) {
+            remaining -= queue.drainTo(bufferedMessages, Math.min(bufferSize, remaining));
+            for (QueuedMessage qm : bufferedMessages) {
+                invokeFailureCallback(qm);
+            }
+            bufferedMessages.clear();
+        }
+        return initialCleared + queueSize;
     }
 
     public int getPendingMessages()
@@ -331,10 +355,7 @@ public class OutboundTcpConnection extends Thread
                         throw new AssertionError(e1);
                     }
                 } else {
-                    CallbackInfo registeredCallbackInfo = MessagingService.instance().getRegisteredCallback(qm.id);
-                    if (registeredCallbackInfo != null && registeredCallbackInfo.isFailureCallback()) {
-                        ((IAsyncCallbackWithFailure) MessagingService.instance().removeRegisteredCallback(qm.id).callback).onFailure(poolReference.endPoint());
-                    }
+                    invokeFailureCallback(qm);
                 }
             }
             else
@@ -342,6 +363,25 @@ public class OutboundTcpConnection extends Thread
                 // Non IO exceptions are likely a programming error so let's not silence them
                 logger.error("error writing to {}", poolReference.endPoint(), e);
             }
+        }
+    }
+
+    @VisibleForTesting
+    void invokeFailureCallback(QueuedMessage qm) {
+        if (qm == null) {
+            return;
+        }
+        CallbackInfo registeredCallbackInfo = MessagingService.instance().getRegisteredCallback(qm.id);
+        if (registeredCallbackInfo != null && registeredCallbackInfo.isFailureCallback()) {
+            Optional.ofNullable(MessagingService.instance().removeRegisteredCallback(qm.id))
+                    .map(info -> info.callback)
+                    .map(callback -> (IAsyncCallbackWithFailure) callback)
+                    .ifPresent(callback -> {
+                        logger.debug("Invoking failure callback for message",
+                                     SafeArg.of("endpoint", poolReference.endPoint()),
+                                     SafeArg.of("messageId", qm.id), SafeArg.of("verb", qm.message.verb));
+                        callback.onFailure(poolReference.endPoint());
+                    });
         }
     }
 
@@ -594,7 +634,7 @@ public class OutboundTcpConnection extends Thread
     }
 
     /** messages that have not been retried yet */
-    private static class QueuedMessage implements Coalescable
+    static class QueuedMessage implements Coalescable
     {
         final MessageOut<?> message;
         final int id;
