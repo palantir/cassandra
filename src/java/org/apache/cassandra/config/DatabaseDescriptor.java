@@ -1080,7 +1080,12 @@ public class DatabaseDescriptor
 
     public static long getInternodeConnectionTimeout()
     {
-        return conf.request_timeout_in_ms;
+        return conf.internode_connect_timeout_in_ms;
+    }
+
+    public static long setInternodeConnectionTimeout(long timeoutInMillis)
+    {
+        return conf.internode_connect_timeout_in_ms = timeoutInMillis;
     }
 
     public static long getRpcTimeout()
