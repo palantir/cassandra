@@ -27,7 +27,7 @@ import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 public class SetInterDCStreamThroughput extends NodeToolCmd
 {
     @Arguments(title = "inter_dc_stream_throughput", usage = "<value_in_mb>", description = "Value in Mb, 0 to disable throttling", required = true)
-    private Integer interDCStreamThroughput = null;
+    private Double interDCStreamThroughput = null;
 
     @Override
     public void execute(NodeProbe probe)

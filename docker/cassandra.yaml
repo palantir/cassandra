@@ -1,7 +1,7 @@
-cluster_name: 'Test Cluster'
-num_tokens: 256
+cluster_name: 'antithesis-migration-test'
+num_tokens: 512
 hinted_handoff_enabled: true
-max_hint_window_in_ms: 10800000 # 3 hours
+max_hint_window_in_ms: 1200000
 hinted_handoff_throttle_in_kb: 1024
 max_hints_delivery_threads: 2
 batchlog_replay_throttle_in_kb: 1024
@@ -10,12 +10,13 @@ authorizer: AllowAllAuthorizer
 role_manager: CassandraRoleManager
 roles_validity_in_ms: 2000
 permissions_validity_in_ms: 2000
-partitioner: ByteOrderedPartitioner
+partitioner: org.apache.cassandra.dht.AtlasDbOrderedPartitioner
 data_file_directories:
      - /var/lib/cassandra/data
 commitlog_directory: /var/lib/cassandra/commitlog
 persistent_settings_directory: /var/lib/cassandra/persistent_settings
-disk_failure_policy: stop
+disk_access_mode: standard
+disk_failure_policy: stop_paranoid_always
 commit_failure_policy: stop_on_startup
 key_cache_size_in_mb:
 key_cache_save_period: 14400
@@ -23,17 +24,18 @@ row_cache_size_in_mb: 0
 row_cache_save_period: 0
 counter_cache_size_in_mb:
 counter_cache_save_period: 7200
-commitlog_sync: batch
-commitlog_sync_batch_window_in_ms: 2
+commitlog_sync: group
+commitlog_sync_group_window_in_ms: 2
 commitlog_segment_size_in_mb: 32
 seed_provider:
   - class_name: org.apache.cassandra.locator.SimpleSeedProvider
     parameters:
       - seeds: "127.0.0.1"
-concurrent_reads: 32
-concurrent_writes: 32
+concurrent_reads: 64
+concurrent_writes: 4096
 concurrent_counter_writes: 32
 memtable_allocation_type: heap_buffers
+commitlog_total_space_in_mb: 4096
 index_summary_capacity_in_mb:
 index_summary_resize_interval_in_minutes: 60
 trickle_fsync: false
@@ -47,31 +49,39 @@ start_rpc: true
 rpc_port: 9160
 rpc_keepalive: true
 rpc_server_type: sync
+rpc_max_threads: 27000
 thrift_framed_transport_size_in_mb: 100
 incremental_backups: false
 snapshot_before_compaction: false
 auto_snapshot: true
 tombstone_warn_threshold: 100000
-tombstone_failure_threshold: 10000000
+tombstone_failure_threshold: 2000000000
+rowcount_warn_threshold: 10000
+rowcount_failure_threshold: 1000000
+range_scan_token_ranges_warn_threshold: -1
 column_index_size_in_kb: 64
-batch_size_warn_threshold_in_kb: 5
-batch_size_fail_threshold_in_kb: 50
+batch_size_warn_threshold_in_kb: 4097
+batch_size_fail_threshold_in_kb: 32768
 unlogged_batch_across_partitions_warn_threshold: 10
-compaction_throughput_mb_per_sec: 16
+compaction_throughput_mb_per_sec: 160
 compaction_large_partition_warning_threshold_mb: 100
 sstable_preemptive_open_interval_in_mb: 50
-read_request_timeout_in_ms: 5000
-range_request_timeout_in_ms: 10000
-write_request_timeout_in_ms: 2000
+read_request_timeout_in_ms: 10000
+range_request_timeout_in_ms: 20000
+write_request_timeout_in_ms: 20000
 counter_write_request_timeout_in_ms: 5000
-cas_contention_timeout_in_ms: 1000
+cas_contention_timeout_in_ms: 5000
 truncate_request_timeout_in_ms: 60000
 request_timeout_in_ms: 10000
 cross_node_timeout: false
-endpoint_snitch: SimpleSnitch
+streaming_socket_timeout_in_ms: 86400000
+auto_bootstrap: false
+listen_on_broadcast_address: true
+concurrent_compactors: 2
+endpoint_snitch: PropertyFileSnitch
 dynamic_snitch_update_interval_in_ms: 100
 dynamic_snitch_reset_interval_in_ms: 600000
-dynamic_snitch_badness_threshold: 0.1
+dynamic_snitch_badness_threshold: 2.0
 request_scheduler: org.apache.cassandra.scheduler.NoScheduler
 server_encryption_options:
   internode_encryption: none
@@ -90,3 +100,4 @@ tracetype_query_ttl: 86400
 tracetype_repair_ttl: 604800
 enable_user_defined_functions: false
 windows_timer_interval: 1
+otc_coalescing_strategy: DISABLED

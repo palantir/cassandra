@@ -622,8 +622,8 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void setStreamThroughputMbPerSec(int value);
     public int getStreamThroughputMbPerSec();
 
-    public void setInterDCStreamThroughputMbPerSec(int value);
-    public int getInterDCStreamThroughputMbPerSec();
+    public void setInterDCStreamThroughputMbPerSec(double value);
+    public double getInterDCStreamThroughputMbPerSec();
 
     public int getCompactionThroughputMbPerSec();
     public void setCompactionThroughputMbPerSec(int value);
