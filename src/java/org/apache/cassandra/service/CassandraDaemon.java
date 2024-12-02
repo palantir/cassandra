@@ -284,11 +284,6 @@ public class CassandraDaemon
         Map<Pair<String, String>, Map<Integer, UUID>> unfinishedCompactions = SystemKeyspace.getUnfinishedCompactions();
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
-            for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
-            {
-                ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
-            }
-
             if (keyspaceName.equals(SystemKeyspace.NAME))
                 continue;
 
