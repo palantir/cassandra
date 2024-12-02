@@ -79,6 +79,7 @@ docker {
             file("${project.rootDir}/docker/cassandra.yaml"),
             file("${project.rootDir}/docker/logback.xml"),
             file("${project.rootDir}/docker/docker-entrypoint.sh"),
+            file("${project.rootDir}/docker/disable_client_interface"),
             file("${project.rootDir}/conf/cassandra-env.sh")
 
 }
