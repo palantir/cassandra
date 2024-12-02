@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.BeforeClass;
@@ -101,114 +102,87 @@ public class MessagingServiceTest
     }
 
     @Test
-    public void shutdown_refusesNewMessagesWhenInProgress() throws InterruptedException
-    {
-
+    public void shutdown_refusesNewMessagesWhenInProgress() throws InterruptedException {
         Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        //ColumnFamilyStore store = keyspace.getColumnFamilyStore(CF_STANDARD1);
         DecoratedKey dk = Util.dk("key1");
 
-        // add data
         Mutation mutation = new Mutation(KEYSPACE1, dk.getKey());
         mutation.add(CF_STANDARD1, Util.cellname("Column1"), ByteBufferUtil.bytes("asdf"), 0);
-        //mutation.applyUnsafe();
-        AtomicBoolean response = new AtomicBoolean(false);
         MessageOut<Mutation> message = mutation.createMessage();
         List<MessagingService.SocketThread> incomingAcceptThreads;
-        try
-        {
+        try {
             messagingService.listen();
             assertTrue(messagingService.isListening());
             assertFalse(MessagingService.instance().isListening());
             incomingAcceptThreads = messagingService.getSocketThreads();
             assertTrue(incomingAcceptThreads.size() > 0);
 
-            TestHandler handler = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+            TestHandler handler = createHandler(keyspace);
             MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler, false);
-            // Wait for response
             handler.get();
-            assertTrue(response.get());
-            response.set(false);
-            //MessagingService.instance().receive();
-//            while (true)
-//            {
-//                try
-//                {
-//                    Thread.sleep(500);
-//                }
-//                catch (InterruptedException ignored)
-//                {
-//                    break;
-//                }
-//            }
-        }finally
-        {
+            assertEquals(1, handler.success);
+        } finally {
             messagingService.shutdown();
         }
-
         incomingAcceptThreads.forEach(thread -> assertFalse(thread.isAlive()));
-        // throws IOException b/c broken pipe MessagingService.instance().getConnectionPool(FBUtilities.getLocalAddress()).smallMessages.out.flush();
-        TestHandler handler2 = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+        DatabaseDescriptor.setWriteRpcTimeout(Duration.ofSeconds(1).toMillis());
+        DatabaseDescriptor.setInternodeConnectionTimeout(Duration.ofMillis(50).toMillis());
+
+        Instant start = Instant.now();
+        TestHandler handler2 = createHandler(keyspace);
         MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler2, false);
-        TestHandler handler3 = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+        handler2.get();
+        Duration handler2Time = Duration.between(start, Instant.now());
+        start = Instant.now();
+        TestHandler handler3 = createHandler(keyspace);
         MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler3, false);
-        TestHandler handler4 = new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, keyspace, () -> response.set(true), WriteType.SIMPLE);
+        handler3.get();
+        Duration handler3Time = Duration.between(start, Instant.now());
+        TestHandler handler4 = createHandler(keyspace);
         MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler4, false);
-        // Wait for response
-        int timeouts = 0;
-        int failures = 0;
-        try {
-            handler2.get();
-        } catch (WriteTimeoutException e) {
-            timeouts++;
-        } catch (WriteFailureException e)
-        {
-            failures++;
-        }
-        try {
-            handler3.get();
-        } catch (WriteTimeoutException e) {
-            timeouts++;
-        } catch (WriteFailureException e)
-        {
-            failures++;
-        }
-        try {
-            handler4.get();
-        } catch (WriteTimeoutException e) {
-            timeouts++;
-        } catch (WriteFailureException e)
-        {
-            failures++;
-        }
-        System.out.println(failures);
-        System.out.println(timeouts);
+        handler4.get();
+        Duration handler4Time = Duration.between(start, Instant.now());
 
-        // Comfortable buffer to assert we're not timing out when we know we will fail
-        assertTrue(failures > 0);
+        // handler2 may or may not fail vs timeout. Likely due to OS level buffering, flushing the socket that has now
+        // been closed on the receiving end may or may not throw an IOException
+        int failures = handler2.failures + handler3.failures + handler4.failures;
+        assertTrue(failures >= 2);
 
-//        MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler, false);
-//        Thread.sleep(1000);
-//        assertTrue(response.get());
-
-        // Create incoming tcp connection
-        // call shutdown
-        // send something over the connection before shutdown completes
-        // assert that socket was closed when we are reordered
-
+        // Failures should fail in less time than the write timeout, as they hit connect timeout instead
+        assertTrue(handler3Time.minus(Duration.ofMillis(800)).isNegative());
+        assertTrue(handler4Time.minus(Duration.ofMillis(800)).isNegative());
     }
 
-        static class TestHandler<T> extends WriteResponseHandler<T> {
+    private TestHandler createHandler(Keyspace ks) {
+        return new TestHandler(ImmutableList.of(FBUtilities.getLocalAddress()), ImmutableList.of(), ConsistencyLevel.ANY, ks, () -> {}, WriteType.SIMPLE);
+    }
 
-            public TestHandler(Collection<InetAddress> writeEndpoints, Collection<InetAddress> pendingEndpoints, ConsistencyLevel consistencyLevel, Keyspace keyspace, Runnable callback, WriteType writeType)
-            {
-                super(writeEndpoints, pendingEndpoints, consistencyLevel, keyspace, callback, writeType);
-            }
+    static class TestHandler<T> extends WriteResponseHandler<T> {
+        public int success = 0;
+        public int failures = 0;
+        public int timeouts = 0;
 
-            @Override
-            protected int totalBlockFor() {
-                return 1;
-            }
+
+        public TestHandler(Collection<InetAddress> writeEndpoints, Collection<InetAddress> pendingEndpoints, ConsistencyLevel consistencyLevel, Keyspace keyspace, Runnable callback, WriteType writeType)
+        {
+            super(writeEndpoints, pendingEndpoints, consistencyLevel, keyspace, callback, writeType);
         }
 
+        @Override
+        protected int totalBlockFor() {
+            return 1;
+        }
+
+        @Override
+        public void get() {
+            try {
+                super.get();
+                success++;
+            } catch (WriteTimeoutException e) {
+                timeouts++;
+            } catch (WriteFailureException e) {
+                failures++;
+            }
+        }
+    }
 }
