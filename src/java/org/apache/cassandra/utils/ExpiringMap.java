@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -182,5 +183,10 @@ public class ExpiringMap<K, V>
     public Set<K> keySet()
     {
         return cache.keySet();
+    }
+
+    public void forEach(BiConsumer<K, CacheableObject<V>> consumer)
+    {
+        cache.forEach(consumer);
     }
 }
