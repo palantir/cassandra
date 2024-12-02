@@ -22,5 +22,5 @@ import java.util.List;
 
 public interface SeedProvider
 {
-    List<InetAddress> getSeeds();
+    List<InetAddressAndPort> getSeeds();
 }

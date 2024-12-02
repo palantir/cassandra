@@ -143,6 +143,25 @@ public class FBUtilities
         return localInetAddress;
     }
 
+    /**
+     * Get the broadcast address and port for intra-cluster storage traffic. This the address to advertise that uniquely
+     * identifies the node and is reachable from everywhere. This is the one you want unless you are trying to connect
+     * to the local address specifically.
+     */
+    public static InetAddressAndPort getBroadcastAddressAndPort()
+    {
+        return InetAddressAndPort.getByAddress(getBroadcastAddress());
+    }
+
+    /**
+     * The address and port to listen on for intra-cluster storage traffic (not client). Use this to get the correct
+     * stuff to listen on for intra-cluster communication.
+     */
+    public static InetAddressAndPort getLocalAddressAndPort()
+    {
+        return InetAddressAndPort.getByAddress(getLocalAddress());
+    }
+
     public static InetAddress getBroadcastAddress()
     {
         if (broadcastInetAddress == null)

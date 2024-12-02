@@ -32,6 +32,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.locator.AbstractNetworkTopologySnitch;
+import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.locator.PendingRangeMaps;
 import org.junit.AfterClass;
@@ -106,9 +107,9 @@ public class MoveTest
             //Odd IPs are in DC1 and Even are in DC2. Endpoints upto .14 will have unique racks and
             // then will be same for a set of three.
             @Override
-            public String getRack(InetAddress endpoint)
+            public String getRack(InetAddressAndPort endpoint)
             {
-                int ipLastPart = getIPLastPart(endpoint);
+                int ipLastPart = getIPLastPart(endpoint.address);
                 if (ipLastPart <= 14)
                     return UUID.randomUUID().toString();
                 else
@@ -116,9 +117,9 @@ public class MoveTest
             }
 
             @Override
-            public String getDatacenter(InetAddress endpoint)
+            public String getDatacenter(InetAddressAndPort endpoint)
             {
-                if (getIPLastPart(endpoint) % 2 == 0)
+                if (getIPLastPart(endpoint.address) % 2 == 0)
                     return "DC2";
                 else
                     return "DC1";

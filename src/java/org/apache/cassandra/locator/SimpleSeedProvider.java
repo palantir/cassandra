@@ -35,7 +35,7 @@ public class SimpleSeedProvider implements SeedProvider
 
     public SimpleSeedProvider(Map<String, String> args) {}
 
-    public List<InetAddress> getSeeds()
+    public List<InetAddressAndPort> getSeeds()
     {
         Config conf;
         try
@@ -47,12 +47,12 @@ public class SimpleSeedProvider implements SeedProvider
             throw new AssertionError(e);
         }
         String[] hosts = conf.seed_provider.parameters.get("seeds").split(",", -1);
-        List<InetAddress> seeds = new ArrayList<InetAddress>(hosts.length);
+        List<InetAddressAndPort> seeds = new ArrayList<>(hosts.length);
         for (String host : hosts)
         {
             try
             {
-                seeds.add(InetAddress.getByName(host.trim()));
+                seeds.add(InetAddressAndPort.getByName(host.trim()));
             }
             catch (UnknownHostException ex)
             {

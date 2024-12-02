@@ -105,7 +105,7 @@ public class DistributedTestSnitch extends AbstractNetworkTopologySnitch
             {
                 savedEndpoints = new HashMap<>();
                 int storage_port = Config.getOverrideLoadConfig().get().storage_port;
-                for (Map.Entry<InetAddress, Map<String, String>> entry : SystemKeyspace.loadDcRackInfo().entrySet())
+                for (Map.Entry<InetAddressAndPort, Map<String, String>> entry : SystemKeyspace.loadDcRackInfo().entrySet())
                 {
                     savedEndpoints.put(InetAddressAndPort.getByAddressOverrideDefaults(endpoint.address, storage_port),
                                        entry.getValue());

@@ -25,13 +25,13 @@ import java.net.InetAddress;
  */
 public class RackInferringSnitch extends AbstractNetworkTopologySnitch
 {
-    public String getRack(InetAddress endpoint)
+    public String getRack(InetAddressAndPort endpoint)
     {
-        return Integer.toString(endpoint.getAddress()[2] & 0xFF, 10);
+        return Integer.toString(endpoint.address.getAddress()[2] & 0xFF, 10);
     }
 
-    public String getDatacenter(InetAddress endpoint)
+    public String getDatacenter(InetAddressAndPort endpoint)
     {
-        return Integer.toString(endpoint.getAddress()[1] & 0xFF, 10);
+        return Integer.toString(endpoint.address.getAddress()[1] & 0xFF, 10);
     }
 }
