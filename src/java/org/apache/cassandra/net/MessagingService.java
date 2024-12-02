@@ -781,7 +781,6 @@ public final class MessagingService implements MessagingServiceMBean
                     // see https://issues.apache.org/jira/browse/CASSANDRA-10545
                     handleIOException(e);
                 }
-
             }
             // Wait to finish callbacks before closing outbound connections
             if (!callbacks.shutdownBlocking())

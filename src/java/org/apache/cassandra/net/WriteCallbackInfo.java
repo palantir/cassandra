@@ -46,7 +46,7 @@ public class WriteCallbackInfo extends CallbackInfo
         this.consistencyLevel = consistencyLevel;
         this.allowHints = allowHints;
         //Local writes shouldn't go through messaging service (https://issues.apache.org/jira/browse/CASSANDRA-10477)
-        //assert (!target.equals(FBUtilities.getBroadcastAddress()));
+        assert (!target.equals(FBUtilities.getBroadcastAddress()));
     }
 
     Mutation mutation()

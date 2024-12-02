@@ -25,10 +25,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.BeforeClass;
@@ -38,28 +34,24 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.KSMetaData;
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Mutation;
-import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.WriteType;
-import org.apache.cassandra.db.marshal.UUIDType;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.WriteFailureException;
 import org.apache.cassandra.exceptions.WriteTimeoutException;
 import org.apache.cassandra.locator.SimpleStrategy;
-import org.apache.cassandra.service.AbstractWriteResponseHandler;
-import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.service.WriteResponseHandler;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 public class MessagingServiceTest
 {
@@ -110,12 +102,18 @@ public class MessagingServiceTest
         mutation.add(CF_STANDARD1, Util.cellname("Column1"), ByteBufferUtil.bytes("asdf"), 0);
         MessageOut<Mutation> message = mutation.createMessage();
         List<MessagingService.SocketThread> incomingAcceptThreads;
+        InetAddress oldBroadcast = FBUtilities.getBroadcastAddress();
         try {
             messagingService.listen();
             assertTrue(messagingService.isListening());
             assertFalse(MessagingService.instance().isListening());
             incomingAcceptThreads = messagingService.getSocketThreads();
             assertTrue(incomingAcceptThreads.size() > 0);
+
+            // Spoof broadcast address to avoid WriteCallbackInfo assertion
+            InetAddress mockBroadcast = mock(InetAddress.class);
+            doReturn(oldBroadcast.getAddress()).when(mockBroadcast).getAddress();
+            FBUtilities.setBroadcastInetAddress(mockBroadcast);
 
             TestHandler handler = createHandler(keyspace);
             MessagingService.instance().sendRR(message, FBUtilities.getLocalAddress(), handler, false);
@@ -151,6 +149,8 @@ public class MessagingServiceTest
         // Failures should fail in less time than the write timeout, as they hit connect timeout instead
         assertTrue(handler3Time.minus(Duration.ofMillis(800)).isNegative());
         assertTrue(handler4Time.minus(Duration.ofMillis(800)).isNegative());
+
+        FBUtilities.setBroadcastInetAddress(oldBroadcast);
     }
 
     private TestHandler createHandler(Keyspace ks) {
