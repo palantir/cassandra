@@ -26,9 +26,11 @@ import java.util.function.Supplier;
 import com.google.common.base.Throwables;
 
 /**
- * A supplier that coalesces computation requests, such that only one computation is ever running at a time, and
- * concurrent requests will result in a single computation. Computations are guaranteed to execute after being
- * requested; requests will not receive results for computations that started prior to the request.
+ * (c) Copyright 2019 Palantir Technologies Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
  * Copied directly from:
  * https://github.com/palantir/atlasdb/blob/0.138.0/atlasdb-commons/src/main/java/com/palantir/common/concurrent/CoalescingSupplier.java
