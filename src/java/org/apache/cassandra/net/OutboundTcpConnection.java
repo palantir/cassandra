@@ -627,6 +627,7 @@ public class OutboundTcpConnection extends Thread
             if (!qm.isTimedOut())
                 return;
             iter.remove();
+            invokeFailureCallback(qm);
             dropped.incrementAndGet();
         }
     }
