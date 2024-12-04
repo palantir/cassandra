@@ -20,12 +20,16 @@ package org.apache.cassandra.service;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.net.IAsyncCallbackWithFailure;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.net.IAsyncCallback;
@@ -40,10 +44,18 @@ class MigrationTask extends WrappedRunnable
     private static final Logger logger = LoggerFactory.getLogger(MigrationTask.class);
 
     private final InetAddress endpoint;
+    private final Optional<UUID> version;
 
     MigrationTask(InetAddress endpoint)
     {
         this.endpoint = endpoint;
+        this.version = Optional.empty();
+    }
+
+    MigrationTask(InetAddress endpoint, UUID version)
+    {
+        this.endpoint = endpoint;
+        this.version = Optional.of(version);
     }
 
     public void runMayThrow() throws Exception
@@ -65,13 +77,14 @@ class MigrationTask extends WrappedRunnable
 
         MessageOut message = new MessageOut<>(MessagingService.Verb.MIGRATION_REQUEST, null, MigrationManager.MigrationsSerializer.instance);
 
-        IAsyncCallback<Collection<Mutation>> cb = new IAsyncCallback<Collection<Mutation>>()
+        IAsyncCallbackWithFailure<Collection<Mutation>> cb = new IAsyncCallbackWithFailure<Collection<Mutation>>()
         {
             @Override
             public void response(MessageIn<Collection<Mutation>> message)
             {
                 try
                 {
+                    logger.debug("Processing response to schema pull from endpoint", SafeArg.of("endpoint", endpoint));
                     LegacySchemaTables.mergeSchema(message.payload);
                 }
                 catch (IOException e)
@@ -82,6 +95,28 @@ class MigrationTask extends WrappedRunnable
                 {
                     logger.error("Configuration exception merging remote schema", e);
                 }
+                finally
+                {
+                    // always attempt to clean up our outstanding schema pull request if created with a version
+                    version.ifPresent(v -> {
+                        logger.debug("Successfully processed response to schema pull",
+                                     SafeArg.of("endpoint", endpoint),
+                                     SafeArg.of("schemaVersion", v));
+                        MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint);
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(InetAddress from)
+            {
+                // always attempt to clean up our outstanding schema pull request if created with a version
+                version.ifPresent(v -> {
+                    logger.debug("Timed out waiting for response to schema pull",
+                                 SafeArg.of("endpoint", endpoint),
+                                 SafeArg.of("schemaVersion", v));
+                    MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint);
+                });
             }
 
             public boolean isLatencyForSnitch()
@@ -89,6 +124,6 @@ class MigrationTask extends WrappedRunnable
                 return false;
             }
         };
-        MessagingService.instance().sendRR(message, endpoint, cb);
-    }
+       MessagingService.instance().sendRRWithFailure(message, endpoint, cb);
+   }
 }

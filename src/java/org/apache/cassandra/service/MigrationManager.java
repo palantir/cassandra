@@ -25,6 +25,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
+
+import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
@@ -62,10 +64,13 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
+    private static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
+
     public static final int MIGRATION_DELAY_IN_MS = 60000;
+    public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
-    
+
     private MigrationManager() {}
 
     public void register(MigrationListener listener)
@@ -103,7 +108,7 @@ public class MigrationManager
             return;
         }
 
-        if ((Schema.instance.getVersion() != null && Schema.instance.getVersion().equals(theirVersion)) || !shouldPullSchemaFrom(endpoint))
+        if ((Schema.instance.getVersion() != null && Schema.instance.getVersion().equals(theirVersion)) || !shouldPullSchemaFrom(endpoint, theirVersion))
         {
             logger.debug("Not pulling schema because versions match or shouldPullSchemaFrom returned false");
             return;
@@ -113,7 +118,7 @@ public class MigrationManager
         {
             // If we think we may be bootstrapping or have recently started, submit MigrationTask immediately
             logger.debug("Submitting migration task for {}", endpoint);
-            submitMigrationTask(endpoint);
+            submitMigrationTask(endpoint, theirVersion);
         }
 
         if (onChange && Boolean.getBoolean("palantir_cassandra.unsafe_schema_migration"))
@@ -136,6 +141,7 @@ public class MigrationManager
                     if (epState == null)
                     {
                         logger.debug("epState vanished for {}, not submitting migration task", endpoint);
+                        removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
                     VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
@@ -149,23 +155,50 @@ public class MigrationManager
                                 endpoint,
                                 theirVersion,
                                 currentVersion);
+                        removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
 
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
+                        removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
-                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version",
-                            endpoint,
-                            currentVersion,
-                            Schema.instance.getVersion());
-                    submitMigrationTask(endpoint);
+                    logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
+                            SafeArg.of("endpoint", endpoint),
+                            SafeArg.of("endpointVersion", currentVersion),
+                            SafeArg.of("schemaVersion", Schema.instance.getVersion()));
+                    submitMigrationTask(endpoint, currentVersion);
                 }
             };
+            addEndpointToSchemaPullVersion(theirVersion, endpoint);
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
         }
+    }
+
+    public static void addEndpointToSchemaPullVersion(UUID version, InetAddress endpoint) {
+        scheduledSchemaPulls.compute(version, (v, s) -> {
+            if (s == null) {
+                s = new HashSet<>();
+            }
+            s.add(endpoint);
+            return s;
+        });
+    }
+
+    public static void removeEndpointFromSchemaPullVersion(UUID version, InetAddress endpoint) {
+        scheduledSchemaPulls.computeIfPresent(version, (v, s) -> {
+            logger.debug("Removing endpoint from scheduled schema pulls",
+                         SafeArg.of("endpoint", endpoint),
+                         SafeArg.of("schemaVersion", v),
+                         SafeArg.of("scheduledPulls", s));
+            s.remove(endpoint);
+            if (!s.isEmpty()) {
+                return s;
+            }
+            return null;
+        });
     }
 
     private static Future<?> submitMigrationTask(InetAddress endpoint)
@@ -177,15 +210,45 @@ public class MigrationManager
         return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint));
     }
 
+    /**
+     *
+     */
+    private static Future<?> submitMigrationTask(InetAddress endpoint, UUID theirVersion)
+    {
+        /*
+         * Do not de-ref the future because that causes distributed deadlock (CASSANDRA-3832) because we are
+         * running in the gossip stage.
+         */
+        return StageManager.getStage(Stage.MIGRATION).submit(new MigrationTask(endpoint, theirVersion));
+    }
+
     public static boolean shouldPullSchemaFrom(InetAddress endpoint)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknonw major version (may have incompatible schema)
+         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
          * Don't request schema from fat clients
          */
         return MessagingService.instance().knowsVersion(endpoint)
                 && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                 && !Gossiper.instance.isGossipOnlyMember(endpoint);
+    }
+
+    public static boolean shouldPullSchemaFrom(InetAddress endpoint, UUID theirVersion)
+    {
+        /*
+         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
+         * Don't request schema from fat clients
+         * Don't request schema from bootstrapping nodes (?)
+         * Don't request schema if we have scheduled a pull request for that schema version
+         */
+        Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
+        boolean noScheduledRequests = currentlyScheduledRequests.size() < MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
+                                      && !currentlyScheduledRequests.contains(endpoint);
+        return MessagingService.instance().knowsVersion(endpoint)
+               && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
+               && !Gossiper.instance.isGossipOnlyMember(endpoint)
+               && !Schema.emptyVersion.equals(theirVersion)
+               && noScheduledRequests;
     }
 
     public static boolean isReadyForBootstrap()
