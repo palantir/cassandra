@@ -31,8 +31,9 @@ import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.util.function.BiFunction;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +66,8 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
-    private static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
+    @VisibleForTesting
+    static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
@@ -173,9 +175,17 @@ public class MigrationManager
                     submitMigrationTask(endpoint, currentVersion);
                 }
             };
-            scheduledSchemaPulls.computeIfAbsent(theirVersion, v -> new HashSet<>()).add(endpoint);
+            addEndointToSchemaPullVersion(theirVersion, endpoint);
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
         }
+    }
+
+    public static void addEndointToSchemaPullVersion(UUID version, InetAddress endpoint) {
+        scheduledSchemaPulls.putIfAbsent(version, new HashSet<>());
+        scheduledSchemaPulls.computeIfPresent(version, (v, s) -> {
+            s.add(endpoint);
+            return s;
+        });
     }
 
     public static void removeEndpointFromSchemaPullVersion(UUID version, InetAddress endpoint) {
