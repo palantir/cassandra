@@ -22,32 +22,54 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.UUID;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
+
+import org.apache.cassandra.cql3.restrictions.MultiColumnRestriction;
+import org.apache.cassandra.net.MessagingService;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class MigrationManagerTest
 {
-    @Test
-    public void shouldPullSchemaIfNoOutstandingRequests() throws UnknownHostException
+    private static final UUID uuid = UUID.randomUUID();
+
+    private static InetAddress HOST_1;
+    private static InetAddress HOST_2;
+    private static InetAddress HOST_3;
+    private static InetAddress HOST_4;
+
+    @BeforeClass
+    public static void setup() throws UnknownHostException
     {
-        assertTrue(MigrationManager.shouldPullSchemaFrom(InetAddress.getLocalHost(), UUID.randomUUID()));
+        HOST_1 = InetAddress.getByName("10.0.0.1");
+        HOST_2 = InetAddress.getByName("10.0.0.2");
+        HOST_3 = InetAddress.getByName("10.0.0.3");
+        HOST_4 = InetAddress.getByName("10.0.0.4");
+        MessagingService.instance().setVersion(HOST_1, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_2, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_3, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_4, MessagingService.VERSION_22);
     }
 
     @Test
-    public void onlyRequestOncePerEndpointVersion() throws UnknownHostException {
-        UUID uuid = UUID.randomUUID();
-        MigrationManager.addEndointToSchemaPullVersion(uuid, InetAddress.getLocalHost());
-        assertFalse(MigrationManager.shouldPullSchemaFrom(InetAddress.getLocalHost(), uuid));
+    public void shouldPullSchemaIfNoOutstandingRequests()
+    {
+        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1,uuid));
     }
 
     @Test
-    public void noRequestOverMaxOutstanding() throws UnknownHostException {
-        UUID uuid = UUID.randomUUID();
-        MigrationManager.addEndointToSchemaPullVersion(uuid, InetAddress.getByName("10.0.0.1"));
-        MigrationManager.addEndointToSchemaPullVersion(uuid, InetAddress.getByName("10.0.0.2"));
-        MigrationManager.addEndointToSchemaPullVersion(uuid, InetAddress.getByName("10.0.0.3"));
-        assertFalse(MigrationManager.shouldPullSchemaFrom(InetAddress.getLocalHost(), uuid));
+    public void onlyRequestOncePerEndpointVersion() {
+        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_1);
+        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_1, uuid));
+    }
+
+    @Test
+    public void noRequestOverMaxOutstanding() {
+        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_1);
+        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_2);
+        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_3);
+        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_4, uuid));
     }
 }
