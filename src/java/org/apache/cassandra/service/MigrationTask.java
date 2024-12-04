@@ -102,7 +102,7 @@ class MigrationTask extends WrappedRunnable
                         logger.debug("Successfully processed response to schema pull",
                                      SafeArg.of("endpoint", endpoint),
                                      SafeArg.of("schemaVersion", v));
-                        MigrationManager.scheduledSchemaPulls.computeIfPresent(v, MigrationManager.removeEndpointFromSchemaPulls(endpoint));
+                        MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint);
                     });
                 }
             }
@@ -115,7 +115,7 @@ class MigrationTask extends WrappedRunnable
                     logger.debug("Timed out waiting for response to schema pull",
                                  SafeArg.of("endpoint", endpoint),
                                  SafeArg.of("schemaVersion", v));
-                    MigrationManager.scheduledSchemaPulls.computeIfPresent(v, MigrationManager.removeEndpointFromSchemaPulls(endpoint));
+                    MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint);
                 });
             }
 

@@ -65,7 +65,7 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
-    public static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
@@ -142,7 +142,7 @@ public class MigrationManager
                     if (epState == null)
                     {
                         logger.debug("epState vanished for {}, not submitting migration task", endpoint);
-                        scheduledSchemaPulls.computeIfPresent(theirVersion, removeEndpointFromSchemaPulls(endpoint));
+                        removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
                     VersionedValue value = epState.getApplicationState(ApplicationState.SCHEMA);
@@ -156,14 +156,14 @@ public class MigrationManager
                                 endpoint,
                                 theirVersion,
                                 currentVersion);
-                        scheduledSchemaPulls.computeIfPresent(theirVersion, removeEndpointFromSchemaPulls(endpoint));
+                        removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
 
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
                         logger.debug("not submitting migration task for {} because our versions match", endpoint);
-                        scheduledSchemaPulls.computeIfPresent(theirVersion, removeEndpointFromSchemaPulls(endpoint));
+                        removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
                     logger.debug("submitting migration task for endpoint {}, endpoint schema version {}, and our schema version {}",
@@ -178,8 +178,8 @@ public class MigrationManager
         }
     }
 
-    static BiFunction<UUID, Set<InetAddress>, Set<InetAddress>> removeEndpointFromSchemaPulls(InetAddress endpoint) {
-        return (v, s) -> {
+    public static void removeEndpointFromSchemaPullVersion(UUID version, InetAddress endpoint) {
+        scheduledSchemaPulls.computeIfPresent(version, (v, s) -> {
             logger.debug("Removing endpoint from scheduled schema pulls",
                          SafeArg.of("endpoint", endpoint),
                          SafeArg.of("schemaVersion", v),
@@ -189,7 +189,7 @@ public class MigrationManager
                 return s;
             }
             return null;
-        };
+        });
     }
 
     private static Future<?> submitMigrationTask(InetAddress endpoint)
@@ -235,7 +235,6 @@ public class MigrationManager
         Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
         boolean noScheduledRequests = currentlyScheduledRequests.size() < MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
                                       && !currentlyScheduledRequests.contains(endpoint);
-        logger.debug("Evaluating schema pull criteria", SafeArg.of("schemaVersion", theirVersion), SafeArg.of("scheduledPulls", currentlyScheduledRequests));
         return MessagingService.instance().knowsVersion(endpoint)
                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
                && !Gossiper.instance.isGossipOnlyMember(endpoint)
