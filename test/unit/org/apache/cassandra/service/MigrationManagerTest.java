@@ -20,8 +20,11 @@ package org.apache.cassandra.service;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.collect.ImmutableSet;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -39,6 +42,7 @@ public class MigrationManagerTest
     private static InetAddress HOST_2;
     private static InetAddress HOST_3;
     private static InetAddress HOST_4;
+    private static final Set<InetAddress> HOSTS = ImmutableSet.of(HOST_1, HOST_2, HOST_3, HOST_4);
 
     @BeforeClass
     public static void setup() throws UnknownHostException
@@ -53,9 +57,13 @@ public class MigrationManagerTest
         MessagingService.instance().setVersion(HOST_4, MessagingService.VERSION_22);
     }
 
+    @Before
+    public void before() {
+        HOSTS.forEach(host -> MigrationManager.removeEndpointFromSchemaPullVersion(UUID_1, host));
+    }
+
     @Test
-    public void shouldPullSchemaIfNoOutstandingRequests()
-    {
+    public void shouldPullSchemaIfNoOutstandingRequests() {
         assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
     }
 
