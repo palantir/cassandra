@@ -66,8 +66,7 @@ public class MigrationManager
 
     private static final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
-    @VisibleForTesting
-    static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, Set<InetAddress>> scheduledSchemaPulls = new ConcurrentHashMap<>();
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
