@@ -25,7 +25,6 @@ import java.util.UUID;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import org.apache.cassandra.cql3.restrictions.MultiColumnRestriction;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.junit.Assert.assertFalse;
@@ -33,7 +32,8 @@ import static org.junit.Assert.assertTrue;
 
 public class MigrationManagerTest
 {
-    private static final UUID uuid = UUID.randomUUID();
+    private static final UUID UUID_1 = UUID.randomUUID();
+    private static final UUID UUID_2 = UUID.randomUUID();
 
     private static InetAddress HOST_1;
     private static InetAddress HOST_2;
@@ -56,20 +56,33 @@ public class MigrationManagerTest
     @Test
     public void shouldPullSchemaIfNoOutstandingRequests()
     {
-        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1,uuid));
+        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
     }
 
     @Test
     public void onlyRequestOncePerEndpointVersion() {
-        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_1);
-        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_1, uuid));
+        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
+    }
+
+    @Test
+    public void removalAllowsForPull() {
+        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        MigrationManager.removeEndpointFromSchemaPullVersion(UUID_1, HOST_1);
+        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
+    }
+
+    @Test
+    public void multipleSchemaVersionsDontInteract() {
+        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_2));
     }
 
     @Test
     public void noRequestOverMaxOutstanding() {
-        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_1);
-        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_2);
-        MigrationManager.addEndointToSchemaPullVersion(uuid, HOST_3);
-        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_4, uuid));
+        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_2);
+        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_3);
+        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_4, UUID_1));
     }
 }
