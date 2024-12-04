@@ -61,28 +61,28 @@ public class MigrationManagerTest
 
     @Test
     public void onlyRequestOncePerEndpointVersion() {
-        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_1);
         assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
     }
 
     @Test
     public void removalAllowsForPull() {
-        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_1);
         MigrationManager.removeEndpointFromSchemaPullVersion(UUID_1, HOST_1);
         assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
     }
 
     @Test
     public void multipleSchemaVersionsDontInteract() {
-        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
+        MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_1);
         assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_2));
     }
 
     @Test
     public void noRequestOverMaxOutstanding() {
-        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_1);
-        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_2);
-        MigrationManager.addEndointToSchemaPullVersion(UUID_1, HOST_3);
+        MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_1);
+        MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_2);
+        MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_3);
         assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_4, UUID_1));
     }
 }

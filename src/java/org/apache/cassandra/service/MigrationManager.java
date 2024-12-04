@@ -31,9 +31,7 @@ import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,14 +172,16 @@ public class MigrationManager
                     submitMigrationTask(endpoint, currentVersion);
                 }
             };
-            addEndointToSchemaPullVersion(theirVersion, endpoint);
+            addEndpointToSchemaPullVersion(theirVersion, endpoint);
             ScheduledExecutors.nonPeriodicTasks.schedule(runnable, MIGRATION_DELAY_IN_MS, TimeUnit.MILLISECONDS);
         }
     }
 
-    public static void addEndointToSchemaPullVersion(UUID version, InetAddress endpoint) {
-        scheduledSchemaPulls.putIfAbsent(version, new HashSet<>());
-        scheduledSchemaPulls.computeIfPresent(version, (v, s) -> {
+    public static void addEndpointToSchemaPullVersion(UUID version, InetAddress endpoint) {
+        scheduledSchemaPulls.compute(version, (v, s) -> {
+            if (s == null) {
+                s = new HashSet<>();
+            }
             s.add(endpoint);
             return s;
         });
