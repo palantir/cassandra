@@ -42,7 +42,7 @@ public class MigrationManagerTest
     private static InetAddress HOST_2;
     private static InetAddress HOST_3;
     private static InetAddress HOST_4;
-    private static final Set<InetAddress> HOSTS = ImmutableSet.of(HOST_1, HOST_2, HOST_3, HOST_4);
+    private static Set<InetAddress> hosts;
 
     @BeforeClass
     public static void setup() throws UnknownHostException
@@ -51,6 +51,7 @@ public class MigrationManagerTest
         HOST_2 = InetAddress.getByName("10.0.0.2");
         HOST_3 = InetAddress.getByName("10.0.0.3");
         HOST_4 = InetAddress.getByName("10.0.0.4");
+        hosts = ImmutableSet.of(HOST_1, HOST_2, HOST_3, HOST_4);
         MessagingService.instance().setVersion(HOST_1, MessagingService.VERSION_22);
         MessagingService.instance().setVersion(HOST_2, MessagingService.VERSION_22);
         MessagingService.instance().setVersion(HOST_3, MessagingService.VERSION_22);
@@ -59,7 +60,7 @@ public class MigrationManagerTest
 
     @Before
     public void before() {
-        HOSTS.forEach(host -> MigrationManager.removeEndpointFromSchemaPullVersion(UUID_1, host));
+        hosts.forEach(host -> MigrationManager.removeEndpointFromSchemaPullVersion(UUID_1, host));
     }
 
     @Test
