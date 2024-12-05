@@ -790,11 +790,11 @@
       <uptodate property="thriftUpToDate" srcfile="${interface.dir}/cassandra.thrift"
             targetfile="${interface.thrift.gen-java}/org/apache/cassandra/thrift/Cassandra.java" />
     </target>
-    <target name="gen-thrift-java" unless="thriftUpToDate" depends="check-gen-thrift-java"
+    <target name="gen-thrift-java" depends="check-gen-thrift-java"
             description="Generate Thrift Java artifacts">
       <echo>Generating Thrift Java code from ${basedir}/interface/cassandra.thrift...</echo>
       <exec executable="thrift" dir="${basedir}/interface" failonerror="true">
-        <arg line="--gen java:hashcode" />
+        <arg line="--gen java:generated_annotations=undated" />
         <arg line="-o ${interface.thrift.dir}" />
         <arg line="cassandra.thrift" />
       </exec>
