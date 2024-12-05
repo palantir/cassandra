@@ -23,6 +23,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
@@ -37,7 +38,7 @@ public class GossipDigestSynVerbHandler implements IVerbHandler<GossipDigestSyn>
     {
         InetAddress from = message.from;
         if (logger.isTraceEnabled())
-            logger.trace("Received a GossipDigestSynMessage from {}", from);
+            logger.trace("Received a GossipDigestSynMessage from {}", SafeArg.of("endpoint", from));
         if (!Gossiper.instance.isEnabled())
         {
             if (logger.isTraceEnabled())
@@ -49,13 +50,19 @@ public class GossipDigestSynVerbHandler implements IVerbHandler<GossipDigestSyn>
         /* If the message is from a different cluster throw it away. */
         if (!gDigestMessage.clusterId.equals(DatabaseDescriptor.getClusterName()))
         {
-            logger.warn("ClusterName mismatch from {} {}!={}", from, gDigestMessage.clusterId, DatabaseDescriptor.getClusterName());
+            logger.warn("ClusterName mismatch from {} {}!={}",
+                        SafeArg.of("remoteEndpoint", from),
+                        SafeArg.of("remoteCluster", gDigestMessage.clusterId),
+                        SafeArg.of("localCluster", DatabaseDescriptor.getClusterName()));
             return;
         }
 
         if (gDigestMessage.partioner != null && !gDigestMessage.partioner.equals(DatabaseDescriptor.getPartitionerName()))
         {
-            logger.warn("Partitioner mismatch from {} {}!={}", from, gDigestMessage.partioner, DatabaseDescriptor.getPartitionerName());
+            logger.warn("Partitioner mismatch from {} {}!={}",
+                        SafeArg.of("remoteEndpoint", from),
+                        SafeArg.of("remotePartitioner", gDigestMessage.partioner),
+                        SafeArg.of("localPartitioner", DatabaseDescriptor.getPartitionerName()));
             return;
         }
 
@@ -68,7 +75,7 @@ public class GossipDigestSynVerbHandler implements IVerbHandler<GossipDigestSyn>
                 sb.append(gDigest);
                 sb.append(" ");
             }
-            logger.trace("Gossip syn digests are : {}", sb);
+            logger.trace("Gossip syn digests are : {}", SafeArg.of("digests", sb));
         }
 
         doSort(gDigestList);
@@ -76,12 +83,12 @@ public class GossipDigestSynVerbHandler implements IVerbHandler<GossipDigestSyn>
         List<GossipDigest> deltaGossipDigestList = new ArrayList<GossipDigest>();
         Map<InetAddress, EndpointState> deltaEpStateMap = new HashMap<InetAddress, EndpointState>();
         Gossiper.instance.examineGossiper(gDigestList, deltaGossipDigestList, deltaEpStateMap);
-        logger.trace("sending {} digests and {} deltas", deltaGossipDigestList.size(), deltaEpStateMap.size());
+        logger.trace("sending {} digests and {} deltas", SafeArg.of("digests", deltaGossipDigestList.size()), SafeArg.of("deltas", deltaEpStateMap.size()));
         MessageOut<GossipDigestAck> gDigestAckMessage = new MessageOut<GossipDigestAck>(MessagingService.Verb.GOSSIP_DIGEST_ACK,
                                                                                         new GossipDigestAck(deltaGossipDigestList, deltaEpStateMap),
                                                                                         GossipDigestAck.serializer);
         if (logger.isTraceEnabled())
-            logger.trace("Sending a GossipDigestAckMessage to {}", from);
+            logger.trace("Sending a GossipDigestAckMessage to {}", SafeArg.of("endpoint", from));
         MessagingService.instance().sendOneWay(gDigestAckMessage, from);
     }
 

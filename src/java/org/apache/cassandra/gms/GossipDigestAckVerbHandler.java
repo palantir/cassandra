@@ -25,6 +25,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
@@ -38,7 +39,7 @@ public class GossipDigestAckVerbHandler implements IVerbHandler<GossipDigestAck>
     {
         InetAddress from = message.from;
         if (logger.isTraceEnabled())
-            logger.trace("Received a GossipDigestAckMessage from {}", from);
+            logger.trace("Received a GossipDigestAckMessage from {}", SafeArg.of("endpoint", from));
         if (!Gossiper.instance.isEnabled() && !Gossiper.instance.isInShadowRound())
         {
             if (logger.isTraceEnabled())
@@ -49,12 +50,12 @@ public class GossipDigestAckVerbHandler implements IVerbHandler<GossipDigestAck>
         GossipDigestAck gDigestAckMessage = message.payload;
         List<GossipDigest> gDigestList = gDigestAckMessage.getGossipDigestList();
         Map<InetAddress, EndpointState> epStateMap = gDigestAckMessage.getEndpointStateMap();
-        logger.trace("Received ack with {} digests and {} states", gDigestList.size(), epStateMap.size());
+        logger.trace("Received ack with {} digests and {} states", SafeArg.of("digestSize", gDigestList.size()), SafeArg.of("epStateSize", epStateMap.size()));
 
         if (Gossiper.instance.isInShadowRound())
         {
             if (logger.isDebugEnabled())
-                logger.debug("Finishing shadow round with {}", from);
+                logger.debug("Finishing shadow round with {}", SafeArg.of("endpoint", from));
             Gossiper.instance.finishShadowRound(epStateMap);
             return; // don't bother doing anything else, we have what we came for
         }
@@ -67,7 +68,7 @@ public class GossipDigestAckVerbHandler implements IVerbHandler<GossipDigestAck>
             if ((System.nanoTime() - Gossiper.instance.firstSynSendAt) < 0 || Gossiper.instance.firstSynSendAt == 0)
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("Ignoring unrequested GossipDigestAck from {}", from);
+                    logger.trace("Ignoring unrequested GossipDigestAck from {}", SafeArg.of("endpoint", from));
                 return;
             }
 
@@ -90,7 +91,7 @@ public class GossipDigestAckVerbHandler implements IVerbHandler<GossipDigestAck>
                                                                                            new GossipDigestAck2(deltaEpStateMap),
                                                                                            GossipDigestAck2.serializer);
         if (logger.isTraceEnabled())
-            logger.trace("Sending a GossipDigestAck2Message to {}", from);
+            logger.trace("Sending a GossipDigestAck2Message to {}", SafeArg.of("endpoint", from));
         MessagingService.instance().sendOneWay(gDigestAck2Message, from);
     }
 }
