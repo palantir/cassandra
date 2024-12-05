@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.concurrent.DebuggableThreadPoolExecutor;
 import org.apache.cassandra.utils.ExecutorUtils;
 import org.apache.cassandra.utils.FBUtilities;
@@ -216,7 +217,10 @@ public class StreamCoordinator
         public void run()
         {
             session.start();
-            logger.info("[Stream #{}, ID#{}] Beginning stream session with {}", session.planId(), session.sessionIndex(), session.peer);
+            logger.info("[Stream #{}, ID#{}] Beginning stream session with {}",
+                        SafeArg.of("planId", session.planId()),
+                        SafeArg.of("sessionIndex", session.sessionIndex()),
+                        SafeArg.of("peer", session.peer));
         }
     }
 

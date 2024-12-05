@@ -37,6 +37,8 @@ import com.google.common.util.concurrent.SettableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.io.util.DataOutputStreamPlus;
 import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
 import org.apache.cassandra.io.util.WrappedDataOutputStreamPlus;
@@ -80,11 +82,13 @@ public class ConnectionHandler
     @SuppressWarnings("resource")
     public void initiate() throws Exception
     {
-        logger.debug("[Stream #{}] Sending stream init for incoming stream", session.planId());
+        if (logger.isDebugEnabled())
+            logger.debug("[Stream #{}] Sending stream init for incoming stream", SafeArg.of("planId", session.planId()));
         Socket incomingSocket = session.createConnection();
         incoming.start(incomingSocket, StreamMessage.CURRENT_VERSION, true);
 
-        logger.debug("[Stream #{}] Sending stream init for outgoing stream", session.planId());
+        if (logger.isDebugEnabled())
+            logger.debug("[Stream #{}] Sending stream init for outgoing stream", SafeArg.of("planId", session.planId()));
         Socket outgoingSocket = session.createConnection();
         outgoing.start(outgoingSocket, StreamMessage.CURRENT_VERSION, true);
     }
@@ -106,7 +110,10 @@ public class ConnectionHandler
 
     public ListenableFuture<?> close()
     {
-        logger.debug("[Stream #{}] Closing stream connection handler on {}", session.planId(), session.peer);
+        if (logger.isDebugEnabled())
+            logger.debug("[Stream #{}] Closing stream connection handler on {}",
+                         SafeArg.of("planId", session.planId()),
+                         SafeArg.of("peer", session.peer));
 
         ListenableFuture<?> inClosed = closeIncoming();
         ListenableFuture<?> outClosed = closeOutgoing();
@@ -290,7 +297,10 @@ public class ConnectionHandler
                 {
                     // receive message
                     StreamMessage message = StreamMessage.deserialize(in, protocolVersion, session);
-                    logger.debug("[Stream #{}] Received {}", session.planId(), message);
+                    if (logger.isDebugEnabled())
+                        logger.debug("[Stream #{}] Received {}",
+                                     SafeArg.of("planId", session.planId()),
+                                     SafeArg.of("message", message));
                     // Might be null if there is an error during streaming (see FileMessage.deserialize). It's ok
                     // to ignore here since we'll have asked for a retry.
                     if (message != null)
@@ -357,7 +367,10 @@ public class ConnectionHandler
                 {
                     if ((next = messageQueue.poll(1, TimeUnit.SECONDS)) != null)
                     {
-                        logger.debug("[Stream #{}] Sending {}", session.planId(), next);
+                        if (logger.isDebugEnabled())
+                            logger.debug("[Stream #{}] Sending {}",
+                                         SafeArg.of("planId", session.planId()),
+                                         SafeArg.of("message", next));
                         sendMessage(out, next);
                         if (next.type == StreamMessage.Type.SESSION_FAILED)
                             close();

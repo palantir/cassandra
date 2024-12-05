@@ -28,6 +28,7 @@ import com.google.common.base.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.io.compress.CompressionMetadata;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.ChannelProxy;
@@ -59,8 +60,13 @@ public class CompressedStreamWriter extends StreamWriter
     public void write(DataOutputStreamPlus out) throws IOException
     {
         long totalSize = totalSize();
-        logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}", session.planId(),
-                     sstable.getFilename(), session.peer, sstable.getSSTableMetadata().repairedAt, totalSize);
+        if (logger.isDebugEnabled())
+            logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}",
+                         SafeArg.of("planId", session.planId()),
+                         SafeArg.of("file", sstable.getFilename()),
+                         SafeArg.of("peer", session.peer),
+                         SafeArg.of("repairedAt", sstable.getSSTableMetadata().repairedAt),
+                         SafeArg.of("totalSize", totalSize));
         try (RandomAccessReader file = sstable.openDataReader(); final ChannelProxy fc = file.getChannel())
         {
             long progress = 0L;
@@ -96,8 +102,13 @@ public class CompressedStreamWriter extends StreamWriter
                     session.progress(sstable.descriptor, ProgressInfo.Direction.OUT, progress, totalSize);
                 }
             }
-            logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}",
-                         session.planId(), sstable.getFilename(), session.peer, progress, totalSize);
+            if (logger.isDebugEnabled())
+                logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}",
+                             SafeArg.of("planId", session.planId()),
+                             SafeArg.of("file", sstable.getFilename()),
+                             SafeArg.of("peer", session.peer),
+                             SafeArg.of("bytesTransferred", progress),
+                             SafeArg.of("totalSize", totalSize));
         }
     }
 

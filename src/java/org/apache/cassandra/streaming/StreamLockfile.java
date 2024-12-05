@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.google.common.base.Charsets;
+
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,7 +87,7 @@ public class StreamLockfile
         }
         catch (IOException e)
         {
-            logger.warn(String.format("Could not create lockfile %s for stream session, nothing to worry too much about", lockfile), e);
+            logger.warn("Could not create lockfile {} for stream session, nothing to worry too much about", SafeArg.of("lockfile", lockfile.toString()), e);
         }
     }
 
@@ -107,7 +109,7 @@ public class StreamLockfile
             catch (Exception e)
             {
                 JVMStabilityInspector.inspectThrowable(e);
-                logger.warn("failed to delete a potentially stale sstable {}", file);
+                logger.warn("failed to delete a potentially stale sstable {}", SafeArg.of("file", file));
             }
         }
     }

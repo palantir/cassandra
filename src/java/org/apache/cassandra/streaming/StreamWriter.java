@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import com.ning.compress.lzf.LZFOutputStream;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.DataIntegrityMetadata;
@@ -75,8 +76,13 @@ public class StreamWriter
     public void write(DataOutputStreamPlus output) throws IOException
     {
         long totalSize = totalSize();
-        logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}", session.planId(),
-                     sstable.getFilename(), session.peer, sstable.getSSTableMetadata().repairedAt, totalSize);
+        if (logger.isDebugEnabled())
+            logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}",
+                         SafeArg.of("planId", session.planId()),
+                         SafeArg.of("file", sstable.getFilename()),
+                         SafeArg.of("peer", session.peer),
+                         SafeArg.of("repairedAt", sstable.getSSTableMetadata().repairedAt),
+                         SafeArg.of("totalSize", totalSize));
 
         try(RandomAccessReader file = sstable.openDataReader();
             ChecksumValidator validator = new File(sstable.descriptor.filenameFor(Component.CRC)).exists()
@@ -115,8 +121,13 @@ public class StreamWriter
                 // make sure that current section is sent
                 compressedOutput.flush();
             }
-            logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}",
-                         session.planId(), sstable.getFilename(), session.peer, progress, totalSize);
+            if (logger.isDebugEnabled())
+                logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}",
+                             SafeArg.of("planId", session.planId()),
+                             SafeArg.of("file", sstable.getFilename()),
+                             SafeArg.of("peer", session.peer),
+                             SafeArg.of("bytesTransferred", progress),
+                             SafeArg.of("totalSize", totalSize));
         }
     }
 

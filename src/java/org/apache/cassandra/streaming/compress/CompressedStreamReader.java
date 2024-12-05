@@ -25,6 +25,8 @@ import java.nio.channels.ReadableByteChannel;
 
 import com.google.common.base.Throwables;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 
@@ -82,9 +84,15 @@ public class CompressedStreamReader extends StreamReader
             throw new IOException("CF " + cfId + " was dropped during streaming");
         }
 
-        logger.debug("[Stream #{}] Start receiving file #{} from {}, repairedAt = {}, size = {}, ks = '{}', table = '{}'.",
-                     session.planId(), fileSeqNum, session.peer, repairedAt, totalSize, cfs.keyspace.getName(),
-                     cfs.getColumnFamilyName());
+        if (logger.isDebugEnabled())
+            logger.debug("[Stream #{}] Start receiving file #{} from {}, repairedAt = {}, size = {}, ks = '{}', table = '{}'.",
+                         SafeArg.of("planId", session.planId()),
+                         SafeArg.of("fileSeqNum", fileSeqNum),
+                         SafeArg.of("peer", session.peer),
+                         SafeArg.of("repairedAt", repairedAt),
+                         SafeArg.of("size", totalSize),
+                         SafeArg.of("keyspace", cfs.keyspace.getName()),
+                         SafeArg.of("table", cfs.getColumnFamilyName()));
 
         CompressedInputStream cis = new CompressedInputStream(Channels.newInputStream(channel), compressionInfo);
         BytesReadTracker in = new BytesReadTracker(new DataInputStream(cis));
@@ -113,15 +121,23 @@ public class CompressedStreamReader extends StreamReader
                     session.progress(desc, ProgressInfo.Direction.IN, cis.getTotalCompressedBytesRead(), totalSize);
                 }
             }
-            logger.debug("[Stream #{}] Finished receiving file #{} from {} readBytes = {}, totalSize = {}", session.planId(), fileSeqNum,
-                         session.peer, cis.getTotalCompressedBytesRead(), totalSize);
+            if (logger.isDebugEnabled())
+                logger.debug("[Stream #{}] Finished receiving file #{} from {} readBytes = {}, totalSize = {}",
+                             SafeArg.of("planId", session.planId()),
+                             SafeArg.of("fileSeqNum", fileSeqNum),
+                             SafeArg.of("peer", session.peer),
+                             SafeArg.of("readBytes", cis.getTotalCompressedBytesRead()),
+                             SafeArg.of("totalSize", totalSize));
             return writer;
         }
         catch (Throwable e)
         {
             if (key != null)
                 logger.warn("[Stream {}] Error while reading partition {} from stream on ks='{}' and table='{}'.",
-                            session.planId(), key, cfs.keyspace.getName(), cfs.getColumnFamilyName());
+                            SafeArg.of("planId", session.planId()),
+                            UnsafeArg.of("key", key),
+                            SafeArg.of("keyspace", cfs.keyspace.getName()),
+                            SafeArg.of("columnFamily", cfs.getColumnFamilyName()));
             if (writer != null)
             {
                 try

@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.net.IncomingStreamingConnection;
 
 /**
@@ -85,7 +86,7 @@ public final class StreamResultFuture extends AbstractFuture<StreamState>
                 future.addEventListener(listener);
         }
 
-        logger.info("[Stream #{}] Executing streaming plan for {}", planId, description);
+        logger.info("[Stream #{}] Executing streaming plan for {}", SafeArg.of("planId", planId), SafeArg.of("description", description));
 
         // Initialize and start all sessions
         for (final StreamSession session : coordinator.getAllStreamSessions())
@@ -110,14 +111,20 @@ public final class StreamResultFuture extends AbstractFuture<StreamState>
         StreamResultFuture future = StreamManager.instance.getReceivingStream(planId);
         if (future == null)
         {
-            logger.info("[Stream #{} ID#{}] Creating new streaming plan for {}", planId, sessionIndex, description);
+            logger.info("[Stream #{} ID#{}] Creating new streaming plan for {}",
+                        SafeArg.of("planId", planId),
+                        SafeArg.of("sessionIndex", sessionIndex),
+                        SafeArg.of("description", description));
 
             // The main reason we create a StreamResultFuture on the receiving side is for JMX exposure.
             future = new StreamResultFuture(planId, description, keepSSTableLevel, isIncremental);
             StreamManager.instance.registerReceiving(future);
         }
         future.attachConnection(from, sessionIndex, connection, isForOutgoing, version);
-        logger.info("[Stream #{}, ID#{}] Received streaming plan for {}", planId, sessionIndex, description);
+        logger.info("[Stream #{}, ID#{}] Received streaming plan for {}",
+                    SafeArg.of("planId", planId),
+                    SafeArg.of("sessionIndex", sessionIndex),
+                    SafeArg.of("description", description));
         return future;
     }
 
@@ -168,12 +175,12 @@ public final class StreamResultFuture extends AbstractFuture<StreamState>
     {
         SessionInfo sessionInfo = session.getSessionInfo();
         logger.info("[Stream #{} ID#{}] Prepare completed. Receiving {} files({} bytes), sending {} files({} bytes)",
-                    session.planId(),
-                    session.sessionIndex(),
-                    sessionInfo.getTotalFilesToReceive(),
-                    sessionInfo.getTotalSizeToReceive(),
-                    sessionInfo.getTotalFilesToSend(),
-                    sessionInfo.getTotalSizeToSend());
+                    SafeArg.of("planId", session.planId()),
+                    SafeArg.of("sessionIndex", session.sessionIndex()),
+                    SafeArg.of("totalFilesToReceive", sessionInfo.getTotalFilesToReceive()),
+                    SafeArg.of("totalSizeToReceive", sessionInfo.getTotalSizeToReceive()),
+                    SafeArg.of("totalFilesToSend", sessionInfo.getTotalFilesToSend()),
+                    SafeArg.of("totalSizeToSend", sessionInfo.getTotalSizeToSend()));
         StreamEvent.SessionPreparedEvent event = new StreamEvent.SessionPreparedEvent(planId, sessionInfo);
         coordinator.addSessionInfo(sessionInfo);
         fireStreamEvent(event);
@@ -181,7 +188,9 @@ public final class StreamResultFuture extends AbstractFuture<StreamState>
 
     void handleSessionComplete(StreamSession session)
     {
-        logger.info("[Stream #{}] Session with {} is complete", session.planId(), session.peer);
+        logger.info("[Stream #{}] Session with {} is complete",
+                    SafeArg.of("planId", session.planId()),
+                    SafeArg.of("peer", session.peer));
         fireStreamEvent(new StreamEvent.SessionCompleteEvent(session));
         SessionInfo sessionInfo = session.getSessionInfo();
         coordinator.addSessionInfo(sessionInfo);
@@ -208,12 +217,12 @@ public final class StreamResultFuture extends AbstractFuture<StreamState>
             StreamState finalState = getCurrentState();
             if (finalState.hasFailedSession())
             {
-                logger.warn("[Stream #{}] Stream failed", planId);
+                logger.warn("[Stream #{}] Stream failed", SafeArg.of("planId", planId));
                 setException(new StreamException(finalState, "Stream failed"));
             }
             else
             {
-                logger.info("[Stream #{}] All sessions completed", planId);
+                logger.info("[Stream #{}] All sessions completed", SafeArg.of("planId", planId));
                 set(finalState);
             }
         }

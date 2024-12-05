@@ -29,6 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.*;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.lifecycle.SSTableIntervalTree;
 import org.apache.cassandra.db.lifecycle.View;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -224,16 +225,17 @@ public class StreamSession implements IEndpointStateChangeSubscriber
     {
         if (requests.isEmpty() && transfers.isEmpty())
         {
-            logger.info("[Stream #{}] Session does not have any tasks.", planId());
+            logger.info("[Stream #{}] Session does not have any tasks.", SafeArg.of("planId", planId()));
             closeSession(State.COMPLETE);
             return;
         }
 
         try
         {
-            logger.info("[Stream #{}] Starting streaming to {}{}", planId(),
-                                                                   peer,
-                                                                   peer.equals(connecting) ? "" : " through " + connecting);
+            logger.info("[Stream #{}] Starting streaming to {}{}", SafeArg.of("planId", planId()),
+                        SafeArg.of("peer", peer),
+                        SafeArg.of("through", peer.equals(connecting) ? "" : " through " + connecting)
+            );
             handler.initiate();
             onInitializationComplete();
         }
@@ -340,7 +342,8 @@ public class StreamSession implements IEndpointStateChangeSubscriber
                             }
                         }
 
-                        logger.debug("ViewFilter for {}/{} sstables", sstables.size(), view.sstables.size());
+                        if (logger.isDebugEnabled())
+                            logger.debug("ViewFilter for {}/{} sstables", SafeArg.of("size", sstables.size()), SafeArg.of("viewSize", view.sstables.size()));
                         return ImmutableList.copyOf(sstables);
                     }
                 }).refs);
@@ -517,11 +520,13 @@ public class StreamSession implements IEndpointStateChangeSubscriber
             logger.error("[Stream #{}] Streaming socket timed out. This means the session peer stopped responding or " +
                          "is still processing received data. If there is no sign of failure in the other end or a very " +
                          "dense table is being transferred you may want to increase streaming_socket_timeout_in_ms " +
-                         "property. Current value is {}ms.", planId(), DatabaseDescriptor.getStreamingSocketTimeout(), e);
+                         "property. Current value is {}ms.",
+                         SafeArg.of("planId", planId()),
+                         SafeArg.of("streamingSockeTimeout", DatabaseDescriptor.getStreamingSocketTimeout()), e);
         }
         else
         {
-            logger.error("[Stream #{}] Streaming error occurred", planId(), e);
+            logger.error("[Stream #{}] Streaming error occurred", SafeArg.of("planId", planId()), e);
         }
         // send session failure message
         if (handler.isOutgoingConnected())
@@ -626,7 +631,7 @@ public class StreamSession implements IEndpointStateChangeSubscriber
      */
     public synchronized void sessionFailed()
     {
-        logger.error("[Stream #{}] Remote peer {} failed stream session.", planId(), peer.getHostAddress());
+        logger.error("[Stream #{}] Remote peer {} failed stream session.", SafeArg.of("planId", planId()), SafeArg.of("peer", peer.getHostAddress()));
         closeSession(State.FAILED);
     }
 
@@ -664,13 +669,13 @@ public class StreamSession implements IEndpointStateChangeSubscriber
 
     public void onRemove(InetAddress endpoint)
     {
-        logger.error("[Stream #{}] Session failed because remote peer {} has left.", planId(), peer.getHostAddress());
+        logger.error("[Stream #{}] Session failed because remote peer {} has left.", SafeArg.of("planId", planId()), SafeArg.of("peer", peer.getHostAddress()));
         closeSession(State.FAILED);
     }
 
     public void onRestart(InetAddress endpoint, EndpointState epState)
     {
-        logger.error("[Stream #{}] Session failed because remote peer {} was restarted.", planId(), peer.getHostAddress());
+        logger.error("[Stream #{}] Session failed because remote peer {} was restarted.", SafeArg.of("planId", planId()), SafeArg.of("peer", peer.getHostAddress()));
         closeSession(State.FAILED);
     }
 
