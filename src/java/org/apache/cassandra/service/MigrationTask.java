@@ -132,6 +132,7 @@ class MigrationTask extends WrappedRunnable
         catch (Exception e)
         {
             version.ifPresent(v -> MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint));
+            throw e;
         }
    }
 }
