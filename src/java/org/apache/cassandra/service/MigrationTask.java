@@ -63,6 +63,7 @@ class MigrationTask extends WrappedRunnable
         if (!FailureDetector.instance.isAlive(endpoint))
         {
             logger.warn("Can't send schema pull request: node {} is down.", endpoint);
+            version.ifPresent(v -> MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint));
             return;
         }
 
@@ -72,6 +73,7 @@ class MigrationTask extends WrappedRunnable
         if (!MigrationManager.shouldPullSchemaFrom(endpoint))
         {
             logger.info("Skipped sending a migration request: node {} has a higher major version now.", endpoint);
+            version.ifPresent(v -> MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint));
             return;
         }
 
