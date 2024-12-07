@@ -126,6 +126,12 @@ class MigrationTask extends WrappedRunnable
                 return false;
             }
         };
-       MessagingService.instance().sendRRWithFailure(message, endpoint, cb);
+        try {
+            MessagingService.instance().sendRRWithFailure(message, endpoint, cb);
+        }
+        catch (Exception e)
+        {
+            version.ifPresent(v -> MigrationManager.removeEndpointFromSchemaPullVersion(v, endpoint));
+        }
    }
 }
