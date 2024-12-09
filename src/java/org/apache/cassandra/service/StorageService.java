@@ -1543,6 +1543,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @VisibleForTesting
     void setMode(Mode m, @Safe String msg, boolean log)
     {
+        if (operationMode == Mode.NON_TRANSIENT_ERROR && m != Mode.NON_TRANSIENT_ERROR) {
+            if (log)
+                logger.warn("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
+            else
+                logger.debug("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
+            return;
+        }
         operationMode = m;
         if (log)
             logger.info(m.toString(), SafeArg.of("msg", msg));
