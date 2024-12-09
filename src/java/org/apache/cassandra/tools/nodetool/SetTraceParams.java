@@ -17,6 +17,9 @@
  */
 package org.apache.cassandra.tools.nodetool;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import io.airlift.command.Arguments;
 import io.airlift.command.Command;
@@ -36,7 +39,7 @@ public class SetTraceParams extends NodeToolCmd
         String keyspace = args.get(0);
         String columnfamily = args.get(1);
 
-        probe.setTraceKeyspace = keyspace;
-        probe.setTraceColumnfamily = columnfamily;
+        probe.setTraceKeyspace(keyspace);
+        probe.setTraceColumnfamily(columnfamily);
     }
 }

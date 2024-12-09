@@ -1074,15 +1074,15 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getTraceProbability();
     }
 
-    public Map<String, String> getTraceKeySpaceColumnFamilyString()
-    {
-        Map<String, String> ksAndCf = new HashMap<>();
-        if (parts.length == 2) {
-            ksAndCf.put("keyspace", ssProxy.getTraceKeyspace());
-            ksAndCf.put("columnfamily", ssProxy.getTraceColumnfamily()); 
-        }
-        return ksAndCf;
-    }
+//    public Map<String, String> getTraceKeySpaceColumnFamilyString()
+//    {
+//        Map<String, String> ksAndCf = new HashMap<>();
+//        if (parts.length == 2) {
+//            ksAndCf.put("keyspace", ssProxy.getTraceKeyspace());
+//            ksAndCf.put("columnfamily", ssProxy.getTraceColumnfamily());
+//        }
+//        return ksAndCf;
+//    }
 
     public int getExceptionCount()
     {
@@ -1137,6 +1137,16 @@ public class NodeProbe implements AutoCloseable
     public void setTraceProbability(double value)
     {
         ssProxy.setTraceProbability(value);
+    }
+
+    public void setTraceKeyspace(String value)
+    {
+        ssProxy.setTraceKeyspace(value);
+    }
+
+    public void setTraceColumnfamily(String value)
+    {
+        ssProxy.setTraceColumnfamily(value);
     }
 
     public String getSchemaVersion()

@@ -199,8 +199,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     /* trace if keyspace and column family values are met */
-    private string traceKeyspace = "";
-    private string traceColumnfamily = "";
+    private String traceKeyspace = "";
+    private String traceColumnfamily = "";
 
     @VisibleForTesting
     static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
@@ -5153,7 +5153,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return traceProbability;
     }
 
-    public void setTraceKeyspace(string keyspace) {
+    public void setTraceKeyspace(String keyspace) {
         this.traceKeyspace = keyspace;
     }
 
@@ -5161,7 +5161,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return traceKeyspace;
     }
 
-    public void setTraceColumnfamily(string columnfamily) {
+    public void setTraceColumnfamily(String columnfamily) {
         this.traceColumnfamily = columnfamily;
     }
 

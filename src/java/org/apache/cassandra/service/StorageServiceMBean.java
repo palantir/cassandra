@@ -755,6 +755,24 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void setTraceProbability(double probability);
 
     /**
+     * Enables/Disables tracing for the whole system. Only thrift requests can start tracing currently.
+     *
+     * @param keyspace
+     *            ]0,1[ will enable tracing on a partial number of requests with the provided probability. 0 will
+     *            disable tracing and 1 will enable tracing for all requests (which mich severely cripple the system)
+     */
+    public void setTraceKeyspace(String keyspace);
+
+    /**
+     * Enables/Disables tracing for the whole system. Only thrift requests can start tracing currently.
+     *
+     * @param columnfamily
+     *            ]0,1[ will enable tracing on a partial number of requests with the provided probability. 0 will
+     *            disable tracing and 1 will enable tracing for all requests (which mich severely cripple the system)
+     */
+    public void setTraceColumnfamily(String columnfamily);
+
+    /**
      * Returns the configured tracing probability.
      */
     public double getTraceProbability();
