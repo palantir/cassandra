@@ -443,7 +443,12 @@ public class SSTableExport
      * @param args command lines arguments
      * @throws ConfigurationException on configuration failure (wrong params given)
      */
-    public static void main(String[] args) throws ConfigurationException, IOException
+    public static void main(String[] args) throws ConfigurationException
+    {
+        System.exit(mainInternal(args));
+    }
+
+    public static int mainInternal(String[] args) throws ConfigurationException
     {
         String usage = String.format("Usage: %s <sstable> [-k key [-k key [...]] -x key [-x key [...]]]%n", SSTableExport.class.getName());
 
@@ -456,7 +461,7 @@ public class SSTableExport
         {
             System.err.println(e1.getMessage());
             System.err.println(usage);
-            return;
+            return 1;
         }
 
 
@@ -464,7 +469,7 @@ public class SSTableExport
         {
             System.err.println("You must supply exactly one sstable or directory");
             System.err.println(usage);
-            return;
+            return 1;
         }
 
         Util.initDatabaseDescriptor();
@@ -476,7 +481,7 @@ public class SSTableExport
         if ((keys != null) && (keys.length > 0) && (prefix != null))
         {
             System.err.println("Cannot specify keys and prefix at the same time");
-            return;
+            return 1;
         }
 
         File fileOrDirectory = new File(cmd.getArgs()[0]);
@@ -509,9 +514,11 @@ public class SSTableExport
                 handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, printStream);
             }
         }
+
+        return 0;
     }
 
-    private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, String prefix, PrintStream printStream)
+    private static int handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, String prefix, PrintStream printStream)
     {
         Descriptor descriptor = Descriptor.fromFilename(ssTableFileName);
 
@@ -520,7 +527,7 @@ public class SSTableExport
         {
             System.err.println(String.format("Filename %s references to nonexistent keyspace: %s!",
                     ssTableFileName, descriptor.ksname));
-            return;
+            return -1;
         }
         Keyspace.setInitialized();
         Keyspace keyspace = Keyspace.open(descriptor.ksname);
@@ -543,7 +550,7 @@ public class SSTableExport
         {
             System.err.println(String.format("The provided table is not part of this cassandra keyspace: keyspace = %s, table = %s",
                                              descriptor.ksname, descriptor.cfname));
-            return;
+            return -1;
         }
 
         try
@@ -567,6 +574,7 @@ public class SSTableExport
             // throwing exception outside main with broken pipe causes windows cmd to hang
             e.printStackTrace(System.err);
         }
+        return 0;
     }
 
     private static void writeJSON(PrintStream out, Object value)
