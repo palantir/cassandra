@@ -505,16 +505,18 @@ public class SSTableExport
                     i++;
                     String ssTableFileName = file.getAbsolutePath();
                     printStream.printf("\"%s\":", file.getName());
-                    handleSingleSsTableFile(ssTableFileName, keys, excludes, prefix, printStream);
+                    int res = handleSingleSsTableFile(ssTableFileName, keys, excludes, prefix, printStream);
+                    if (res != 0) {
+                        return res;
+                    }
                 }
                 printStream.println("}");
             }
             else
             {
-                handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, printStream);
+                return handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, printStream);
             }
         }
-
         return 0;
     }
 
@@ -527,7 +529,7 @@ public class SSTableExport
         {
             System.err.println(String.format("Filename %s references to nonexistent keyspace: %s!",
                     ssTableFileName, descriptor.ksname));
-            return -1;
+            return 1;
         }
         Keyspace.setInitialized();
         Keyspace keyspace = Keyspace.open(descriptor.ksname);
@@ -550,7 +552,7 @@ public class SSTableExport
         {
             System.err.println(String.format("The provided table is not part of this cassandra keyspace: keyspace = %s, table = %s",
                                              descriptor.ksname, descriptor.cfname));
-            return -1;
+            return 1;
         }
 
         try
