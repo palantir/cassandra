@@ -1074,6 +1074,16 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.getTraceProbability();
     }
 
+    public Map<String, String> getTraceKeySpaceColumnFamilyString()
+    {
+        Map<String, String> ksAndCf = new HashMap<>();
+        if (parts.length == 2) {
+            ksAndCf.put("keyspace", ssProxy.getTraceKeyspace());
+            ksAndCf.put("columnfamily", ssProxy.getTraceColumnfamily()); 
+        }
+        return ksAndCf;
+    }
+
     public int getExceptionCount()
     {
         return (int)StorageMetrics.exceptions.getCount();

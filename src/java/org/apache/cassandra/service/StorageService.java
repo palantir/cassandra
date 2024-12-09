@@ -198,6 +198,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /* the probability for tracing any particular request, 0 disables tracing and 1 enables for all */
     private double traceProbability = 0.0;
 
+    /* trace if keyspace and column family values are met */
+    private string traceKeyspace = "";
+    private string traceColumnfamily = "";
+
     @VisibleForTesting
     static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
     private volatile Mode operationMode = Mode.STARTING;
@@ -5147,6 +5151,22 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public double getTraceProbability()
     {
         return traceProbability;
+    }
+
+    public void setTraceKeyspace(string keyspace) {
+        this.traceKeyspace = keyspace;
+    }
+
+    public String getTraceKeyspace() {
+        return traceKeyspace;
+    }
+
+    public void setTraceColumnfamily(string columnfamily) {
+        this.traceColumnfamily = columnfamily;
+    }
+
+    public String getTraceColumnfamily() {
+        return traceColumnfamily;
     }
 
     public void disableAutoCompaction(String ks, String... columnFamilies) throws IOException
