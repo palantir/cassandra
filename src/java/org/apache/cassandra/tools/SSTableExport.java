@@ -456,7 +456,7 @@ public class SSTableExport
         {
             System.err.println(e1.getMessage());
             System.err.println(usage);
-            System.exit(1);
+            return;
         }
 
 
@@ -464,7 +464,7 @@ public class SSTableExport
         {
             System.err.println("You must supply exactly one sstable or directory");
             System.err.println(usage);
-            System.exit(1);
+            return;
         }
 
         Util.initDatabaseDescriptor();
@@ -476,7 +476,7 @@ public class SSTableExport
         if ((keys != null) && (keys.length > 0) && (prefix != null))
         {
             System.err.println("Cannot specify keys and prefix at the same time");
-            System.exit(1);
+            return;
         }
 
         File fileOrDirectory = new File(cmd.getArgs()[0]);
@@ -509,8 +509,6 @@ public class SSTableExport
                 handleSingleSsTableFile(fileOrDirectory.getAbsolutePath(), keys, excludes, prefix, printStream);
             }
         }
-
-        System.exit(0);
     }
 
     private static void handleSingleSsTableFile(String ssTableFileName, String[] keys, String[] excludes, String prefix, PrintStream printStream)
@@ -522,7 +520,7 @@ public class SSTableExport
         {
             System.err.println(String.format("Filename %s references to nonexistent keyspace: %s!",
                     ssTableFileName, descriptor.ksname));
-            System.exit(1);
+            return;
         }
         Keyspace.setInitialized();
         Keyspace keyspace = Keyspace.open(descriptor.ksname);
@@ -545,7 +543,7 @@ public class SSTableExport
         {
             System.err.println(String.format("The provided table is not part of this cassandra keyspace: keyspace = %s, table = %s",
                                              descriptor.ksname, descriptor.cfname));
-            System.exit(1);
+            return;
         }
 
         try
