@@ -1606,9 +1606,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
         try
         {
-            bootstrapStream.get();
+            while (true) {
+                if (bootstrapStream.isDone()) {
+                    bootstrapStream.get();
+                    logger.info("Bootstrap streaming completed for tokens {}", tokens);
+                    break;
+                }
+                if (hasNonTransientError(NonTransientError.BOOTSTRAP_ERROR)) {
+                    logger.info("Stopped waiting for bootstrap streaming to complete because detected a bootstrap error.", SafeArg.of("nonTransientErrors", getNonTransientErrors()));
+                    break;
+                }
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+            }
             isBootstrapMode = false;
-            logger.info("Bootstrap streaming completed for tokens {}", tokens);
             return !StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
         }
         catch (Throwable e)
