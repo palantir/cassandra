@@ -111,6 +111,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
     private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_finish_bootstrap");
     private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
+    private static final Integer BOOTSTRAP_SAFETY_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.bootstrap_safety_check_grace_period_minutes", 30);
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
@@ -1053,7 +1054,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             try
             {
                 setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
-                boolean timeoutExceeded = !finishBootstrapCondition.await(30, MINUTES);
+                boolean timeoutExceeded = !finishBootstrapCondition.await(BOOTSTRAP_SAFETY_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
                 if (timeoutExceeded)
                 {
                     recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("bootstrapSafetyCheckFailed", "true"));
