@@ -448,6 +448,7 @@ public class SSTableExport
         System.exit(mainInternal(args));
     }
 
+    @SuppressWarnings("resource")
     public static int mainInternal(String[] args) throws ConfigurationException
     {
         String usage = String.format("Usage: %s <sstable> [-k key [-k key [...]] -x key [-x key [...]]]%n", SSTableExport.class.getName());
