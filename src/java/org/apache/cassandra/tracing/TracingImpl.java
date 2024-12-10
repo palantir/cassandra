@@ -39,29 +39,57 @@ import org.slf4j.LoggerFactory;
  */
 class TracingImpl extends Tracing
 {
-    private static final Logger logger = LoggerFactory.getLogger(TracingImpl.class);
-
     public void stopSessionImpl() {
-        TraceState state = get();
+        final TraceStateImpl state = getStateImpl();
+        if (state == null)
+            return;
+
         int elapsed = state.elapsed();
         ByteBuffer sessionId = state.sessionIdBytes;
         int ttl = state.ttl;
-        TraceStateImpl.executeMutation(TraceKeyspace.makeStopSessionMutation(sessionId, elapsed, ttl));
+
+        state.executeMutation(TraceKeyspace.makeStopSessionMutation(sessionId, elapsed, ttl));
     }
 
     public TraceState begin(final String request, final InetAddress client, final Map<String, String> parameters)
     {
         assert isTracing();
 
-        final TraceState state = get();
+        final TraceStateImpl state = getStateImpl();
+        assert state != null;
+
         final long startedAt = System.currentTimeMillis();
         final ByteBuffer sessionId = state.sessionIdBytes;
         final String command = state.traceType.toString();
         final int ttl = state.ttl;
 
-        TraceStateImpl.executeMutation(TraceKeyspace.makeStartSessionMutation(sessionId, client, parameters, request, startedAt, command, ttl));
-
+        state.executeMutation(TraceKeyspace.makeStartSessionMutation(sessionId, client, parameters, request, startedAt, command, ttl));
         return state;
+    }
+
+    /**
+     * Convert the abstract tracing state to its implementation.
+     *
+     * Expired states are not put in the sessions but the check is for extra safety.
+     *
+     * @return the state converted to its implementation, or null
+     */
+    private TraceStateImpl getStateImpl()
+    {
+        TraceState state = get();
+        if (state == null)
+            return null;
+        if (state instanceof ExpiredTraceState)
+        {
+            ExpiredTraceState expiredTraceState = (ExpiredTraceState) state;
+            state = expiredTraceState.getDelegate();
+        }
+        if (state instanceof TraceStateImpl)
+        {
+            return (TraceStateImpl)state;
+        }
+        assert false : "TracingImpl states should be of type TraceStateImpl";
+        return null;
     }
 
     @Override

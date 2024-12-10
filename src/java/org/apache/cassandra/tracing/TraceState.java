@@ -26,16 +26,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.base.Stopwatch;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
 
 import org.apache.cassandra.utils.ByteBufferUtil;
-<<<<<<< HEAD
-import org.apache.cassandra.utils.JVMStabilityInspector;
-import org.apache.cassandra.utils.WrappedRunnable;
-=======
->>>>>>> bf25e668f4 (Add support for custom tracing implementations)
 import org.apache.cassandra.utils.progress.ProgressEvent;
 import org.apache.cassandra.utils.progress.ProgressEventNotifier;
 import org.apache.cassandra.utils.progress.ProgressListener;
@@ -46,10 +39,6 @@ import org.apache.cassandra.utils.progress.ProgressListener;
  */
 public abstract class TraceState implements ProgressEventNotifier
 {
-    private static final Logger logger = LoggerFactory.getLogger(TraceState.class);
-    private static final int WAIT_FOR_PENDING_EVENTS_TIMEOUT_SECS =
-    Integer.valueOf(System.getProperty("cassandra.wait_for_tracing_events_timeout_secs", "0"));
-
     public final UUID sessionId;
     public final InetAddress coordinator;
     public final Stopwatch watch;
@@ -182,16 +171,7 @@ public abstract class TraceState implements ProgressEventNotifier
         if (notify)
             notifyActivity();
 
-<<<<<<< HEAD
-        final String threadName = Thread.currentThread().getName();
-        final int elapsed = elapsed();
-
-        executeMutation(TraceKeyspace.makeEventMutation(sessionIdBytes, message, elapsed, threadName, ttl));
-        if (logger.isTraceEnabled())
-            logger.trace("Adding <{}> to trace events", message);
-=======
         traceImpl(message);
->>>>>>> bf25e668f4 (Add support for custom tracing implementations)
 
         for (ProgressListener listener : listeners)
         {
@@ -199,76 +179,12 @@ public abstract class TraceState implements ProgressEventNotifier
         }
     }
 
-<<<<<<< HEAD
-    static void executeMutation(final Mutation mutation)
-    {
-        StageManager.getStage(Stage.TRACING).execute(new WrappedRunnable()
-        {
-            protected void runMayThrow() throws Exception
-            {
-                mutateWithCatch(mutation);
-            }
-        });
-    }
-
-    /**
-     * Called from {@link org.apache.cassandra.net.OutboundTcpConnection} for non-local traces (traces
-     * that are not initiated by local node == coordinator).
-     */
-    public static void mutateWithTracing(final ByteBuffer sessionId, final String message, final int elapsed, final int ttl)
-    {
-        final String threadName = Thread.currentThread().getName();
-
-        StageManager.getStage(Stage.TRACING).execute(new WrappedRunnable()
-        {
-            public void runMayThrow()
-            {
-                mutateWithCatch(TraceKeyspace.makeEventMutation(sessionId, message, elapsed, threadName, ttl));
-            }
-        });
-    }
-
-    static void mutateWithCatch(Mutation mutation)
-    {
-        try
-        {
-            StorageProxy.mutate(Collections.singletonList(mutation), ConsistencyLevel.ANY);
-        }
-        catch (OverloadedException e)
-        {
-            Tracing.logger.warn("Too many nodes are overloaded to save trace events");
-        }
-    }
-=======
     protected abstract void traceImpl(String message);
->>>>>>> bf25e668f4 (Add support for custom tracing implementations)
 
-    /**
-     * Post a no-op event to the TRACING stage, so that we can be sure that any previous mutations
-     * have at least been applied to one replica. This works because the tracking executor only
-     * has one thread in its pool, see {@link StageManager#tracingExecutor()}.
-     */
     protected void waitForPendingEvents()
     {
-        if (WAIT_FOR_PENDING_EVENTS_TIMEOUT_SECS <= 0)
-            return;
-
-        try
-        {
-            if (logger.isTraceEnabled())
-                logger.trace("Waiting for up to {} seconds for trace events to complete",
-                             +WAIT_FOR_PENDING_EVENTS_TIMEOUT_SECS);
-
-            StageManager.getStage(Stage.TRACING).submit(StageManager.NO_OP_TASK)
-                        .get(WAIT_FOR_PENDING_EVENTS_TIMEOUT_SECS, TimeUnit.SECONDS);
-        }
-        catch (Throwable t)
-        {
-            JVMStabilityInspector.inspectThrowable(t);
-            logger.debug("Failed to wait for tracing events to complete: {}", t);
-        }
+        // if tracing events are asynchronous, then you can use this method to wait for them to complete
     }
-
 
     public boolean acquireReference()
     {
