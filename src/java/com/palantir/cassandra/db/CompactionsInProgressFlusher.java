@@ -23,7 +23,7 @@ import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.utils.FBUtilities;
 
-import com.palantir.common.concurrent.CoalescingSupplier;
+import com.palantir.cassandra.concurrent.CoalescingSupplier;
 
 /**
  * Executing a single compaction task requires two flushes of the system.compactions_in_progress table: at start and

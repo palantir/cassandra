@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.gms;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Token;
 
@@ -52,7 +53,7 @@ public class TokenSerializer
             int size = in.readInt();
             if (size < 1)
                 break;
-            logger.trace("Reading token of {} bytes", size);
+            logger.trace("Reading token of {} bytes", SafeArg.of("bytes", size));
             byte[] bintoken = new byte[size];
             in.readFully(bintoken);
             tokens.add(partitioner.getTokenFactory().fromByteArray(ByteBuffer.wrap(bintoken)));

@@ -23,6 +23,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 
@@ -35,7 +36,7 @@ public class GossipDigestAck2VerbHandler implements IVerbHandler<GossipDigestAck
         if (logger.isTraceEnabled())
         {
             InetAddress from = message.from;
-            logger.trace("Received a GossipDigestAck2Message from {}", from);
+            logger.trace("Received a GossipDigestAck2Message from {}", SafeArg.of("endpoint", from));
         }
         if (!Gossiper.instance.isEnabled())
         {

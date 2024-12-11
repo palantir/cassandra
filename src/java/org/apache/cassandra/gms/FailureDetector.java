@@ -35,6 +35,7 @@ import com.codahale.metrics.UniformSnapshot;
 import com.google.common.collect.ImmutableMap;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.metrics.FailureDetectorMetrics;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
@@ -68,7 +69,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (System.getProperty("cassandra.max_local_pause_in_ms") != null)
         {
             long pause = Long.parseLong(System.getProperty("cassandra.max_local_pause_in_ms"));
-            logger.warn("Overriding max local pause time to {} ms", pause);
+            logger.warn("Overriding max local pause time to {} ms", SafeArg.of("timeInMs", pause));
             return pause * 1000000L;
         }
         else
@@ -80,7 +81,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         if (System.getProperty("palantir_cassandra.bootstrap_safeguard_pause_in_ms") != null)
         {
             long pause = Long.parseLong(System.getProperty("palantir_cassandra.bootstrap_safeguard_pause_in_ms"));
-            logger.warn("Overriding max bootstrapping node pause time to {} ms", pause);
+            logger.warn("Overriding max bootstrapping node pause time to {} ms", SafeArg.of("timeInMs", pause));
             return pause * 1000000L;
         }
         else
@@ -113,7 +114,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         }
         else
         {
-            logger.info("Overriding FD INITIAL_VALUE to {}ms", newvalue);
+            logger.info("Overriding FD INITIAL_VALUE to {}ms", SafeArg.of("valueInMs", newvalue));
             return Integer.parseInt(newvalue);
         }
     }
@@ -258,7 +259,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         // it's worth being defensive here so minor bugs don't cause disproportionate
         // badness.  (See CASSANDRA-1463 for an example).
         if (epState == null)
-            logger.error("unknown endpoint {}", ep);
+            logger.error("unknown endpoint {}", SafeArg.of("endpoint", ep));
         return epState != null && epState.isAlive();
     }
 
@@ -286,7 +287,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         }
 
         if (logger.isTraceEnabled())
-            logger.trace("Average for {} is {}", ep, heartbeatWindow.mean());
+            logger.trace("Average for {} is {}", SafeArg.of("endpoint", ep), SafeArg.of("mean", heartbeatWindow.mean()));
     }
 
     private void safeguardBootstrapTimeout()
@@ -295,7 +296,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         {
             StorageService.instance.unsafeDisableNode();
             logger.error("Detected local pause longer than Gossiper failed bootstrap timeout (nanos) {}"
-                   + "whilst node was bootstrapping", MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS);
+                         + "whilst node was bootstrapping", SafeArg.of("timeout", MAX_BOOTSTRAPPING_NODE_PAUSE_IN_NANOS));
             StorageService.instance.recordNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR,
                                                             ImmutableMap.of("timeoutDuringBootstrap", "true"));
             throw new BootstrappingSafetyException("Bootstrap failed due to gossip timeout");
@@ -318,7 +319,9 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         }
         if (diff > MAX_LOCAL_PAUSE_IN_NANOS)
         {
-            logger.warn("Not marking nodes down due to local pause of {} > {}", diff, MAX_LOCAL_PAUSE_IN_NANOS);
+            logger.warn("Not marking nodes down due to local pause of {} > {}",
+                        SafeArg.of("localPause", diff),
+                        SafeArg.of("maxLocalPause", MAX_LOCAL_PAUSE_IN_NANOS));
             lastPause = now;
             return;
         }
@@ -329,12 +332,17 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         }
         double phi = hbWnd.phi(now);
         if (logger.isTraceEnabled())
-            logger.trace("PHI for {} : {}", ep, phi);
+            logger.trace("PHI for {} : {}", SafeArg.of("endpoint", ep), SafeArg.of("phi", phi));
 
         if (PHI_FACTOR * phi > getPhiConvictThreshold())
         {
             if (logger.isTraceEnabled())
-                logger.trace("Node {} phi {} > {}; intervals: {} mean: {}", new Object[]{ep, PHI_FACTOR * phi, getPhiConvictThreshold(), hbWnd, hbWnd.mean()});
+                logger.trace("Node {} phi {} > {}; intervals: {} mean: {}",
+                             SafeArg.of("endpoint", ep),
+                             SafeArg.of("adjustedPhi", PHI_FACTOR * phi),
+                             SafeArg.of("phiConvictThreshold", getPhiConvictThreshold()),
+                             SafeArg.of("intervals", hbWnd),
+                             SafeArg.of("mean", hbWnd.mean()));
             for (IFailureDetectionEventListener listener : fdEvntListeners)
             {
                 listener.convict(ep, phi);
@@ -342,18 +350,19 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
         }
         else if (logger.isDebugEnabled() && (PHI_FACTOR * phi * DEBUG_PERCENTAGE / 100.0 > getPhiConvictThreshold()))
         {
-            logger.debug("PHI for {} : {}", ep, phi);
+            logger.debug("PHI for {} : {}", SafeArg.of("endpoint", ep), SafeArg.of("phi", phi));
         }
         else if (logger.isTraceEnabled())
         {
-            logger.trace("PHI for {} : {}", ep, phi);
-            logger.trace("mean for {} : {}", ep, hbWnd.mean());
+            logger.trace("PHI for {} : {}", SafeArg.of("endpoint", ep), SafeArg.of("phi", phi));
+            logger.trace("mean for {} : {}", SafeArg.of("endpoint", ep), SafeArg.of("mean", hbWnd.mean()));
         }
     }
 
     public void forceConviction(InetAddress ep)
     {
-        logger.debug("Forcing conviction of {}", ep);
+        if (logger.isDebugEnabled())
+            logger.debug("Forcing conviction of {}", SafeArg.of("endpoint", ep));
         for (IFailureDetectionEventListener listener : fdEvntListeners)
         {
             listener.convict(ep, getPhiConvictThreshold());
@@ -474,7 +483,7 @@ class ArrivalWindow
         }
         else
         {
-            logger.info("Overriding FD MAX_INTERVAL to {}ms", newvalue);
+            logger.info("Overriding FD MAX_INTERVAL to {}ms", SafeArg.of("valueInMs", newvalue));
             return TimeUnit.NANOSECONDS.convert(Integer.parseInt(newvalue), TimeUnit.MILLISECONDS);
         }
     }
@@ -488,11 +497,13 @@ class ArrivalWindow
             if (interArrivalTime <= MAX_INTERVAL_IN_NANO)
             {
                 arrivalIntervals.add(interArrivalTime);
-                logger.trace("Reporting interval time of {} for {}", interArrivalTime, ep);
+                if (logger.isTraceEnabled())
+                    logger.trace("Reporting interval time of {} for {}", SafeArg.of("interval", interArrivalTime), SafeArg.of("endpoint", ep));
             }
             else
             {
-                logger.debug("Ignoring interval time of {} for {}", interArrivalTime, ep);
+                if (logger.isDebugEnabled())
+                    logger.debug("Ignoring interval time of {} for {}", SafeArg.of("interval", interArrivalTime), SafeArg.of("endpoint", ep));
             }
         }
         else
