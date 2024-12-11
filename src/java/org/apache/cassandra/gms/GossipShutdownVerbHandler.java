@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.gms;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 
@@ -31,7 +32,8 @@ public class GossipShutdownVerbHandler implements IVerbHandler
     {
         if (!Gossiper.instance.isEnabled())
         {
-            logger.debug("Ignoring shutdown message from {} because gossip is disabled", message.from);
+            if (logger.isDebugEnabled())
+                logger.debug("Ignoring shutdown message from {} because gossip is disabled", SafeArg.of("endpoint", message.from));
             return;
         }
         Gossiper.instance.markAsShutdown(message.from);
