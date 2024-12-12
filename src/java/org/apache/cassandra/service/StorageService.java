@@ -42,6 +42,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import com.palantir.cassandra.utils.SchemaAgreementCheck;
 import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.schema.LegacySchemaTables;
@@ -933,11 +934,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
             if (!noPreviousDataFound)
             {
-                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR,
-                                        ImmutableMap.of("previousDataFound", "true"));
-                unsafeDisableNode();
-                // leave node in non-transient error state and prevent it from bootstrapping into the cluster
-                throw new BootstrappingSafetyException("Detected data from previous bootstrap, failing.");
+                recordBootstrapErrorAndThrow("previousDataFound");
             }
 
             if (SystemKeyspace.bootstrapInProgress())
@@ -950,21 +947,17 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
             // first sleep the delay to make sure we see all our peers
-            for (int i = 0; i < delay; i += 1000)
-            {
-                // if we see schema, we can proceed to the next check directly
-                if (!Schema.instance.getVersion().equals(Schema.emptyVersion))
-                {
-                    logger.debug("got schema: {}", Schema.instance.getVersion());
-                    break;
-                }
-                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-            }
+            Uninterruptibles.sleepUninterruptibly(delay, TimeUnit.MILLISECONDS);
+
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
-            while (!MigrationManager.isReadyForBootstrap())
+            SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+            while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement())
             {
                 setMode(Mode.JOINING, "waiting for schema information to complete", true);
+                logger.info(
+                    "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
+                    SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
@@ -1045,9 +1038,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             dataAvailable = bootstrap(bootstrapTokens);
             if (!dataAvailable)
             {
-                recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("streamingFailed", "true"));
-                unsafeDisableNode();
-                throw new BootstrappingSafetyException("Bootstrap streaming failed.");
+                recordBootstrapErrorAndThrow("streamingFailed");
             }
             logger.info("Bootstrap streaming complete. Waiting to finish bootstrap. Not becoming an active ring " +
                         "member. Use JMX (StorageService->finishBootstrap()) to finalize ring joining.");
@@ -1057,11 +1048,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 boolean timeoutExceeded = !finishBootstrapCondition.await(BOOTSTRAP_SAFETY_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
                 if (timeoutExceeded)
                 {
-                    recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of("bootstrapSafetyCheckFailed", "true"));
-                    unsafeDisableNode();
-                    String message = "Finish bootstrap was not called within 30 minutes. Bootstrap safety check failed.";
-                    logger.error(message);
-                    throw new BootstrappingSafetyException(message);
+                    logger.error("Finish bootstrap was not called within 30 minutes. Bootstrap safety check failed.");
+                    recordBootstrapErrorAndThrow("bootstrapSafetyCheckFailed");
                 }
             }
             catch (InterruptedException e)
@@ -1597,7 +1585,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
         bootstrapListeners.forEach(bootstrapper::addProgressListener);
+
+        final UUID initialLocalSchemaVersion = Schema.instance.getVersion();
+
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
+
+        if (!MigrationManager.isReadyForBootstrap() || !initialLocalSchemaVersion.equals(Schema.instance.getVersion()))
+        {
+            recordBootstrapErrorAndThrow("schemaChangeWhilePreparingStreams");
+        }
         try
         {
             bootstrapStream.get();
@@ -1706,6 +1702,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public Set<Map<String, String>> getNonTransientErrors() {
         return ImmutableSet.copyOf(nonTransientErrors);
+    }
+
+    private void recordBootstrapErrorAndThrow(@Safe String reason) throws BootstrappingSafetyException
+    {
+        recordNonTransientError(NonTransientError.BOOTSTRAP_ERROR, ImmutableMap.of(reason, "true"));
+        unsafeDisableNode();
+        throw new BootstrappingSafetyException(reason);
     }
 
     public void recordNonTransientError(NonTransientError nonTransientError, Map<String, String> attributes) {
