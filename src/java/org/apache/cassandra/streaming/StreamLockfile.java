@@ -30,6 +30,7 @@ import java.util.UUID;
 import com.google.common.base.Charsets;
 
 import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +110,7 @@ public class StreamLockfile
             catch (Exception e)
             {
                 JVMStabilityInspector.inspectThrowable(e);
-                logger.warn("failed to delete a potentially stale sstable {}", SafeArg.of("file", file));
+                logger.warn("failed to delete a potentially stale sstable {}", UnsafeArg.of("file", file));
             }
         }
     }
