@@ -100,7 +100,7 @@ public class SchemaAgreementCheckTest
     }
 
     @Test
-    public void checkSchemaAgreement_ignoresNullStatus()
+    public void checkSchemaAgreement_doesNotIgnoreNullStatus()
     {
         UUID schema1 = UUID.randomUUID();
         UUID schema2 = UUID.randomUUID();
@@ -115,7 +115,7 @@ public class SchemaAgreementCheckTest
                                                                              () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
                                                                                                    InetAddresses.forString("127.0.0.2"), state1,
                                                                                                    InetAddresses.forString("127.0.0.3"), state2).entrySet());
-        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isTrue();
+        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isFalse();
     }
 
     private static EndpointState createNormal(UUID schema)
