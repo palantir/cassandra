@@ -66,6 +66,6 @@ public class SchemaAgreementCheck
     private boolean schemaIsEqualToLocalVersion(UUID localSchemaVersion, EndpointState endpointState)
     {
         VersionedValue schema = endpointState.getApplicationState(ApplicationState.SCHEMA);
-        return schema != null && localSchemaVersion.toString().equals(schema.value);
+        return schema != null && localSchemaVersion.equals(UUID.fromString(schema.value));
     }
 }
