@@ -68,7 +68,7 @@ public class Coordinator implements ICoordinator
         return instance.async(() -> {
             try
             {
-                Tracing.instance.newSession(sessionId);
+                Tracing.instance.newSession(sessionId, Collections.EMPTY_MAP);
                 return executeInternal(query, consistencyLevelOrigin, boundValues);
             }
             finally

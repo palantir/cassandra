@@ -369,7 +369,7 @@ public class Instance extends IsolatedExecutor implements IInvokableInstance
                 {
                     byte[] traceTypeBytes = (byte[]) messageOut.parameters.get(Tracing.TRACE_TYPE);
                     Tracing.TraceType traceType = traceTypeBytes == null ? Tracing.TraceType.QUERY : Tracing.TraceType.deserialize(traceTypeBytes[0]);
-                    TraceState.mutateWithTracing(ByteBuffer.wrap(sessionBytes), traceMessage, -1, traceType.getTTL());
+                    Tracing.instance.trace(ByteBuffer.wrap(sessionBytes), traceMessage, traceType.getTTL());
                 }
                 else
                 {
