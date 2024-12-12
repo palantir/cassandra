@@ -60,8 +60,7 @@ public class SchemaAgreementCheck
 
     private boolean isLeft(EndpointState endpointState)
     {
-        VersionedValue status = endpointState.getApplicationState(ApplicationState.STATUS);
-        return status == null || status.value.startsWith(VersionedValue.STATUS_LEFT);
+        return VersionedValue.STATUS_LEFT.equals(endpointState.getStatus());
     }
 
     private boolean schemaIsEqualToLocalVersion(UUID localSchemaVersion, EndpointState endpointState)
