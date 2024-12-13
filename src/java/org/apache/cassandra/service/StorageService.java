@@ -1543,7 +1543,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @VisibleForTesting
     void setMode(Mode m, @Safe String msg, boolean log)
     {
-        if (operationMode == Mode.NON_TRANSIENT_ERROR && m != Mode.NON_TRANSIENT_ERROR) {
+        if (operationMode == Mode.NON_TRANSIENT_ERROR && m != Mode.NON_TRANSIENT_ERROR)
+        {
             logger.warn("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
         }
         operationMode = m;
@@ -1602,13 +1603,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, !replacing && useStrictConsistency); // handles token update
         try
         {
-            while (true) {
-                if (bootstrapStream.isDone()) {
+            while (true)
+            {
+                if (bootstrapStream.isDone())
+                {
                     bootstrapStream.get();
                     logger.info("Bootstrap streaming completed for tokens {}", tokens);
                     break;
                 }
-                if (hasNonTransientError(NonTransientError.BOOTSTRAP_ERROR)) {
+                if (hasNonTransientError(NonTransientError.BOOTSTRAP_ERROR))
+                {
                     logger.info("Stopped waiting for bootstrap streaming to complete because detected a bootstrap error.", SafeArg.of("nonTransientErrors", getNonTransientErrors()));
                     break;
                 }
