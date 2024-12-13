@@ -1544,11 +1544,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     void setMode(Mode m, @Safe String msg, boolean log)
     {
         if (operationMode == Mode.NON_TRANSIENT_ERROR && m != Mode.NON_TRANSIENT_ERROR) {
-            if (log)
-                logger.warn("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
-            else
-                logger.debug("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
-            return;
+            logger.warn("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
         }
         operationMode = m;
         if (log)
