@@ -88,7 +88,7 @@ public class StreamLockfile
         }
         catch (IOException e)
         {
-            logger.warn("Could not create lockfile {} for stream session, nothing to worry too much about", SafeArg.of("lockfile", lockfile.toString()), e);
+            logger.warn("Could not create lockfile {} for stream session, nothing to worry too much about", UnsafeArg.of("lockfile", lockfile.toString()), e);
         }
     }
 

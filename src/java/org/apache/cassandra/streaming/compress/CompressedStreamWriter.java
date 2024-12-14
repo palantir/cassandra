@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.io.compress.CompressionMetadata;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.ChannelProxy;
@@ -63,7 +64,7 @@ public class CompressedStreamWriter extends StreamWriter
         if (logger.isDebugEnabled())
             logger.debug("[Stream #{}] Start streaming file {} to {}, repairedAt = {}, totalSize = {}",
                          SafeArg.of("planId", session.planId()),
-                         SafeArg.of("file", sstable.getFilename()),
+                         UnsafeArg.of("file", sstable.getFilename()),
                          SafeArg.of("peer", session.peer),
                          SafeArg.of("repairedAt", sstable.getSSTableMetadata().repairedAt),
                          SafeArg.of("totalSize", totalSize));
@@ -105,7 +106,7 @@ public class CompressedStreamWriter extends StreamWriter
             if (logger.isDebugEnabled())
                 logger.debug("[Stream #{}] Finished streaming file {} to {}, bytesTransferred = {}, totalSize = {}",
                              SafeArg.of("planId", session.planId()),
-                             SafeArg.of("file", sstable.getFilename()),
+                             UnsafeArg.of("file", sstable.getFilename()),
                              SafeArg.of("peer", session.peer),
                              SafeArg.of("bytesTransferred", progress),
                              SafeArg.of("totalSize", totalSize));
