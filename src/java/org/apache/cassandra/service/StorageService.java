@@ -1616,9 +1616,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     logger.info("Stopped waiting for bootstrap streaming to complete because detected a bootstrap error.", SafeArg.of("nonTransientErrors", getNonTransientErrors()));
                     break;
                 }
-                bootstrapStream.cancel(true);
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             }
+            bootstrapStream.cancel(true);
             isBootstrapMode = false;
             return !StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
         }
