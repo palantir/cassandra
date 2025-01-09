@@ -1546,6 +1546,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (operationMode == Mode.NON_TRANSIENT_ERROR && m != Mode.NON_TRANSIENT_ERROR)
         {
             logger.warn("Attempted to change mode from NTE to non-NTE", SafeArg.of("attemptedSetMode", m), SafeArg.of("msg", msg));
+            return;
         }
         operationMode = m;
         if (log)
