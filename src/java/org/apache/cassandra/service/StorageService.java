@@ -1608,7 +1608,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             {
                 try {
                     bootstrapStream.get(5, MINUTES);
-                    logger.info("Bootstrap streaming completed for tokens {}", tokens);
+                    logger.info("Bootstrap streaming completed for tokens {}", SafeArg.of("tokens", tokens));
                     break;
                 }
                 catch (TimeoutException e) {
