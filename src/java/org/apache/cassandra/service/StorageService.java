@@ -1620,7 +1620,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                     }
                 }
             }
-            bootstrapStream.cancel(true);
             isBootstrapMode = false;
             return !StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.BOOTSTRAP_ERROR);
         }
