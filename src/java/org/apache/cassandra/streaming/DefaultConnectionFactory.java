@@ -24,6 +24,7 @@ import java.net.Socket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.OutboundTcpConnectionPool;
 
@@ -60,7 +61,10 @@ public class DefaultConnectionFactory implements StreamConnectionFactory
                     throw e;
 
                 long waitms = DatabaseDescriptor.getRpcTimeout() * (long)Math.pow(2, attempts);
-                logger.warn("Failed attempt {} to connect to {}. Retrying in {} ms. ({})", attempts, peer, waitms, e);
+                logger.warn("Failed attempt {} to connect to {}. Retrying in {} ms.",
+                            SafeArg.of("attempts", attempts),
+                            SafeArg.of("peer", peer),
+                            SafeArg.of("waitms", waitms), e);
                 try
                 {
                     Thread.sleep(waitms);

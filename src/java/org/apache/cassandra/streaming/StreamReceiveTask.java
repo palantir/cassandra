@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.concurrent.NamedThreadFactory;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -151,18 +152,26 @@ public class StreamReceiveTask extends StreamTask
                         {
                             int invalidatedKeys = cfs.invalidateRowCache(nonOverlappingBounds);
                             if (invalidatedKeys > 0)
-                                logger.debug("[Stream #{}] Invalidated {} row cache entries on table {}.{} after stream " +
-                                             "receive task completed.", task.session.planId(), invalidatedKeys,
-                                             cfs.keyspace.getName(), cfs.getColumnFamilyName());
+                                if (logger.isDebugEnabled())
+                                    logger.debug("[Stream #{}] Invalidated {} row cache entries on table {}.{} after stream " +
+                                                 "receive task completed.",
+                                                 SafeArg.of("planId", task.session.planId()),
+                                                 SafeArg.of("invalidatedKeys", invalidatedKeys),
+                                                 SafeArg.of("keyspace", cfs.keyspace.getName()),
+                                                 SafeArg.of("table", cfs.getColumnFamilyName()));
                         }
 
                         if (cfs.metadata.isCounter())
                         {
                             int invalidatedKeys = cfs.invalidateCounterCache(nonOverlappingBounds);
                             if (invalidatedKeys > 0)
-                                logger.debug("[Stream #{}] Invalidated {} counter cache entries on table {}.{} after stream " +
-                                             "receive task completed.", task.session.planId(), invalidatedKeys,
-                                             cfs.keyspace.getName(), cfs.getColumnFamilyName());
+                                if (logger.isDebugEnabled())
+                                    logger.debug("[Stream #{}] Invalidated {} counter cache entries on table {}.{} after stream " +
+                                                 "receive task completed.",
+                                                 SafeArg.of("planId", task.session.planId()),
+                                                 SafeArg.of("invalidatedKeys", invalidatedKeys),
+                                                 SafeArg.of("keyspace", cfs.keyspace.getName()),
+                                                 SafeArg.of("table", cfs.getColumnFamilyName()));
                         }
                     }
                 }
