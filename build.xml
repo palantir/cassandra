@@ -468,6 +468,7 @@
           	<exclusion groupId="log4j" artifactId="log4j"/>
           </dependency>
           <dependency groupId="joda-time" artifactId="joda-time" version="2.4" />
+          <dependency groupId="com.palantir.tracing" artifactId="tracing" version="6.20.0" />
 
         </dependencyManagement>
         <developer id="adelapena" name="Andres de la Peña"/>
