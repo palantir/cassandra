@@ -17,39 +17,67 @@
  */
 package org.apache.cassandra.net;
 
-import java.io.*;
-import java.net.*;
+import java.io.Closeable;
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOError;
+import java.io.IOException;
+import java.net.BindException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ServerSocketChannel;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import javax.net.ssl.SSLHandshakeException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
+import com.palantir.cassandra.tracing.PalantirTracing;
+import com.palantir.tracing.CloseableSpan;
+import com.palantir.tracing.DetachedSpan;
 import org.apache.cassandra.concurrent.ExecutorLocals;
+import org.apache.cassandra.concurrent.LocalAwareExecutorService;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
-import org.apache.cassandra.concurrent.LocalAwareExecutorService;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
-import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.ConsistencyLevel;
+import org.apache.cassandra.db.CounterMutation;
+import org.apache.cassandra.db.Mutation;
+import org.apache.cassandra.db.PagedRangeCommand;
+import org.apache.cassandra.db.RangeSliceCommand;
+import org.apache.cassandra.db.RangeSliceReply;
+import org.apache.cassandra.db.ReadCommand;
+import org.apache.cassandra.db.ReadResponse;
+import org.apache.cassandra.db.SnapshotCommand;
+import org.apache.cassandra.db.TruncateResponse;
+import org.apache.cassandra.db.Truncation;
+import org.apache.cassandra.db.WriteResponse;
 import org.apache.cassandra.dht.AbstractBounds;
 import org.apache.cassandra.dht.BootStrapper;
 import org.apache.cassandra.dht.IPartitioner;
@@ -66,12 +94,20 @@ import org.apache.cassandra.metrics.ConnectionMetrics;
 import org.apache.cassandra.metrics.DroppedMessageMetrics;
 import org.apache.cassandra.repair.messages.RepairMessage;
 import org.apache.cassandra.security.SSLFactory;
-import org.apache.cassandra.service.*;
+import org.apache.cassandra.service.AbstractWriteResponseHandler;
+import org.apache.cassandra.service.MigrationManager;
+import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.service.paxos.Commit;
 import org.apache.cassandra.service.paxos.PrepareResponse;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
-import org.apache.cassandra.utils.*;
+import org.apache.cassandra.utils.BooleanSerializer;
+import org.apache.cassandra.utils.ExpiringMap;
+import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.MBeanWrapper;
+import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.utils.StatusLogger;
+import org.apache.cassandra.utils.UUIDSerializer;
 import org.apache.cassandra.utils.concurrent.SimpleCondition;
 
 public final class MessagingService implements MessagingServiceMBean
@@ -321,8 +357,8 @@ public final class MessagingService implements MessagingServiceMBean
             this.droppedInternalTimeout = new AtomicInteger(0);
             this.droppedCrossNodeTimeout = new AtomicInteger(0);
         }
-
     }
+
     // total dropped message counts for server lifetime
     private final Map<Verb, DroppedMessages> droppedMessagesMap = new EnumMap<>(Verb.class);
 
@@ -393,10 +429,12 @@ public final class MessagingService implements MessagingServiceMBean
                 getConnectionPool(expiredCallbackInfo.target).incrementTimeout();
                 if (expiredCallbackInfo.isFailureCallback())
                 {
-                    StageManager.getStage(Stage.INTERNAL_RESPONSE).submit(new Runnable() {
+                    StageManager.getStage(Stage.INTERNAL_RESPONSE).submit(new Runnable()
+                    {
                         @Override
-                        public void run() {
-                            ((IAsyncCallbackWithFailure)expiredCallbackInfo.callback).onFailure(expiredCallbackInfo.target);
+                        public void run()
+                        {
+                            ((IAsyncCallbackWithFailure) expiredCallbackInfo.callback).onFailure(expiredCallbackInfo.target);
                         }
                     });
                 }
@@ -516,7 +554,7 @@ public final class MessagingService implements MessagingServiceMBean
             InetSocketAddress address = new InetSocketAddress(localEp, DatabaseDescriptor.getStoragePort());
             try
             {
-                socket.bind(address,500);
+                socket.bind(address, 500);
             }
             catch (BindException e)
             {
@@ -536,7 +574,7 @@ public final class MessagingService implements MessagingServiceMBean
             }
             String nic = FBUtilities.getNetworkInterface(localEp);
             logger.info("Starting Messaging Service on {}:{}{}", localEp, DatabaseDescriptor.getStoragePort(),
-                        nic == null? "" : String.format(" (%s)", nic));
+                        nic == null ? "" : String.format(" (%s)", nic));
             ss.add(socket);
         }
         return ss;
@@ -641,7 +679,7 @@ public final class MessagingService implements MessagingServiceMBean
                                                                     callbackDeserializers.get(message.verb),
                                                                     consistencyLevel,
                                                                     allowHints),
-                                                                    timeout);
+                                              timeout);
         assert previous == null : String.format("Callback already exists for id %d! (%s)", messageId, previous);
         return messageId;
     }
@@ -770,7 +808,8 @@ public final class MessagingService implements MessagingServiceMBean
         try
         {
             clearMessageSinks();
-            for (SocketThread th : socketThreads) {
+            for (SocketThread th : socketThreads)
+            {
                 try
                 {
                     // Close incoming connections
@@ -796,6 +835,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
     {
+        DetachedSpan span = PalantirTracing.initializeFromIncomingRpcServerIncoming(message);
         TraceState state = Tracing.instance.initializeFromMessage(message);
         if (state != null)
             state.trace("{} message received from {}", message.verb, message.from);
@@ -805,7 +845,12 @@ public final class MessagingService implements MessagingServiceMBean
             if (!ms.allowIncomingMessage(message, id))
                 return;
 
-        Runnable runnable = new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp);
+        Runnable runnable = () -> {
+            try (CloseableSpan ignored = span.attach())
+            {
+                new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp).run();
+            }
+        };
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());
         assert stage != null : "No stage for message type " + message.verb;
 
@@ -880,7 +925,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     private void refreshAllNodesAtLeast22()
     {
-        for (Integer version: versions.values())
+        for (Integer version : versions.values())
         {
             if (version < VERSION_22)
             {
@@ -1033,8 +1078,8 @@ public final class MessagingService implements MessagingServiceMBean
                     socket.setSoTimeout(0);
 
                     Thread thread = isStream
-                                  ? new IncomingStreamingConnection(version, socket, connections)
-                                  : new IncomingTcpConnection(version, MessagingService.getBits(header, 2, 1) == 1, socket, connections);
+                                    ? new IncomingStreamingConnection(version, socket, connections)
+                                    : new IncomingTcpConnection(version, MessagingService.getBits(header, 2, 1) == 1, socket, connections);
                     thread.start();
                     connections.add((Closeable) thread);
                     logger.trace("Successfully accepted incoming connection from {}", remote);
@@ -1195,7 +1240,7 @@ public final class MessagingService implements MessagingServiceMBean
     public Map<String, Long> getTimeoutsPerHost()
     {
         Map<String, Long> result = new HashMap<String, Long>(connectionManagers.size());
-        for (Map.Entry<InetAddress, OutboundTcpConnectionPool> entry: connectionManagers.entrySet())
+        for (Map.Entry<InetAddress, OutboundTcpConnectionPool> entry : connectionManagers.entrySet())
         {
             String ip = entry.getKey().getHostAddress();
             long recent = entry.getValue().getTimeouts();
