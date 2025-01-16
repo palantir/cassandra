@@ -823,7 +823,7 @@ public final class MessagingService implements MessagingServiceMBean
             }
             finally
             {
-                PalantirTracing.closeServerSpan(message);
+                PalantirTracing.closeServerSpanInterNode(message);
             }
         };
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());

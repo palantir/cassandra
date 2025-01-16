@@ -34,6 +34,8 @@ import com.palantir.tracing.Tracers;
 import com.palantir.tracing.api.SpanType;
 import com.palantir.tracing.api.TraceHttpHeaders;
 import org.apache.cassandra.net.MessageIn;
+import org.apache.cassandra.thrift.Tracing;
+import org.apache.thrift.annotation.Nullable;
 
 /**
  * Ported over from UndertowTracing.
@@ -55,14 +57,16 @@ public final class PalantirTracing
     {
     }
 
-    public static Map<String, byte[]> getTraceParametersForMessageOut() {
+    public static Map<String, byte[]> getTraceParametersForMessageOut()
+    {
         // For now just handle cases if we have a trace.
         // This is rather not completist, because if we don't have a trace,
         // we won't be able to map this thread to remote execution, but hey ho
         // we can always add this later.
 
         // Ported over from dialogue TraceEnrichingChannel
-        if (!Tracer.hasTraceId()) {
+        if (!Tracer.hasTraceId())
+        {
             return Collections.emptyMap();
         }
         Map<String, byte[]> traceParameters = new HashMap<>();
@@ -71,12 +75,14 @@ public final class PalantirTracing
         traceParameters.put(TraceHttpHeaders.TRACE_ID, metadata.getTraceId().getBytes(StandardCharsets.UTF_8));
         traceParameters.put(TraceHttpHeaders.SPAN_ID, metadata.getSpanId().getBytes(StandardCharsets.UTF_8));
         traceParameters.put(TraceHttpHeaders.IS_SAMPLED, (Tracer.isTraceObservable() ? "1" : "0").getBytes(StandardCharsets.UTF_8));
-        if (metadata.getParentSpanId().isPresent()) {
+        if (metadata.getParentSpanId().isPresent())
+        {
             traceParameters.put(
             TraceHttpHeaders.PARENT_SPAN_ID, metadata.getParentSpanId().get().getBytes(StandardCharsets.UTF_8));
         }
 
-        if (metadata.getOriginatingSpanId().isPresent()) {
+        if (metadata.getOriginatingSpanId().isPresent())
+        {
             traceParameters.put(TraceHttpHeaders.ORIGINATING_SPAN_ID, metadata.getOriginatingSpanId().get().getBytes(StandardCharsets.UTF_8));
         }
         return traceParameters;
@@ -100,9 +106,33 @@ public final class PalantirTracing
         }
     }
 
-    public static void closeServerSpan(MessageIn message)
+    public static void closeServerSpanInterNode(MessageIn message)
     {
         Tracer.fastCompleteSpan(MESSAGE_IN_TAG_TRANSLATOR, message);
+    }
+
+    public static void initializeTracerFromIncomingThriftMessage(String thriftOperation, @Nullable Tracing tracing)
+    {
+        // EVERYTHING CAN BE NULL!
+        String maybeTraceId = (tracing == null) ? null : (tracing.isSetTrace_id() ? tracing.trace_id : null);
+        boolean newTraceId = maybeTraceId == null;
+        String traceId = newTraceId ? Tracers.randomId() : maybeTraceId;
+        Optional<String> parentTraceId = Optional.ofNullable(tracing).filter(Tracing::isSetSpan_id).map(Tracing::getSpan_id);
+
+        // This is so dumb
+        if (!parentTraceId.isPresent())
+        {
+            Tracer.initTraceWithSpan(getObservabilityFromTracing(tracing), traceId, DEFAULT_OPERATION_NAME, SpanType.SERVER_INCOMING);
+        }
+        else
+        {
+            Tracer.initTraceWithSpan(getObservabilityFromTracing(tracing), traceId, DEFAULT_OPERATION_NAME, parentTraceId.get(), SpanType.SERVER_INCOMING);
+        }
+    }
+
+    public static void closeServerSpanThrift()
+    {
+        Tracer.fastCompleteSpan();
     }
 
     /**
@@ -119,6 +149,18 @@ public final class PalantirTracing
         else
         {
             return "1".equals(header) ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE;
+        }
+    }
+
+    private static Observability getObservabilityFromTracing(@Nullable Tracing tracing)
+    {
+        if (tracing == null || !tracing.isSetIs_sampled())
+        {
+            return Observability.UNDECIDED;
+        }
+        else
+        {
+            return tracing.isIs_sampled() ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE;
         }
     }
 
