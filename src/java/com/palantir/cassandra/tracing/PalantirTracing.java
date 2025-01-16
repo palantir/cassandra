@@ -77,7 +77,7 @@ public final class PalantirTracing
         }
 
         if (metadata.getOriginatingSpanId().isPresent()) {
-            traceParameters.put( TraceHttpHeaders.ORIGINATING_SPAN_ID, metadata.getOriginatingSpanId().get().getBytes(StandardCharsets.UTF_8));
+            traceParameters.put(TraceHttpHeaders.ORIGINATING_SPAN_ID, metadata.getOriginatingSpanId().get().getBytes(StandardCharsets.UTF_8));
         }
         return traceParameters;
     }

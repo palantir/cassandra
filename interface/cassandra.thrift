@@ -581,6 +581,14 @@ struct ColumnSlice {
     2: optional binary finish
 }
 
+struct Tracing {
+    1: optional string trace_id,
+    2: optional string parent_span_id,
+    3: optional string span_id,
+    4: optional bool is_sampled,
+    5: optional string originating_span_id
+}
+
 /**
  * Used to perform multiple slices on a single row key in one rpc operation
  * @param key. The row key to be multi sliced
@@ -752,7 +760,8 @@ service Cassandra {
                 3:list<Column> expected,
                 4:list<Column> updates,
                 5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
-                6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+                6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM,
+                7:optional Tracing tracing)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -770,7 +779,8 @@ service Cassandra {
                               2:required string column_family,
                               3:list<Column> updates,
                               4:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
-                              5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+                              5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM,
+                              6:optional Tracing tracing)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**

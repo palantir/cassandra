@@ -182,8 +182,9 @@ public class Cassandra {
      * @param updates
      * @param serial_consistency_level
      * @param commit_consistency_level
+     * @param tracing
      */
-    public CASResult cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public CASResult cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * Atomic put unless exists.
@@ -201,8 +202,9 @@ public class Cassandra {
      * @param updates
      * @param serial_consistency_level
      * @param commit_consistency_level
+     * @param tracing
      */
-    public CASResult put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public CASResult put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * Remove data from the row specified by key at the granularity specified by column_path, and the given timestamp. Note
@@ -496,9 +498,9 @@ public class Cassandra {
 
     public void add(java.nio.ByteBuffer key, ColumnParent column_parent, CounterColumn column, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<Void> resultHandler) throws org.apache.thrift.TException;
 
-    public void cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException;
+    public void cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException;
 
-    public void put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException;
+    public void put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException;
 
     public void remove(java.nio.ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<Void> resultHandler) throws org.apache.thrift.TException;
 
@@ -1033,13 +1035,13 @@ public class Cassandra {
     }
 
     @Override
-    public CASResult cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public CASResult cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
-      send_cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level);
+      send_cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level, tracing);
       return recv_cas();
     }
 
-    public void send_cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws org.apache.thrift.TException
+    public void send_cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing) throws org.apache.thrift.TException
     {
       cas_args args = new cas_args();
       args.setKey(key);
@@ -1048,6 +1050,7 @@ public class Cassandra {
       args.setUpdates(updates);
       args.setSerial_consistency_level(serial_consistency_level);
       args.setCommit_consistency_level(commit_consistency_level);
+      args.setTracing(tracing);
       sendBase("cas", args);
     }
 
@@ -1071,13 +1074,13 @@ public class Cassandra {
     }
 
     @Override
-    public CASResult put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public CASResult put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
-      send_put_unless_exists(key, column_family, updates, serial_consistency_level, commit_consistency_level);
+      send_put_unless_exists(key, column_family, updates, serial_consistency_level, commit_consistency_level, tracing);
       return recv_put_unless_exists();
     }
 
-    public void send_put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level) throws org.apache.thrift.TException
+    public void send_put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing) throws org.apache.thrift.TException
     {
       put_unless_exists_args args = new put_unless_exists_args();
       args.setKey(key);
@@ -1085,6 +1088,7 @@ public class Cassandra {
       args.setUpdates(updates);
       args.setSerial_consistency_level(serial_consistency_level);
       args.setCommit_consistency_level(commit_consistency_level);
+      args.setTracing(tracing);
       sendBase("put_unless_exists", args);
     }
 
@@ -2639,9 +2643,9 @@ public class Cassandra {
     }
 
     @Override
-    public void cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException {
+    public void cas(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      cas_call method_call = new cas_call(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      cas_call method_call = new cas_call(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level, tracing, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -2653,7 +2657,8 @@ public class Cassandra {
       private java.util.List<Column> updates;
       private ConsistencyLevel serial_consistency_level;
       private ConsistencyLevel commit_consistency_level;
-      public cas_call(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private Tracing tracing;
+      public cas_call(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> expected, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.key = key;
         this.column_family = column_family;
@@ -2661,6 +2666,7 @@ public class Cassandra {
         this.updates = updates;
         this.serial_consistency_level = serial_consistency_level;
         this.commit_consistency_level = commit_consistency_level;
+        this.tracing = tracing;
       }
 
       @Override
@@ -2673,6 +2679,7 @@ public class Cassandra {
         args.setUpdates(updates);
         args.setSerial_consistency_level(serial_consistency_level);
         args.setCommit_consistency_level(commit_consistency_level);
+        args.setTracing(tracing);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -2689,9 +2696,9 @@ public class Cassandra {
     }
 
     @Override
-    public void put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException {
+    public void put_unless_exists(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      put_unless_exists_call method_call = new put_unless_exists_call(key, column_family, updates, serial_consistency_level, commit_consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      put_unless_exists_call method_call = new put_unless_exists_call(key, column_family, updates, serial_consistency_level, commit_consistency_level, tracing, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -2702,13 +2709,15 @@ public class Cassandra {
       private java.util.List<Column> updates;
       private ConsistencyLevel serial_consistency_level;
       private ConsistencyLevel commit_consistency_level;
-      public put_unless_exists_call(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private Tracing tracing;
+      public put_unless_exists_call(java.nio.ByteBuffer key, java.lang.String column_family, java.util.List<Column> updates, ConsistencyLevel serial_consistency_level, ConsistencyLevel commit_consistency_level, Tracing tracing, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.key = key;
         this.column_family = column_family;
         this.updates = updates;
         this.serial_consistency_level = serial_consistency_level;
         this.commit_consistency_level = commit_consistency_level;
+        this.tracing = tracing;
       }
 
       @Override
@@ -2720,6 +2729,7 @@ public class Cassandra {
         args.setUpdates(updates);
         args.setSerial_consistency_level(serial_consistency_level);
         args.setCommit_consistency_level(commit_consistency_level);
+        args.setTracing(tracing);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -4485,7 +4495,7 @@ public class Cassandra {
       public cas_result getResult(I iface, cas_args args) throws org.apache.thrift.TException {
         cas_result result = new cas_result();
         try {
-          result.success = iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level);
+          result.success = iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level, args.tracing);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -4521,7 +4531,7 @@ public class Cassandra {
       public put_unless_exists_result getResult(I iface, put_unless_exists_args args) throws org.apache.thrift.TException {
         put_unless_exists_result result = new put_unless_exists_result();
         try {
-          result.success = iface.put_unless_exists(args.key, args.column_family, args.updates, args.serial_consistency_level, args.commit_consistency_level);
+          result.success = iface.put_unless_exists(args.key, args.column_family, args.updates, args.serial_consistency_level, args.commit_consistency_level, args.tracing);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -6782,7 +6792,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, cas_args args, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException {
-        iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level,resultHandler);
+        iface.cas(args.key, args.column_family, args.expected, args.updates, args.serial_consistency_level, args.commit_consistency_level, args.tracing,resultHandler);
       }
     }
 
@@ -6861,7 +6871,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, put_unless_exists_args args, org.apache.thrift.async.AsyncMethodCallback<CASResult> resultHandler) throws org.apache.thrift.TException {
-        iface.put_unless_exists(args.key, args.column_family, args.updates, args.serial_consistency_level, args.commit_consistency_level,resultHandler);
+        iface.put_unless_exists(args.key, args.column_family, args.updates, args.serial_consistency_level, args.commit_consistency_level, args.tracing,resultHandler);
       }
     }
 
@@ -26799,6 +26809,7 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TField UPDATES_FIELD_DESC = new org.apache.thrift.protocol.TField("updates", org.apache.thrift.protocol.TType.LIST, (short)4);
     private static final org.apache.thrift.protocol.TField SERIAL_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("serial_consistency_level", org.apache.thrift.protocol.TType.I32, (short)5);
     private static final org.apache.thrift.protocol.TField COMMIT_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("commit_consistency_level", org.apache.thrift.protocol.TType.I32, (short)6);
+    private static final org.apache.thrift.protocol.TField TRACING_FIELD_DESC = new org.apache.thrift.protocol.TField("tracing", org.apache.thrift.protocol.TType.STRUCT, (short)7);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new cas_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new cas_argsTupleSchemeFactory();
@@ -26817,6 +26828,7 @@ public class Cassandra {
      * @see ConsistencyLevel
      */
     public @org.apache.thrift.annotation.Nullable ConsistencyLevel commit_consistency_level; // required
+    public @org.apache.thrift.annotation.Nullable Tracing tracing; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -26833,7 +26845,8 @@ public class Cassandra {
        * 
        * @see ConsistencyLevel
        */
-      COMMIT_CONSISTENCY_LEVEL((short)6, "commit_consistency_level");
+      COMMIT_CONSISTENCY_LEVEL((short)6, "commit_consistency_level"),
+      TRACING((short)7, "tracing");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -26861,6 +26874,8 @@ public class Cassandra {
             return SERIAL_CONSISTENCY_LEVEL;
           case 6: // COMMIT_CONSISTENCY_LEVEL
             return COMMIT_CONSISTENCY_LEVEL;
+          case 7: // TRACING
+            return TRACING;
           default:
             return null;
         }
@@ -26921,6 +26936,8 @@ public class Cassandra {
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
       tmpMap.put(_Fields.COMMIT_CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("commit_consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.TRACING, new org.apache.thrift.meta_data.FieldMetaData("tracing", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, Tracing.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(cas_args.class, metaDataMap);
     }
@@ -26938,7 +26955,8 @@ public class Cassandra {
       java.util.List<Column> expected,
       java.util.List<Column> updates,
       ConsistencyLevel serial_consistency_level,
-      ConsistencyLevel commit_consistency_level)
+      ConsistencyLevel commit_consistency_level,
+      Tracing tracing)
     {
       this();
       this.key = org.apache.thrift.TBaseHelper.copyBinary(key);
@@ -26947,6 +26965,7 @@ public class Cassandra {
       this.updates = updates;
       this.serial_consistency_level = serial_consistency_level;
       this.commit_consistency_level = commit_consistency_level;
+      this.tracing = tracing;
     }
 
     /**
@@ -26979,6 +26998,9 @@ public class Cassandra {
       if (other.isSetCommit_consistency_level()) {
         this.commit_consistency_level = other.commit_consistency_level;
       }
+      if (other.isSetTracing()) {
+        this.tracing = new Tracing(other.tracing);
+      }
     }
 
     @Override
@@ -26996,6 +27018,7 @@ public class Cassandra {
 
       this.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.QUORUM;
 
+      this.tracing = null;
     }
 
     public byte[] getKey() {
@@ -27205,6 +27228,31 @@ public class Cassandra {
       }
     }
 
+    @org.apache.thrift.annotation.Nullable
+    public Tracing getTracing() {
+      return this.tracing;
+    }
+
+    public cas_args setTracing(@org.apache.thrift.annotation.Nullable Tracing tracing) {
+      this.tracing = tracing;
+      return this;
+    }
+
+    public void unsetTracing() {
+      this.tracing = null;
+    }
+
+    /** Returns true if field tracing is set (has been assigned a value) and false otherwise */
+    public boolean isSetTracing() {
+      return this.tracing != null;
+    }
+
+    public void setTracingIsSet(boolean value) {
+      if (!value) {
+        this.tracing = null;
+      }
+    }
+
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -27260,6 +27308,14 @@ public class Cassandra {
         }
         break;
 
+      case TRACING:
+        if (value == null) {
+          unsetTracing();
+        } else {
+          setTracing((Tracing)value);
+        }
+        break;
+
       }
     }
 
@@ -27285,6 +27341,9 @@ public class Cassandra {
       case COMMIT_CONSISTENCY_LEVEL:
         return getCommit_consistency_level();
 
+      case TRACING:
+        return getTracing();
+
       }
       throw new java.lang.IllegalStateException();
     }
@@ -27309,6 +27368,8 @@ public class Cassandra {
         return isSetSerial_consistency_level();
       case COMMIT_CONSISTENCY_LEVEL:
         return isSetCommit_consistency_level();
+      case TRACING:
+        return isSetTracing();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -27380,6 +27441,15 @@ public class Cassandra {
           return false;
       }
 
+      boolean this_present_tracing = true && this.isSetTracing();
+      boolean that_present_tracing = true && that.isSetTracing();
+      if (this_present_tracing || that_present_tracing) {
+        if (!(this_present_tracing && that_present_tracing))
+          return false;
+        if (!this.tracing.equals(that.tracing))
+          return false;
+      }
+
       return true;
     }
 
@@ -27410,6 +27480,10 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetCommit_consistency_level()) ? 131071 : 524287);
       if (isSetCommit_consistency_level())
         hashCode = hashCode * 8191 + commit_consistency_level.getValue();
+
+      hashCode = hashCode * 8191 + ((isSetTracing()) ? 131071 : 524287);
+      if (isSetTracing())
+        hashCode = hashCode * 8191 + tracing.hashCode();
 
       return hashCode;
     }
@@ -27478,6 +27552,16 @@ public class Cassandra {
       }
       if (isSetCommit_consistency_level()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.commit_consistency_level, other.commit_consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = java.lang.Boolean.compare(isSetTracing(), other.isSetTracing());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTracing()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.tracing, other.tracing);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -27553,6 +27637,14 @@ public class Cassandra {
         sb.append(this.commit_consistency_level);
       }
       first = false;
+      if (!first) sb.append(", ");
+      sb.append("tracing:");
+      if (this.tracing == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.tracing);
+      }
+      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -27572,6 +27664,9 @@ public class Cassandra {
         throw new org.apache.thrift.protocol.TProtocolException("Required field 'commit_consistency_level' was not present! Struct: " + toString());
       }
       // check for sub-struct validity
+      if (tracing != null) {
+        tracing.validate();
+      }
     }
 
     private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
@@ -27680,6 +27775,15 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 7: // TRACING
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.tracing = new Tracing();
+                struct.tracing.read(iprot);
+                struct.setTracingIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -27740,6 +27844,11 @@ public class Cassandra {
           oprot.writeI32(struct.commit_consistency_level.getValue());
           oprot.writeFieldEnd();
         }
+        if (struct.tracing != null) {
+          oprot.writeFieldBegin(TRACING_FIELD_DESC);
+          struct.tracing.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -27769,7 +27878,10 @@ public class Cassandra {
         if (struct.isSetUpdates()) {
           optionals.set(1);
         }
-        oprot.writeBitSet(optionals, 2);
+        if (struct.isSetTracing()) {
+          optionals.set(2);
+        }
+        oprot.writeBitSet(optionals, 3);
         if (struct.isSetExpected()) {
           {
             oprot.writeI32(struct.expected.size());
@@ -27788,6 +27900,9 @@ public class Cassandra {
             }
           }
         }
+        if (struct.isSetTracing()) {
+          struct.tracing.write(oprot);
+        }
       }
 
       @Override
@@ -27801,7 +27916,7 @@ public class Cassandra {
         struct.setSerial_consistency_levelIsSet(true);
         struct.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setCommit_consistency_levelIsSet(true);
-        java.util.BitSet incoming = iprot.readBitSet(2);
+        java.util.BitSet incoming = iprot.readBitSet(3);
         if (incoming.get(0)) {
           {
             org.apache.thrift.protocol.TList _list344 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
@@ -27829,6 +27944,11 @@ public class Cassandra {
             }
           }
           struct.setUpdatesIsSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.tracing = new Tracing();
+          struct.tracing.read(iprot);
+          struct.setTracingIsSet(true);
         }
       }
     }
@@ -28551,6 +28671,7 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TField UPDATES_FIELD_DESC = new org.apache.thrift.protocol.TField("updates", org.apache.thrift.protocol.TType.LIST, (short)3);
     private static final org.apache.thrift.protocol.TField SERIAL_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("serial_consistency_level", org.apache.thrift.protocol.TType.I32, (short)4);
     private static final org.apache.thrift.protocol.TField COMMIT_CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("commit_consistency_level", org.apache.thrift.protocol.TType.I32, (short)5);
+    private static final org.apache.thrift.protocol.TField TRACING_FIELD_DESC = new org.apache.thrift.protocol.TField("tracing", org.apache.thrift.protocol.TType.STRUCT, (short)6);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new put_unless_exists_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new put_unless_exists_argsTupleSchemeFactory();
@@ -28568,6 +28689,7 @@ public class Cassandra {
      * @see ConsistencyLevel
      */
     public @org.apache.thrift.annotation.Nullable ConsistencyLevel commit_consistency_level; // required
+    public @org.apache.thrift.annotation.Nullable Tracing tracing; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -28583,7 +28705,8 @@ public class Cassandra {
        * 
        * @see ConsistencyLevel
        */
-      COMMIT_CONSISTENCY_LEVEL((short)5, "commit_consistency_level");
+      COMMIT_CONSISTENCY_LEVEL((short)5, "commit_consistency_level"),
+      TRACING((short)6, "tracing");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -28609,6 +28732,8 @@ public class Cassandra {
             return SERIAL_CONSISTENCY_LEVEL;
           case 5: // COMMIT_CONSISTENCY_LEVEL
             return COMMIT_CONSISTENCY_LEVEL;
+          case 6: // TRACING
+            return TRACING;
           default:
             return null;
         }
@@ -28666,6 +28791,8 @@ public class Cassandra {
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
       tmpMap.put(_Fields.COMMIT_CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("commit_consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.TRACING, new org.apache.thrift.meta_data.FieldMetaData("tracing", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, Tracing.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(put_unless_exists_args.class, metaDataMap);
     }
@@ -28682,7 +28809,8 @@ public class Cassandra {
       java.lang.String column_family,
       java.util.List<Column> updates,
       ConsistencyLevel serial_consistency_level,
-      ConsistencyLevel commit_consistency_level)
+      ConsistencyLevel commit_consistency_level,
+      Tracing tracing)
     {
       this();
       this.key = org.apache.thrift.TBaseHelper.copyBinary(key);
@@ -28690,6 +28818,7 @@ public class Cassandra {
       this.updates = updates;
       this.serial_consistency_level = serial_consistency_level;
       this.commit_consistency_level = commit_consistency_level;
+      this.tracing = tracing;
     }
 
     /**
@@ -28715,6 +28844,9 @@ public class Cassandra {
       if (other.isSetCommit_consistency_level()) {
         this.commit_consistency_level = other.commit_consistency_level;
       }
+      if (other.isSetTracing()) {
+        this.tracing = new Tracing(other.tracing);
+      }
     }
 
     @Override
@@ -28731,6 +28863,7 @@ public class Cassandra {
 
       this.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.QUORUM;
 
+      this.tracing = null;
     }
 
     public byte[] getKey() {
@@ -28899,6 +29032,31 @@ public class Cassandra {
       }
     }
 
+    @org.apache.thrift.annotation.Nullable
+    public Tracing getTracing() {
+      return this.tracing;
+    }
+
+    public put_unless_exists_args setTracing(@org.apache.thrift.annotation.Nullable Tracing tracing) {
+      this.tracing = tracing;
+      return this;
+    }
+
+    public void unsetTracing() {
+      this.tracing = null;
+    }
+
+    /** Returns true if field tracing is set (has been assigned a value) and false otherwise */
+    public boolean isSetTracing() {
+      return this.tracing != null;
+    }
+
+    public void setTracingIsSet(boolean value) {
+      if (!value) {
+        this.tracing = null;
+      }
+    }
+
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -28946,6 +29104,14 @@ public class Cassandra {
         }
         break;
 
+      case TRACING:
+        if (value == null) {
+          unsetTracing();
+        } else {
+          setTracing((Tracing)value);
+        }
+        break;
+
       }
     }
 
@@ -28967,6 +29133,9 @@ public class Cassandra {
 
       case COMMIT_CONSISTENCY_LEVEL:
         return getCommit_consistency_level();
+
+      case TRACING:
+        return getTracing();
 
       }
       throw new java.lang.IllegalStateException();
@@ -28990,6 +29159,8 @@ public class Cassandra {
         return isSetSerial_consistency_level();
       case COMMIT_CONSISTENCY_LEVEL:
         return isSetCommit_consistency_level();
+      case TRACING:
+        return isSetTracing();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -29052,6 +29223,15 @@ public class Cassandra {
           return false;
       }
 
+      boolean this_present_tracing = true && this.isSetTracing();
+      boolean that_present_tracing = true && that.isSetTracing();
+      if (this_present_tracing || that_present_tracing) {
+        if (!(this_present_tracing && that_present_tracing))
+          return false;
+        if (!this.tracing.equals(that.tracing))
+          return false;
+      }
+
       return true;
     }
 
@@ -29078,6 +29258,10 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetCommit_consistency_level()) ? 131071 : 524287);
       if (isSetCommit_consistency_level())
         hashCode = hashCode * 8191 + commit_consistency_level.getValue();
+
+      hashCode = hashCode * 8191 + ((isSetTracing()) ? 131071 : 524287);
+      if (isSetTracing())
+        hashCode = hashCode * 8191 + tracing.hashCode();
 
       return hashCode;
     }
@@ -29136,6 +29320,16 @@ public class Cassandra {
       }
       if (isSetCommit_consistency_level()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.commit_consistency_level, other.commit_consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = java.lang.Boolean.compare(isSetTracing(), other.isSetTracing());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTracing()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.tracing, other.tracing);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -29203,6 +29397,14 @@ public class Cassandra {
         sb.append(this.commit_consistency_level);
       }
       first = false;
+      if (!first) sb.append(", ");
+      sb.append("tracing:");
+      if (this.tracing == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.tracing);
+      }
+      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -29222,6 +29424,9 @@ public class Cassandra {
         throw new org.apache.thrift.protocol.TProtocolException("Required field 'commit_consistency_level' was not present! Struct: " + toString());
       }
       // check for sub-struct validity
+      if (tracing != null) {
+        tracing.validate();
+      }
     }
 
     private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
@@ -29311,6 +29516,15 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 6: // TRACING
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.tracing = new Tracing();
+                struct.tracing.read(iprot);
+                struct.setTracingIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -29359,6 +29573,11 @@ public class Cassandra {
           oprot.writeI32(struct.commit_consistency_level.getValue());
           oprot.writeFieldEnd();
         }
+        if (struct.tracing != null) {
+          oprot.writeFieldBegin(TRACING_FIELD_DESC);
+          struct.tracing.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -29385,7 +29604,10 @@ public class Cassandra {
         if (struct.isSetUpdates()) {
           optionals.set(0);
         }
-        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetTracing()) {
+          optionals.set(1);
+        }
+        oprot.writeBitSet(optionals, 2);
         if (struct.isSetUpdates()) {
           {
             oprot.writeI32(struct.updates.size());
@@ -29394,6 +29616,9 @@ public class Cassandra {
               _iter354.write(oprot);
             }
           }
+        }
+        if (struct.isSetTracing()) {
+          struct.tracing.write(oprot);
         }
       }
 
@@ -29408,7 +29633,7 @@ public class Cassandra {
         struct.setSerial_consistency_levelIsSet(true);
         struct.commit_consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setCommit_consistency_levelIsSet(true);
-        java.util.BitSet incoming = iprot.readBitSet(1);
+        java.util.BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
             org.apache.thrift.protocol.TList _list355 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
@@ -29422,6 +29647,11 @@ public class Cassandra {
             }
           }
           struct.setUpdatesIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.tracing = new Tracing();
+          struct.tracing.read(iprot);
+          struct.setTracingIsSet(true);
         }
       }
     }
