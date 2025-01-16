@@ -954,6 +954,19 @@ public class CassandraServer implements Cassandra.Iface
                          List<Column> expected,
                          List<Column> updates,
                          ConsistencyLevel serial_consistency_level,
+                         ConsistencyLevel commit_consistency_level
+    )
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        return cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level);
+    }
+
+
+    public CASResult cas(ByteBuffer key,
+                         String column_family,
+                         List<Column> expected,
+                         List<Column> updates,
+                         ConsistencyLevel serial_consistency_level,
                          ConsistencyLevel commit_consistency_level,
                          org.apache.cassandra.thrift.Tracing tracing
                          )
