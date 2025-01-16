@@ -78,7 +78,7 @@ public class PutUnlessExistsTest
         }
 
         try {
-            return server.put_unless_exists(bbKey, CF_STANDARD, cols, ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE);
+            return server.put_unless_exists(bbKey, CF_STANDARD, cols, ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE, null);
         } catch (InvalidRequestException | UnavailableException | TimedOutException e) {
             throw new RuntimeException(e);
         }
