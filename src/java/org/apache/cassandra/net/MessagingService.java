@@ -46,6 +46,7 @@ import com.palantir.cassandra.tracing.PalantirTracing;
 import com.palantir.tracing.CloseableSpan;
 import com.palantir.tracing.DetachedSpan;
 import com.palantir.tracing.TagTranslator;
+import com.palantir.tracing.Tracer;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -808,7 +809,6 @@ public final class MessagingService implements MessagingServiceMBean
 
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
     {
-        DetachedSpan span = PalantirTracing.initializeFromIncomingRpcServerIncoming(message);
         TraceState state = Tracing.instance.initializeFromMessage(message);
         if (state != null)
             state.trace("{} message received from {}", message.verb, message.from);
@@ -819,13 +819,14 @@ public final class MessagingService implements MessagingServiceMBean
                 return;
 
         Runnable runnable = () -> {
-            try (CloseableSpan ignored = span.childSpan("MessageDeliveryTask", messageInTagTranslator, message))
+            PalantirTracing.initializeTracerFromIncomingRpcServerIncoming(message);
+            try
             {
                 new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp).run();
             }
             finally
             {
-                span.complete();
+                PalantirTracing.closeServerSpan(message);
             }
         };
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());

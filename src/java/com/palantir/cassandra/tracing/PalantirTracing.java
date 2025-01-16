@@ -23,8 +23,9 @@ import java.util.Optional;
 
 import com.google.common.base.Strings;
 
-import com.palantir.tracing.DetachedSpan;
 import com.palantir.tracing.Observability;
+import com.palantir.tracing.TagTranslator;
+import com.palantir.tracing.Tracer;
 import com.palantir.tracing.Tracers;
 import com.palantir.tracing.api.SpanType;
 import com.palantir.tracing.api.TraceHttpHeaders;
@@ -36,22 +37,40 @@ import org.apache.cassandra.net.MessageIn;
 public final class PalantirTracing
 {
     private static final String DEFAULT_OPERATION_NAME = "Messaging Service: receive";
+    private static final TagTranslator<MessageIn> MESSAGE_IN_TAG_TRANSLATOR = new TagTranslator<MessageIn>()
+    {
+
+        public <T> void translate(TagAdapter<T> tagAdapter, T t, MessageIn message)
+        {
+            tagAdapter.tag(t, "verb", message.verb.name());
+        }
+    };
 
     private PalantirTracing()
     {
     }
 
-    public static DetachedSpan initializeFromIncomingRpcServerIncoming(MessageIn message)
+    public static void initializeTracerFromIncomingRpcServerIncoming(MessageIn message)
     {
         byte[] maybeTraceId = (byte[]) message.parameters.get(TraceHttpHeaders.TRACE_ID);
         boolean newTraceId = maybeTraceId == null;
         String traceId = newTraceId ? Tracers.randomId() : new String(maybeTraceId, StandardCharsets.UTF_8);
-        return DetachedSpan.start(
-            getObservabilityFromHeader(message),
-            traceId,
-            newTraceId ? Optional.empty() : getSpanIdFromHeader(message),
-            DEFAULT_OPERATION_NAME,
-            SpanType.SERVER_INCOMING);
+        Optional<String> parentTraceId = getSpanIdFromHeader(message);
+
+        // This is so dumb
+        if (parentTraceId.isPresent())
+        {
+            Tracer.initTraceWithSpan(getObservabilityFromHeader(message), traceId, DEFAULT_OPERATION_NAME, SpanType.SERVER_INCOMING);
+        }
+        else
+        {
+            Tracer.initTraceWithSpan(getObservabilityFromHeader(message), traceId, DEFAULT_OPERATION_NAME, parentTraceId.get(), SpanType.SERVER_INCOMING);
+        }
+    }
+
+    public static void closeServerSpan(MessageIn message)
+    {
+        Tracer.fastCompleteSpan(MESSAGE_IN_TAG_TRANSLATOR, message);
     }
 
     /**
