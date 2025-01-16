@@ -859,6 +859,17 @@ public class CassandraServer implements Cassandra.Iface
     }
 
     public CASResult put_unless_exists(
+                        ByteBuffer key,
+                        String column_family,
+                        List<Column> updates,
+                        ConsistencyLevel serial_consistency_level,
+                        ConsistencyLevel commit_consistency_level)
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        return put_unless_exists(key, column_family, updates, serial_consistency_level, commit_consistency_level);
+    }
+
+    public CASResult put_unless_exists(
                          ByteBuffer key,
                          String column_family,
                          List<Column> updates,
@@ -948,6 +959,19 @@ public class CassandraServer implements Cassandra.Iface
             PalantirTracing.closeServerSpanThrift();
         }
     }
+
+    public CASResult cas(ByteBuffer key,
+                         String column_family,
+                         List<Column> expected,
+                         List<Column> updates,
+                         ConsistencyLevel serial_consistency_level,
+                         ConsistencyLevel commit_consistency_level
+    )
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        return cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level);
+    }
+
 
     public CASResult cas(ByteBuffer key,
                          String column_family,
