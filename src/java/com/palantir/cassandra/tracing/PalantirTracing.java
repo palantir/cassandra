@@ -19,12 +19,16 @@
 package com.palantir.cassandra.tracing;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import com.google.common.base.Strings;
 
 import com.palantir.tracing.Observability;
 import com.palantir.tracing.TagTranslator;
+import com.palantir.tracing.TraceMetadata;
 import com.palantir.tracing.Tracer;
 import com.palantir.tracing.Tracers;
 import com.palantir.tracing.api.SpanType;
@@ -43,11 +47,39 @@ public final class PalantirTracing
         public <T> void translate(TagAdapter<T> tagAdapter, T t, MessageIn message)
         {
             tagAdapter.tag(t, "verb", message.verb.name());
+            tagAdapter.tag(t, "stage", message.getMessageType().name());
         }
     };
 
     private PalantirTracing()
     {
+    }
+
+    public static Map<String, byte[]> getTraceParametersForMessageOut() {
+        // For now just handle cases if we have a trace.
+        // This is rather not completist, because if we don't have a trace,
+        // we won't be able to map this thread to remote execution, but hey ho
+        // we can always add this later.
+
+        // Ported over from dialogue TraceEnrichingChannel
+        if (Tracer.hasTraceId()) {
+            return Collections.emptyMap();
+        }
+        Map<String, byte[]> traceParameters = new HashMap<>();
+        TraceMetadata metadata = Tracer.maybeGetTraceMetadata().get();
+
+        traceParameters.put(TraceHttpHeaders.TRACE_ID, metadata.getTraceId().getBytes(StandardCharsets.UTF_8));
+        traceParameters.put(TraceHttpHeaders.SPAN_ID, metadata.getSpanId().getBytes(StandardCharsets.UTF_8));
+        traceParameters.put(TraceHttpHeaders.IS_SAMPLED, (Tracer.isTraceObservable() ? "1" : "0").getBytes(StandardCharsets.UTF_8));
+        if (metadata.getParentSpanId().isPresent()) {
+            traceParameters.put(
+            TraceHttpHeaders.PARENT_SPAN_ID, metadata.getParentSpanId().get().getBytes(StandardCharsets.UTF_8));
+        }
+
+        if (metadata.getOriginatingSpanId().isPresent()) {
+            traceParameters.put( TraceHttpHeaders.ORIGINATING_SPAN_ID, metadata.getOriginatingSpanId().get().getBytes(StandardCharsets.UTF_8));
+        }
+        return traceParameters;
     }
 
     public static void initializeTracerFromIncomingRpcServerIncoming(MessageIn message)
@@ -58,7 +90,7 @@ public final class PalantirTracing
         Optional<String> parentTraceId = getSpanIdFromHeader(message);
 
         // This is so dumb
-        if (parentTraceId.isPresent())
+        if (!parentTraceId.isPresent())
         {
             Tracer.initTraceWithSpan(getObservabilityFromHeader(message), traceId, DEFAULT_OPERATION_NAME, SpanType.SERVER_INCOMING);
         }

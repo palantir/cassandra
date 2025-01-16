@@ -26,6 +26,8 @@ import java.util.Map;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 
+import com.palantir.cassandra.tracing.PalantirTracing;
+import com.palantir.tracing.Tracer;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.TypeSizes;
@@ -60,10 +62,11 @@ public class MessageOut<T>
         this(verb,
              payload,
              serializer,
-             isTracing()
-                 ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
-                                   TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) })
-                 : Collections.<String, byte[]>emptyMap());
+//             isTracing()
+//             ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
+//                               TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) })
+//             : Collections.<String, byte[]>emptyMap()
+             PalantirTracing.getTraceParametersForMessageOut());
     }
 
     private MessageOut(MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, Map<String, byte[]> parameters)
