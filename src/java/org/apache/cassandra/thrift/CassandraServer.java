@@ -958,7 +958,7 @@ public class CassandraServer implements Cassandra.Iface
     )
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
-        return cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level);
+        return cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level, null);
     }
 
 
