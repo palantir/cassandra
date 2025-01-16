@@ -42,6 +42,10 @@ import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
+import com.palantir.cassandra.tracing.PalantirTracing;
+import com.palantir.tracing.CloseableSpan;
+import com.palantir.tracing.DetachedSpan;
+import com.palantir.tracing.TagTranslator;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -516,7 +520,7 @@ public final class MessagingService implements MessagingServiceMBean
             InetSocketAddress address = new InetSocketAddress(localEp, DatabaseDescriptor.getStoragePort());
             try
             {
-                socket.bind(address, 500);
+                socket.bind(address,500);
             }
             catch (BindException e)
             {
@@ -536,7 +540,7 @@ public final class MessagingService implements MessagingServiceMBean
             }
             String nic = FBUtilities.getNetworkInterface(localEp);
             logger.info("Starting Messaging Service on {}:{}{}", localEp, DatabaseDescriptor.getStoragePort(),
-                        nic == null ? "" : String.format(" (%s)", nic));
+                        nic == null? "" : String.format(" (%s)", nic));
             ss.add(socket);
         }
         return ss;
@@ -641,7 +645,7 @@ public final class MessagingService implements MessagingServiceMBean
                                                                     callbackDeserializers.get(message.verb),
                                                                     consistencyLevel,
                                                                     allowHints),
-                                              timeout);
+                                                                    timeout);
         assert previous == null : String.format("Callback already exists for id %d! (%s)", messageId, previous);
         return messageId;
     }
