@@ -62,7 +62,7 @@ public final class PalantirTracing
         // we can always add this later.
 
         // Ported over from dialogue TraceEnrichingChannel
-        if (Tracer.hasTraceId()) {
+        if (!Tracer.hasTraceId()) {
             return Collections.emptyMap();
         }
         Map<String, byte[]> traceParameters = new HashMap<>();
