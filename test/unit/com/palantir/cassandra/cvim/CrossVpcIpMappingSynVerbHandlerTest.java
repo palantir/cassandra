@@ -21,7 +21,10 @@ package com.palantir.cassandra.cvim;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -29,6 +32,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
 import org.assertj.core.api.Assertions;
+import org.mockito.exceptions.verification.WantedButNotInvoked;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -73,12 +77,26 @@ public class CrossVpcIpMappingSynVerbHandlerTest
     {
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.CROSS_VPC_IP_MAPPING_SYN, handler);
         MessagingService.instance().receive(messageIn, 0, 0, false);
-        // Potential race condition since MessageDeliveryTask is run in another executor
-        verify(handler, times(1)).doVerb(eq(messageIn), anyInt());
+        // Message delivery task is ran in another executor, we have to give it some time to do it's thing.
+        boolean verified = false;
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        while (stopwatch.elapsed(TimeUnit.SECONDS) < 3) {
+            try {
+                verify(handler, times(1)).doVerb(eq(messageIn), anyInt());
+                verified = true;
+                break;
+            } catch (WantedButNotInvoked e) {
+                // Verification failed, sleep for a short period before retrying
+                Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        Assertions.assertThat(verified).isTrue();
     }
 
     @Test
-    public void doVerb_invokesCrossVpcIpMappingHandshaker() throws UnknownHostException
+    public void doVerb_eventuallyInvokesCrossVpcIpMappingHandshaker() throws UnknownHostException
     {
         doReturn(targetName).when(handler).getBroadcastHostname();
         InetAddress input = InetAddress.getByName(sourceInternalIp.toString());
