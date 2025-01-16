@@ -59,6 +59,7 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import com.palantir.cassandra.tracing.PalantirTracing;
 import com.palantir.tracing.CloseableSpan;
 import com.palantir.tracing.DetachedSpan;
+import com.palantir.tracing.TagTranslator;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.LocalAwareExecutorService;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
@@ -833,6 +834,14 @@ public final class MessagingService implements MessagingServiceMBean
         }
     }
 
+    private static final TagTranslator<MessageIn<?>> messageInTagTranslator = new TagTranslator<MessageIn<?>>()
+    {
+        public <T> void translate(TagAdapter<T> tagAdapter, T t, MessageIn<?> messageIn)
+        {
+            tagAdapter.tag(t, "verb", messageIn.verb.name());
+        }
+    };
+
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
     {
         DetachedSpan span = PalantirTracing.initializeFromIncomingRpcServerIncoming(message);
@@ -846,9 +855,13 @@ public final class MessagingService implements MessagingServiceMBean
                 return;
 
         Runnable runnable = () -> {
-            try (CloseableSpan ignored = span.attach())
+            try (CloseableSpan ignored = span.childSpan("MessageDeliveryTask", messageInTagTranslator, message))
             {
                 new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp).run();
+            }
+            finally
+            {
+                span.complete();
             }
         };
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());

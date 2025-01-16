@@ -18,16 +18,71 @@
 
 package com.palantir.cassandra.tracing;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+
+import com.google.common.base.Strings;
+
 import com.palantir.tracing.DetachedSpan;
+import com.palantir.tracing.Observability;
+import com.palantir.tracing.Tracers;
+import com.palantir.tracing.api.SpanType;
+import com.palantir.tracing.api.TraceHttpHeaders;
 import org.apache.cassandra.net.MessageIn;
 
-public class PalantirTracing
+/**
+ * Ported over from UndertowTracing.
+ */
+public final class PalantirTracing
 {
+    private static final String DEFAULT_OPERATION_NAME = "Messaging Service: receive";
 
-    public static DetachedSpan initializeFromIncomingRpcServerIncoming(MessageIn message) {
-//        byte[] from = message.parameters.get(Mutation.FORWARD_FROM);
-//        byte[] traceId = message.parameters.get(TraceHttpHeaders.TRACE_ID);
-//        Strig traceId = newTraceId ? Tracers.randomId() : maybeTraceId;
-        return DetachedSpan.start("TestSpan");
+    private PalantirTracing()
+    {
+    }
+
+    public static DetachedSpan initializeFromIncomingRpcServerIncoming(MessageIn message)
+    {
+        byte[] maybeTraceId = (byte[]) message.parameters.get(TraceHttpHeaders.TRACE_ID);
+        boolean newTraceId = maybeTraceId == null;
+        String traceId = newTraceId ? Tracers.randomId() : new String(maybeTraceId, StandardCharsets.UTF_8);
+        return DetachedSpan.start(
+            getObservabilityFromHeader(message),
+            traceId,
+            newTraceId ? Optional.empty() : getSpanIdFromHeader(message),
+            DEFAULT_OPERATION_NAME,
+            SpanType.SERVER_INCOMING);
+    }
+
+    /**
+     * Force sample iff the context contains a "1" X-B3-Sampled header, force not sample if the header contains another
+     * non-empty value, or undecided if there is no such header or the header is empty.
+     */
+    private static Observability getObservabilityFromHeader(MessageIn message)
+    {
+        String header = getHeaderFromMessage(message, TraceHttpHeaders.IS_SAMPLED).orElse("");
+        if (Strings.isNullOrEmpty(header))
+        {
+            return Observability.UNDECIDED;
+        }
+        else
+        {
+            return "1".equals(header) ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE;
+        }
+    }
+
+    private static Optional<String> getSpanIdFromHeader(MessageIn message)
+    {
+        return getHeaderFromMessage(message, TraceHttpHeaders.SPAN_ID);
+    }
+
+    private static Optional<String> getHeaderFromMessage(MessageIn message, String headerName)
+    {
+        byte[] maybeHeaderValue = (byte[]) message.parameters.get(headerName);
+        if (maybeHeaderValue != null)
+        {
+            return Optional.of(new String(maybeHeaderValue, StandardCharsets.UTF_8));
+        }
+        return Optional.empty();
     }
 }

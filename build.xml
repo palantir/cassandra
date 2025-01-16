@@ -452,8 +452,8 @@
           <dependency groupId="io.netty" artifactId="netty-all" version="4.1.37.Final" />
           <dependency groupId="com.google.code.findbugs" artifactId="jsr305" version="2.0.2" />
           <dependency groupId="com.clearspring.analytics" artifactId="stream" version="2.5.2" />
-          <dependency groupId="com.palantir.tracing" artifactId="tracing" version="6.20.0" />
-          <dependency groupId="com.palantir.tracing" artifactId="tracing-api" version="6.20.0" />
+          <dependency groupId="com.palantir.tracing" artifactId="tracing" version="4.23.0" />
+          <dependency groupId="com.palantir.tracing" artifactId="tracing-api" version="4.23.0" />
           <dependency groupId="com.palantir.safe-logging" artifactId="preconditions" version="1.8.2" />
           <dependency groupId="com.palantir.safe-logging" artifactId="safe-logging" version="1.8.2" />
           <!-- TODO CASSANDRA-9543
@@ -468,6 +468,7 @@
           	<exclusion groupId="log4j" artifactId="log4j"/>
           </dependency>
           <dependency groupId="joda-time" artifactId="joda-time" version="2.4" />
+
         </dependencyManagement>
         <developer id="adelapena" name="Andres de la Peña"/>
         <developer id="alakshman" name="Avinash Lakshman"/>
