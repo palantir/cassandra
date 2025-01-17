@@ -28,6 +28,7 @@ import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.WriteType;
@@ -134,6 +135,11 @@ public abstract class AbstractReplicationStrategy
                                                                 Runnable callback,
                                                                 WriteType writeType)
     {
+        if (pendingEndpoints.isEmpty()) {
+            logger.info("Write response handler is aware of pending endpoints", SafeArg.of("pending", pendingEndpoints));
+        } else {
+            logger.info("Write response handler is not aware of pending endpoints");
+        }
         if (consistency_level.isDatacenterLocal())
         {
             // block for in this context will be localnodes block.

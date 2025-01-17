@@ -820,6 +820,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public void finishBootstrap();
 
+
+    public void allowPendingRangeCalculation();
+
     /**
      * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
      *

@@ -125,6 +125,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
+    public final Condition allowPendingRangeCalculation = new SimpleCondition(false);
 
     /**
      * @deprecated backward support to previous notification interface
@@ -1695,6 +1696,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         startBootstrapCondition.signalAll();
     }
 
+
+    @Override
+    public void allowPendingRangeCalculation()
+    {
+        allowPendingRangeCalculation.signalAll();
+    }
+
     @Override
     public void finishBootstrap()
     {
@@ -2375,6 +2383,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             tokenMetadata.removeEndpoint(endpoint);
         }
 
+        try {
+            StorageService.instance.allowPendingRangeCalculation.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         tokenMetadata.addBootstrapTokens(tokens, endpoint);
         PendingRangeCalculatorService.instance.update();
 
