@@ -885,6 +885,11 @@ public class TokenMetadata
                 if (logger.isDebugEnabled())
                     logger.debug("Starting pending range calculation for {}", keyspaceName);
 
+                try {
+                    StorageService.instance.allowPendingRangeCalculation.await();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 long startedAt = System.currentTimeMillis();
 
                 // create clone of current state
