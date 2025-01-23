@@ -43,7 +43,7 @@ public class ReadVerificationHandler implements OwnershipVerificationHandler
     {
         keyspace.metric.invalidReads.inc();
         logger.error(
-            "Executed InvalidRead! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+        "Received InvalidRead request! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
             SafeArg.of("address", FBUtilities.getBroadcastAddress()),
             UnsafeArg.of("key", Hex.bytesToHex(key.array())),
             SafeArg.of("keyspace", keyspace.getName()),
