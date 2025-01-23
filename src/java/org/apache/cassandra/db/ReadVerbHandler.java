@@ -43,6 +43,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
 
         ReadCommand command = message.payload;
         Keyspace keyspace = Keyspace.open(command.ksName);
+        OwnershipVerificationUtils.verifyRead(keyspace, command.key);
         Row row = command.getRow(keyspace);
 
         MessageOut<ReadResponse> reply = new MessageOut<ReadResponse>(MessagingService.Verb.REQUEST_RESPONSE,
@@ -50,8 +51,6 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
                                                                       ReadResponse.serializer);
         Tracing.trace("Enqueuing response to {}", message.from);
         MessagingService.instance().sendReply(reply, id, message.from);
-
-        OwnershipVerificationUtils.verifyRead(keyspace, command.key);
     }
 
     public static ReadResponse getResponse(ReadCommand command, Row row)
