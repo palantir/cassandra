@@ -21,6 +21,7 @@ package com.palantir.cassandra.utils;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.exceptions.InvalidReadException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
 import org.slf4j.Logger;
@@ -48,6 +49,7 @@ public class ReadVerificationHandler implements OwnershipVerificationHandler
             SafeArg.of("keyspace", keyspace.getName()),
             SafeArg.of("naturalEndpoints", naturalEndpoints),
             SafeArg.of("pendingEndpoints", pendingEndpoints));
+        throw new InvalidReadException();
     }
 
     @Override
