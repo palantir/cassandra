@@ -26,7 +26,7 @@ public class ReadRepairVerbHandler implements IVerbHandler<Mutation>
 {
     public void doVerb(MessageIn<Mutation> message, int id)
     {
-        OwnershipVerificationUtils.verifyMutation(message.payload);
+        OwnershipVerificationUtils.verifyMutation(message);
         message.payload.apply();
         WriteResponse response = new WriteResponse();
         MessagingService.instance().sendReply(response.createMessage(), id, message.from);

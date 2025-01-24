@@ -29,6 +29,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.db.TokenOwnershipSnapshot;
 import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
@@ -41,6 +42,7 @@ import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ReadFailureException;
 import org.apache.cassandra.exceptions.ReadTimeoutException;
 import org.apache.cassandra.exceptions.UnavailableException;
@@ -72,8 +74,9 @@ public abstract class AbstractReadExecutor
     protected final TraceState traceState;
     protected final ColumnFamilyStore cfs;
     protected final ConcurrentLinkedQueue<Long> latencies;
+    protected final Iterable<InetAddress> allOwners;
 
-    AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
+    AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs, Iterable<InetAddress> allOwners)
     {
         this.command = command;
         this.targetReplicas = targetReplicas;
@@ -82,6 +85,7 @@ public abstract class AbstractReadExecutor
         traceState = Tracing.instance.get();
         this.latencies = new ConcurrentLinkedQueue<>();
         handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
+        this.allOwners = allOwners;
     }
 
     @VisibleForTesting
@@ -116,7 +120,10 @@ public abstract class AbstractReadExecutor
                 traceState.trace("reading {} from {}", readCommand.isDigestQuery() ? "digest" : "data", endpoint);
             logger.trace("reading {} from {}", readCommand.isDigestQuery() ? "digest" : "data", endpoint);
             if (message == null)
+            {
                 message = readCommand.createMessage();
+                message.withParameter(MessagingService.TOKEN_OWNERS_PARAM, TokenOwnershipSnapshot.serialize(allOwners));
+            }
             // Handler adds remote requests latencies to list
             MessagingService.instance().sendRRWithFailure(message, endpoint, handler);
         }
@@ -191,6 +198,11 @@ public abstract class AbstractReadExecutor
         ReadRepairDecision repairDecision = Schema.instance.getCFMetaData(command.ksName, command.cfName).newReadRepairDecision();
         List<InetAddress> targetReplicas = consistencyLevel.filterForQuery(keyspace, allReplicas, repairDecision);
 
+        Token tk = StorageService.getPartitioner().getToken(command.key);
+        Collection<InetAddress> naturalEndpoints = keyspace.getReplicationStrategy().getNaturalEndpoints(tk);
+        Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, command.ksName);
+        Iterable<InetAddress> allOwners = Iterables.concat(naturalEndpoints, pendingEndpoints);
+
         // Throw UAE early if we don't have enough replicas.
         consistencyLevel.assureSufficientLiveNodes(keyspace, targetReplicas);
 
@@ -206,14 +218,14 @@ public abstract class AbstractReadExecutor
 
         // Speculative retry is disabled *OR* there are simply no extra replicas to speculate.
         if (retryType == RetryType.NONE || consistencyLevel.blockFor(keyspace) == allReplicas.size())
-            return new NeverSpeculatingReadExecutor(command, consistencyLevel, targetReplicas, cfs);
+            return new NeverSpeculatingReadExecutor(command, consistencyLevel, targetReplicas, cfs, allOwners);
 
         if (targetReplicas.size() == allReplicas.size())
         {
             // CL.ALL, RRD.GLOBAL or RRD.DC_LOCAL and a single-DC.
             // We are going to contact every node anyway, so ask for 2 full data requests instead of 1, for redundancy
             // (same amount of requests in total, but we turn 1 digest request into a full blown data request).
-            return new AlwaysSpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas);
+            return new AlwaysSpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas, allOwners);
         }
 
         // RRD.NONE or RRD.DC_LOCAL w/ multiple DCs.
@@ -234,9 +246,9 @@ public abstract class AbstractReadExecutor
         targetReplicas.add(extraReplica);
 
         if (retryType == RetryType.ALWAYS)
-            return new AlwaysSpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas);
+            return new AlwaysSpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas, allOwners);
         else // PERCENTILE or CUSTOM.
-            return new SpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas);
+            return new SpeculatingReadExecutor(cfs, command, consistencyLevel, targetReplicas, allOwners);
     }
 
     @VisibleForTesting
@@ -245,9 +257,13 @@ public abstract class AbstractReadExecutor
         protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
                 PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(NeverSpeculatingReadExecutor.class);
 
-        public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
+        public NeverSpeculatingReadExecutor(ReadCommand command,
+                                            ConsistencyLevel consistencyLevel,
+                                            List<InetAddress> targetReplicas,
+                                            ColumnFamilyStore cfs,
+                                            Iterable<InetAddress> allOwners)
         {
-            super(command, consistencyLevel, targetReplicas, cfs);
+            super(command, consistencyLevel, targetReplicas, cfs, allOwners);
         }
 
         public void executeAsync()
@@ -283,9 +299,10 @@ public abstract class AbstractReadExecutor
         public SpeculatingReadExecutor(ColumnFamilyStore cfs,
                                        ReadCommand command,
                                        ConsistencyLevel consistencyLevel,
-                                       List<InetAddress> targetReplicas)
+                                       List<InetAddress> targetReplicas,
+                                       Iterable<InetAddress> allOwners)
         {
-            super(command, consistencyLevel, targetReplicas, cfs);
+            super(command, consistencyLevel, targetReplicas, cfs, allOwners);
         }
 
         public void executeAsync()
@@ -358,9 +375,10 @@ public abstract class AbstractReadExecutor
         public AlwaysSpeculatingReadExecutor(ColumnFamilyStore cfs,
                                              ReadCommand command,
                                              ConsistencyLevel consistencyLevel,
-                                             List<InetAddress> targetReplicas)
+                                             List<InetAddress> targetReplicas,
+                                             Iterable<InetAddress> allOwners)
         {
-            super(command, consistencyLevel, targetReplicas, cfs);
+            super(command, consistencyLevel, targetReplicas, cfs, allOwners);
         }
 
         public void maybeTryAdditionalReplicas()

@@ -27,6 +27,8 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.InvalidMutationException;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.locator.TokenMetadata;
+import org.apache.cassandra.net.MessageIn;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -89,7 +91,8 @@ public class OwnershipVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("a");
         Mutation mutation = new Mutation(KEYSPACE5, key);
-        OwnershipVerificationUtils.verifyMutation(mutation);
+        MessageIn<Mutation> message = MessageIn.create(REMOTE, mutation, ImmutableMap.of(), MessagingService.Verb.MUTATION, MessagingService.current_version);
+        OwnershipVerificationUtils.verifyMutation(message);
     }
 
     @Test
@@ -97,7 +100,8 @@ public class OwnershipVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("b");
         Mutation mutation = new Mutation(KEYSPACE5, key);
-        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        MessageIn<Mutation> message = MessageIn.create(REMOTE, mutation, ImmutableMap.of(), MessagingService.Verb.MUTATION, MessagingService.current_version);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(message)).isInstanceOf(InvalidMutationException.class);
     }
 
     @Test
@@ -105,9 +109,10 @@ public class OwnershipVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("a");
         Mutation mutation = new Mutation(KEYSPACE5, key);
+        MessageIn<Mutation> message = MessageIn.create(REMOTE, mutation, ImmutableMap.of(), MessagingService.Verb.MUTATION, MessagingService.current_version);
 
         long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
-        OwnershipVerificationUtils.verifyMutation(mutation);
+        OwnershipVerificationUtils.verifyMutation(message);
         long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
         assertThat(initialRingVersion).isEqualTo(finalRingVersion);
     }
@@ -117,9 +122,10 @@ public class OwnershipVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("b");
         Mutation mutation = new Mutation(KEYSPACE5, key);
+        MessageIn<Mutation> message = MessageIn.create(REMOTE, mutation, ImmutableMap.of(), MessagingService.Verb.MUTATION, MessagingService.current_version);
 
         long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
-        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(message)).isInstanceOf(InvalidMutationException.class);
         long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
         assertThat(initialRingVersion).isNotEqualTo(finalRingVersion);
     }
