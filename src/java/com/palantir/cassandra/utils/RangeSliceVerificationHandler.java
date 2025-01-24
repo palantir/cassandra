@@ -18,35 +18,38 @@
 
 package com.palantir.cassandra.utils;
 
-import com.palantir.logsafe.SafeArg;
-import com.palantir.logsafe.UnsafeArg;
-import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.db.ReadCommand;
-import org.apache.cassandra.exceptions.InvalidReadException;
-import org.apache.cassandra.utils.FBUtilities;
-import org.apache.cassandra.utils.Hex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
-public class ReadVerificationHandler implements OwnershipVerificationHandler<ReadCommand>
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
+import org.apache.cassandra.db.AbstractRangeCommand;
+import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.RangeSliceCommand;
+import org.apache.cassandra.exceptions.InvalidReadException;
+import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.Hex;
+
+public class RangeSliceVerificationHandler implements OwnershipVerificationHandler<AbstractRangeCommand>
 {
     private static final Logger logger = LoggerFactory.getLogger(OwnershipVerificationUtils.class);
 
-    public static final OwnershipVerificationHandler<ReadCommand> INSTANCE = new ReadVerificationHandler();
+    public static final OwnershipVerificationHandler<AbstractRangeCommand> INSTANCE = new RangeSliceVerificationHandler();
 
     @Override
-    public void onViolation(ReadCommand payload, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
+    public void onViolation(AbstractRangeCommand command, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
-        keyspace.metric.invalidReads.inc();
+        keyspace.metric.invalidRangeSlice.inc();
         logger.error(
-        "Received InvalidRead request! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+        "Received Invalid RangeSlice request! This host {} does not contain range ({}, {}) in keyspace {}. Only hosts {} and {} do.",
             SafeArg.of("address", FBUtilities.getBroadcastAddress()),
-            UnsafeArg.of("key", Hex.bytesToHex(payload.key.array())),
+            UnsafeArg.of("left", command.keyRange.left),
+            UnsafeArg.of("right", command.keyRange.right),
             SafeArg.of("keyspace", keyspace.getName()),
             SafeArg.of("naturalEndpoints", naturalEndpoints),
             SafeArg.of("pendingEndpoints", pendingEndpoints));
@@ -56,6 +59,6 @@ public class ReadVerificationHandler implements OwnershipVerificationHandler<Rea
     @Override
     public void onValid(Keyspace keyspace)
     {
-        keyspace.metric.validReads.inc();
+        keyspace.metric.validRangeSlice.inc();
     }
 }

@@ -21,6 +21,7 @@ package com.palantir.cassandra.utils;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.exceptions.InvalidMutationException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
@@ -32,20 +33,20 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
-public class MutationVerificationHandler implements OwnershipVerificationHandler
+public class MutationVerificationHandler implements OwnershipVerificationHandler<Mutation>
 {
     private static final Logger logger = LoggerFactory.getLogger(OwnershipVerificationUtils.class);
 
-    public static final OwnershipVerificationHandler INSTANCE = new MutationVerificationHandler();
+    public static final OwnershipVerificationHandler<Mutation> INSTANCE = new MutationVerificationHandler();
 
     @Override
-    public void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
+    public void onViolation(Mutation mutation, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
         keyspace.metric.invalidMutations.inc();
         logger.error(
             "InvalidMutation! Cannot apply mutation as this host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
             SafeArg.of("address", FBUtilities.getBroadcastAddress()),
-            UnsafeArg.of("key", Hex.bytesToHex(key.array())),
+            UnsafeArg.of("key", Hex.bytesToHex(mutation.key().array())),
             SafeArg.of("keyspace", keyspace.getName()),
             SafeArg.of("naturalEndpoints", naturalEndpoints),
             SafeArg.of("pendingEndpoints", pendingEndpoints));

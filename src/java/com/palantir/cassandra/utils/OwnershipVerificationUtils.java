@@ -31,8 +31,10 @@ import org.slf4j.LoggerFactory;
 
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
+import org.apache.cassandra.db.AbstractRangeCommand;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Mutation;
+import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.service.StorageService;
@@ -43,6 +45,7 @@ public class OwnershipVerificationUtils
 {
     private static final boolean VERIFY_KEYS_ON_WRITE = Boolean.getBoolean("palantir_cassandra.verify_keys_on_write");
     private static final boolean VERIFY_KEYS_ON_READ = Boolean.getBoolean("palantir_cassandra.verify_keys_on_read");
+    private static final boolean VERIFY_KEYS_ON_RANGE_SLICE = Boolean.getBoolean("palantir_cassandra.verify_keys_on_range_slice");
     private static final Logger logger = LoggerFactory.getLogger(OwnershipVerificationUtils.class);
 
     private static volatile Instant lastTokenRingCacheUpdate = Instant.MIN;
@@ -51,13 +54,22 @@ public class OwnershipVerificationUtils
     {
     }
 
-    public static void verifyRead(Keyspace keyspace, ByteBuffer key)
+    public static void verifyRead(ReadCommand command)
     {
         if (!VERIFY_KEYS_ON_READ)
         {
             return;
         }
-        verifyOperation(keyspace, key, ReadVerificationHandler.INSTANCE);
+        verifyOperation(command, Keyspace.open(command.getKeyspace()), StorageService.getPartitioner().getToken(command.key), ReadVerificationHandler.INSTANCE);
+    }
+
+    public static void verifyRangeSlice(AbstractRangeCommand command)
+    {
+        if (!VERIFY_KEYS_ON_RANGE_SLICE)
+        {
+            return;
+        }
+        verifyOperation(command, Keyspace.open(command.keyspace), command.keyRange.right.getToken(), RangeSliceVerificationHandler.INSTANCE);
     }
 
     public static void verifyMutation(Mutation mutation)
@@ -66,10 +78,10 @@ public class OwnershipVerificationUtils
         {
             return;
         }
-        verifyOperation(Keyspace.open(mutation.getKeyspaceName()), mutation.key(), MutationVerificationHandler.INSTANCE);
+        verifyOperation(mutation, Keyspace.open(mutation.getKeyspaceName()), StorageService.getPartitioner().getToken(mutation.key()), MutationVerificationHandler.INSTANCE);
     }
 
-    private static void verifyOperation(Keyspace keyspace, ByteBuffer key, OwnershipVerificationHandler handler)
+    private static <T> void verifyOperation(T payload, Keyspace keyspace, Token tk, OwnershipVerificationHandler<T> handler)
     {
         if (!(keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy))
         {
@@ -77,7 +89,6 @@ public class OwnershipVerificationUtils
         }
 
         String keyspaceName = keyspace.getName();
-        Token tk = StorageService.getPartitioner().getToken(key);
         List<InetAddress> cachedNaturalEndpoints = StorageService.instance.getNaturalEndpoints(keyspaceName, tk);
         Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, keyspaceName);
 
@@ -85,7 +96,7 @@ public class OwnershipVerificationUtils
         {
             if (cacheWasRecentlyRefreshed())
             {
-                handler.onViolation(keyspace, key, cachedNaturalEndpoints, pendingEndpoints);
+                handler.onViolation(payload, keyspace, cachedNaturalEndpoints, pendingEndpoints);
                 return;
             }
 
@@ -95,14 +106,14 @@ public class OwnershipVerificationUtils
 
             if (operationIsInvalid(refreshedNaturalEndpoints, pendingEndpoints))
             {
-                handler.onViolation(keyspace, key, refreshedNaturalEndpoints, pendingEndpoints);
+                handler.onViolation(payload, keyspace, refreshedNaturalEndpoints, pendingEndpoints);
                 return;
             }
             else
             {
-                logger.warn("Ignoring InvalidOwnership error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}."
+                logger.warn("Ignoring InvalidOwnership error detected using stale token ring cache. Error was originally detected for key ? in keyspace {}."
                                 + " Cached owners {}. Actual owners {}. Pending owners (non-cached) {}.",
-                            UnsafeArg.of("key", Hex.bytesToHex(key.array())),
+                            // TODO: UnsafeArg.of("key", Hex.bytesToHex(key.array())),
                             SafeArg.of("keyspace", keyspaceName),
                             SafeArg.of("cachedNaturalEndpoints", cachedNaturalEndpoints),
                             SafeArg.of("refreshedNaturalEndpoints", refreshedNaturalEndpoints),

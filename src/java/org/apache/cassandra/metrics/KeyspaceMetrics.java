@@ -120,7 +120,11 @@ public class KeyspaceMetrics
     public final Counter invalidReads;
     /** Number of read requests which are valid */
     public final Counter validReads;
-    
+    /** Number of read requests which were not for a row this node owned */
+    public final Counter invalidRangeSlice;
+    /** Number of read requests which are valid */
+    public final Counter validRangeSlice;
+
     public final MetricNameFactory factory;
     private Keyspace keyspace;
     
@@ -279,6 +283,9 @@ public class KeyspaceMetrics
         validMutations = Metrics.counter(factory.createMetricName("ValidMutations"));
         invalidReads = Metrics.counter(factory.createMetricName("InvalidReads"));
         validReads = Metrics.counter(factory.createMetricName("ValidReads"));
+        invalidRangeSlice = Metrics.counter(factory.createMetricName("ValidRangeSlice"));
+        validRangeSlice = Metrics.counter(factory.createMetricName("InvalidRangeSlice"));
+
     }
 
     /**
