@@ -45,13 +45,13 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
         Keyspace keyspace = Keyspace.open(command.ksName);
         Row row = command.getRow(keyspace);
 
+        OwnershipVerificationUtils.verifyRead(keyspace, message);
+
         MessageOut<ReadResponse> reply = new MessageOut<ReadResponse>(MessagingService.Verb.REQUEST_RESPONSE,
                                                                       getResponse(command, row),
                                                                       ReadResponse.serializer);
         Tracing.trace("Enqueuing response to {}", message.from);
         MessagingService.instance().sendReply(reply, id, message.from);
-
-        OwnershipVerificationUtils.verifyRead(keyspace, command.key);
     }
 
     public static ReadResponse getResponse(ReadCommand command, Row row)

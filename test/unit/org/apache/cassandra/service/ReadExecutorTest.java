@@ -20,6 +20,7 @@ package org.apache.cassandra.service;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.SortedSet;
@@ -126,12 +127,12 @@ public class ReadExecutorTest {
     public static AbstractReadExecutor getTestNeverSpeculatingReadExecutor(String keyspace, String cf, List<InetAddress> replicas) {
         ColumnFamilyStore cfs = spy(MockSchema.newCFS());
         return spy(new AbstractReadExecutor.NeverSpeculatingReadExecutor(
-                                    getReadCommand(keyspace, cf), ConsistencyLevel.ANY, replicas, cfs));
+                                    getReadCommand(keyspace, cf), ConsistencyLevel.ANY, replicas, cfs, new ArrayList<>()));
     }
 
     public static AbstractReadExecutor getTestSpeculatingReadExecutor(String keyspace, String cf, List<InetAddress> replicas) {
         ColumnFamilyStore cfs = spy(MockSchema.newCFS());
-        return spy(new AbstractReadExecutor.SpeculatingReadExecutor(cfs, getReadCommand(keyspace, cf), ConsistencyLevel.ANY, replicas));
+        return spy(new AbstractReadExecutor.SpeculatingReadExecutor(cfs, getReadCommand(keyspace, cf), ConsistencyLevel.ANY, replicas, new ArrayList<>()));
     }
 
     public static ReadCommand getReadCommand(String keyspace, String cf) {

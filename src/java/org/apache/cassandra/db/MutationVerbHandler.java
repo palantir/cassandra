@@ -47,8 +47,7 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
                 replyTo = InetAddress.getByAddress(from);
             }
 
-            OwnershipVerificationUtils.verifyMutation(message.payload);
-
+            OwnershipVerificationUtils.verifyMutation(message);
             message.payload.apply();
             WriteResponse response = new WriteResponse();
             Tracing.trace("Enqueuing response to {}", replyTo);

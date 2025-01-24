@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
+import com.palantir.cassandra.db.TokenOwnershipSnapshot;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -945,7 +946,10 @@ public class StorageProxy implements StorageProxyMBean
                 {
                     // belongs on a different server
                     if (message == null)
+                    {
                         message = mutation.createMessage();
+                        message.withParameter(MessagingService.TOKEN_OWNERS_PARAM, TokenOwnershipSnapshot.serialize(targets));
+                    }
                     String dc = DatabaseDescriptor.getEndpointSnitch().getDatacenter(destination);
                     // direct writes to local DC or old Cassandra versions
                     // (1.1 knows how to forward old-style String message IDs; updated to int in 2.0)
