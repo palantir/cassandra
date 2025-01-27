@@ -3300,7 +3300,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
      */
     private void takeSnapshot(String tag, boolean ephemeral, String... keyspaceNames) throws IOException {
-        if (operationMode == Mode.JOINING)
+        if (isEffectivelyJoining())
             logger.warn("Taking snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
         if (tag == null || tag.equals(""))
             throw new IOException("You must supply a snapshot name.");
@@ -3362,7 +3362,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (keyspaceName == null)
             throw new IOException("You must supply a keyspace name");
-        if (operationMode == Mode.JOINING)
+        if (isEffectivelyJoining())
             logger.warn("Taking column family snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
 
         if (columnFamilyName == null)
@@ -3405,7 +3405,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
                 if (keyspaceName == null)
                     throw new IOException("You must supply a keyspace name");
-                if (operationMode.equals(Mode.JOINING))
+                if (isEffectivelyJoining())
                     logger.warn("Taking multiple column family snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
 
                 if (columnFamilyName == null)
@@ -4633,9 +4633,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return operationMode == Mode.STARTING;
     }
 
-    public boolean isJoiningOrWaitingToFinishBootstrap()
+    public boolean isEffectivelyJoining() {
+        return operationMode == Mode.JOINING || operationMode == Mode.WAITING_TO_REQUEST_STREAMS;
+    }
+
+    public boolean isEffectivelyJoiningOrWaitingToFinishBootstrap()
     {
-        return operationMode == Mode.JOINING || operationMode == Mode.WAITING_TO_FINISH_BOOTSTRAP;
+        return isEffectivelyJoining() || operationMode == Mode.WAITING_TO_FINISH_BOOTSTRAP;
     }
 
     public boolean inNonTransientErrorMode()
