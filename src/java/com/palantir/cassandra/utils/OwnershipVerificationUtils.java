@@ -54,13 +54,32 @@ public class OwnershipVerificationUtils
     {
     }
 
+    public static void verifyMutation(Mutation mutation)
+    {
+        if (!VERIFY_KEYS_ON_WRITE)
+        {
+            return;
+        }
+        verifyOperation(
+            mutation,
+            Keyspace.open(mutation.getKeyspaceName()),
+            StorageService.getPartitioner().getToken(mutation.key()),
+            Hex.bytesToHex(mutation.key().array()),
+            MutationVerificationHandler.INSTANCE);
+    }
+
     public static void verifyRead(ReadCommand command)
     {
         if (!VERIFY_KEYS_ON_READ)
         {
             return;
         }
-        verifyOperation(command, Keyspace.open(command.getKeyspace()), StorageService.getPartitioner().getToken(command.key), Hex.bytesToHex(command.key.array()), ReadVerificationHandler.INSTANCE);
+        verifyOperation(
+            command,
+            Keyspace.open(command.getKeyspace()),
+            StorageService.getPartitioner().getToken(command.key),
+            Hex.bytesToHex(command.key.array()),
+            ReadVerificationHandler.INSTANCE);
     }
 
     public static void verifyRangeSlice(AbstractRangeCommand command)
@@ -69,16 +88,12 @@ public class OwnershipVerificationUtils
         {
             return;
         }
-        verifyOperation(command, Keyspace.open(command.keyspace), command.keyRange.right.getToken(), command.keyRange.right.toString(), RangeSliceVerificationHandler.INSTANCE);
-    }
-
-    public static void verifyMutation(Mutation mutation)
-    {
-        if (!VERIFY_KEYS_ON_WRITE)
-        {
-            return;
-        }
-        verifyOperation(mutation, Keyspace.open(mutation.getKeyspaceName()), StorageService.getPartitioner().getToken(mutation.key()), Hex.bytesToHex(mutation.key().array()), MutationVerificationHandler.INSTANCE);
+        verifyOperation(
+            command,
+            Keyspace.open(command.keyspace),
+            command.keyRange.right.getToken(),
+            command.keyRange.right.toString(),
+            RangeSliceVerificationHandler.INSTANCE);
     }
 
     private static <T> void verifyOperation(T payload, Keyspace keyspace, Token tk, String keyToLog, OwnershipVerificationHandler<T> handler)
