@@ -45,7 +45,6 @@ import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import com.palantir.cassandra.utils.SchemaAgreementCheck;
 import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
-import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.schema.LegacySchemaTables;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -1120,7 +1119,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 logger.info("Startup complete, but write survey mode is active, not becoming an active ring member. Use JMX (StorageService->joinRing()) to finalize ring joining.");
             else
                 logger.warn("Some data streaming failed. Use nodetool to check bootstrap state and resume. For more, see `nodetool help bootstrap`. {}",
-                            SafeArg.of("", SystemKeyspace.getBootstrapState()));
+                            SafeArg.of("bootstrapState", SystemKeyspace.getBootstrapState()));
         }
     }
 
@@ -3807,7 +3806,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!inProgressCommand.isPresent()) {
             new Thread(createRepairTask(cmd, arguments, legacy)).start();
         } else {
-            logger.info("Combining new repair request with in-progress (identical) repair command #{}", UnsafeArg.of("command", cmd));
+            logger.info("Combining new repair request with in-progress (identical) repair command #{}", SafeArg.of("command", cmd));
         }
         return cmd;
     }
@@ -4488,7 +4487,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                         streamPlan.requestRanges(address, preferred, keyspace, workMap.get(address));
                     }
 
-                    // This log line seems unnecessary given the above loop...
                     logger.debug("Keyspace {}: work map {}.", SafeArg.of("keyspace", keyspace), SafeArg.of("workMap", workMap));
                 }
             }
