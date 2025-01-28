@@ -141,34 +141,18 @@ public class StorageServiceServerTest
     }
 
     @Test
-    public void testRegularMode() throws ConfigurationException
+    public void testRegularMode() throws ConfigurationException, UnknownHostException
     {
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
-        StorageService.instance.initServer(0);
+        StorageService instance = spy(StorageService.instance);
         for (String path : DatabaseDescriptor.getAllDataFileLocations())
         {
             // verify that storage directories are there.
             assertTrue(new File(path).exists());
         }
-        // a proper test would be to call decommission here, but decommission() mixes both shutdown and datatransfer
-        // calls.  This test is only interested in the shutdown-related items which a properly handled by just
-        // stopping the client.
-        //StorageService.instance.decommission();
-        StorageService.instance.stopClient();
-    }
-
-    @Test
-    public void testGossipStateAtGateToRequestStreams() throws ConfigurationException, UnknownHostException
-    {
-        SchemaLoader.mkdirs();
-        SchemaLoader.cleanup();
-        StorageService instance = spy(StorageService.instance);
         doReturn(true).when(instance).shouldBootstrap(anyBoolean());
         doNothing().when(instance).checkGossiperSeeds();
-        // due to some shared state in StorageService (probably from testRegularMode), flushing the local system table sometimes fails
-        // this part of the bootstrap is not important for what we want to test here anyway, so we just skip it
-        doNothing().when(instance).setBootstrapState(any());
 
         Thread thread = new Thread(() -> instance.initServer(0));
         thread.start();
@@ -185,9 +169,18 @@ public class StorageServiceServerTest
         EndpointState endpointState = Gossiper.instance.getEndpointStateForEndpoint(InetAddress.getLocalHost());
         assertThat(endpointState.getApplicationState(ApplicationState.TOKENS).value).isNotEmpty();
         assertThat(endpointState.getStatus()).isEqualTo(VersionedValue.STATUS_BOOTSTRAPPING);
+        instance.startRequestingStreams();
 
-        thread.interrupt();
-        StorageService.instance.stopClient();
+        while (!instance.getOperationMode().equals("WAITING_TO_FINISH_BOOTSTRAP")) {
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
+        instance.finishBootstrap();
+
+        // a proper test would be to call decommission here, but decommission() mixes both shutdown and datatransfer
+        // calls.  This test is only interested in the shutdown-related items which a properly handled by just
+        // stopping the client.
+        //StorageService.instance.decommission();
+        instance.stopClient();
     }
 
     @Test
