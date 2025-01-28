@@ -161,6 +161,7 @@ public class StorageServiceServerTest
     // This test verifies that the gossip state includes the joining node's tokens and `BOOT` status when it reaches the gate before requesting streams.
     // This is necessary since we want to rely on gossip to propagate this information to other nodes.
     // The test cannot be enabled due to StorageService (and other classes) being a singleton which causes weird state to be shared between tests.
+    // It is kept here as a reference for expected behavior during bootstraps.
 //    @Test
 //    public void testGossipStateAtGateToRequestStreams() throws ConfigurationException, UnknownHostException
 //    {
