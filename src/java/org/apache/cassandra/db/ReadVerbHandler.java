@@ -42,8 +42,8 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
         }
 
         ReadCommand command = message.payload;
-        Keyspace keyspace = Keyspace.open(command.ksName);
         OwnershipVerificationUtils.verifyRead(command);
+        Keyspace keyspace = Keyspace.open(command.ksName);
         Row row = command.getRow(keyspace);
 
         MessageOut<ReadResponse> reply = new MessageOut<ReadResponse>(MessagingService.Verb.REQUEST_RESPONSE,
