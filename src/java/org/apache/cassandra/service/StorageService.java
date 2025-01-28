@@ -946,7 +946,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             else
             {
-                SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
+                setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
             // first sleep the delay to make sure we see all our peers
@@ -1267,7 +1267,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         // start participating in the ring.
         logger.info("Attempting to set bootstrap state to COMPLETED and to join token ring");
-        SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
+        setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
         setTokens(tokens);
 
         assert tokenMetadata.sortedTokens().size() > 0;
@@ -4014,6 +4014,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return liveEps;
     }
 
+    @VisibleForTesting
+    void setBootstrapState(SystemKeyspace.BootstrapState bootstrapState) {
+        SystemKeyspace.setBootstrapState(bootstrapState);
+    }
+
     public void setLoggingLevel(String classQualifier, String rawLevel) throws Exception
     {
         ch.qos.logback.classic.Logger logBackLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(classQualifier);
@@ -4167,7 +4172,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private void leaveRing()
     {
-        SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.NEEDS_BOOTSTRAP);
+        setBootstrapState(SystemKeyspace.BootstrapState.NEEDS_BOOTSTRAP);
         tokenMetadata.removeEndpoint(FBUtilities.getBroadcastAddress());
         PendingRangeCalculatorService.instance.update();
 

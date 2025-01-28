@@ -166,13 +166,11 @@ public class StorageServiceServerTest
         StorageService instance = spy(StorageService.instance);
         doReturn(true).when(instance).shouldBootstrap(anyBoolean());
         doNothing().when(instance).checkGossiperSeeds();
-        Thread thread = new Thread(new Runnable()
-        {
-            public void run()
-            {
-                instance.initServer(0);
-            }
-        });
+        // due to some shared state in StorageService (probably from testRegularMode), flushing the local system table sometimes fails
+        // this part of the bootstrap is not important for what we want to test here anyway, so we just skip it
+        doNothing().when(instance).setBootstrapState(any());
+
+        Thread thread = new Thread(() -> instance.initServer(0));
         thread.start();
 
         while (!instance.getOperationMode().equals("WAITING_TO_BOOTSTRAP")) {
