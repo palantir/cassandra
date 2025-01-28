@@ -26,7 +26,13 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.cassandra.gms.EndpointState;
+import org.apache.cassandra.gms.VersionedValue;
+import org.apache.cassandra.metrics.StorageMetrics;
 import org.apache.cassandra.tools.Util;
 
 import com.google.common.collect.HashMultimap;
@@ -149,6 +155,40 @@ public class StorageServiceServerTest
         // calls.  This test is only interested in the shutdown-related items which a properly handled by just
         // stopping the client.
         //StorageService.instance.decommission();
+        StorageService.instance.stopClient();
+    }
+
+    @Test
+    public void testGossipStateAtGateToRequestStreams() throws ConfigurationException, UnknownHostException
+    {
+        SchemaLoader.mkdirs();
+        SchemaLoader.cleanup();
+        StorageService instance = spy(StorageService.instance);
+        doReturn(true).when(instance).shouldBootstrap(anyBoolean());
+        doNothing().when(instance).checkGossiperSeeds();
+        Thread thread = new Thread(new Runnable()
+        {
+            public void run()
+            {
+                instance.initServer(0);
+            }
+        });
+        thread.start();
+
+        while (!instance.getOperationMode().equals("WAITING_TO_BOOTSTRAP")) {
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
+        instance.startBootstrap();
+
+        while (!instance.getOperationMode().equals("WAITING_TO_REQUEST_STREAMS")) {
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
+
+        EndpointState endpointState = Gossiper.instance.getEndpointStateForEndpoint(InetAddress.getLocalHost());
+        assertThat(endpointState.getApplicationState(ApplicationState.TOKENS).value).isNotEmpty();
+        assertThat(endpointState.getStatus()).isEqualTo(VersionedValue.STATUS_BOOTSTRAPPING);
+
+        thread.interrupt();
         StorageService.instance.stopClient();
     }
 

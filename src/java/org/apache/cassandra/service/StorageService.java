@@ -125,7 +125,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final List<ProgressListener> bootstrapListeners = new CopyOnWriteArrayList<>();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
-    private final Condition startRequestStreamsCondition = new SimpleCondition(DISABLE_WAIT_TO_REQUEST_STREAMS);
+    private Condition startRequestStreamsCondition = new SimpleCondition(DISABLE_WAIT_TO_REQUEST_STREAMS);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     /**
@@ -828,7 +828,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return shouldBootstrap(DatabaseDescriptor.isAutoBootstrap());
     }
 
-    private boolean shouldBootstrap(boolean autoBootstrap)
+    @VisibleForTesting
+    boolean shouldBootstrap(boolean autoBootstrap)
     {
         return autoBootstrap && !SystemKeyspace.bootstrapComplete() && !DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress());
     }
@@ -1579,8 +1580,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             SystemKeyspace.removeEndpoint(DatabaseDescriptor.getReplaceAddress());
         }
 
-        if (!Gossiper.instance.seenAnySeed())
-            throw new IllegalStateException("Unable to contact any seeds!");
+        checkGossiperSeeds();
 
         if (Boolean.getBoolean("cassandra.reset_bootstrap_progress"))
         {
@@ -1643,6 +1643,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.error("Error while waiting on bootstrap to complete. Bootstrap will have to be restarted.", e);
             return false;
         }
+    }
+
+    @VisibleForTesting
+    void checkGossiperSeeds() {
+        if (!Gossiper.instance.seenAnySeed())
+            throw new IllegalStateException("Unable to contact any seeds!");
     }
 
     public boolean resumeBootstrap()
