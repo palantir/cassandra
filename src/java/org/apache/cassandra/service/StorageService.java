@@ -125,7 +125,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final List<ProgressListener> bootstrapListeners = new CopyOnWriteArrayList<>();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
-    // we expect to use startRequestStreamsCondition to gate decommissions as well with `.reset()`
+    // TODO(dguo): use startRequestStreamsCondition to gate decommissions as well with `.reset()`
     private final Condition startRequestStreamsCondition = new SimpleCondition(DISABLE_WAIT_TO_REQUEST_STREAMS);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
@@ -829,8 +829,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return shouldBootstrap(DatabaseDescriptor.isAutoBootstrap());
     }
 
-    @VisibleForTesting
-    boolean shouldBootstrap(boolean autoBootstrap)
+    private boolean shouldBootstrap(boolean autoBootstrap)
     {
         return autoBootstrap && !SystemKeyspace.bootstrapComplete() && !DatabaseDescriptor.getSeeds().contains(FBUtilities.getBroadcastAddress());
     }
@@ -1646,8 +1645,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    @VisibleForTesting
-    void checkGossiperSeeds() {
+    private void checkGossiperSeeds() {
         if (!Gossiper.instance.seenAnySeed())
             throw new IllegalStateException("Unable to contact any seeds!");
     }
@@ -4015,8 +4013,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return liveEps;
     }
 
-    @VisibleForTesting
-    void setBootstrapState(SystemKeyspace.BootstrapState bootstrapState) {
+    private void setBootstrapState(SystemKeyspace.BootstrapState bootstrapState) {
         SystemKeyspace.setBootstrapState(bootstrapState);
     }
 
