@@ -30,16 +30,13 @@ public class SimpleCondition implements Condition
     private static final AtomicReferenceFieldUpdater<SimpleCondition, WaitQueue> waitingUpdater = AtomicReferenceFieldUpdater.newUpdater(SimpleCondition.class, WaitQueue.class, "waiting");
 
     private volatile WaitQueue waiting;
-    private final boolean disabled;
     private volatile boolean signaled = false;
 
     public SimpleCondition() {
-        disabled = false;
     }
 
     public SimpleCondition(boolean disabled)
     {
-        this.disabled = disabled;
         signaled = disabled;
     }
 
