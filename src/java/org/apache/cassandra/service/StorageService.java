@@ -41,6 +41,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 import com.palantir.cassandra.db.BootstrappingSafetyException;
+import com.palantir.cassandra.db.SystemPalantir;
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import com.palantir.cassandra.utils.SchemaAgreementCheck;
 import com.palantir.logsafe.Safe;
@@ -4900,8 +4901,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         else
         {
             List<String> userKeyspaces = Schema.instance.getUserKeyspaces();
-
-            if (userKeyspaces.size() > 0)
+            if (Schema.instance.getKeyspaceInstance(SystemPalantir.NAME) != null)
+            {
+                keyspace = SystemPalantir.NAME;
+            }
+            else if (userKeyspaces.size() > 0)
             {
                 keyspace = userKeyspaces.iterator().next();
                 AbstractReplicationStrategy replicationStrategy = Schema.instance.getKeyspaceInstance(keyspace).getReplicationStrategy();
