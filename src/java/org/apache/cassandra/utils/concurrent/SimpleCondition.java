@@ -105,12 +105,4 @@ public class SimpleCondition implements Condition
     {
         throw new UnsupportedOperationException();
     }
-
-    public void reset() {
-        if (waiting.hasWaiters()) {
-            throw new RuntimeException("Tried to reset condition which has waiters.");
-        }
-        signaled = disabled;
-        waitingUpdater.set(this, null);
-    }
 }
