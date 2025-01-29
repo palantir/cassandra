@@ -32,7 +32,8 @@ public class SimpleCondition implements Condition
     private volatile WaitQueue waiting;
     private volatile boolean signaled = false;
 
-    public SimpleCondition() {}
+    public SimpleCondition() {
+    }
 
     public SimpleCondition(boolean disabled)
     {

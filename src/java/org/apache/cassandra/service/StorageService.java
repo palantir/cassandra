@@ -110,8 +110,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 {
     private static final Logger logger = LoggerFactory.getLogger(StorageService.class);
     private static final boolean DISABLE_WAIT_TO_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_bootstrap");
+    private static final boolean DISABLE_WAIT_TO_REQUEST_STREAMS = Boolean.getBoolean("palantir_cassandra.disable_wait_to_request_streams");
     private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_finish_bootstrap");
-    private static final Integer BOOTSTRAP_DISK_USAGE_THRESHOLD = Integer.getInteger("palantir_cassandra.bootstrap_disk_usage_threshold_percentage");
+    private static final Integer STREAMS_REQUEST_SAFETY_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.streams_request_safety_check_grace_period_minutes", 30);
     private static final Integer BOOTSTRAP_SAFETY_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.bootstrap_safety_check_grace_period_minutes", 30);
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
@@ -124,6 +125,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final List<ProgressListener> bootstrapListeners = new CopyOnWriteArrayList<>();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
+    // TODO(dguo): Use startRequestStreamsCondition to gate decommissions as well.
+    //  This requires SimpleCondition to synchronize between resetting and adding new waiters or using a new Condition altogether.
+    private final Condition startRequestStreamsCondition = new SimpleCondition(DISABLE_WAIT_TO_REQUEST_STREAMS);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
 
     /**
@@ -201,7 +205,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_REQUEST_STREAMS, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
     private volatile Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -944,7 +948,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             else
             {
-                SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
+                setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
             // first sleep the delay to make sure we see all our peers
@@ -1272,7 +1276,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         // start participating in the ring.
         logger.info("Attempting to set bootstrap state to COMPLETED and to join token ring");
-        SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
+        setBootstrapState(SystemKeyspace.BootstrapState.COMPLETED);
         setTokens(tokens);
 
         assert tokenMetadata.sortedTokens().size() > 0;
@@ -1591,14 +1595,29 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             SystemKeyspace.removeEndpoint(DatabaseDescriptor.getReplaceAddress());
         }
 
-        if (!Gossiper.instance.seenAnySeed())
-            throw new IllegalStateException("Unable to contact any seeds!");
+        checkGossiperSeeds();
 
         if (Boolean.getBoolean("cassandra.reset_bootstrap_progress"))
         {
             logger.info("Resetting bootstrap progress to start fresh");
             SystemKeyspace.resetAvailableRanges();
         }
+
+        try
+        {
+            setMode(Mode.WAITING_TO_REQUEST_STREAMS, "Awaiting call to proceed with requesting streams during bootstrap", true);
+            boolean timeoutExceeded = !startRequestStreamsCondition.await(STREAMS_REQUEST_SAFETY_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
+            if (timeoutExceeded)
+            {
+                logger.error("Start signal to request streams was not given within 30 minutes. Streams request safety check failed.");
+                recordBootstrapErrorAndThrow("streamsRequestSafetyCheckFailed");
+            }
+        }
+        catch (InterruptedException e)
+        {
+            throw new AssertionError(e);
+        }
+        logger.info("Received signal to start requesting streams.");
 
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
@@ -1639,6 +1658,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             logger.error("Error while waiting on bootstrap to complete. Bootstrap will have to be restarted.", e);
             return false;
         }
+    }
+
+    private void checkGossiperSeeds() {
+        if (!Gossiper.instance.seenAnySeed())
+            throw new IllegalStateException("Unable to contact any seeds!");
     }
 
     public boolean resumeBootstrap()
@@ -1707,6 +1731,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void startBootstrap()
     {
         startBootstrapCondition.signalAll();
+    }
+
+    @Override
+    public void startRequestingStreams()
+    {
+        startRequestStreamsCondition.signalAll();
     }
 
     @Override
@@ -3300,7 +3330,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      * @param keyspaceNames the names of the keyspaces to snapshot; empty means "all."
      */
     private void takeSnapshot(String tag, boolean ephemeral, String... keyspaceNames) throws IOException {
-        if (operationMode == Mode.JOINING)
+        if (isEffectivelyJoining())
             logger.warn("Taking snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
         if (tag == null || tag.equals(""))
             throw new IOException("You must supply a snapshot name.");
@@ -3362,7 +3392,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         if (keyspaceName == null)
             throw new IOException("You must supply a keyspace name");
-        if (operationMode == Mode.JOINING)
+        if (isEffectivelyJoining())
             logger.warn("Taking column family snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
 
         if (columnFamilyName == null)
@@ -3405,7 +3435,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
                 if (keyspaceName == null)
                     throw new IOException("You must supply a keyspace name");
-                if (operationMode.equals(Mode.JOINING))
+                if (isEffectivelyJoining())
                     logger.warn("Taking multiple column family snapshot (incomplete) of joining node. This snapshot is not valid for a live cluster");
 
                 if (columnFamilyName == null)
@@ -4011,6 +4041,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return liveEps;
     }
 
+    private void setBootstrapState(SystemKeyspace.BootstrapState bootstrapState) {
+        SystemKeyspace.setBootstrapState(bootstrapState);
+    }
+
     public void setLoggingLevel(String classQualifier, String rawLevel) throws Exception
     {
         ch.qos.logback.classic.Logger logBackLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(classQualifier);
@@ -4167,7 +4201,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     private void leaveRing()
     {
-        SystemKeyspace.setBootstrapState(SystemKeyspace.BootstrapState.NEEDS_BOOTSTRAP);
+        setBootstrapState(SystemKeyspace.BootstrapState.NEEDS_BOOTSTRAP);
         tokenMetadata.removeEndpoint(FBUtilities.getBroadcastAddress());
         PendingRangeCalculatorService.instance.update();
 
@@ -4649,9 +4683,13 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return operationMode == Mode.STARTING;
     }
 
-    public boolean isJoiningOrWaitingToFinishBootstrap()
+    public boolean isEffectivelyJoining() {
+        return operationMode == Mode.JOINING || operationMode == Mode.WAITING_TO_REQUEST_STREAMS;
+    }
+
+    public boolean isEffectivelyJoiningOrWaitingToFinishBootstrap()
     {
-        return operationMode == Mode.JOINING || operationMode == Mode.WAITING_TO_FINISH_BOOTSTRAP;
+        return isEffectivelyJoining() || operationMode == Mode.WAITING_TO_FINISH_BOOTSTRAP;
     }
 
     public boolean inNonTransientErrorMode()
