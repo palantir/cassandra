@@ -292,7 +292,7 @@ public class FailureDetector implements IFailureDetector, FailureDetectorMBean
 
     private void safeguardBootstrapTimeout()
     {
-        if (StorageService.instance.isJoiningOrWaitingToFinishBootstrap())
+        if (StorageService.instance.isEffectivelyJoiningOrWaitingToFinishBootstrap())
         {
             StorageService.instance.unsafeDisableNode();
             logger.error("Detected local pause longer than Gossiper failed bootstrap timeout (nanos) {}"

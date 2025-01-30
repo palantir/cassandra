@@ -816,6 +816,11 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void startBootstrap();
 
     /**
+     * Send signal to start requesting streams for bootstrap
+     */
+    public void startRequestingStreams();
+
+    /**
      * Send signal to finalize the bootstrap process and finish joining the ring.
      */
     public void finishBootstrap();
