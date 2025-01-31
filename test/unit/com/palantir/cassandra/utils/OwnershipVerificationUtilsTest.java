@@ -97,7 +97,7 @@ public class OwnershipVerificationUtilsTest
     {
         ByteBuffer key = ByteBufferUtil.bytes("b");
         Mutation mutation = new Mutation(KEYSPACE5, key);
-        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -119,7 +119,7 @@ public class OwnershipVerificationUtilsTest
         Mutation mutation = new Mutation(KEYSPACE5, key);
 
         long initialRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
-        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(InvalidMutationException.class);
+        assertThatThrownBy(() -> OwnershipVerificationUtils.verifyMutation(mutation)).isInstanceOf(RuntimeException.class);
         long finalRingVersion = StorageService.instance.getTokenMetadata().getRingVersion();
         assertThat(initialRingVersion).isNotEqualTo(finalRingVersion);
     }

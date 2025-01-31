@@ -22,14 +22,12 @@ import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.ReadCommand;
-import org.apache.cassandra.exceptions.InvalidReadException;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
@@ -50,7 +48,7 @@ public class ReadVerificationHandler implements OwnershipVerificationHandler<Rea
             SafeArg.of("keyspace", keyspace.getName()),
             SafeArg.of("naturalEndpoints", naturalEndpoints),
             SafeArg.of("pendingEndpoints", pendingEndpoints));
-        throw new InvalidReadException();
+        throw new RuntimeException("InvalidRead! Cannot serve this read as this host does not contain key.");
     }
 
     @Override

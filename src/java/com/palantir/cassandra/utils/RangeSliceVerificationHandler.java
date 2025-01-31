@@ -19,7 +19,6 @@
 package com.palantir.cassandra.utils;
 
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
@@ -30,10 +29,7 @@ import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.AbstractRangeCommand;
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.db.RangeSliceCommand;
-import org.apache.cassandra.exceptions.InvalidReadException;
 import org.apache.cassandra.utils.FBUtilities;
-import org.apache.cassandra.utils.Hex;
 
 public class RangeSliceVerificationHandler implements OwnershipVerificationHandler<AbstractRangeCommand>
 {
@@ -53,7 +49,7 @@ public class RangeSliceVerificationHandler implements OwnershipVerificationHandl
             SafeArg.of("keyspace", keyspace.getName()),
             SafeArg.of("naturalEndpoints", naturalEndpoints),
             SafeArg.of("pendingEndpoints", pendingEndpoints));
-        throw new InvalidReadException();
+        throw new RuntimeException("InvalidRangeSlice! Cannot serve this range slice as this host does not contain the right bound of this range.");
     }
 
     @Override
