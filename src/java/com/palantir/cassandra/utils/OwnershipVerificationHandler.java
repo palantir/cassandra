@@ -21,13 +21,12 @@ package com.palantir.cassandra.utils;
 import org.apache.cassandra.db.Keyspace;
 
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
-public interface OwnershipVerificationHandler
+public interface OwnershipVerificationHandler<T>
 {
-    void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints);
+    void onViolation(T payload, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints);
 
     void onValid(Keyspace keyspace);
 }

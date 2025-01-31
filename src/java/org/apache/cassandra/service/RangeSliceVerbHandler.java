@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.service;
 
+import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.db.AbstractRangeCommand;
 import org.apache.cassandra.db.RangeSliceReply;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
@@ -34,6 +35,7 @@ public class RangeSliceVerbHandler implements IVerbHandler<AbstractRangeCommand>
             /* Don't service reads! */
             throw new IsBootstrappingException();
         }
+        OwnershipVerificationUtils.verifyRangeSlice(message.payload);
         RangeSliceReply reply = new RangeSliceReply(message.payload.executeLocally());
         Tracing.trace("Enqueuing response to {}", message.from);
         MessagingService.instance().sendReply(reply.createMessage(), id, message.from);

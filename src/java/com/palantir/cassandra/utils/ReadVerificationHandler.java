@@ -21,33 +21,34 @@ package com.palantir.cassandra.utils;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
-public class ReadVerificationHandler implements OwnershipVerificationHandler
+public class ReadVerificationHandler implements OwnershipVerificationHandler<ReadCommand>
 {
     private static final Logger logger = LoggerFactory.getLogger(OwnershipVerificationUtils.class);
 
-    public static final OwnershipVerificationHandler INSTANCE = new ReadVerificationHandler();
+    public static final OwnershipVerificationHandler<ReadCommand> INSTANCE = new ReadVerificationHandler();
 
     @Override
-    public void onViolation(Keyspace keyspace, ByteBuffer key, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
+    public void onViolation(ReadCommand payload, Keyspace keyspace, List<InetAddress> naturalEndpoints, Collection<InetAddress> pendingEndpoints)
     {
         keyspace.metric.invalidReads.inc();
         logger.error(
-            "Executed InvalidRead! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
+        "Received InvalidRead request! This host {} does not contain key {} in keyspace {}. Only hosts {} and {} do.",
             SafeArg.of("address", FBUtilities.getBroadcastAddress()),
-            UnsafeArg.of("key", Hex.bytesToHex(key.array())),
+            UnsafeArg.of("key", Hex.bytesToHex(payload.key.array())),
             SafeArg.of("keyspace", keyspace.getName()),
             SafeArg.of("naturalEndpoints", naturalEndpoints),
             SafeArg.of("pendingEndpoints", pendingEndpoints));
+        throw new RuntimeException("InvalidRead! Cannot serve this read as this host does not contain key.");
     }
 
     @Override
