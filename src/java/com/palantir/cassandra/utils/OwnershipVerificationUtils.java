@@ -19,7 +19,6 @@
 package com.palantir.cassandra.utils;
 
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
