@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
 
 import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import java.lang.management.ManagementFactory;
@@ -104,7 +105,9 @@ public class MigrationManager
         String ourMajorVersion = FBUtilities.getReleaseVersionMajor();
         if (!releaseVersion.startsWith(ourMajorVersion))
         {
-            logger.debug("Not pulling schema because release version in Gossip is not major version {}, it is {}", ourMajorVersion, releaseVersion);
+            logger.debug("Not pulling schema because release version in Gossip is not major version {}, it is {}",
+                         SafeArg.of("majorVersion", ourMajorVersion),
+                         SafeArg.of("releaseVersion", releaseVersion));
             return;
         }
 
@@ -117,7 +120,7 @@ public class MigrationManager
         if (Schema.emptyVersion.equals(Schema.instance.getVersion()) || runtimeMXBean.getUptime() < MIGRATION_DELAY_IN_MS)
         {
             // If we think we may be bootstrapping or have recently started, submit MigrationTask immediately
-            logger.debug("Submitting migration task for {}", endpoint);
+            logger.debug("Submitting migration task for {}", SafeArg.of("endpoint", endpoint));
             submitMigrationTask(endpoint, theirVersion);
         }
 
@@ -140,7 +143,7 @@ public class MigrationManager
                     EndpointState epState = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
                     if (epState == null)
                     {
-                        logger.debug("epState vanished for {}, not submitting migration task", endpoint);
+                        logger.debug("epState vanished for {}, not submitting migration task", SafeArg.of("endpoint",  endpoint));
                         removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
@@ -152,16 +155,16 @@ public class MigrationManager
                         logger.debug("A subsequent change has been made to the other endpoint's schema version and " +
                                 "so we should wait for the subsequently scheduled task instead of trying to do the " +
                                 "work in this one. Endpoint: {}; Former schema version: {}; Current schema version: {}",
-                                endpoint,
-                                theirVersion,
-                                currentVersion);
+                                     SafeArg.of("endpoint", endpoint),
+                                     SafeArg.of("formerVersion", theirVersion),
+                                     SafeArg.of("currentVersion", currentVersion));
                         removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
 
                     if (Schema.instance.getVersion().equals(currentVersion))
                     {
-                        logger.debug("not submitting migration task for {} because our versions match", endpoint);
+                        logger.debug("not submitting migration task for {} because our versions match", SafeArg.of("endpoint", endpoint));
                         removeEndpointFromSchemaPullVersion(theirVersion, endpoint);
                         return;
                     }
@@ -366,7 +369,7 @@ public class MigrationManager
             if (Schema.instance.getKSMetaData(ksm.name) != null)
                 throw new AlreadyExistsException(ksm.name);
 
-            logger.info(String.format("Create new Keyspace: %s", ksm));
+            logger.info("Create new Keyspace: {}", SafeArg.of("keyspace", ksm));
             announce(LegacySchemaTables.makeCreateKeyspaceMutation(ksm, timestamp), announceLocally);
         }
     }
@@ -406,7 +409,7 @@ public class MigrationManager
         else if (throwOnDuplicate && ksm.cfMetaData().containsKey(cfm.cfName))
             throw new AlreadyExistsException(cfm.ksName, cfm.cfName);
 
-        logger.info(String.format("Create new table: %s", cfm));
+        logger.info("Create new table: {}", SafeArg.of("", cfm));
         announce(LegacySchemaTables.makeCreateTableMutation(ksm, cfm, FBUtilities.timestampMicros()), announceLocally);
     }
 
@@ -418,14 +421,14 @@ public class MigrationManager
 
     public static void announceNewFunction(UDFunction udf, boolean announceLocally)
     {
-        logger.info(String.format("Create scalar function '%s'", udf.name()));
+        logger.info("Create scalar function {}", SafeArg.of("name", udf.name()));
         KSMetaData ksm = Schema.instance.getKSMetaData(udf.name().keyspace);
         announce(LegacySchemaTables.makeCreateFunctionMutation(ksm, udf, FBUtilities.timestampMicros()), announceLocally);
     }
 
     public static void announceNewAggregate(UDAggregate udf, boolean announceLocally)
     {
-        logger.info(String.format("Create aggregate function '%s'", udf.name()));
+        logger.info("Create aggregate function {}", SafeArg.of("name", udf.name()));
         KSMetaData ksm = Schema.instance.getKSMetaData(udf.name().keyspace);
         announce(LegacySchemaTables.makeCreateAggregateMutation(ksm, udf, FBUtilities.timestampMicros()), announceLocally);
     }
@@ -443,7 +446,10 @@ public class MigrationManager
         if (oldKsm == null)
             throw new ConfigurationException(String.format("Cannot update non existing keyspace '%s'.", ksm.name));
 
-        logger.info(String.format("Update Keyspace '%s' From %s To %s", ksm.name, oldKsm, ksm));
+        logger.info("Update Keyspace {} from {} to {}",
+                    SafeArg.of("keyspace", ksm.name),
+                    SafeArg.of("old", oldKsm),
+                    SafeArg.of("new", ksm));
         announce(LegacySchemaTables.makeCreateKeyspaceMutation(ksm, FBUtilities.timestampMicros()), announceLocally);
     }
 
@@ -463,7 +469,11 @@ public class MigrationManager
 
         oldCfm.validateCompatility(cfm);
 
-        logger.info(String.format("Update table '%s/%s' From %s To %s", cfm.ksName, cfm.cfName, oldCfm, cfm));
+        logger.info("Update table {}/{} from {} to {}",
+                                  SafeArg.of("keyspace", cfm.ksName),
+                                  SafeArg.of("table",  cfm.cfName),
+                                  SafeArg.of("old", oldCfm),
+                                  SafeArg.of("new", cfm));
         announce(LegacySchemaTables.makeUpdateTableMutation(ksm, oldCfm, cfm, FBUtilities.timestampMicros()), announceLocally);
     }
 
@@ -483,7 +493,7 @@ public class MigrationManager
         if (oldKsm == null)
             throw new ConfigurationException(String.format("Cannot drop non existing keyspace '%s'.", ksName));
 
-        logger.info(String.format("Drop Keyspace '%s'", oldKsm.name));
+        logger.info("Drop Keyspace {}", SafeArg.of("keyspace", oldKsm.name));
         announce(LegacySchemaTables.makeDropKeyspaceMutation(oldKsm, FBUtilities.timestampMicros()), announceLocally);
     }
 
@@ -499,7 +509,7 @@ public class MigrationManager
             throw new ConfigurationException(String.format("Cannot drop non existing table '%s' in keyspace '%s'.", cfName, ksName));
         KSMetaData ksm = Schema.instance.getKSMetaData(ksName);
 
-        logger.info(String.format("Drop table '%s/%s'", oldCfm.ksName, oldCfm.cfName));
+        logger.info("Drop table {}/{}", SafeArg.of("keyspace", oldCfm.ksName), SafeArg.of("table", oldCfm.cfName));
         announce(LegacySchemaTables.makeDropTableMutation(ksm, oldCfm, FBUtilities.timestampMicros()), announceLocally);
     }
 
@@ -516,14 +526,14 @@ public class MigrationManager
 
     public static void announceFunctionDrop(UDFunction udf, boolean announceLocally)
     {
-        logger.info(String.format("Drop scalar function overload '%s' args '%s'", udf.name(), udf.argTypes()));
+        logger.info("Drop scalar function overload {} args {}", SafeArg.of("name", udf.name()), SafeArg.of("args", udf.argTypes()));
         KSMetaData ksm = Schema.instance.getKSMetaData(udf.name().keyspace);
         announce(LegacySchemaTables.makeDropFunctionMutation(ksm, udf, FBUtilities.timestampMicros()), announceLocally);
     }
 
     public static void announceAggregateDrop(UDAggregate udf, boolean announceLocally)
     {
-        logger.info(String.format("Drop aggregate function overload '%s' args '%s'", udf.name(), udf.argTypes()));
+        logger.info("Drop aggregate function overload {} args {}", SafeArg.of("name", udf.name()), SafeArg.of("args", udf.argTypes()));
         KSMetaData ksm = Schema.instance.getKSMetaData(udf.name().keyspace);
         announce(LegacySchemaTables.makeDropAggregateMutation(ksm, udf, FBUtilities.timestampMicros()), announceLocally);
     }
@@ -600,8 +610,8 @@ public class MigrationManager
 
                 // only push schema to nodes with known and equal versions
                 if (condition) {
-                    logger.debug("Anouncing schema to endpoint {}", endpoint);
-                    logger.trace("Announcing schema {}", schema);
+                    logger.debug("Anouncing schema to endpoint {}", SafeArg.of("endpoint", endpoint));
+                    logger.trace("Announcing schema {}", UnsafeArg.of("schema", schema));
                     pushSchemaMutation(endpoint, schema);
                 }
             }
@@ -619,7 +629,7 @@ public class MigrationManager
     public static void passiveAnnounce(UUID version)
     {
         Gossiper.instance.addLocalApplicationState(ApplicationState.SCHEMA, StorageService.instance.valueFactory.schema(version));
-        logger.debug("Gossiping my schema version {}", version);
+        logger.debug("Gossiping my schema version {}", SafeArg.of("version", version));
     }
 
     /**
@@ -648,7 +658,7 @@ public class MigrationManager
         {
             if (shouldPullSchemaFrom(node))
             {
-                logger.debug("Requesting schema from {}", node);
+                logger.debug("Requesting schema from {}", SafeArg.of("endpoint", node));
                 FBUtilities.waitOnFuture(submitMigrationTask(node));
                 break;
             }
