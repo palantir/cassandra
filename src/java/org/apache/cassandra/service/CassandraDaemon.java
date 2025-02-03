@@ -65,6 +65,7 @@ import com.palantir.cassandra.settings.DisableClientInterfaceSetting;
 import com.palantir.logsafe.Preconditions;
 import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.config.Config;
 import org.slf4j.Logger;
@@ -305,7 +306,7 @@ public class CassandraDaemon
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
             if (logger.isDebugEnabled())
-                logger.debug("opening keyspace {}", keyspaceName);
+                logger.debug("opening keyspace {}", SafeArg.of("keyspace", keyspaceName));
             // disable auto compaction until commit log replay ends
             for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
             {
@@ -323,7 +324,7 @@ public class CassandraDaemon
         catch (Throwable t)
         {
             JVMStabilityInspector.inspectThrowable(t);
-            logger.warn("Error loading key or row cache", t);
+            logger.warn("Error loading key or row cache", UnsafeArg.of("loadRowAndKeyCacheError", t));
         }
 
         try
@@ -351,7 +352,7 @@ public class CassandraDaemon
                 && StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION))
             {
                 logger.error("Failed to recover from commitlog corruption due to some non transient errors: {}",
-                             StorageService.instance.getNonTransientErrors());
+                             UnsafeArg.of("commitLogRecoverError", SafeArgStorageService.instance.getNonTransientErrors()));
                 return;
             }
             throw new RuntimeException(e);
@@ -369,12 +370,12 @@ public class CassandraDaemon
         }
         catch (BootstrappingSafetyException e)
         {
-            logger.error("Non-fatal bootstrap error. Server will continue but is disabled and without metrics.", e);
+            logger.error("Non-fatal bootstrap error. Server will continue but is disabled and without metrics.", UnsafeArg.of("storageServiceInitError", e));
             return;
         }
         catch (ConfigurationException e)
         {
-            logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", e);
+            logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", UnsafeArg.of("storageServiceInitError", e));
             exitOrFail(1, "Fatal configuration error", e);
         }
 
@@ -384,7 +385,7 @@ public class CassandraDaemon
         String metricsReporterConfigFile = System.getProperty("cassandra.metricsReporterConfigFile");
         if (metricsReporterConfigFile != null)
         {
-            logger.info("Trying to load metrics-reporter-config from file: {}", metricsReporterConfigFile);
+            logger.info("Trying to load metrics-reporter-config from file: {}", UnsafeArg.of("metricsReporterConfigFile", metricsReporterConfigFile));
             try
             {
                 // enable metrics provided by metrics-jvm.jar
@@ -398,7 +399,7 @@ public class CassandraDaemon
             }
             catch (Exception e)
             {
-                logger.warn("Failed to load metrics-reporter-config, metric sinks will not be activated", e);
+                logger.warn("Failed to load metrics-reporter-config, metric sinks will not be activated", UnsafeArg.of("metricsReporterConfigException", e));
             }
         }
         new HiccupMeter().start();
@@ -453,12 +454,14 @@ public class CassandraDaemon
             throw new IllegalStateException("native transport should be set up before it can be started");
 
         nativeServer.start();
-        logger.info("Native server running on {}", new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getNativeTransportPort()));
+        InetSocketAddress nativeAddress = new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getNativeTransportPort());
+        logger.info("Native server running on {}", SafeArg.of("nativeAddress", nativeAddress));
 
         if (thriftServer == null)
             throw new IllegalStateException("thrift transport should be set up before it can be started");
         thriftServer.start();
-        logger.info("Thrift server running on {}", new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getRpcPort()));
+        InetSocketAddress thriftAddress = new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getRpcPort());
+        logger.info("Thrift server running on {}", SafeArg.of("thriftAddress", thriftAddress));
     }
 
     private void validateTransportsCanStart()
@@ -534,22 +537,22 @@ public class CassandraDaemon
     	{
 	        try
 	        {
-	            logger.info("Hostname: {}", InetAddress.getLocalHost().getHostName());
+	            logger.info("Hostname: {}", UnsafeArg.of("hostName", InetAddress.getLocalHost().getHostName()));
 	        }
 	        catch (UnknownHostException e1)
 	        {
 	            logger.info("Could not resolve local host");
 	        }
 
-	        logger.info("JVM vendor/version: {}/{}", System.getProperty("java.vm.name"), System.getProperty("java.version"));
-	        logger.info("Heap size: {}/{}", Runtime.getRuntime().totalMemory(), Runtime.getRuntime().maxMemory());
+	        logger.info("JVM vendor/version: {}/{}", SafeArg.of("jvmName", System.getProperty("java.vm.name")), SafeArg.of("javaVersion", System.getProperty("java.version")));
+	        logger.info("Heap size: {}/{}", SafeArg.of("runtimeTotalMemory", Runtime.getRuntime().totalMemory()), SafeArg.of("runtimeMaxMemory", Runtime.getRuntime().maxMemory()));
 
 	        for(MemoryPoolMXBean pool: ManagementFactory.getMemoryPoolMXBeans())
-	            logger.info("{} {}: {}", pool.getName(), pool.getType(), pool.getPeakUsage());
+	            logger.info("{} {}: {}", SafeArg.of("memoryPoolName", pool.getName()), SafeArg.of("memoryPoolType", pool.getType()), SafeArg.of("memoryPoolPeakUsage", pool.getPeakUsage()));
 
-	        logger.info("Classpath: {}", System.getProperty("java.class.path"));
+	        logger.info("Classpath: {}", SafeArg.of("classpath", System.getProperty("java.class.path")));
 
-            logger.info("JVM Arguments: {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
+            logger.info("JVM Arguments: {}", UnsafeArg.of("jvmArguments", ManagementFactory.getRuntimeMXBean().getInputArguments()));
     	}
     }
 
@@ -589,7 +592,7 @@ public class CassandraDaemon
         catch (IllegalStateException isx)
         {
             // If there are any errors, we just log and return in this case
-            logger.info(isx.getMessage());
+            logger.info("{}", UnsafeArg.of("exception", isx.getMessage()));
             return;
         }
 
@@ -634,7 +637,7 @@ public class CassandraDaemon
             }
             catch (IOException e)
             {
-                logger.error("Error shutting down local JMX server: ", e);
+                logger.error("Error shutting down local JMX server: ", UnsafeArg.of("exception", e));
             }
         }
     }
@@ -720,7 +723,7 @@ public class CassandraDaemon
             if (logStackTrace)
             {
                 if (runManaged)
-                    logger.error("Exception encountered during startup", e);
+                    logger.error("Exception encountered during startup", UnsafeArg.of("exception", e));
                 // try to warn user on stdout too, if we haven't already detached
                 e.printStackTrace();
                 exitOrFail(3, "Exception encountered during startup", e);
@@ -728,7 +731,7 @@ public class CassandraDaemon
             else
             {
                 if (runManaged)
-                    logger.error("Exception encountered during startup: {}", e.getMessage());
+                    logger.error("Exception encountered during startup: {}", UnsafeArg.of("exception", e.getMessage()));
                 // try to warn user on stdout too, if we haven't already detached
                 System.err.println(e.getMessage());
                 exitOrFail(3, "Exception encountered during startup: " + e.getMessage());
@@ -775,23 +778,31 @@ public class CassandraDaemon
             totalPolls++;
             if (active == 0 && pending == 0)
             {
-                logger.debug("Gossip looks settled. CompletedTasks: {}", completed);
+                logger.debug("Gossip looks settled. CompletedTasks: {}", SafeArg.of("completedTasks", completed));
                 numOkay++;
             }
             else
             {
-                logger.info("Gossip not settled after {} polls. Gossip Stage active/pending/completed: {}/{}/{}", totalPolls, active, pending, completed);
+                logger.info(
+                        "Gossip not settled after {} polls. Gossip Stage active/pending/completed: {}/{}/{}",
+                        SafeArg.of("totalPolls", totalPolls),
+                        SafeArg.of("active", active),
+                        SafeArg.of("pending", pending),
+                        SafeArg.of("completed", completed));
                 numOkay = 0;
             }
             if (forceAfter > 0 && totalPolls > forceAfter)
             {
                 logger.warn("Gossip not settled but startup forced by cassandra.skip_wait_for_gossip_to_settle. Gossip Stage total/active/pending/completed: {}/{}/{}/{}",
-                            totalPolls, active, pending, completed);
+                            SafeArg.of("totalPolls", totalPolls),
+                            SafeArg.of("active", active),
+                            SafeArg.of("pending", pending),
+                            SafeArg.of("completed", completed));
                 break;
             }
         }
         if (totalPolls > GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
-            logger.info("Gossip settled after {} extra polls; proceeding", totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED);
+            logger.info("Gossip settled after {} extra polls; proceeding", SafeArg.of("extraPolls", totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED));
         else
             logger.info("No gossip backlog; proceeding");
     }
@@ -816,7 +827,7 @@ public class CassandraDaemon
                 throw t;
             }
             else {
-                logger.error(message, cause);
+                logger.error("{} {}", UnsafeArg.of("message", message), UnsafeArg.of("cause", cause));
                 System.exit(code);
             }
 
@@ -871,7 +882,7 @@ public class CassandraDaemon
         {
             if (!StorageService.instance.inNonTransientErrorMode()) {
                 logger.error("Attempted to reinitializeFromSstableCorruption when not in NonTransientError mode; "
-                             + "current mode: " + StorageService.instance.getOperationMode());
+                             + "current mode: {}", SafeArg.of("operationMode", StorageService.instance.getOperationMode()));
                 throw new NativeAccessMBean.IllegalNonTransientErrorStateException("Can only reinitializeFromSstableCorruption when in NonTransientError mode");
             }
         }
@@ -886,8 +897,8 @@ public class CassandraDaemon
                 onlyExpectedNte &= isExpectedNte;
             }
             if (!hasExpectedNte || !onlyExpectedNte) {
-                logger.error(String.format("Attempted to reinitialize from corruption when there is no known corruption of expected type, "
-                             + "or there are other corruption NonTransientErrors not of expected type; expected {}", error.name()));
+                logger.error("Attempted to reinitialize from corruption when there is no known corruption of expected type, "
+                             + "or there are other corruption NonTransientErrors not of expected type; expected {}", SafeArg.of("nonTransientErrorCode", error.name()));
                 throw new IllegalArgumentException("Can only reinitialize from corruption when there are NonTransientErrors "
                                                    + "only of expected type.");
             }
