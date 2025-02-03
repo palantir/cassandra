@@ -55,10 +55,10 @@ allprojects {
 
 task distTar (type: Tar) {
     from tarTree(file("${project.rootDir}/build/${ant.'final.name'}-bin.tar.gz"))
-    destinationDir file("${project.rootDir}/build/distributions")
-    baseName 'palantir-cassandra'
-    version project.version
-    extension 'tgz'
+    destinationDirectory = file("${project.rootDir}/build/distributions")
+    archiveBaseName = 'palantir-cassandra'
+    archiveVersion = project.version
+    archiveExtension = 'tgz'
     compression = Compression.GZIP
 }
 
