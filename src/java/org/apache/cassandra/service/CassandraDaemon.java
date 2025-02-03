@@ -352,7 +352,7 @@ public class CassandraDaemon
                 && StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION))
             {
                 logger.error("Failed to recover from commitlog corruption due to some non transient errors: {}",
-                             UnsafeArg.of("commitLogRecoverError", SafeArgStorageService.instance.getNonTransientErrors()));
+                             UnsafeArg.of("commitLogRecoverError", StorageService.instance.getNonTransientErrors()));
                 return;
             }
             throw new RuntimeException(e);
