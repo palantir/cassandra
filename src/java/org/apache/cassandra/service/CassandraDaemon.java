@@ -324,7 +324,7 @@ public class CassandraDaemon
         catch (Throwable t)
         {
             JVMStabilityInspector.inspectThrowable(t);
-            logger.warn("Error loading key or row cache", UnsafeArg.of("loadRowAndKeyCacheError", t));
+            logger.warn("Error loading key or row cache", t);
         }
 
         try
@@ -352,7 +352,7 @@ public class CassandraDaemon
                 && StorageService.instance.hasNonTransientError(StorageServiceMBean.NonTransientError.COMMIT_LOG_CORRUPTION))
             {
                 logger.error("Failed to recover from commitlog corruption due to some non transient errors: {}",
-                             UnsafeArg.of("commitLogRecoverError", StorageService.instance.getNonTransientErrors()));
+                             UnsafeArg.of("commitLogRecoverErrors", StorageService.instance.getNonTransientErrors()));
                 return;
             }
             throw new RuntimeException(e);
@@ -370,12 +370,12 @@ public class CassandraDaemon
         }
         catch (BootstrappingSafetyException e)
         {
-            logger.error("Non-fatal bootstrap error. Server will continue but is disabled and without metrics.", UnsafeArg.of("storageServiceInitError", e));
+            logger.error("Non-fatal bootstrap error. Server will continue but is disabled and without metrics.", e);
             return;
         }
         catch (ConfigurationException e)
         {
-            logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", UnsafeArg.of("storageServiceInitError", e));
+            logger.error("Fatal configuration error; unable to start server.  See log for stacktrace.", e);
             exitOrFail(1, "Fatal configuration error", e);
         }
 
@@ -399,7 +399,7 @@ public class CassandraDaemon
             }
             catch (Exception e)
             {
-                logger.warn("Failed to load metrics-reporter-config, metric sinks will not be activated", UnsafeArg.of("metricsReporterConfigException", e));
+                logger.warn("Failed to load metrics-reporter-config, metric sinks will not be activated", e);
             }
         }
         new HiccupMeter().start();
@@ -454,14 +454,16 @@ public class CassandraDaemon
             throw new IllegalStateException("native transport should be set up before it can be started");
 
         nativeServer.start();
-        InetSocketAddress nativeAddress = new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getNativeTransportPort());
-        logger.info("Native server running on {}", SafeArg.of("nativeAddress", nativeAddress));
+        logger.info(
+                "Native server running on {}",
+                SafeArg.of("address", new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getNativeTransportPort())));
 
         if (thriftServer == null)
             throw new IllegalStateException("thrift transport should be set up before it can be started");
         thriftServer.start();
-        InetSocketAddress thriftAddress = new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getRpcPort());
-        logger.info("Thrift server running on {}", SafeArg.of("thriftAddress", thriftAddress));
+        logger.info(
+                "Thrift server running on {}",
+                SafeArg.of("address", new InetSocketAddress(DatabaseDescriptor.getRpcAddress(), DatabaseDescriptor.getRpcPort())));
     }
 
     private void validateTransportsCanStart()
@@ -637,7 +639,7 @@ public class CassandraDaemon
             }
             catch (IOException e)
             {
-                logger.error("Error shutting down local JMX server: ", UnsafeArg.of("exception", e));
+                logger.error("Error shutting down local JMX server: ", e);
             }
         }
     }
@@ -723,7 +725,7 @@ public class CassandraDaemon
             if (logStackTrace)
             {
                 if (runManaged)
-                    logger.error("Exception encountered during startup", UnsafeArg.of("exception", e));
+                    logger.error("Exception encountered during startup", e);
                 // try to warn user on stdout too, if we haven't already detached
                 e.printStackTrace();
                 exitOrFail(3, "Exception encountered during startup", e);
@@ -827,7 +829,7 @@ public class CassandraDaemon
                 throw t;
             }
             else {
-                logger.error("{} {}", UnsafeArg.of("message", message), UnsafeArg.of("cause", cause));
+                logger.error(message, cause);
                 System.exit(code);
             }
 
