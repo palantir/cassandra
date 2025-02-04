@@ -469,6 +469,16 @@ public class MigrationManager
 
         oldCfm.validateCompatility(cfm);
 
+
+        if (cfm.equals(oldCfm))
+        {
+            logger.warn("CFMetaData for {}/{} unchanged. Ignoring update. {}",
+                        SafeArg.of("keyspace", cfm.ksName),
+                        SafeArg.of("table", cfm.cfName),
+                        SafeArg.of("cfm", cfm));
+            return;
+        }
+
         logger.info("Update table {}/{} from {} to {}",
                                   SafeArg.of("keyspace", cfm.ksName),
                                   SafeArg.of("table",  cfm.cfName),
