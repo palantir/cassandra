@@ -465,11 +465,7 @@ public class MigrationManager
         CFMetaData oldCfm = Schema.instance.getCFMetaData(cfm.ksName, cfm.cfName);
         if (oldCfm == null)
             throw new ConfigurationException(String.format("Cannot update non existing table '%s' in keyspace '%s'.", cfm.cfName, cfm.ksName));
-        KSMetaData ksm = Schema.instance.getKSMetaData(cfm.ksName);
-
-        oldCfm.validateCompatility(cfm);
-
-
+        
         if (cfm.equals(oldCfm))
         {
             logger.warn("CFMetaData for {}/{} unchanged. Ignoring update. {}",
@@ -478,6 +474,10 @@ public class MigrationManager
                         SafeArg.of("cfm", cfm));
             return;
         }
+
+        KSMetaData ksm = Schema.instance.getKSMetaData(cfm.ksName);
+
+        oldCfm.validateCompatility(cfm);
 
         logger.info("Update table {}/{} from {} to {}",
                                   SafeArg.of("keyspace", cfm.ksName),
