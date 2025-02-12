@@ -17,6 +17,8 @@
  */
 package org.apache.cassandra.repair;
 
+import com.palantir.logsafe.SafeArg;
+
 import java.net.InetAddress;
 import java.util.List;
 
@@ -110,8 +112,15 @@ public class LocalSyncTask extends SyncTask implements StreamEventHandler
 
     public void onSuccess(StreamState result)
     {
-        String message = String.format("Sync complete using session %s between %s and %s on %s", desc.sessionId, r1.endpoint, r2.endpoint, desc.columnFamily);
-        logger.info("[repair #{}] {}", desc.sessionId, message);
+        logger.info(
+                "[repair #{}] Sync complete using session {} between {} and {} on {}",
+                SafeArg.of("sessionId", desc.sessionId),
+                SafeArg.of("sessionId", desc.sessionId),
+                SafeArg.of("endpoint1", r1.endpoint),
+                SafeArg.of("endpoint2", r2.endpoint),
+                SafeArg.of("columnFamily", desc.columnFamily)
+        );
+
         Tracing.traceRepair(message);
         set(stat);
     }
