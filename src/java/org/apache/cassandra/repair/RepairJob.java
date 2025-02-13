@@ -21,6 +21,8 @@ import java.net.InetAddress;
 import java.util.*;
 
 import com.google.common.util.concurrent.*;
+import com.palantir.logsafe.SafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

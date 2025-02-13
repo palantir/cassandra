@@ -24,6 +24,10 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+
+import com.palantir.logsafe.Arg;
+import com.palantir.logsafe.SafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,15 +66,15 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                 case PREPARE_GLOBAL_MESSAGE:
                 case PREPARE_MESSAGE:
                     PrepareMessage prepareMessage = (PrepareMessage) message.payload;
-                    logger.debug("Preparing, {}", prepareMessage);
+                    logger.debug("Preparing, {}", SafeArg.of("prepareMessage", prepareMessage));
                     List<ColumnFamilyStore> columnFamilyStores = new ArrayList<>(prepareMessage.cfIds.size());
                     for (UUID cfId : prepareMessage.cfIds)
                     {
                         ColumnFamilyStore columnFamilyStore = ColumnFamilyStore.getIfExists(cfId);
                         if (columnFamilyStore == null)
                         {
-                            logErrorAndSendFailureResponse(String.format("Table with id %s was dropped during prepare phase of repair",
-                                                                         cfId.toString()), message.from, id);
+                            logErrorAndSendFailureResponse(message.from, id,
+                                    "Table with id {} was dropped during prepare phase of repair", SafeArg.of("columnFamilyId", cfId.toString()));
                             return;
                         }
                         columnFamilyStores.add(columnFamilyStore);
@@ -80,7 +84,10 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                     boolean isGlobal = peerVersion == null ||
                                        peerVersion.compareTo(ActiveRepairService.SUPPORTS_GLOBAL_PREPARE_FLAG_VERSION) < 0 ||
                                        message.payload.messageType.equals(RepairMessage.Type.PREPARE_GLOBAL_MESSAGE);
-                    logger.debug("Received prepare message: global message = {}, peerVersion = {},", message.payload.messageType.equals(RepairMessage.Type.PREPARE_GLOBAL_MESSAGE), peerVersion);
+                    logger.debug(
+                            "Received prepare message: global message = {}, peerVersion = {},",
+                            SafeArgs.of("messageType", message.payload.messageType.equals(RepairMessage.Type.PREPARE_GLOBAL_MESSAGE)),
+                            SafeArgs.of("peerVersion", peerVersion));
                     ActiveRepairService.instance.registerParentRepairSession(prepareMessage.parentRepairSession,
                                                                              message.from,
                                                                              columnFamilyStores,
@@ -91,12 +98,15 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                     break;
 
                 case SNAPSHOT:
-                    logger.debug("Snapshotting {}", desc);
+                    logger.debug("Snapshotting {}", SafeArgs.of("repairJobDesc", desc));
                     final ColumnFamilyStore cfs = ColumnFamilyStore.getIfExists(desc.keyspace, desc.columnFamily);
                     if (cfs == null)
                     {
-                        logErrorAndSendFailureResponse(String.format("Table %s.%s was dropped during snapshot phase of repair",
-                                                                     desc.keyspace, desc.columnFamily), message.from, id);
+                        logErrorAndSendFailureResponse(
+                                message.from,
+                                id,
+                                "Table {}.{} was dropped during snapshot phase of repair",
+                                SafeArg.of("keyspace", desc.keyspace)l, SafeArg.of("columnFamily", desc.columnFamily));
                         return;
                     }
                     ActiveRepairService.ParentRepairSession prs = ActiveRepairService.instance.getParentRepairSession(desc.parentSessionId);
@@ -117,18 +127,18 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                             }
                         }, true); //ephemeral snapshot, if repair fails, it will be cleaned next startup
                     }
-                    logger.debug("Enqueuing response to snapshot request {} to {}", desc.sessionId, message.from);
+                    logger.debug("Enqueuing response to snapshot request {} to {}", SafeArg.of("sessionId", desc.sessionId), SafeArg.of("messageFrom", message.from));
                     MessagingService.instance().sendReply(new MessageOut(MessagingService.Verb.INTERNAL_RESPONSE), id, message.from);
                     break;
 
                 case VALIDATION_REQUEST:
                     ValidationRequest validationRequest = (ValidationRequest) message.payload;
-                    logger.debug("Validating {}", validationRequest);
+                    logger.debug("Validating {}", SafeArg.of("validationRequest", validationRequest));
                     // trigger read-only compaction
                     ColumnFamilyStore store = ColumnFamilyStore.getIfExists(desc.keyspace, desc.columnFamily);
                     if (store == null)
                     {
-                        logger.error("Table {}.{} was dropped during snapshot phase of repair", desc.keyspace, desc.columnFamily);
+                        logger.error("Table {}.{} was dropped during snapshot phase of repair", SafeArg.of("keyspace", desc.keyspace), SafeArg.of("columnFamily", desc.columnFamily));
                         MessagingService.instance().sendOneWay(new ValidationComplete(desc).createMessage(), message.from);
                         return;
                     }
@@ -140,7 +150,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                 case SYNC_REQUEST:
                     // forwarded sync request
                     SyncRequest request = (SyncRequest) message.payload;
-                    logger.debug("Syncing {}", request);
+                    logger.debug("Syncing {}", SafeArg.of("syncRequest", request));
                     long repairedAt = ActiveRepairService.UNREPAIRED_SSTABLE;
                     if (desc.parentSessionId != null && ActiveRepairService.instance.getParentRepairSession(desc.parentSessionId) != null)
                         repairedAt = ActiveRepairService.instance.getParentRepairSession(desc.parentSessionId).getRepairedAt();
@@ -151,7 +161,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
 
                 case ANTICOMPACTION_REQUEST:
                     AnticompactionRequest anticompactionRequest = (AnticompactionRequest) message.payload;
-                    logger.debug("Got anticompaction request {}", anticompactionRequest);
+                    logger.debug("Got anticompaction request {}", SafeArg.of("anticompactionRequest", anticompactionRequest));
                     ListenableFuture<?> compactionDone = ActiveRepairService.instance.doAntiCompaction(anticompactionRequest.parentRepairSession, anticompactionRequest.successfulRanges);
                     compactionDone.addListener(new Runnable()
                     {
@@ -184,11 +194,11 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
         }
     }
 
-    private void logErrorAndSendFailureResponse(String errorMessage, InetAddress to, int id)
-    {
-        logger.error(errorMessage);
+    private void logErrorAndSendFailureResponse(InetAddress to, int id, String errorMessageFmt, Arg<?>... args) {
+        logger.error(errorMessageFmt, args);
+
         MessageOut reply = new MessageOut(MessagingService.Verb.INTERNAL_RESPONSE)
-                               .withParameter(MessagingService.FAILURE_RESPONSE_PARAM, MessagingService.ONE_BYTE);
+                .withParameter(MessagingService.FAILURE_RESPONSE_PARAM, MessagingService.ONE_BYTE);
         MessagingService.instance().sendReply(reply, id, to);
     }
 }
