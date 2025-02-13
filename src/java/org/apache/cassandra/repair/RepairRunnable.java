@@ -143,6 +143,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         }
 
         final long startTime = System.currentTimeMillis();
+        String message = String.format("Starting repair command #%d, repairing keyspace %s with %s", cmd, keyspace,
+                options);
         logger.info("Starting repair command #{}, repairing keyspace {} with {}", SafeArg.of("cmd", cmd), SafeArg.of("keyspace", keyspace), SafeArg.of("options", options));
 
         fireProgressEvent(tag, new ProgressEvent(ProgressEventType.START, 0, 100, message));
@@ -260,6 +262,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                      * {@link org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport}
                      * for backward-compatibility support.
                      */
+                    String message = String.format("Repair session %s for range %s finished", session.getId(),
+                            session.getRange().toString());
                     logger.info(
                             "Repair session {} for range {} finished",
                             SafeArg.of("sessionId", session.getId()),
@@ -278,6 +282,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                      * {@link org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport}
                      * for backward-compatibility support.
                      */
+                    String message = String.format("Repair session %s for range %s failed with error %s",
+                            session.getId(), session.getRange().toString(), t.getMessage());
                     logger.error(
                             "Repair session {} for range {} failed with error {}" + t,
                             SafeArg.of("sessionId", session.getId()),

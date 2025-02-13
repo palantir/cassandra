@@ -177,6 +177,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
      */
     private ListenableFuture<List<TreeResponse>> sendValidationRequest(Collection<InetAddress> endpoints)
     {
+        String message = String.format("Requesting merkle trees for %s (to %s)", desc.columnFamily, endpoints);
         logger.info(
                 "[repair #{}] Requesting merkle trees for {} (to {})",
                 SafeArg.of("sessionId", desc.sessionId),
@@ -201,6 +202,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
      */
     private ListenableFuture<List<TreeResponse>> sendSequentialValidationRequest(Collection<InetAddress> endpoints)
     {
+        String message = String.format("Requesting merkle trees for %s (to %s)", desc.columnFamily, endpoints);
         logger.info(
                 "[repair #{}] Requesting merkle trees for {} (to {})",
                 SafeArg.of("sessionId", desc.sessionId),
@@ -247,6 +249,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
      */
     private ListenableFuture<List<TreeResponse>> sendDCAwareValidationRequest(Collection<InetAddress> endpoints)
     {
+        String message = String.format("Requesting merkle trees for %s (to %s)", desc.columnFamily, endpoints);
         logger.info(
                 "[repair #{}] Requesting merkle trees for {} (to {})",
                 SafeArg.of("sessionId", desc.sessionId),

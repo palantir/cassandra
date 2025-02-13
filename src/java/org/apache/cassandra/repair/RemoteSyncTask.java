@@ -59,6 +59,7 @@ public class RemoteSyncTask extends SyncTask
                 SafeArg.of("syncSource", request.src),
                 SafeArg.of("syncDestination", request.dst)
         );
+        String message = String.format("Forwarding streaming repair of %d ranges to %s (to be streamed with %s)", request.ranges.size(), request.src, request.dst);
         Tracing.traceRepair(message);
         MessagingService.instance().sendOneWay(request.createMessage(), request.src);
     }

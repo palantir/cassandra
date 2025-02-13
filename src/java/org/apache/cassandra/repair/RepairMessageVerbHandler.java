@@ -86,8 +86,8 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                                        message.payload.messageType.equals(RepairMessage.Type.PREPARE_GLOBAL_MESSAGE);
                     logger.debug(
                             "Received prepare message: global message = {}, peerVersion = {},",
-                            SafeArgs.of("messageType", message.payload.messageType.equals(RepairMessage.Type.PREPARE_GLOBAL_MESSAGE)),
-                            SafeArgs.of("peerVersion", peerVersion));
+                            SafeArg.of("messageType", message.payload.messageType.equals(RepairMessage.Type.PREPARE_GLOBAL_MESSAGE)),
+                            SafeArg.of("peerVersion", peerVersion));
                     ActiveRepairService.instance.registerParentRepairSession(prepareMessage.parentRepairSession,
                                                                              message.from,
                                                                              columnFamilyStores,
@@ -98,7 +98,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                     break;
 
                 case SNAPSHOT:
-                    logger.debug("Snapshotting {}", SafeArgs.of("repairJobDesc", desc));
+                    logger.debug("Snapshotting {}", SafeArg.of("repairJobDesc", desc));
                     final ColumnFamilyStore cfs = ColumnFamilyStore.getIfExists(desc.keyspace, desc.columnFamily);
                     if (cfs == null)
                     {
@@ -106,7 +106,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                                 message.from,
                                 id,
                                 "Table {}.{} was dropped during snapshot phase of repair",
-                                SafeArg.of("keyspace", desc.keyspace)l, SafeArg.of("columnFamily", desc.columnFamily));
+                                SafeArg.of("keyspace", desc.keyspace), SafeArg.of("columnFamily", desc.columnFamily));
                         return;
                     }
                     ActiveRepairService.ParentRepairSession prs = ActiveRepairService.instance.getParentRepairSession(desc.parentSessionId);
@@ -195,7 +195,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
     }
 
     private void logErrorAndSendFailureResponse(InetAddress to, int id, String errorMessageFmt, Arg<?>... args) {
-        logger.error(errorMessageFmt, args);
+        logger.error(errorMessageFmt, (Object[]) args);
 
         MessageOut reply = new MessageOut(MessagingService.Verb.INTERNAL_RESPONSE)
                 .withParameter(MessagingService.FAILURE_RESPONSE_PARAM, MessagingService.ONE_BYTE);
