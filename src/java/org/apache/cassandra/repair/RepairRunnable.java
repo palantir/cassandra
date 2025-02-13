@@ -31,6 +31,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
+
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,9 +143,8 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
         }
 
         final long startTime = System.currentTimeMillis();
-        String message = String.format("Starting repair command #%d, repairing keyspace %s with %s", cmd, keyspace,
-                                       options);
-        logger.info(message);
+        logger.info("Starting repair command #{}, repairing keyspace {} with {}", SafeArg.of("cmd", cmd), SafeArg.of("keyspace", keyspace), SafeArg.of("options", options));
+
         fireProgressEvent(tag, new ProgressEvent(ProgressEventType.START, 0, 100, message));
         if (options.isTraced())
         {
@@ -258,9 +260,11 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                      * {@link org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport}
                      * for backward-compatibility support.
                      */
-                    String message = String.format("Repair session %s for range %s finished", session.getId(),
-                                                   session.getRange().toString());
-                    logger.info(message);
+                    logger.info(
+                            "Repair session {} for range {} finished",
+                            SafeArg.of("sessionId", session.getId()),
+                            SafeArg.of("range", session.getRange().toString())
+                    );
                     fireProgressEvent(tag, new ProgressEvent(ProgressEventType.PROGRESS,
                                                              progress.incrementAndGet(),
                                                              totalProgress,
@@ -274,9 +278,12 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                      * {@link org.apache.cassandra.utils.progress.jmx.LegacyJMXProgressSupport}
                      * for backward-compatibility support.
                      */
-                    String message = String.format("Repair session %s for range %s failed with error %s",
-                                                   session.getId(), session.getRange().toString(), t.getMessage());
-                    logger.error(message, t);
+                    logger.error(
+                            "Repair session {} for range {} failed with error {}" + t,
+                            SafeArg.of("sessionId", session.getId()),
+                            SafeArg.of("range", session.getRange().toString()),
+                            UnsafeArg.of("errorMessage", t.getMessage())
+                    );
                     fireProgressEvent(tag, new ProgressEvent(ProgressEventType.PROGRESS,
                                                              progress.incrementAndGet(),
                                                              totalProgress,
@@ -342,7 +349,12 @@ public class RepairRunnable extends WrappedRunnable implements ProgressEventNoti
                                                                           true, true);
                 String message = String.format("Repair command #%d finished in %s for keyspace %s", cmd, duration, keyspace);
                 fireProgressEvent(tag, new ProgressEvent(ProgressEventType.COMPLETE, progress.get(), totalProgress, message));
-                logger.info(message);
+                logger.info(
+                        "Repair command {} finished in {} for keyspace {}",
+                        SafeArg.of("command", cmd),
+                        SafeArg.of("duration", duration),
+                        SafeArg.of("keyspace", keyspace)
+                );
                 if (options.isTraced() && traceState != null)
                 {
                     for (ProgressListener listener : listeners)
