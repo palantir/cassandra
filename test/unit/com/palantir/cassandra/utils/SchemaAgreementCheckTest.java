@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import org.junit.Test;
@@ -49,7 +50,7 @@ public class SchemaAgreementCheckTest
                                                                              () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state,
                                                                                                    InetAddresses.forString("127.0.0.2"), state,
                                                                                                    InetAddresses.forString("127.0.0.3"), state).entrySet());
-        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isTrue();
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())).isTrue();
     }
 
     @Test
@@ -67,7 +68,7 @@ public class SchemaAgreementCheckTest
                                                                              () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
                                                                                                    InetAddresses.forString("127.0.0.2"), state1,
                                                                                                    InetAddresses.forString("127.0.0.3"), state2).entrySet());
-        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isFalse();
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())).isFalse();
     }
 
     @Test
@@ -81,7 +82,7 @@ public class SchemaAgreementCheckTest
                                                                              () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
                                                                                                    InetAddresses.forString("127.0.0.2"), state1,
                                                                                                    InetAddresses.forString("127.0.0.3"), state2).entrySet());
-        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isFalse();
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())).isFalse();
     }
 
     @Test
@@ -96,7 +97,7 @@ public class SchemaAgreementCheckTest
                                                                              () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
                                                                                                    InetAddresses.forString("127.0.0.2"), state1,
                                                                                                    InetAddresses.forString("127.0.0.3"), state2).entrySet());
-        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isTrue();
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())).isTrue();
     }
 
     @Test
@@ -115,7 +116,7 @@ public class SchemaAgreementCheckTest
                                                                              () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
                                                                                                    InetAddresses.forString("127.0.0.2"), state1,
                                                                                                    InetAddresses.forString("127.0.0.3"), state2).entrySet());
-        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isFalse();
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())).isFalse();
     }
 
     private static EndpointState createNormal(UUID schema)
