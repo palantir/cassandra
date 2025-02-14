@@ -195,7 +195,7 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
     }
 
     private void logErrorAndSendFailureResponse(InetAddress to, int id, String errorMessageFmt, Arg<?>... args) {
-        logger.error(errorMessageFmt, (Object[]) args);
+        logger.error(errorMessageFmt, (Arg[]) args);
 
         MessageOut reply = new MessageOut(MessagingService.Verb.INTERNAL_RESPONSE)
                 .withParameter(MessagingService.FAILURE_RESPONSE_PARAM, MessagingService.ONE_BYTE);
