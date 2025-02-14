@@ -178,7 +178,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
         if (numTokens == 1)
             logger.warn("Picking random token for a single vnode.  You should probably add more vnodes; failing that, you should probably specify the token manually");
 
-        return getRandomTokens(metadata, numTokens);
+        return DatabaseDescriptor.getTokenAllocator().allocateTokens(metadata, numTokens);
     }
 
     public static Collection<Token> getRandomTokens(TokenMetadata metadata, int numTokens)

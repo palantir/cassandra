@@ -47,6 +47,7 @@ import org.apache.cassandra.auth.IRoleManager;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.ITokenAllocator;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -455,6 +456,13 @@ public class FBUtilities
         if (!partitionerClassName.contains("."))
             partitionerClassName = "org.apache.cassandra.dht." + partitionerClassName;
         return FBUtilities.instanceOrConstruct(partitionerClassName, "partitioner");
+    }
+
+    public static ITokenAllocator newTokenAllocator(String tokenAllocatorClassName) throws ConfigurationException
+    {
+        if (!tokenAllocatorClassName.contains("."))
+            tokenAllocatorClassName = "org.apache.cassandra.dht." + tokenAllocatorClassName;
+        return FBUtilities.instanceOrConstruct(tokenAllocatorClassName, "tokenAllocator");
     }
 
     public static IAuthorizer newAuthorizer(String className) throws ConfigurationException

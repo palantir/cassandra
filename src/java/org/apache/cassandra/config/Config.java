@@ -69,6 +69,7 @@ public class Config
 
     /* Hashing strategy Random or OPHF */
     public String partitioner;
+    public String tokenAllocator = "RandomTokenAllocator";
 
     public Boolean auto_bootstrap = true;
     public volatile boolean hinted_handoff_enabled_global = true;

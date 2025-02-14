@@ -47,6 +47,7 @@ import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.ITokenAllocator;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
@@ -85,6 +86,9 @@ public class DatabaseDescriptor
     /* Hashing strategy Random or OPHF */
     private static IPartitioner partitioner;
     private static String paritionerName;
+
+    /* Strategy to allocate initial tokens during bootstrap if not specified. */
+    private static ITokenAllocator tokenAllocator;
 
     private static Config.DiskAccessMode indexAccessMode;
 
@@ -396,6 +400,20 @@ public class DatabaseDescriptor
             throw new ConfigurationException("Invalid partitioner class " + conf.partitioner, false);
         }
         paritionerName = partitioner.getClass().getCanonicalName();
+
+        /* Token allocation strategy */
+        if (conf.tokenAllocator == null)
+        {
+            throw new ConfigurationException("Missing directive: tokenAllocator", false);
+        }
+        try
+        {
+            tokenAllocator = FBUtilities.newTokenAllocator(System.getProperty("cassandra.tokenAllocator", conf.tokenAllocator));
+        }
+        catch (Exception e)
+        {
+            throw new ConfigurationException("Invalid tokenAllocator class " + conf.tokenAllocator, false);
+        }
 
         if (config.gc_log_threshold_in_ms < 0)
         {
@@ -914,6 +932,11 @@ public class DatabaseDescriptor
     public static String getPartitionerName()
     {
         return paritionerName;
+    }
+
+    public static ITokenAllocator getTokenAllocator()
+    {
+        return tokenAllocator;
     }
 
     /* For tests ONLY, don't use otherwise or all hell will break loose */
