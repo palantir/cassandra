@@ -1071,12 +1071,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             {
                 if (initialTokens.size() < 1)
                 {
-                    bootstrapTokens = BootStrapper.getRandomTokens(tokenMetadata, DatabaseDescriptor.getNumTokens());
-                    if (DatabaseDescriptor.getNumTokens() == 1)
-                        logger.warn("Generated random token {}. Random tokens will result in an unbalanced ring; see http://wiki.apache.org/cassandra/Operations",
-                                    SafeArg.of("token", bootstrapTokens));
-                    else
-                        logger.info("Generated random tokens. tokens are {}", SafeArg.of("tokens", bootstrapTokens));
+                    bootstrapTokens = BootStrapper.allocateTokens(tokenMetadata, DatabaseDescriptor.getNumTokens());
                 }
                 else
                 {

@@ -89,6 +89,7 @@ public class DatabaseDescriptor
 
     /* Strategy to allocate initial tokens during bootstrap if not specified. */
     private static ITokenAllocator tokenAllocator;
+    private static String tokenAllocatorName;
 
     private static Config.DiskAccessMode indexAccessMode;
 
@@ -414,6 +415,7 @@ public class DatabaseDescriptor
         {
             throw new ConfigurationException("Invalid tokenAllocator class " + conf.tokenAllocator, false);
         }
+        tokenAllocatorName = tokenAllocator.getClass().getCanonicalName();
 
         if (config.gc_log_threshold_in_ms < 0)
         {
@@ -937,6 +939,10 @@ public class DatabaseDescriptor
     public static ITokenAllocator getTokenAllocator()
     {
         return tokenAllocator;
+    }
+
+    public static String getTokenAllocatorName() {
+        return tokenAllocatorName;
     }
 
     /* For tests ONLY, don't use otherwise or all hell will break loose */

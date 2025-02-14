@@ -22,11 +22,18 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.palantir.logsafe.SafeArg;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.service.StorageService;
 
 public class RandomTokenAllocator implements ITokenAllocator
 {
+    private static final Logger logger = LoggerFactory.getLogger(RandomTokenAllocator.class);
+
     public Collection<Token> allocateTokens(TokenMetadata metadata, int numTokens)
     {
         Set<Token> tokens = new HashSet<>(numTokens);
@@ -36,6 +43,13 @@ public class RandomTokenAllocator implements ITokenAllocator
             if (metadata.getEndpoint(token) == null)
                 tokens.add(token);
         }
+
+        if (DatabaseDescriptor.getNumTokens() == 1)
+            logger.warn("Generated single random token {}. Random tokens will result in an unbalanced ring; see http://wiki.apache.org/cassandra/Operations",
+                        SafeArg.of("token", tokens));
+        else
+            logger.info("Generated random tokens. tokens are {}", SafeArg.of("tokens", tokens));
+
         return tokens;
     }
 }

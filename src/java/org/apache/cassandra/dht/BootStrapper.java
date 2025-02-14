@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.Keyspace;
@@ -175,22 +176,13 @@ public class BootStrapper extends ProgressEventNotifierSupport
         if (numTokens < 1)
             throw new ConfigurationException("num_tokens must be >= 1");
 
-        if (numTokens == 1)
-            logger.warn("Picking random token for a single vnode.  You should probably add more vnodes; failing that, you should probably specify the token manually");
-
-        return DatabaseDescriptor.getTokenAllocator().allocateTokens(metadata, numTokens);
+        return allocateTokens(metadata, numTokens);
     }
 
-    public static Collection<Token> getRandomTokens(TokenMetadata metadata, int numTokens)
+    public static Collection<Token> allocateTokens(TokenMetadata metadata, int numTokens)
     {
-        Set<Token> tokens = new HashSet<>(numTokens);
-        while (tokens.size() < numTokens)
-        {
-            Token token = StorageService.getPartitioner().getRandomToken();
-            if (metadata.getEndpoint(token) == null)
-                tokens.add(token);
-        }
-        return tokens;
+        logger.info("Allocating tokens to node using: {}", SafeArg.of("tokenAllocator", DatabaseDescriptor.getTokenAllocatorName()));
+        return DatabaseDescriptor.getTokenAllocator().allocateTokens(metadata, numTokens);
     }
 
     public static class StringSerializer implements IVersionedSerializer<String>
