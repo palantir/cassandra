@@ -101,6 +101,21 @@ public class SchemaAgreementCheckTest
     }
 
     @Test
+    public void checkSchemaAgreement_ignoresProvidedIgnorableNode()
+    {
+        UUID schema1 = UUID.randomUUID();
+        UUID schema2 = UUID.randomUUID();
+        EndpointState state1 = createNormal(schema1);
+        EndpointState state2 = createNormal(schema2);
+
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(() -> schema1,
+                                                                             () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.2"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.3"), state2).entrySet());
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of(InetAddresses.forString("127.0.0.3")))).isTrue();
+    }
+
+    @Test
     public void checkSchemaAgreement_doesNotIgnoreNullStatus()
     {
         UUID schema1 = UUID.randomUUID();
