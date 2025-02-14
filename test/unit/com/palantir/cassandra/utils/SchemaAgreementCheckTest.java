@@ -54,6 +54,24 @@ public class SchemaAgreementCheckTest
     }
 
     @Test
+    public void checkSchemaAgreement_failsOnNullSchema()
+    {
+        UUID schema = UUID.randomUUID();
+        EndpointState state1 = createNormal(schema);
+
+        EndpointState state2 = EndpointStateFactory.create();
+        List<Token> tokens = Collections.singletonList(DatabaseDescriptor.getPartitioner().getRandomToken());
+        state2.addApplicationState(ApplicationState.STATUS, valueFactory.normal(tokens));
+        state2.addApplicationState(ApplicationState.TOKENS, valueFactory.tokens(tokens));
+
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(() -> schema,
+                                                                             () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.2"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.3"), state2).entrySet());
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())).isFalse();
+    }
+
+    @Test
     public void checkSchemaAgreement_failsOnIncorrectSchema()
     {
         UUID schema1 = UUID.randomUUID();
