@@ -56,16 +56,18 @@ public class SchemaAgreementCheck
         this.endpointStatesSupplier = endpointStatesSupplier;
     }
 
-    public boolean isSchemaInAgreement(List<InetAddress> nodesToSkip)
+    public boolean isSchemaInAgreement(List<InetAddress> ignoredEndpoints)
     {
         try
         {
             UUID localSchemaVersion = localSchemaVersionSupplier.get();
             return endpointStatesSupplier.get().stream()
-                                         .filter(endpoint -> !nodesToSkip.contains(endpoint.getKey()))
+                                         .filter(endpoint -> !ignoredEndpoints.contains(endpoint.getKey()))
                                          .filter(endpointStates -> !isLeft(endpointStates.getValue()))
                                          .allMatch(endpointStates -> schemaIsEqualToLocalVersion(localSchemaVersion, endpointStates.getKey(), endpointStates.getValue()));
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
             logger.error("Exception while checking schema agreement", e);
             return false;
         }
