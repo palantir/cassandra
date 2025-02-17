@@ -113,7 +113,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // the startRequestStreamsCondition gate is disabled for new clusters because they are not expected to receive client requests yet
     private static final boolean DISABLE_WAIT_TO_REQUEST_STREAMS = Boolean.getBoolean("palantir_cassandra.disable_wait_to_request_streams") || Boolean.getBoolean("palantir_cassandra.is_new_cluster");
     private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_finish_bootstrap");
-    private static final Integer STREAMS_REQUEST_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.streams_request_check_grace_period_minutes", 30);
+    private static final Integer STREAMS_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.streams_check_grace_period_minutes", 30);
     private static final Integer FINISH_BOOTSTRAP_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.finish_bootstrap_check_grace_period_minutes", 60);
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
@@ -206,7 +206,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_REQUEST_STREAMS, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_REQUEST_STREAMS, WAITING_TO_FINISH_BOOTSTRAP, WAITING_TO_SEND_STREAMS, DISABLED }
     private volatile Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -1608,7 +1608,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         try
         {
             setMode(Mode.WAITING_TO_REQUEST_STREAMS, "Awaiting call to proceed with requesting streams during bootstrap", true);
-            boolean timeoutExceeded = !startRequestStreamsCondition.await(STREAMS_REQUEST_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
+            boolean timeoutExceeded = !startRequestStreamsCondition.await(STREAMS_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
             if (timeoutExceeded)
             {
                 logger.error("Start signal to request streams was not given within 30 minutes. Streams request safety check failed.");
@@ -4172,6 +4172,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (operationMode != Mode.NORMAL)
             throw new UnsupportedOperationException("Node in " + operationMode + " state; wait for status to become normal or restart");
 
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+        if(!schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())) {
+            throw new UnsupportedOperationException("The cluster does not agree on schema; wait for agreement before triggering a decommission");
+        }
+
         PendingRangeCalculatorService.instance.blockUntilFinished();
         for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
         {
@@ -4185,6 +4190,21 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         long timeout = Math.max(RING_DELAY, BatchlogManager.instance.getBatchlogTimeout());
         setMode(Mode.LEAVING, "sleeping " + timeout + " ms for batch processing and pending range setup", true);
         Thread.sleep(timeout);
+
+        try
+        {
+            setMode(Mode.WAITING_TO_SEND_STREAMS, "Awaiting call to proceed with sending streams during decommission", true);
+            boolean timeoutExceeded = !startRequestStreamsCondition.await(STREAMS_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
+            if (timeoutExceeded)
+            {
+                throw new RuntimeException("Start signal to request streams was not given within 30 minutes. Streams request safety check failed.");
+            }
+        }
+        catch (InterruptedException e)
+        {
+            throw new AssertionError(e);
+        }
+        logger.info("Received signal to start sending streams.");
 
         Runnable finishLeaving = new Runnable()
         {
