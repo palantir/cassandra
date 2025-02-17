@@ -826,6 +826,11 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void finishBootstrap();
 
     /**
+     * Send signal to start sending streams for decommissions
+     */
+    public void startSendingStreams();
+
+    /**
      * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
      *
      * Each map representing an error is guarenteed to have the key {@link #NON_TRANSIENT_ERROR_TYPE_KEY} and the
