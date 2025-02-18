@@ -91,10 +91,10 @@ public class ColumnFamilyMetrics
     public final Gauge<Integer> liveSSTableCount;
     /** Disk space used by SSTables belonging to this CF */
     public final Counter liveDiskSpaceUsed;
+    /** Disk space used by SSTables belonging to this CF, relative to global storage load. */
+    public final Gauge<Double> liveDiskSpaceUsedRelativeToGlobalStorageLoad;
     /** Total disk space used by SSTables belonging to this CF, including obsolete ones waiting to be GC'd */
     public final Counter totalDiskSpaceUsed;
-    /** Total disk space used by SSTables belonging to this CF, including obsolete ones waiting to be GC'd, relative to global storage load. */
-    public final Gauge<Double> totalDiskSpaceUsedRelativeToGlobalStorageLoad;
     /** Size of the smallest compacted row */
     public final Gauge<Long> minRowSize;
     /** Size of the largest compacted row */
@@ -455,13 +455,10 @@ public class ColumnFamilyMetrics
             }
         });
         liveDiskSpaceUsed = createColumnFamilyCounter("LiveDiskSpaceUsed");
+        liveDiskSpaceUsedRelativeToGlobalStorageLoad = Metrics.register(
+            factory.createMetricName("LiveDiskSpaceUsedRelativeToGlobalStorageLoad"),
+            () -> (double) liveDiskSpaceUsed.getCount() / StorageMetrics.load.getCount());
         totalDiskSpaceUsed = createColumnFamilyCounter("TotalDiskSpaceUsed");
-        totalDiskSpaceUsedRelativeToGlobalStorageLoad = createColumnFamilyGauge("TotalDiskSpaceUsedRelativeToGlobalStorageLoad", new Gauge<Double>() {
-            @Override
-            public Double getValue() {
-                return (double) totalDiskSpaceUsed.getCount() / StorageMetrics.load.getCount();
-            }
-        });
         minRowSize = createColumnFamilyGauge("MinRowSize", new Gauge<Long>()
         {
             public Long getValue()
