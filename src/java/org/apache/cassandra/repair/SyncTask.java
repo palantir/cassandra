@@ -67,11 +67,10 @@ public abstract class SyncTask extends AbstractFuture<SyncStat> implements Runna
         if (differences.isEmpty())
         {
             logger.info(
-                    "[repair #{}] Endpoints {} and {} {} for {}",
+                    "[repair #{}] Endpoints {} and {} are consistent for {}",
                     SafeArg.of("sessionId", desc.sessionId),
                     SafeArg.of("endpoint1", r1.endpoint),
                     SafeArg.of("endpoint2", r2.endpoint),
-                    "are consistent",
                     SafeArg.of("columnFamily", desc.columnFamily)
             );
             Tracing.traceRepair("Endpoint {} is consistent with {} for {}", r1.endpoint, r2.endpoint, desc.columnFamily);
