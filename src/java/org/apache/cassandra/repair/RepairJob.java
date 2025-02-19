@@ -149,7 +149,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
         {
             public void onSuccess(List<SyncStat> stats)
             {
-                logger.info(String.format("[repair #%s] %s is fully synced", SafeArg.of("sessionId", session.getId()), SafeArg.of("columnFamily", desc.columnFamily)));
+                logger.info(String.format("[repair #{}] {} is fully synced", SafeArg.of("sessionId", session.getId()), SafeArg.of("columnFamily", desc.columnFamily)));
                 SystemDistributedKeyspace.successfulRepairJob(session.getId(), desc.keyspace, desc.columnFamily);
                 set(new RepairResult(desc, stats));
             }
@@ -159,7 +159,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
              */
             public void onFailure(Throwable t)
             {
-                logger.warn(String.format("[repair #%s] %s sync failed", SafeArg.of("sessionId", session.getId()), SafeArg.of("columnFamily", desc.columnFamily)));
+                logger.warn(String.format("[repair #{}] {} sync failed", SafeArg.of("sessionId", session.getId()), SafeArg.of("columnFamily", desc.columnFamily)));
                 SystemDistributedKeyspace.failedRepairJob(session.getId(), desc.keyspace, desc.columnFamily, t);
                 setException(t);
             }
