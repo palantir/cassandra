@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,10 @@ public class SchemaAgreementCheck
     {
         this.localSchemaVersionSupplier = localSchemaVersionSupplier;
         this.endpointStatesSupplier = endpointStatesSupplier;
+    }
+
+    public boolean isSchemaInAgreement() {
+        return isSchemaInAgreement(ImmutableList.of());
     }
 
     public boolean isSchemaInAgreement(List<InetAddress> ignoredEndpoints)
