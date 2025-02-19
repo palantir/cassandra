@@ -4211,6 +4211,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             throw new AssertionError(e);
         }
         logger.info("Received signal to start sending streams.");
+        setMode(Mode.LEAVING, "Starting unbootstrap ..", true);
 
         Runnable finishLeaving = new Runnable()
         {
