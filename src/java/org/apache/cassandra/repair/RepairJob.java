@@ -21,6 +21,7 @@ import java.net.InetAddress;
 import java.util.*;
 
 import com.google.common.util.concurrent.*;
+import com.palantir.logsafe.Arg;
 import com.palantir.logsafe.SafeArg;
 
 import org.slf4j.Logger;
@@ -150,6 +151,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
             public void onSuccess(List<SyncStat> stats)
             {
                 logger.info(String.format("[repair #{}] {} is fully synced", SafeArg.of("sessionId", session.getId()), SafeArg.of("columnFamily", desc.columnFamily)));
+                logErrorTest("LCHEUNG LOG TEST {} {}", SafeArg.of("sessionId", session.getId()), SafeArg.of("columnFamily", desc.columnFamily));
                 SystemDistributedKeyspace.successfulRepairJob(session.getId(), desc.keyspace, desc.columnFamily);
                 set(new RepairResult(desc, stats));
             }
@@ -167,6 +169,10 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
 
         // Wait for validation to complete
         Futures.getUnchecked(validations);
+    }
+
+    private static void logErrorTest(String errorMessageFmt, Arg<?>... args) {
+        logger.error(errorMessageFmt, (Object[]) args);
     }
 
     /**
