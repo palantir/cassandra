@@ -19,6 +19,8 @@ package org.apache.cassandra.repair;
 
 import java.net.InetAddress;
 
+import com.palantir.logsafe.SafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +57,12 @@ public class StreamingRepairTask implements Runnable, StreamEventHandler
     {
         InetAddress dest = request.dst;
         InetAddress preferred = SystemKeyspace.getPreferredIP(dest);
-        logger.info(String.format("[streaming task #%s] Performing streaming repair of %d ranges with %s", desc.sessionId, request.ranges.size(), request.dst));
+        logger.info(
+                "[streaming task #{}] Performing streaming repair of {} ranges with {}",
+                SafeArg.of("sessionId", desc.sessionId),
+                SafeArg.of("rangeCount", request.ranges.size()),
+                SafeArg.of("destination", request.dst)
+        );
         boolean isIncremental = false;
         if (desc.parentSessionId != null)
         {
@@ -82,7 +89,11 @@ public class StreamingRepairTask implements Runnable, StreamEventHandler
      */
     public void onSuccess(StreamState state)
     {
-        logger.info(String.format("[repair #%s] streaming task succeed, returning response to %s", desc.sessionId, request.initiator));
+        logger.info(
+                "[repair #{}] streaming task succeeded, returning response to {}",
+                SafeArg.of("sessionId", desc.sessionId),
+                SafeArg.of("initiator", request.initiator)
+        );
         MessagingService.instance().sendOneWay(new SyncComplete(desc, request.src, request.dst, true).createMessage(), request.initiator);
     }
 

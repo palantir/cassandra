@@ -17,6 +17,8 @@
  */
 package org.apache.cassandra.repair;
 
+import com.palantir.logsafe.SafeArg;
+
 import java.net.InetAddress;
 import java.util.List;
 
@@ -50,8 +52,14 @@ public class RemoteSyncTask extends SyncTask
     {
         InetAddress local = FBUtilities.getBroadcastAddress();
         SyncRequest request = new SyncRequest(desc, local, r1.endpoint, r2.endpoint, differences);
+        logger.info(
+                "[repair #{}] Forwarding streaming repair of {} ranges to {} (to be streamed with {})",
+                SafeArg.of("sessionId", desc.sessionId),
+                SafeArg.of("rangeCount", request.ranges.size()),
+                SafeArg.of("syncSource", request.src),
+                SafeArg.of("syncDestination", request.dst)
+        );
         String message = String.format("Forwarding streaming repair of %d ranges to %s (to be streamed with %s)", request.ranges.size(), request.src, request.dst);
-        logger.info("[repair #{}] {}", desc.sessionId, message);
         Tracing.traceRepair(message);
         MessagingService.instance().sendOneWay(request.createMessage(), request.src);
     }

@@ -32,6 +32,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 
+import com.palantir.logsafe.UnsafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,7 +202,7 @@ public final class SystemDistributedKeyspace
         }
         catch (Throwable t)
         {
-            logger.error("Error executing query "+fmtQry, t);
+            logger.error("Error executing query {}", UnsafeArg.of("query", fmtQry), t);
         }
     }
 
