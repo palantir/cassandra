@@ -68,7 +68,7 @@ public class SchemaAgreementCheck
             UUID localSchemaVersion = localSchemaVersionSupplier.get();
             return endpointStatesSupplier.get().stream()
                                          .filter(endpoint -> !ignoredEndpoints.contains(endpoint.getKey()))
-                                         .filter(endpointStates -> !isLeft(endpointStates.getValue()))
+                                         .filter(endpointStates -> !isLeftOrRemoved(endpointStates.getValue()))
                                          .allMatch(endpointStates -> schemaIsEqualToLocalVersion(localSchemaVersion, endpointStates.getKey(), endpointStates.getValue()));
         }
         catch (Exception e)
@@ -78,9 +78,10 @@ public class SchemaAgreementCheck
         }
     }
 
-    private boolean isLeft(EndpointState endpointState)
+    private boolean isLeftOrRemoved(EndpointState endpointState)
     {
-        return VersionedValue.STATUS_LEFT.equals(endpointState.getStatus());
+        return VersionedValue.STATUS_LEFT.equals(endpointState.getStatus())
+               || VersionedValue.REMOVED_TOKEN.equals(endpointState.getStatus());
     }
 
     private boolean schemaIsEqualToLocalVersion(UUID localSchemaVersion, InetAddress address, EndpointState endpointState)
