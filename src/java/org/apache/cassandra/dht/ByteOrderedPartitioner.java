@@ -187,7 +187,7 @@ public class ByteOrderedPartitioner implements IPartitioner
         BigInteger right = bigForBytes(rToken.token, sigbytes);
 
         Pair<BigInteger,Boolean> midpair = FBUtilities.midpoint(left, right, 8*sigbytes);
-        return new BytesToken(bytesForBig(midpair.left, sigbytes, false));
+        return new BytesToken(bytesForBig(midpair.left, sigbytes, midpair.right));
     }
 
     public Token split(Token left, Token right, double ratioToLeft)
@@ -239,7 +239,7 @@ public class ByteOrderedPartitioner implements IPartitioner
         if (sigbytes != bytes.length)
         {
             b = new byte[sigbytes];
-            System.arraycopy(bytes, 0, b, 0, bytes.length);
+            System.arraycopy(bytes, 0, b, 0, Math.min(bytes.length, b.length));
         } else
             b = bytes;
         return new BigInteger(1, b);
