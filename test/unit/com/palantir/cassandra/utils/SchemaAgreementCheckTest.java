@@ -175,7 +175,6 @@ public class SchemaAgreementCheckTest
         List<Token> tokens = Collections.singletonList(DatabaseDescriptor.getPartitioner().getRandomToken());
         state.addApplicationState(ApplicationState.STATUS, valueFactory.removedNonlocal(UUID.randomUUID(), 259200 * 1000));
         state.addApplicationState(ApplicationState.SCHEMA, valueFactory.schema(schema));
-        state.addApplicationState(ApplicationState.TOKENS, valueFactory.tokens(tokens));
         return state;
     }
 }
