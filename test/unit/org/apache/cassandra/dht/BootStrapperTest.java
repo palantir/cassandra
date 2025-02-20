@@ -196,7 +196,7 @@ public class BootStrapperTest
             int vn = 16;
             String ks = "BootStrapperTestNTSKeyspace" + rackCount + replicas;
             String dc = "1";
-            SchemaLoader.createKeyspace(ks, NetworkTopologyStrategy.class, ImmutableMap.of(dc, "15"), SchemaLoader.standardCFMD(ks, "Standard1"));
+            SchemaLoader.createKeyspace(ks, NetworkTopologyStrategy.class, ImmutableMap.of(dc, String.valueOf(replicas)), SchemaLoader.standardCFMD(ks, "Standard1"));
             TokenMetadata tm = StorageService.instance.getTokenMetadata();
             tm.clearUnsafe();
             for (int i = 0; i < rackCount; ++i)
@@ -283,7 +283,7 @@ public class BootStrapperTest
             metadata.updateHostId(UUID.randomUUID(), InetAddress.getByName("127.1.0.99"));
             metadata.updateHostId(UUID.randomUUID(), InetAddress.getByName("127.15.0.99"));
 
-            SchemaLoader.createKeyspace(ks, NetworkTopologyStrategy.class, ImmutableMap.of(dc, "15"), SchemaLoader.standardCFMD(ks, "Standard1"));
+            SchemaLoader.createKeyspace(ks, NetworkTopologyStrategy.class, ImmutableMap.of(dc, String.valueOf(replicas)), SchemaLoader.standardCFMD(ks, "Standard1"));
             int base = 5;
             for (int i = 0; i < rackCount; ++i)
                 generateFakeEndpoints(metadata, base << i, vn, dc, Integer.toString(i));     // unbalanced racks
