@@ -33,7 +33,9 @@ import org.apache.cassandra.utils.Pair;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,6 +48,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ByteOrderedPartitioner implements IPartitioner
 {
     public static final BytesToken MINIMUM = new BytesToken(ArrayUtils.EMPTY_BYTE_ARRAY);
+    public static final BytesToken MAXIMUM = new BytesToken(new byte[16]);
+    public static final BigDecimal MAX_TOKEN_MAGNITUDE;
+    static {
+        Arrays.fill(MAXIMUM.token, (byte) 0xFF);
+        MAX_TOKEN_MAGNITUDE = new BigDecimal(bigForBytes(MAXIMUM.token, 16));
+    }
 
     public static final BigInteger BYTE_MASK = new BigInteger("255");
 
@@ -121,15 +129,39 @@ public class ByteOrderedPartitioner implements IPartitioner
         @Override
         public double size(Token next)
         {
-            throw new UnsupportedOperationException(String.format("Token type %s does not support token allocation.",
-                                                                  getClass().getSimpleName()));
+            BytesToken n = (BytesToken) next;
+            BigDecimal size = new BigDecimal(bigForBytes(n.token, 16).subtract(bigForBytes(token, 16)));
+            BigDecimal d = size.divide(MAX_TOKEN_MAGNITUDE, MathContext.DECIMAL64); // Scale so that the full range is 1.
+            return (d.compareTo(BigDecimal.ZERO) > 0 ? d : d.add(BigDecimal.ONE)).doubleValue(); // Adjust for signed long, also making sure t.size(t) == 1.
         }
 
         @Override
         public Token increaseSlightly()
         {
-            throw new UnsupportedOperationException(String.format("Token type %s does not support token allocation.",
-                                                                  getClass().getSimpleName()));
+            if (token.length < 16)
+            {
+                byte[] newToken = Arrays.copyOf(token, token.length + 1);
+                newToken[token.length] = 0;
+                return new BytesToken(newToken);
+            }
+            else if (Arrays.equals(token, MAXIMUM.token))
+            {
+                return MINIMUM;
+            }
+            else
+            {
+                byte[] result = new byte[16];
+                System.arraycopy(token, 0, result, 0, 16);
+                for (int i = 15; i >= 0; i--) {
+                    if (result[i] != (byte) 0xFF) {
+                        result[i]++;
+                        break;
+                    } else {
+                        result[i] = 0;
+                    }
+                }
+                return new BytesToken(result);
+            }
         }
     }
 
@@ -147,12 +179,12 @@ public class ByteOrderedPartitioner implements IPartitioner
 
     public BytesToken midpoint(Token lt, Token rt)
     {
-        BytesToken ltoken = (BytesToken) lt;
-        BytesToken rtoken = (BytesToken) rt;
+        BytesToken lToken = (BytesToken) lt;
+        BytesToken rToken = (BytesToken) rt;
 
-        int sigbytes = Math.max(ltoken.token.length, rtoken.token.length);
-        BigInteger left = bigForBytes(ltoken.token, sigbytes);
-        BigInteger right = bigForBytes(rtoken.token, sigbytes);
+        int sigbytes = Math.max(lToken.token.length, rToken.token.length);
+        BigInteger left = bigForBytes(lToken.token, sigbytes);
+        BigInteger right = bigForBytes(rToken.token, sigbytes);
 
         Pair<BigInteger,Boolean> midpair = FBUtilities.midpoint(left, right, 8*sigbytes);
         return new BytesToken(bytesForBig(midpair.left, sigbytes, midpair.right));
@@ -160,14 +192,48 @@ public class ByteOrderedPartitioner implements IPartitioner
 
     public Token split(Token left, Token right, double ratioToLeft)
     {
-        throw new UnsupportedOperationException();
+        BytesToken lToken = (BytesToken) left;
+        BytesToken rToken = (BytesToken) right;
+
+        int sigbytes = 16;
+        BigDecimal l = new BigDecimal(bigForBytes(lToken.token, 16)),
+                   r = new BigDecimal(bigForBytes(rToken.token, 16)),
+                   ratio = BigDecimal.valueOf(ratioToLeft);
+        byte[] newToken;
+
+        if (l.compareTo(r) < 0)
+        {
+            newToken = bytesForBig(r.subtract(l).multiply(ratio).add(l).toBigInteger(), sigbytes, false);
+        }
+        else
+        {
+            // wrapping case
+            // L + ((R - min) + (max - L)) * pct
+            BigInteger maxTokenInt = bigForBytes(MAXIMUM.token, MAXIMUM.token.length);
+            BigInteger minTokenInt = bigForBytes(MINIMUM.token, MINIMUM.token.length);
+            BigDecimal max = new BigDecimal(maxTokenInt);
+            BigDecimal min = new BigDecimal(minTokenInt);
+
+            BigInteger token = max.subtract(min).add(r).subtract(l).multiply(ratio).add(l).toBigInteger();
+
+            if (token.compareTo(maxTokenInt) <= 0)
+            {
+                newToken = bytesForBig(token, sigbytes, false);
+            }
+            else
+            {
+                // if the value is above maximum
+                newToken = bytesForBig(minTokenInt.add(token.subtract(maxTokenInt)), sigbytes, false);
+            }
+        }
+        return new BytesToken(newToken);
     }
 
     /**
      * Convert a byte array containing the most significant of 'sigbytes' bytes
      * representing a big-endian magnitude into a BigInteger.
      */
-    protected BigInteger bigForBytes(byte[] bytes, int sigbytes)
+    protected static BigInteger bigForBytes(byte[] bytes, int sigbytes)
     {
         byte[] b;
         if (sigbytes != bytes.length)
@@ -184,7 +250,7 @@ public class ByteOrderedPartitioner implements IPartitioner
      * If remainder is true, an additional byte with the high order bit enabled
      * will be added to the end of the array
      */
-    protected byte[] bytesForBig(BigInteger big, int sigbytes, boolean remainder)
+    protected static byte[] bytesForBig(BigInteger big, int sigbytes, boolean remainder)
     {
         byte[] bytes = new byte[sigbytes + (remainder ? 1 : 0)];
         if (remainder)
