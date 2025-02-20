@@ -993,7 +993,7 @@ public class DatabaseDescriptor
 
     public static Integer getAllocateTokensForLocalRf()
     {
-        return Integer.parseInt(System.getProperty("cassandra.allocate_tokens_for_local_replication_factor", conf.allocate_tokens_for_local_replication_factor.toString()));
+        return Integer.getInteger("cassandra.allocate_tokens_for_local_replication_factor", conf.allocate_tokens_for_local_replication_factor);
     }
 
     public static Collection<String> tokensFromString(String tokenString)
