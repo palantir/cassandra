@@ -21,6 +21,7 @@ package org.apache.cassandra.dht;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -160,7 +161,12 @@ public class KeyCollisionTest
 
         public BigIntegerToken getRandomToken()
         {
-            return new BigIntegerToken(BigInteger.valueOf(new Random().nextInt(15)));
+            return getRandomToken(ThreadLocalRandom.current());
+        }
+
+        public BigIntegerToken getRandomToken(Random random)
+        {
+            return new BigIntegerToken(BigInteger.valueOf(random.nextInt(15)));
         }
 
         private final Token.TokenFactory tokenFactory = new Token.TokenFactory() {
