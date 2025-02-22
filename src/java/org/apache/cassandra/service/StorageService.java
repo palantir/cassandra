@@ -4205,6 +4205,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             boolean timeoutExceeded = !startSendStreamsCondition.await(STREAMS_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
             if (timeoutExceeded)
             {
+                recordTransientError(TransientError.DECOMMISSION_ERROR, ImmutableMap.of("reason", "send stream gate timeout"));
                 throw new RuntimeException("Start signal to request streams was not given within 30 minutes. Streams request safety check failed.");
             }
         }

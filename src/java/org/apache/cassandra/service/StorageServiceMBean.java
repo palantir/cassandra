@@ -66,7 +66,8 @@ public interface StorageServiceMBean extends NotificationEmitter
      * Type of transient errors.
      */
     public enum TransientError {
-        EXCEEDED_DISK_THRESHOLD
+        EXCEEDED_DISK_THRESHOLD,
+        DECOMMISSION_ERROR
     }
 
     public enum ProgressState
