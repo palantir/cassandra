@@ -4201,6 +4201,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         try
         {
+            PendingRangeCalculatorService.instance.blockUntilFinished();
             setMode(Mode.WAITING_TO_SEND_STREAMS, "Awaiting call to proceed with sending streams during decommission", true);
             boolean timeoutExceeded = !startSendStreamsCondition.await(STREAMS_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
             if (timeoutExceeded)
