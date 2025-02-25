@@ -157,7 +157,7 @@ class ReplicationAwareTokenAllocator<Unit> extends TokenAllocatorBase<Unit>
      * Construct the token ring as a CircularList of TokenInfo,
      * and populate the ownership of the UnitInfo's provided
      */
-    private TokenInfo<Unit> createTokenInfos(Map<Unit, UnitInfo<Unit>> units, GroupInfo newUnitGroup)
+    protected TokenInfo<Unit> createTokenInfos(Map<Unit, UnitInfo<Unit>> units, GroupInfo newUnitGroup)
     {
         // build the circular list
         TokenInfo<Unit> prev = null;

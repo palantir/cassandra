@@ -69,7 +69,10 @@ public final class GeneticOptimizer<T> {
     {
         for (int i = 0; i < generations; i++)
         {
-            List<T> survivors = population.stream().sorted((a, b) -> Double.compare(fitnessFunction.apply(b), fitnessFunction.apply(a))).limit(survivorsPerGeneration).collect(Collectors.toList());
+            List<T> survivors = population.stream()
+                      .sorted((a, b) -> -Double.compare(fitnessFunction.apply(b), fitnessFunction.apply(a)))
+                      .limit(survivorsPerGeneration)
+                      .collect(Collectors.toList());
             List<T> nextGeneration = new ArrayList<>(survivors);
 
             while (nextGeneration.size() < populationSize)
