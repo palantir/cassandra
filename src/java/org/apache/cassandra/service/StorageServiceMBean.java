@@ -66,7 +66,8 @@ public interface StorageServiceMBean extends NotificationEmitter
      * Type of transient errors.
      */
     public enum TransientError {
-        EXCEEDED_DISK_THRESHOLD
+        EXCEEDED_DISK_THRESHOLD,
+        DECOMMISSION_ERROR
     }
 
     public enum ProgressState
@@ -824,6 +825,11 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Send signal to finalize the bootstrap process and finish joining the ring.
      */
     public void finishBootstrap();
+
+    /**
+     * Send signal to start sending streams for decommissions
+     */
+    public void startSendingStreams();
 
     /**
      * Retrieve a set of unique errors. every error is represented as a map from an attribute name to a value.
