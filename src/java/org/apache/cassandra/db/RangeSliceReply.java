@@ -36,10 +36,18 @@ public class RangeSliceReply
     public static final RangeSliceReplySerializer serializer = new RangeSliceReplySerializer();
 
     public final List<Row> rows;
+    public final PageToken pageToken;
 
     public RangeSliceReply(List<Row> rows)
     {
         this.rows = rows;
+        this.pageToken = null;
+    }
+
+    public RangeSliceReply(List<Row> rows, PageToken pageToken)
+    {
+        this.rows = rows;
+        this.pageToken = pageToken;
     }
 
     public MessageOut<RangeSliceReply> createMessage()
@@ -51,8 +59,8 @@ public class RangeSliceReply
     public String toString()
     {
         return "RangeSliceReply{" +
-               "rows=" + StringUtils.join(rows, ",") +
-               '}';
+                "rows=" + StringUtils.join(rows, ",") +
+                '}';
     }
 
     public static RangeSliceReply read(byte[] body, int version) throws IOException
@@ -69,7 +77,9 @@ public class RangeSliceReply
         {
             out.writeInt(rsr.rows.size());
             for (Row row : rsr.rows)
+            {
                 Row.serializer.serialize(row, out, version);
+            }
         }
 
         public RangeSliceReply deserialize(DataInput in, int version) throws IOException
@@ -77,7 +87,9 @@ public class RangeSliceReply
             int rowCount = in.readInt();
             List<Row> rows = new ArrayList<Row>(rowCount);
             for (int i = 0; i < rowCount; i++)
+            {
                 rows.add(Row.serializer.deserialize(in, version));
+            }
             return new RangeSliceReply(rows);
         }
 
@@ -85,7 +97,9 @@ public class RangeSliceReply
         {
             int size = TypeSizes.NATIVE.sizeof(rsr.rows.size());
             for (Row row : rsr.rows)
+            {
                 size += Row.serializer.serializedSize(row, version);
+            }
             return size;
         }
     }

@@ -25,6 +25,7 @@ import java.util.List;
 import com.google.common.base.MoreObjects;
 
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.filter.ExtendedFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
@@ -88,27 +89,27 @@ public class RangeSliceCommand extends AbstractRangeCommand implements Pageable
     public AbstractRangeCommand forSubRange(AbstractBounds<RowPosition> subRange)
     {
         return new RangeSliceCommand(keyspace,
-                                     columnFamily,
-                                     timestamp,
-                                     predicate.cloneShallow(),
-                                     subRange,
-                                     rowFilter,
-                                     maxResults,
-                                     countCQL3Rows,
-                                     isPaging);
+                columnFamily,
+                timestamp,
+                predicate.cloneShallow(),
+                subRange,
+                rowFilter,
+                maxResults,
+                countCQL3Rows,
+                isPaging);
     }
 
     public AbstractRangeCommand withUpdatedLimit(int newLimit)
     {
         return new RangeSliceCommand(keyspace,
-                                     columnFamily,
-                                     timestamp,
-                                     predicate.cloneShallow(),
-                                     keyRange,
-                                     rowFilter,
-                                     newLimit,
-                                     countCQL3Rows,
-                                     isPaging);
+                columnFamily,
+                timestamp,
+                predicate.cloneShallow(),
+                keyRange,
+                rowFilter,
+                newLimit,
+                countCQL3Rows,
+                isPaging);
     }
 
     public int limit()
@@ -127,24 +128,34 @@ public class RangeSliceCommand extends AbstractRangeCommand implements Pageable
 
         ExtendedFilter exFilter = cfs.makeExtendedFilter(keyRange, predicate, rowFilter, maxResults, countCQL3Rows, isPaging, timestamp);
         if (cfs.indexManager.hasIndexFor(rowFilter))
+        {
             return cfs.search(exFilter);
+        }
         else
+        {
             return cfs.getRangeSlice(exFilter);
+        }
     }
 
     @Override
     public String toString()
     {
         return MoreObjects.toStringHelper(this)
-                      .add("keyspace", keyspace)
-                      .add("columnFamily", columnFamily)
-                      .add("predicate", predicate)
-                      .add("keyRange", keyRange)
-                      .add("rowFilter", rowFilter)
-                      .add("maxResults", maxResults)
-                      .add("counterCQL3Rows", countCQL3Rows)
-                      .add("timestamp", timestamp)
-                      .toString();
+                .add("keyspace", keyspace)
+                .add("columnFamily", columnFamily)
+                .add("predicate", predicate)
+                .add("keyRange", keyRange)
+                .add("rowFilter", rowFilter)
+                .add("maxResults", maxResults)
+                .add("counterCQL3Rows", countCQL3Rows)
+                .add("timestamp", timestamp)
+                .toString();
+    }
+
+    @Override
+    public PageToken getPageToken()
+    {
+        return null;
     }
 }
 
@@ -190,7 +201,7 @@ class RangeSliceCommandSerializer implements IVersionedSerializer<RangeSliceComm
         {
             String message = String.format("Got range slice command for nonexistent table %s.%s.  If the table was just " +
                     "created, this is likely due to the schema not being fully propagated.  Please wait for schema " +
-                    "agreement on table creation." , keyspace, columnFamily);
+                    "agreement on table creation.", keyspace, columnFamily);
             throw new UnknownColumnFamilyException(message, null);
         }
 

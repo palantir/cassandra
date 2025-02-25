@@ -66,32 +66,32 @@ public class PagedRangeCommand extends AbstractRangeCommand
 
     public AbstractRangeCommand forSubRange(AbstractBounds<RowPosition> subRange)
     {
-        Composite newStart = subRange.left.equals(keyRange.left) ? start : ((SliceQueryFilter)predicate).start();
-        Composite newStop = subRange.right.equals(keyRange.right) ? stop : ((SliceQueryFilter)predicate).finish();
+        Composite newStart = subRange.left.equals(keyRange.left) ? start : ((SliceQueryFilter) predicate).start();
+        Composite newStop = subRange.right.equals(keyRange.right) ? stop : ((SliceQueryFilter) predicate).finish();
         return new PagedRangeCommand(keyspace,
-                                     columnFamily,
-                                     timestamp,
-                                     subRange,
-                                     ((SliceQueryFilter) predicate).cloneShallow(),
-                                     newStart,
-                                     newStop,
-                                     rowFilter,
-                                     limit,
-                                     countCQL3Rows);
+                columnFamily,
+                timestamp,
+                subRange,
+                ((SliceQueryFilter) predicate).cloneShallow(),
+                newStart,
+                newStop,
+                rowFilter,
+                limit,
+                countCQL3Rows);
     }
 
     public AbstractRangeCommand withUpdatedLimit(int newLimit)
     {
         return new PagedRangeCommand(keyspace,
-                                     columnFamily,
-                                     timestamp,
-                                     keyRange,
-                                     ((SliceQueryFilter) predicate).cloneShallow(),
-                                     start,
-                                     stop,
-                                     rowFilter,
-                                     newLimit,
-                                     countCQL3Rows);
+                columnFamily,
+                timestamp,
+                keyRange,
+                ((SliceQueryFilter) predicate).cloneShallow(),
+                start,
+                stop,
+                rowFilter,
+                newLimit,
+                countCQL3Rows);
     }
 
     public int limit()
@@ -108,17 +108,27 @@ public class PagedRangeCommand extends AbstractRangeCommand
     {
         ColumnFamilyStore cfs = Keyspace.open(keyspace).getColumnFamilyStore(columnFamily);
 
-        ExtendedFilter exFilter = cfs.makeExtendedFilter(keyRange, (SliceQueryFilter)predicate, start, stop, rowFilter, limit, countCQL3Rows(), timestamp);
+        ExtendedFilter exFilter = cfs.makeExtendedFilter(keyRange, (SliceQueryFilter) predicate, start, stop, rowFilter, limit, countCQL3Rows(), timestamp);
         if (cfs.indexManager.hasIndexFor(rowFilter))
+        {
             return cfs.search(exFilter);
+        }
         else
+        {
             return cfs.getRangeSlice(exFilter);
+        }
     }
 
     @Override
     public String toString()
     {
         return String.format("PagedRange(%s, %s, %d, %s, %s, %s, %s, %s, %d)", keyspace, columnFamily, timestamp, keyRange, predicate, start, stop, rowFilter, limit);
+    }
+
+    @Override
+    public PageToken getPageToken()
+    {
+        return null;
     }
 
     private static class Serializer implements IVersionedSerializer<PagedRangeCommand>
@@ -135,7 +145,7 @@ public class PagedRangeCommand extends AbstractRangeCommand
             CFMetaData metadata = Schema.instance.getCFMetaData(cmd.keyspace, cmd.columnFamily);
 
             // SliceQueryFilter (the count is not used)
-            SliceQueryFilter filter = (SliceQueryFilter)cmd.predicate;
+            SliceQueryFilter filter = (SliceQueryFilter) cmd.predicate;
             metadata.comparator.sliceQueryFilterSerializer().serialize(filter, out, version);
 
             // The start and stop of the page
@@ -145,12 +155,15 @@ public class PagedRangeCommand extends AbstractRangeCommand
             out.writeInt(cmd.rowFilter.size());
             for (IndexExpression expr : cmd.rowFilter)
             {
-                expr.writeTo(out);;
+                expr.writeTo(out);
+                ;
             }
 
             out.writeInt(cmd.limit);
             if (version >= MessagingService.VERSION_21)
+            {
                 out.writeBoolean(cmd.countCQL3Rows);
+            }
         }
 
         public PagedRangeCommand deserialize(DataInput in, int version) throws IOException
@@ -167,14 +180,14 @@ public class PagedRangeCommand extends AbstractRangeCommand
             {
                 String message = String.format("Got paged range command for nonexistent table %s.%s.  If the table was just " +
                         "created, this is likely due to the schema not being fully propagated.  Please wait for schema " +
-                        "agreement on table creation." , keyspace, columnFamily);
+                        "agreement on table creation.", keyspace, columnFamily);
                 throw new UnknownColumnFamilyException(message, null);
             }
 
             SliceQueryFilter predicate = metadata.comparator.sliceQueryFilterSerializer().deserialize(in, version);
 
             Composite start = metadata.comparator.serializer().deserialize(in);
-            Composite stop =  metadata.comparator.serializer().deserialize(in);
+            Composite stop = metadata.comparator.serializer().deserialize(in);
 
             int filterCount = in.readInt();
             List<IndexExpression> rowFilter = new ArrayList<IndexExpression>(filterCount);
@@ -185,8 +198,8 @@ public class PagedRangeCommand extends AbstractRangeCommand
 
             int limit = in.readInt();
             boolean countCQL3Rows = version >= MessagingService.VERSION_21
-                                  ? in.readBoolean()
-                                  : predicate.compositesToGroup >= 0 || predicate.count != 1; // See #6857
+                    ? in.readBoolean()
+                    : predicate.compositesToGroup >= 0 || predicate.count != 1; // See #6857
             return new PagedRangeCommand(keyspace, columnFamily, timestamp, keyRange, predicate, start, stop, rowFilter, limit, countCQL3Rows);
         }
 
@@ -202,7 +215,7 @@ public class PagedRangeCommand extends AbstractRangeCommand
 
             CFMetaData metadata = Schema.instance.getCFMetaData(cmd.keyspace, cmd.columnFamily);
 
-            size += metadata.comparator.sliceQueryFilterSerializer().serializedSize((SliceQueryFilter)cmd.predicate, version);
+            size += metadata.comparator.sliceQueryFilterSerializer().serializedSize((SliceQueryFilter) cmd.predicate, version);
 
             size += metadata.comparator.serializer().serializedSize(cmd.start, TypeSizes.NATIVE);
             size += metadata.comparator.serializer().serializedSize(cmd.stop, TypeSizes.NATIVE);
@@ -217,7 +230,9 @@ public class PagedRangeCommand extends AbstractRangeCommand
 
             size += TypeSizes.NATIVE.sizeof(cmd.limit);
             if (version >= MessagingService.VERSION_21)
+            {
                 size += TypeSizes.NATIVE.sizeof(cmd.countCQL3Rows);
+            }
             return size;
         }
     }

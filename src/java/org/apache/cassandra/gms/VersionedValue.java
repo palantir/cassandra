@@ -61,7 +61,7 @@ public class VersionedValue implements Comparable<VersionedValue>
 
     // this must be a char that cannot be present in any token
     public final static char DELIMITER = ',';
-    public final static String DELIMITER_STR = new String(new char[]{ DELIMITER });
+    public final static String DELIMITER_STR = new String(new char[]{DELIMITER});
 
     // values for ApplicationState.STATUS
     public final static String STATUS_BOOTSTRAPPING = "BOOT";
@@ -129,7 +129,7 @@ public class VersionedValue implements Comparable<VersionedValue>
         {
             this.partitioner = partitioner;
         }
-        
+
         public VersionedValue cloneWithHigherVersion(VersionedValue value)
         {
             return new VersionedValue(value.value);
@@ -143,13 +143,13 @@ public class VersionedValue implements Comparable<VersionedValue>
         public VersionedValue bootstrapping(Collection<Token> tokens)
         {
             return new VersionedValue(versionString(VersionedValue.STATUS_BOOTSTRAPPING,
-                                                    makeTokenString(tokens)));
+                    makeTokenString(tokens)));
         }
 
         public VersionedValue normal(Collection<Token> tokens)
         {
             return new VersionedValue(versionString(VersionedValue.STATUS_NORMAL,
-                                                    makeTokenString(tokens)));
+                    makeTokenString(tokens)));
         }
 
         private String makeTokenString(Collection<Token> tokens)
@@ -170,14 +170,14 @@ public class VersionedValue implements Comparable<VersionedValue>
         public VersionedValue leaving(Collection<Token> tokens)
         {
             return new VersionedValue(versionString(VersionedValue.STATUS_LEAVING,
-                                                    makeTokenString(tokens)));
+                    makeTokenString(tokens)));
         }
 
         public VersionedValue left(Collection<Token> tokens, long expireTime)
         {
             return new VersionedValue(versionString(VersionedValue.STATUS_LEFT,
-                                                    makeTokenString(tokens),
-                                                    Long.toString(expireTime)));
+                    makeTokenString(tokens),
+                    Long.toString(expireTime)));
         }
 
         public VersionedValue moving(Token token)

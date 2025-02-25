@@ -63,9 +63,13 @@ public abstract class AbstractRangeCommand implements IReadCommand
     private List<Row> trim(List<Row> rows)
     {
         if (countCQL3Rows() || ignoredTombstonedPartitions())
+        {
             return rows;
+        }
         else
+        {
             return rows.size() > limit() ? rows.subList(0, limit()) : rows;
+        }
     }
 
     public String getKeyspace()
@@ -74,20 +78,25 @@ public abstract class AbstractRangeCommand implements IReadCommand
     }
 
     public abstract MessageOut<? extends AbstractRangeCommand> createMessage();
+
     public abstract AbstractRangeCommand forSubRange(AbstractBounds<RowPosition> range);
+
     public abstract AbstractRangeCommand withUpdatedLimit(int newLimit);
 
     public abstract int limit();
+
     public abstract boolean countCQL3Rows();
 
     /**
      * Returns true if tombstoned partitions should not be included in results or count towards the limit.
      * See CASSANDRA-8490 for more details on why this is needed (and done this way).
-     * */
+     */
     public boolean ignoredTombstonedPartitions()
     {
         if (!(predicate instanceof SliceQueryFilter))
+        {
             return false;
+        }
 
         return ((SliceQueryFilter) predicate).compositesToGroup == SliceQueryFilter.IGNORE_TOMBSTONED_PARTITIONS;
     }
@@ -95,7 +104,8 @@ public abstract class AbstractRangeCommand implements IReadCommand
     public abstract List<Row> executeLocally();
 
     @Override
-    public boolean isCheap() {
+    public boolean isCheap()
+    {
         return false;
     }
 
@@ -103,4 +113,6 @@ public abstract class AbstractRangeCommand implements IReadCommand
     {
         return DatabaseDescriptor.getRangeRpcTimeout();
     }
+
+    public abstract PageToken getPageToken();
 }

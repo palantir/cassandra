@@ -36,7 +36,7 @@ public class RangeSliceVerbHandler implements IVerbHandler<AbstractRangeCommand>
             throw new IsBootstrappingException();
         }
         OwnershipVerificationUtils.verifyRangeSlice(message.payload);
-        RangeSliceReply reply = new RangeSliceReply(message.payload.executeLocally());
+        RangeSliceReply reply = new RangeSliceReply(message.payload.executeLocally(), message.payload.getPageToken());
         Tracing.trace("Enqueuing response to {}", message.from);
         MessagingService.instance().sendReply(reply.createMessage(), id, message.from);
     }
