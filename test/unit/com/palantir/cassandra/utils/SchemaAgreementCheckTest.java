@@ -32,6 +32,7 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.EndpointState;
 import org.apache.cassandra.gms.EndpointStateFactory;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.VersionedValue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -172,7 +173,7 @@ public class SchemaAgreementCheckTest
     private static EndpointState createRemoved(UUID schema)
     {
         EndpointState state = EndpointStateFactory.create();
-        state.addApplicationState(ApplicationState.STATUS, valueFactory.removedNonlocal(UUID.randomUUID(), 259200 * 1000));
+        state.addApplicationState(ApplicationState.STATUS, valueFactory.removedNonlocal(UUID.randomUUID(), Gossiper.aVeryLongTime));
         state.addApplicationState(ApplicationState.SCHEMA, valueFactory.schema(schema));
         return state;
     }
