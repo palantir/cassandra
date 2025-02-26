@@ -179,12 +179,12 @@ public class ByteOrderedPartitioner implements IPartitioner
 
     public BytesToken midpoint(Token lt, Token rt)
     {
-        BytesToken lToken = (BytesToken) lt;
-        BytesToken rToken = (BytesToken) rt;
+        BytesToken ltoken = (BytesToken) lt;
+        BytesToken rtoken = (BytesToken) rt;
 
-        int sigbytes = Math.max(lToken.token.length, rToken.token.length);
-        BigInteger left = bigForBytes(lToken.token, sigbytes);
-        BigInteger right = bigForBytes(rToken.token, sigbytes);
+        int sigbytes = Math.max(ltoken.token.length, rtoken.token.length);
+        BigInteger left = bigForBytes(ltoken.token, sigbytes);
+        BigInteger right = bigForBytes(rtoken.token, sigbytes);
 
         Pair<BigInteger,Boolean> midpair = FBUtilities.midpoint(left, right, 8*sigbytes);
         return new BytesToken(bytesForBig(midpair.left, sigbytes, midpair.right));
