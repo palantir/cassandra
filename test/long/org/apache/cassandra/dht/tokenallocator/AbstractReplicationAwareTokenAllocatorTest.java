@@ -419,6 +419,19 @@ abstract class AbstractReplicationAwareTokenAllocatorTest extends TokenAllocator
         System.out.println();
     }
 
+    protected void testExistingCluster(int perUnitCount, TestReplicationStrategy rs, IPartitioner partitioner, NavigableMap<Token, Unit> tokenMap)
+    {
+        TokenCount tc = fixedTokenCount;
+        System.out.println("Testing existing cluster, target " + perUnitCount + " vnodes, replication " + rs);
+        final int targetClusterSize = TARGET_CLUSTER_SIZE;
+
+        ReplicationAwareTokenAllocator<Unit> t = new ReplicationAwareTokenAllocator<>(tokenMap, rs, partitioner);
+        grow(t, targetClusterSize * 9 / 10, tc, perUnitCount, false);
+        grow(t, targetClusterSize, tc, perUnitCount, true);
+        loseAndReplace(t, targetClusterSize / 10, tc, perUnitCount, partitioner);
+        System.out.println();
+    }
+
     protected void testNewCluster(IPartitioner partitioner, int maxVNodeCount)
     {
         // This test is flaky because the selection of the tokens for the first RF nodes (which is random, with an

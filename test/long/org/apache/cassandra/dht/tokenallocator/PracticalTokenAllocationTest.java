@@ -23,68 +23,80 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.regex.Pattern;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
+import com.google.common.net.InetAddresses;
 import org.junit.Test;
 
-import org.apache.cassandra.Util;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Token;
+import org.apache.cassandra.locator.AbstractNetworkTopologySnitch;
+import org.apache.cassandra.locator.AbstractReplicationStrategy;
+import org.apache.cassandra.locator.NetworkTopologyStrategy;
+import org.apache.cassandra.locator.TokenMetadata;
 
-public class ByteOrderedReplicationAwareTokenAllocatorTest extends AbstractReplicationAwareTokenAllocatorTest
+public class PracticalTokenAllocationTest
 {
-    private static final int MAX_VNODE_COUNT = 64;
     private static final Pattern PATTERN = Pattern.compile("^\\d{1,3}(?:\\.\\d{1,3}){3}.*");
 
     @Test
-    public void testExistingCluster()
+    public void testRing1()
     {
-        super.testExistingCluster(new ByteOrderedPartitioner(), MAX_VNODE_COUNT);
+        testTokenRing("example-ring-1.txt");
     }
 
     @Test
-    public void testPracticalCluster1() throws IOException
+    public void testRing2()
     {
-        testPracticalCluster("example-rings/example-ring-1.txt");
+        testTokenRing("example-ring-2.txt");
     }
 
     @Test
-    public void testPracticalCluster2() throws IOException
+    public void testRing3()
     {
-        testPracticalCluster("example-rings/example-ring-2.txt");
+        testTokenRing("example-ring-3.txt");
     }
 
-    @Test
-    public void testPracticalCluster3() throws IOException
+    private void testTokenRing(String ringFile)
     {
-        testPracticalCluster("example-rings/example-ring-3.txt");
+        TestRing testRing = loadNodetoolRing(ringFile);
+        AbstractReplicationStrategy rs = testRing.rs;
+        TokenMetadata tmd = testRing.tmd;
+        TestSnitch snitch = testRing.snitch;
+        List<String> uniqueRacks = ImmutableList.copyOf(snitch.racks.values());
+
+        for (int i = 0; i < 100; i++) {
+            InetAddress address = InetAddresses.forString(String.format("127.0.0.%d", i));
+            Collection<Token> tokens = TokenAllocation.allocateTokens(tmd, rs, new ByteOrderedPartitioner(), address, 32);
+            tmd.updateNormalTokens(tokens, address);
+            snitch.add(address, uniqueRacks.get(i % uniqueRacks.size()));
+        }
     }
 
-    private void testPracticalCluster(String resourceName)
-    {
-        NavigableMap<Token, Unit> tokenToUnit;
+    private static TestRing loadNodetoolRing(String resourceName) {
         try
         {
-            tokenToUnit = parseExample(resourceName);
+            return parseNodetoolRing(Resources.toString(Resources.getResource("example-rings/" + resourceName), StandardCharsets.UTF_8));
         }
         catch (IOException e)
         {
             throw new RuntimeException(e);
         }
-        super.testExistingCluster(32, new SimpleReplicationStrategy(3), new ByteOrderedPartitioner(), tokenToUnit);
     }
 
-    private NavigableMap<Token, Unit> parseExample(String resourceName) throws IOException
-    {
-        String output = Resources.toString(Resources.getResource(resourceName), StandardCharsets.UTF_8);
+    private static TestRing parseNodetoolRing(String output) {
+
+        TokenMetadata tmd = new TokenMetadata();
+        Map<InetAddress, String> racks = new HashMap<>();
+
         String line;
-        NavigableMap<Token, Unit> tokenToUnit = new TreeMap<>();
-        Map<InetAddress, Unit> addressToUnit = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new StringReader(output))) {
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
@@ -114,22 +126,53 @@ public class ByteOrderedReplicationAwareTokenAllocatorTest extends AbstractRepli
                 // Create a Token instance from the token string.
                 Token token = new ByteOrderedPartitioner().getTokenFactory().fromString(tokenStr);
 
-                tokenToUnit.put(token, addressToUnit.computeIfAbsent(address, _unused -> new Unit()));
+                tmd.updateNormalToken(token, address);
+                racks.put(address, rack);
             }
+        } catch (Exception e) {
+            throw new RuntimeException("Error parsing nodetool ring output", e);
         }
-        return tokenToUnit;
+
+        TestSnitch snitch = new TestSnitch(racks);
+        NetworkTopologyStrategy strategy = new NetworkTopologyStrategy("testKeyspace", tmd, snitch, ImmutableMap.of("DC1", "3"));
+
+        return new TestRing(strategy, tmd, snitch);
     }
 
-    @Test
-    public void testNewCluster()
+    private static class TestSnitch extends AbstractNetworkTopologySnitch
     {
-        Util.flakyTest(this::flakyTestNewCluster,
-                       2,
-                       "It tends to fail sometimes due to the random selection of the tokens in the first few nodes.");
+        private final Map<InetAddress, String> racks;
+
+        private TestSnitch(Map<InetAddress, String> racks)
+        {
+            this.racks = racks;
+        }
+
+        public String getRack(InetAddress endpoint)
+        {
+            return racks.get(endpoint);
+        }
+
+        public String getDatacenter(InetAddress endpoint)
+        {
+            return "DC1";
+        }
+
+        public void add(InetAddress address, String rack)
+        {
+            racks.put(address, rack);
+        }
     }
 
-    private void flakyTestNewCluster()
-    {
-        testNewCluster(new ByteOrderedPartitioner(), MAX_VNODE_COUNT);
+    private static class TestRing {
+        final AbstractReplicationStrategy rs;
+        final TokenMetadata tmd;
+        final TestSnitch snitch;
+
+        private TestRing(AbstractReplicationStrategy rs, TokenMetadata tmd, TestSnitch snitch){
+            this.rs = rs;
+            this.tmd = tmd;
+            this.snitch = snitch;
+        }
     }
 }
