@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import org.junit.Test;
@@ -31,6 +32,7 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.EndpointState;
 import org.apache.cassandra.gms.EndpointStateFactory;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.VersionedValue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -100,6 +102,36 @@ public class SchemaAgreementCheckTest
     }
 
     @Test
+    public void checkSchemaAgreement_ignoresRemovedNode()
+    {
+        UUID schema1 = UUID.randomUUID();
+        UUID schema2 = UUID.randomUUID();
+        EndpointState state1 = createNormal(schema1);
+        EndpointState state2 = createRemoved(schema2);
+
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(() -> schema1,
+                                                                             () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.2"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.3"), state2).entrySet());
+        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isTrue();
+    }
+
+    @Test
+    public void checkSchemaAgreement_ignoresProvidedIgnorableNode()
+    {
+        UUID schema1 = UUID.randomUUID();
+        UUID schema2 = UUID.randomUUID();
+        EndpointState state1 = createNormal(schema1);
+        EndpointState state2 = createNormal(schema2);
+
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(() -> schema1,
+                                                                             () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.2"), state1,
+                                                                                                   InetAddresses.forString("127.0.0.3"), state2).entrySet());
+        assertThat(schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of(InetAddresses.forString("127.0.0.3")))).isTrue();
+    }
+
+    @Test
     public void checkSchemaAgreement_doesNotIgnoreNullStatus()
     {
         UUID schema1 = UUID.randomUUID();
@@ -135,6 +167,14 @@ public class SchemaAgreementCheckTest
         state.addApplicationState(ApplicationState.STATUS, valueFactory.left(tokens, 1000));
         state.addApplicationState(ApplicationState.SCHEMA, valueFactory.schema(schema));
         state.addApplicationState(ApplicationState.TOKENS, valueFactory.tokens(tokens));
+        return state;
+    }
+
+    private static EndpointState createRemoved(UUID schema)
+    {
+        EndpointState state = EndpointStateFactory.create();
+        state.addApplicationState(ApplicationState.STATUS, valueFactory.removedNonlocal(UUID.randomUUID(), Gossiper.aVeryLongTime));
+        state.addApplicationState(ApplicationState.SCHEMA, valueFactory.schema(schema));
         return state;
     }
 }

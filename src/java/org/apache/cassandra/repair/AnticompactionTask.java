@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.util.concurrent.AbstractFuture;
 
+import com.palantir.logsafe.SafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,7 +169,7 @@ public class AnticompactionTask extends AbstractFuture<InetAddress> implements R
         if (maybeSetException(exception))
         {
             // Though unlikely, it is possible to arrive here multiple time and we want to avoid print an error message twice
-            logger.error("[repair #{}] Endpoint {} died during anti-compaction", endpoint, parentSession, exception);
+            logger.error("[repair #{}] Endpoint {} died during anti-compaction", SafeArg.of("endpoint", endpoint), SafeArg.of("parentSession", parentSession), exception);
         }
     }
 }

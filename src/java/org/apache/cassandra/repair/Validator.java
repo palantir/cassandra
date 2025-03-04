@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Random;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.palantir.logsafe.SafeArg;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,7 +119,7 @@ public class Validator implements Runnable
                 }
             }
         }
-        logger.debug("Prepared AEService tree of size {} for {}", tree.size(), desc);
+        logger.debug("Prepared AEService tree of size {} for {}", SafeArg.of("treeSize", tree.size()), SafeArg.of("repairJob", desc));
         ranges = tree.invalids();
     }
 
@@ -222,9 +223,9 @@ public class Validator implements Runnable
         if (logger.isDebugEnabled())
         {
             // log distribution of rows in tree
-            logger.debug("Validated {} partitions for {}.  Partitions per leaf are:", validated, desc.sessionId);
+            logger.debug("Validated {} partitions for {}.  Partitions per leaf are:", SafeArg.of("validated", validated), SafeArg.of("sessionId", desc.sessionId));
             tree.histogramOfRowCountPerLeaf().log(logger);
-            logger.debug("Validated {} partitions for {}.  Partition sizes are:", validated, desc.sessionId);
+            logger.debug("Validated {} partitions for {}.  Partition sizes are:", SafeArg.of("validated", validated), SafeArg.of("sessionId", desc.sessionId));
             tree.histogramOfRowSizePerLeaf().log(logger);
         }
     }
@@ -250,7 +251,7 @@ public class Validator implements Runnable
      */
     public void fail()
     {
-        logger.error("Failed creating a merkle tree for {}, {} (see log for details)", desc, initiator);
+        logger.error("Failed creating a merkle tree for {}, {} (see log for details)", SafeArg.of("repairJob", desc), SafeArg.of("endpoint", initiator));
         // send fail message only to nodes >= version 2.0
         MessagingService.instance().sendOneWay(new ValidationComplete(desc).createMessage(), initiator);
     }
@@ -263,7 +264,12 @@ public class Validator implements Runnable
         // respond to the request that triggered this validation
         if (!initiator.equals(FBUtilities.getBroadcastAddress()))
         {
-            logger.info(String.format("[repair #%s] Sending completed merkle tree to %s for %s.%s", desc.sessionId, initiator, desc.keyspace, desc.columnFamily));
+            logger.info(
+                    "[repair {}] Sending completed merkle tree to {} for {}.{}",
+                    SafeArg.of("sessionId", desc.sessionId),
+                    SafeArg.of("endpoint", initiator),
+                    SafeArg.of("keyspace", desc.keyspace),
+                    SafeArg.of("columnFamily", desc.columnFamily));
             Tracing.traceRepair("Sending completed merkle tree to {} for {}.{}", initiator, desc.keyspace, desc.columnFamily);
         }
         MessagingService.instance().sendOneWay(new ValidationComplete(desc, tree).createMessage(), initiator);

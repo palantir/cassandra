@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.util.concurrent.AbstractFuture;
+import com.palantir.logsafe.SafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,17 +64,29 @@ public abstract class SyncTask extends AbstractFuture<SyncStat> implements Runna
         stat = new SyncStat(new NodePair(r1.endpoint, r2.endpoint), differences.size());
 
         // choose a repair method based on the significance of the difference
-        String format = String.format("[repair #%s] Endpoints %s and %s %%s for %s", desc.sessionId, r1.endpoint, r2.endpoint, desc.columnFamily);
         if (differences.isEmpty())
         {
-            logger.info(String.format(format, "are consistent"));
+            logger.info(
+                    "[repair #{}] Endpoints {} and {} are consistent for {}",
+                    SafeArg.of("sessionId", desc.sessionId),
+                    SafeArg.of("endpoint1", r1.endpoint),
+                    SafeArg.of("endpoint2", r2.endpoint),
+                    SafeArg.of("columnFamily", desc.columnFamily)
+            );
             Tracing.traceRepair("Endpoint {} is consistent with {} for {}", r1.endpoint, r2.endpoint, desc.columnFamily);
             set(stat);
             return;
         }
 
         // non-0 difference: perform streaming repair
-        logger.info(String.format(format, "have " + differences.size() + " range(s) out of sync"));
+        logger.info(
+                "[repair #{}] Endpoints {} and {} have {} range(s) out of sync for {}",
+                SafeArg.of("sessionId", desc.sessionId),
+                SafeArg.of("endpoint1", r1.endpoint),
+                SafeArg.of("endpoint2", r2.endpoint),
+                SafeArg.of("differenceCount", differences.size()),
+                SafeArg.of("columnFamily", desc.columnFamily)
+        );
         Tracing.traceRepair("Endpoint {} has {} range(s) out of sync with {} for {}", r1.endpoint, differences.size(), r2.endpoint, desc.columnFamily);
         startSync(differences);
     }

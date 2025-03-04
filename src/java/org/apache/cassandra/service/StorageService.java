@@ -113,8 +113,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     // the startRequestStreamsCondition gate is disabled for new clusters because they are not expected to receive client requests yet
     private static final boolean DISABLE_WAIT_TO_REQUEST_STREAMS = Boolean.getBoolean("palantir_cassandra.disable_wait_to_request_streams") || Boolean.getBoolean("palantir_cassandra.is_new_cluster");
     private static final boolean DISABLE_WAIT_TO_FINISH_BOOTSTRAP = Boolean.getBoolean("palantir_cassandra.disable_wait_to_finish_bootstrap");
-    private static final Integer STREAMS_REQUEST_SAFETY_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.streams_request_safety_check_grace_period_minutes", 30);
-    private static final Integer BOOTSTRAP_SAFETY_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.bootstrap_safety_check_grace_period_minutes", 30);
+    private static final boolean DISABLE_WAIT_TO_SEND_STREAMS = Boolean.getBoolean("palantir_cassandra.disable_wait_to_send_streams");
+    private static final Integer STREAMS_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.streams_check_grace_period_minutes", 30);
+    private static final Integer FINISH_BOOTSTRAP_CHECK_GRACE_PERIOD_MINUTES = Integer.getInteger("palantir_cassandra.finish_bootstrap_check_grace_period_minutes", 60);
 
     public static final int RING_DELAY = getRingDelay(); // delay after which we assume ring has stablized
 
@@ -126,10 +127,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private final List<ProgressListener> bootstrapListeners = new CopyOnWriteArrayList<>();
 
     private final Condition startBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_BOOTSTRAP);
-    // TODO(dguo): Use startRequestStreamsCondition to gate decommissions as well.
-    //  This requires SimpleCondition to synchronize between resetting and adding new waiters or using a new Condition altogether.
     private final Condition startRequestStreamsCondition = new SimpleCondition(DISABLE_WAIT_TO_REQUEST_STREAMS);
     private final Condition finishBootstrapCondition = new SimpleCondition(DISABLE_WAIT_TO_FINISH_BOOTSTRAP);
+    private final Condition startSendStreamsCondition = new SimpleCondition(DISABLE_WAIT_TO_SEND_STREAMS);
 
     /**
      * @deprecated backward support to previous notification interface
@@ -206,7 +206,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private double traceProbability = 0.0;
 
     @VisibleForTesting
-    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_REQUEST_STREAMS, WAITING_TO_FINISH_BOOTSTRAP, DISABLED }
+    static enum Mode { STARTING, NORMAL, JOINING, LEAVING, DECOMMISSIONED, MOVING, DRAINING, DRAINED, ZOMBIE, NON_TRANSIENT_ERROR, TRANSIENT_ERROR, WAITING_TO_BOOTSTRAP, WAITING_TO_REQUEST_STREAMS, WAITING_TO_FINISH_BOOTSTRAP, WAITING_TO_SEND_STREAMS, DISABLED }
     private volatile Mode operationMode = Mode.STARTING;
 
     /* Used for tracking drain progress */
@@ -958,7 +958,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             // if our schema hasn't matched yet, keep sleeping until it does
             // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
             SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
-            while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement())
+            List<InetAddress> ignoredEndpoints = replacing && !isReplacingSameAddress() ?
+                                                 ImmutableList.of(DatabaseDescriptor.getReplaceAddress()) : ImmutableList.of();
+            
+            while (!MigrationManager.isReadyForBootstrap() || !schemaAgreementCheck.isSchemaInAgreement(ignoredEndpoints))
             {
                 setMode(Mode.JOINING, "waiting for schema information to complete", true);
                 logger.info(
@@ -1051,7 +1054,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             try
             {
                 setMode(Mode.WAITING_TO_FINISH_BOOTSTRAP, "Awaiting finish bootstrap call", true);
-                boolean timeoutExceeded = !finishBootstrapCondition.await(BOOTSTRAP_SAFETY_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
+                boolean timeoutExceeded = !finishBootstrapCondition.await(FINISH_BOOTSTRAP_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
                 if (timeoutExceeded)
                 {
                     logger.error("Finish bootstrap was not called within 30 minutes. Bootstrap safety check failed.");
@@ -1607,7 +1610,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         try
         {
             setMode(Mode.WAITING_TO_REQUEST_STREAMS, "Awaiting call to proceed with requesting streams during bootstrap", true);
-            boolean timeoutExceeded = !startRequestStreamsCondition.await(STREAMS_REQUEST_SAFETY_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
+            boolean timeoutExceeded = !startRequestStreamsCondition.await(STREAMS_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
             if (timeoutExceeded)
             {
                 logger.error("Start signal to request streams was not given within 30 minutes. Streams request safety check failed.");
@@ -1744,6 +1747,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void finishBootstrap()
     {
         finishBootstrapCondition.signalAll();
+    }
+
+    @Override
+    public void startSendingStreams()
+    {
+        startSendStreamsCondition.signalAll();
     }
 
     public void clearNonTransientErrors() {
@@ -4171,6 +4180,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (operationMode != Mode.NORMAL)
             throw new UnsupportedOperationException("Node in " + operationMode + " state; wait for status to become normal or restart");
 
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+        if(!schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())) {
+            throw new UnsupportedOperationException("The cluster does not agree on schema; wait for agreement before triggering a decommission");
+        }
+
         PendingRangeCalculatorService.instance.blockUntilFinished();
         for (String keyspaceName : Schema.instance.getNonSystemKeyspaces())
         {
@@ -4184,6 +4198,24 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         long timeout = Math.max(RING_DELAY, BatchlogManager.instance.getBatchlogTimeout());
         setMode(Mode.LEAVING, "sleeping " + timeout + " ms for batch processing and pending range setup", true);
         Thread.sleep(timeout);
+
+        try
+        {
+            PendingRangeCalculatorService.instance.blockUntilFinished();
+            setMode(Mode.WAITING_TO_SEND_STREAMS, "Awaiting call to proceed with sending streams during decommission", true);
+            boolean timeoutExceeded = !startSendStreamsCondition.await(STREAMS_CHECK_GRACE_PERIOD_MINUTES, MINUTES);
+            if (timeoutExceeded)
+            {
+                recordTransientError(TransientError.DECOMMISSION_ERROR, ImmutableMap.of("reason", "send stream gate timeout"));
+                throw new RuntimeException("Start signal to request streams was not given within 30 minutes. Streams request safety check failed.");
+            }
+        }
+        catch (InterruptedException e)
+        {
+            throw new AssertionError(e);
+        }
+        logger.info("Received signal to start sending streams.");
+        setMode(Mode.LEAVING, "Starting unbootstrap ..", true);
 
         Runnable finishLeaving = new Runnable()
         {

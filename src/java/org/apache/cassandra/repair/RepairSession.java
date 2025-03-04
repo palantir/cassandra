@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
+
+import com.palantir.logsafe.SafeArg;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,7 +176,12 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         }
 
         String message = String.format("Received merkle tree for %s from %s", desc.columnFamily, endpoint);
-        logger.info("[repair #{}] {}", getId(), message);
+        logger.info(
+                "[repair #{}] Received merkle tree for {} from {}",
+                SafeArg.of("sessionId", getId()),
+                SafeArg.of("columnFamily", desc.columnFamily),
+                SafeArg.of("endpoint", endpoint)
+        );
         Tracing.traceRepair(message);
         task.treeReceived(tree);
     }
@@ -194,7 +202,13 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
             return;
         }
 
-        logger.debug(String.format("[repair #%s] Repair completed between %s and %s on %s", getId(), nodes.endpoint1, nodes.endpoint2, desc.columnFamily));
+        logger.debug(
+                "[repair #{}] Repair completed between {} and {} on {}",
+                SafeArg.of("sessionId", getId()),
+                SafeArg.of("endpoint1", nodes.endpoint1),
+                SafeArg.of("endpoint2", nodes.endpoint2),
+                SafeArg.of("columnFamily", desc.columnFamily)
+        );
         task.syncComplete(success);
     }
 
@@ -221,13 +235,25 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
         if (terminated)
             return;
 
-        logger.info(String.format("[repair #%s] new session: will sync %s on range %s for %s.%s", getId(), repairedNodes(), range, keyspace, Arrays.toString(cfnames)));
+        logger.info(
+                "[repair #{}] new session: will sync {} on range {} for {}.{}",
+                SafeArg.of("sessionId", getId()),
+                SafeArg.of("endpoints", repairedNodes()),
+                SafeArg.of("range", range),
+                SafeArg.of("keyspace", keyspace),
+                SafeArg.of("columnFamilies", Arrays.toString(cfnames))
+        );
         Tracing.traceRepair("Syncing range {}", range);
         SystemDistributedKeyspace.startRepairs(getId(), parentRepairSession, keyspace, cfnames, range, endpoints);
 
         if (endpoints.isEmpty())
         {
-            logger.info("[repair #{}] {}", getId(), message = String.format("No neighbors to repair with on range %s: session completed", range));
+            message = String.format("No neighbors to repair with on range %s: session completed", range);
+            logger.info(
+                    "[repair #{}] No neighbors to repair with on range {}: session completed",
+                    SafeArg.of("repairId", getId()),
+                    SafeArg.of("range", range)
+            );
             Tracing.traceRepair(message);
             set(new RepairSessionResult(id, keyspace, range, Lists.<RepairResult>newArrayList()));
             SystemDistributedKeyspace.failRepairs(getId(), keyspace, cfnames, new RuntimeException(message));
@@ -240,7 +266,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
             if (!FailureDetector.instance.isAlive(endpoint))
             {
                 message = String.format("Cannot proceed on repair because a neighbor (%s) is dead: session failed", endpoint);
-                logger.error("[repair #{}] {}", getId(), message);
+                logger.error("[repair #{}] Cannot proceed on repair because a neighbor {} is dead: session failed", SafeArg.of("sessionId", getId()), SafeArg.of("endpoint", endpoint));
                 Exception e = new IOException(message);
                 setException(e);
                 SystemDistributedKeyspace.failRepairs(getId(), keyspace, cfnames, e);
@@ -263,7 +289,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
             public void onSuccess(List<RepairResult> results)
             {
                 // this repair session is completed
-                logger.info("[repair #{}] {}", getId(), "Session completed successfully");
+                logger.info("[repair #{}] Session completed successfully", SafeArg.of("sessionId", getId()));
                 Tracing.traceRepair("Completed sync of range {}", range);
                 set(new RepairSessionResult(id, keyspace, range, results));
 
@@ -274,7 +300,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
 
             public void onFailure(Throwable t)
             {
-                logger.error(String.format("[repair #%s] Session completed with the following error", getId()), t);
+                logger.error("[repair {}] Session completed with the following error", SafeArg.of("sessionId", getId()), t);
                 Tracing.traceRepair("Session completed with the following error: {}", t);
                 forceShutdown(t);
             }
@@ -331,7 +357,7 @@ public class RepairSession extends AbstractFuture<RepairSessionResult> implement
             return;
 
         Exception exception = new IOException(String.format("Endpoint %s died", endpoint));
-        logger.error(String.format("[repair #%s] session completed with the following error", getId()), exception);
+        logger.error("[repair {}] session completed with the following error", SafeArg.of("sessionId", getId()), exception);
         // If a node failed, we stop everything (though there could still be some activity in the background)
         forceShutdown(exception);
     }

@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.palantir.logsafe.SafeArg;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,11 +83,11 @@ public class RepairTracker implements ProgressListener
 
     private void updateProgressState(StorageServiceMBean.ProgressState state, int command)
     {
-        logger.info("Updating state for repair command {} to {}", command, state);
+        logger.info("Updating state for repair command {} to {}", SafeArg.of("command", command), SafeArg.of("state", state));
         commandToProgressState.put(command, state);
         if (isCompleteState(state))
         {
-            logger.info("No longer collapsing identical repairs on top of repair command {}", command);
+            logger.info("No longer collapsing identical repairs on top of repair command {}", SafeArg.of("command", command));
             argsToMostRecentRepair.inverse().remove(command);
         }
     }
@@ -118,7 +119,7 @@ public class RepairTracker implements ProgressListener
                 return;
             default:
                 logger.error("Unrecognized ProgressEventType. Setting ProgressState to UNKNOWN for repair command {}",
-                             command);
+                             SafeArg.of("command", command));
                 newState = StorageServiceMBean.ProgressState.UNKNOWN;
         }
         if (newState != currentState)
