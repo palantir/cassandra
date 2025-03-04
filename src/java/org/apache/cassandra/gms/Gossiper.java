@@ -879,6 +879,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
         return endpointStateMap.entrySet();
     }
 
+    public Map<InetAddress, EndpointState> getEndpointShadowStateMap()
+    {
+        return endpointShadowStateMap;
+    }
+
     public UUID getHostId(InetAddress endpoint)
     {
         return getHostId(endpoint, endpointStateMap);
