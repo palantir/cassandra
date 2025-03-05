@@ -37,24 +37,28 @@ import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.EndpointState;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.VersionedValue;
+import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.FBUtilities;
 
 public class SchemaAgreementCheck
 {
     private static final Logger logger = LoggerFactory.getLogger(SchemaAgreementCheck.class);
     private final Supplier<UUID> localSchemaVersionSupplier;
     private final Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier;
+    private final InetAddress localAddress;
 
     public SchemaAgreementCheck()
     {
-        this(Schema.instance::getVersion, Gossiper.instance::getEndpointStates);
+        this(Schema.instance::getVersion, Gossiper.instance::getEndpointStates, FBUtilities.getBroadcastAddress());
     }
 
     @VisibleForTesting
-    SchemaAgreementCheck(Supplier<UUID> localSchemaVersionSupplier, Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier)
+    SchemaAgreementCheck(Supplier<UUID> localSchemaVersionSupplier, Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier, InetAddress localAddress)
     {
         this.localSchemaVersionSupplier = localSchemaVersionSupplier;
         this.endpointStatesSupplier = endpointStatesSupplier;
+        this.localAddress = localAddress;
     }
 
     public boolean isSchemaInAgreement() {
@@ -66,10 +70,15 @@ public class SchemaAgreementCheck
         try
         {
             UUID localSchemaVersion = localSchemaVersionSupplier.get();
-            return endpointStatesSupplier.get().stream()
-                                         .filter(endpoint -> !ignoredEndpoints.contains(endpoint.getKey()))
-                                         .filter(endpointStates -> !isLeftOrRemoved(endpointStates.getValue()))
-                                         .allMatch(endpointStates -> schemaIsEqualToLocalVersion(localSchemaVersion, endpointStates.getKey(), endpointStates.getValue()));
+            Set<Map.Entry<InetAddress, EndpointState>> endpointStates = endpointStatesSupplier.get();
+
+            boolean peerEndpointsExist = endpointStates.stream()
+                          .anyMatch(endpointState -> !localAddress.equals(endpointState.getKey()));
+            boolean schemaIsInAgreeement = endpointStates.stream()
+                          .filter(endpointState -> !ignoredEndpoints.contains(endpointState.getKey()))
+                          .filter(endpointState -> !isLeftOrRemoved(endpointState.getValue()))
+                          .allMatch(endpointState -> schemaIsEqualToLocalVersion(localSchemaVersion, endpointState.getKey(), endpointState.getValue()));
+            return peerEndpointsExist && schemaIsInAgreeement;
         }
         catch (Exception e)
         {
@@ -89,8 +98,10 @@ public class SchemaAgreementCheck
         VersionedValue schema = endpointState.getApplicationState(ApplicationState.SCHEMA);
         boolean match = schema != null && localSchemaVersion.equals(UUID.fromString(schema.value));
         if(!match) {
-            logger.warn("Schema agreement check failure", SafeArg.of("localSchemaVersion", localSchemaVersion),
-                        SafeArg.of("endpoint", address), SafeArg.of("remoteSchemaVersion", schema.value));
+            logger.warn("Schema agreement check failure",
+                        SafeArg.of("localSchemaVersion", localSchemaVersion),
+                        SafeArg.of("endpoint", address),
+                        SafeArg.of("remoteSchemaVersion", schema));
         }
         return match;
     }

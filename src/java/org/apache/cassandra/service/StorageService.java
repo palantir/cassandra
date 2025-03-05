@@ -4181,7 +4181,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             throw new UnsupportedOperationException("Node in " + operationMode + " state; wait for status to become normal or restart");
 
         SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
-        if(!schemaAgreementCheck.isSchemaInAgreement(ImmutableList.of())) {
+        if(!schemaAgreementCheck.isSchemaInAgreement()) {
             throw new UnsupportedOperationException("The cluster does not agree on schema; wait for agreement before triggering a decommission");
         }
 
