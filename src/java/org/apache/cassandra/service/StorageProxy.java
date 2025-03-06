@@ -2457,11 +2457,18 @@ public class StorageProxy implements StorageProxyMBean
 
     private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
     {
-        if (consistencyLevel.isSerialConsistency())
+        if (!consistencyLevelIsSafeToCoerce(consistencyLevel))
         {
             return consistencyLevel;
         }
         ConsistencyLevel coerceConsistencyLevel = DatabaseDescriptor.getCoerceReadConsistencyLevel();
         return coerceConsistencyLevel == null ? consistencyLevel : coerceConsistencyLevel;
+    }
+
+    private static boolean consistencyLevelIsSafeToCoerce(ConsistencyLevel consistencyLevel)
+    {
+        return consistencyLevel == ConsistencyLevel.LOCAL_QUORUM
+               || consistencyLevel == ConsistencyLevel.EACH_QUORUM
+               || consistencyLevel == ConsistencyLevel.QUORUM;
     }
 }
