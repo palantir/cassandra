@@ -55,6 +55,7 @@ import javax.rmi.ssl.SslRMIClientSocketFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ColumnFamilyStoreMBean;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.HintedHandOffManager;
 import org.apache.cassandra.db.HintedHandOffManagerMBean;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -1182,6 +1183,16 @@ public class NodeProbe implements AutoCloseable
     public long getReadRepairRepairedBackground()
     {
         return spProxy.getReadRepairRepairedBackground();
+    }
+
+    public ConsistencyLevel getCoerceReadConsistencyLevel()
+    {
+        return ssProxy.getCoerceReadConsistencyLevel();
+    }
+
+    public void setCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
+    {
+        ssProxy.setCoerceReadConsistencyLevel(consistencyLevel);
     }
 
     // JMX getters for the o.a.c.metrics API below.

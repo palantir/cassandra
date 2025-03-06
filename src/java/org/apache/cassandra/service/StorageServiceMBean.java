@@ -18,6 +18,7 @@
 package org.apache.cassandra.service;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import org.apache.cassandra.db.ConsistencyLevel;
 
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
@@ -932,4 +934,8 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Returns the value of the palantir_cassandra.is_new_cluster system variable or false if not set.
      */
     public boolean isNewCluster();
+
+    public ConsistencyLevel getCoerceReadConsistencyLevel();
+
+    public void setCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel);
 }

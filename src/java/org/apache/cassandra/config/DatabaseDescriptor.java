@@ -45,6 +45,7 @@ import org.apache.cassandra.config.Config.RequestSchedulerId;
 import org.apache.cassandra.config.EncryptionOptions.ClientEncryptionOptions;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
 import org.apache.cassandra.db.ColumnFamilyStore;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -2095,5 +2096,15 @@ public class DatabaseDescriptor
 
     public static int getWriteDelay() {
         return conf.write_delay_in_s;
+    }
+
+    public static ConsistencyLevel getCoerceReadConsistencyLevel()
+    {
+        return conf.coerce_read_consistency_level;
+    }
+
+    public static void setCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
+    {
+        conf.coerce_read_consistency_level = consistencyLevel;
     }
 }

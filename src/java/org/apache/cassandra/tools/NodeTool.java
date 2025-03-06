@@ -164,7 +164,9 @@ public class NodeTool
                 DynamicEndpointSnitchStats.class,
                 SetReadDelay.class,
                 SetWriteDelay.class,
-                SetRangeScanTokenRangesWarnThreshold.class
+                SetRangeScanTokenRangesWarnThreshold.class,
+                GetCoerceReadConsistencyLevel.class,
+                SetCoerceReadConsistencyLevel.class
         );
 
         Cli.CliBuilder<NodeToolCmdRunnable> builder = Cli.builder("nodetool");

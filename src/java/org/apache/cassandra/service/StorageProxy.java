@@ -226,9 +226,9 @@ public class StorageProxy implements StorageProxyMBean
                 Tracing.trace("Reading existing values for CAS precondition");
                 long timestamp = System.currentTimeMillis();
                 ReadCommand readCommand = ReadCommand.create(keyspaceName, key, cfName, timestamp, request.readFilter());
-                ConsistencyLevel consistencyForPrecondition = consistencyForPaxos == ConsistencyLevel.LOCAL_SERIAL
+                ConsistencyLevel consistencyForPrecondition = maybeCoerceReadConsistencyLevel(consistencyForPaxos == ConsistencyLevel.LOCAL_SERIAL
                                                               ? ConsistencyLevel.LOCAL_QUORUM
-                                                              : LocalQuorumReadForSerialCasSetting.instance.consistencyLevelForSerialCas();
+                                                              : LocalQuorumReadForSerialCasSetting.instance.consistencyLevelForSerialCas());
                 List<Row> rows = read(Arrays.asList(readCommand), consistencyForPrecondition);
                 ColumnFamily current = rows.get(0).cf;
                 if (current == null)
@@ -1262,6 +1262,7 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> read(List<ReadCommand> commands, ConsistencyLevel consistencyLevel)
     throws UnavailableException, IsBootstrappingException, ReadFailureException, ReadTimeoutException, InvalidRequestException
     {
+        consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel);
         // When using serial CL, the ClientState should be provided
         assert !consistencyLevel.isSerialConsistency();
         return read(commands, consistencyLevel, null);
@@ -1274,6 +1275,7 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> read(List<ReadCommand> commands, ConsistencyLevel consistencyLevel, ClientState state)
     throws UnavailableException, IsBootstrappingException, ReadFailureException, ReadTimeoutException, InvalidRequestException
     {
+        consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel);
         if (StorageService.instance.isBootstrapMode() && !systemKeyspaceQuery(commands))
         {
             readMetrics.unavailables.mark();
@@ -1738,6 +1740,7 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> getRangeSlice(AbstractRangeCommand command, ConsistencyLevel consistency_level)
     throws UnavailableException, ReadFailureException, ReadTimeoutException
     {
+        consistency_level = maybeCoerceReadConsistencyLevel(consistency_level);
         Tracing.trace("Computing ranges to query");
         long startTime = System.nanoTime();
 
@@ -2441,5 +2444,11 @@ public class StorageProxy implements StorageProxyMBean
 
     public long getReadRepairRepairedBackground() {
         return ReadRepairMetrics.repairedBackground.getCount();
+    }
+
+    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel cl)
+    {
+        ConsistencyLevel coerceConsistencyLevel = DatabaseDescriptor.getCoerceReadConsistencyLevel();
+        return coerceConsistencyLevel == null ? cl : coerceConsistencyLevel;
     }
 }
