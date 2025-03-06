@@ -1295,6 +1295,13 @@ public class StorageProxy implements StorageProxyMBean
         long start = System.nanoTime();
         List<Row> rows = null;
 
+        // does the work of applying in-progress writes; throws UAE or timeout if it can't
+        final ConsistencyLevel consistencyForCommit = consistencyLevel == ConsistencyLevel.LOCAL_SERIAL
+                                                                        ? ConsistencyLevel.LOCAL_QUORUM
+                                                                        : ConsistencyLevel.QUORUM;
+        final ConsistencyLevel consistencyForFetch = maybeCoerceReadConsistencyLevel(consistencyForCommit);
+        ClientRequestMetrics readMetrics = consistencyLevelReadMetrics.get(consistencyForFetch);
+
         try
         {
             // make sure any in-progress paxos writes are done (i.e., committed to a majority of replicas), before performing a quorum read
@@ -1307,13 +1314,9 @@ public class StorageProxy implements StorageProxyMBean
             List<InetAddress> liveEndpoints = p.left;
             int requiredParticipants = p.right;
 
-            // does the work of applying in-progress writes; throws UAE or timeout if it can't
-            final ConsistencyLevel consistencyForCommitOrFetch = consistencyLevel == ConsistencyLevel.LOCAL_SERIAL
-                                                                                   ? ConsistencyLevel.LOCAL_QUORUM
-                                                                                   : ConsistencyLevel.QUORUM;
             try
             {
-                final Pair<UUID, Integer> pair = beginAndRepairPaxos(start, command.key, metadata, liveEndpoints, requiredParticipants, consistencyLevel, consistencyForCommitOrFetch, false, state);
+                final Pair<UUID, Integer> pair = beginAndRepairPaxos(start, command.key, metadata, liveEndpoints, requiredParticipants, consistencyLevel, consistencyForCommit, false, state);
                 if (pair.right > 0)
                     casReadMetrics.contention.update(pair.right);
             }
@@ -1326,7 +1329,7 @@ public class StorageProxy implements StorageProxyMBean
                 throw new ReadFailureException(consistencyLevel, e.received, e.failures, e.blockFor, false);
             }
 
-            rows = fetchRows(commands, consistencyForCommitOrFetch);
+            rows = fetchRows(commands, consistencyForFetch);
         }
         catch (UnavailableException e)
         {
