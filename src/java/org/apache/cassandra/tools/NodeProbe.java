@@ -1185,12 +1185,12 @@ public class NodeProbe implements AutoCloseable
         return spProxy.getReadRepairRepairedBackground();
     }
 
-    public ConsistencyLevel getCoerceReadConsistencyLevel()
+    public String getCoerceReadConsistencyLevel()
     {
         return ssProxy.getCoerceReadConsistencyLevel();
     }
 
-    public void setCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
+    public void setCoerceReadConsistencyLevel(String consistencyLevel)
     {
         ssProxy.setCoerceReadConsistencyLevel(consistencyLevel);
     }

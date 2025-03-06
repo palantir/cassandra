@@ -935,7 +935,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public boolean isNewCluster();
 
-    public ConsistencyLevel getCoerceReadConsistencyLevel();
+    public String getCoerceReadConsistencyLevel();
 
-    public void setCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel);
+    public void setCoerceReadConsistencyLevel(String consistencyLevel);
 }
