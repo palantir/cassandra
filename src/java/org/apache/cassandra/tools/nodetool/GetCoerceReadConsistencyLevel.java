@@ -18,13 +18,11 @@
 
 package org.apache.cassandra.tools.nodetool;
 
-import io.airlift.command.Arguments;
 import io.airlift.command.Command;
-import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
-@Command(name = "getcoercereadconsistencylevel", description = "Set a delay for all writes performed on this node")
+@Command(name = "getcoercereadconsistencylevel", description = "Get the coerce read consistency level, if present")
 public class GetCoerceReadConsistencyLevel extends NodeTool.NodeToolCmd
 {
     @Override
