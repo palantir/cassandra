@@ -315,7 +315,7 @@ public class Config
     public int otc_coalescing_window_us = otc_coalescing_window_us_default;
     public int otc_coalescing_enough_coalesced_messages = 8;
 
-    public volatile ConsistencyLevel coerce_read_consistency_level = ConsistencyLevel.ALL;
+    public volatile ConsistencyLevel coerce_read_consistency_level = null;
 
     public int windows_timer_interval = 0;
 
