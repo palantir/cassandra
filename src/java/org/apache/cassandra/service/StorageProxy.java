@@ -89,9 +89,13 @@ public class StorageProxy implements StorageProxyMBean
             return new AtomicInteger(0);
         }
     };
-    private static final ClientRequestMetrics readMetrics = new ClientRequestMetrics("Read");
-    private static final ClientRequestMetrics rangeMetrics = new ClientRequestMetrics("RangeSlice");
+    private static final ClientRequestMetrics topReadMetrics = new ClientRequestMetrics("Read");
+    private static final ClientRequestMetrics topRangeMetrics = new ClientRequestMetrics("RangeSlice");
     private static final ClientRequestMetrics topWriteMetrics = new ClientRequestMetrics("Write");
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelReadMetrics = Arrays.stream(
+            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topReadMetrics)));
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelRangeMetrics = Arrays.stream(
+            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topRangeMetrics)));
     private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelWriteMetrics = Arrays.stream(
             ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topWriteMetrics)));
 
@@ -1278,7 +1282,7 @@ public class StorageProxy implements StorageProxyMBean
         consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel);
         if (StorageService.instance.isBootstrapMode() && !systemKeyspaceQuery(commands))
         {
-            readMetrics.unavailables.mark();
+            consistencyLevelReadMetrics.get(consistencyLevel).unavailables.mark();
             throw new IsBootstrappingException();
         }
 
@@ -1367,6 +1371,7 @@ public class StorageProxy implements StorageProxyMBean
     {
         long start = System.nanoTime();
         List<Row> rows = null;
+        ConsistencyLevelRequestMetrics readMetrics = consistencyLevelReadMetrics.get(consistencyLevel);
 
         try
         {
@@ -1751,6 +1756,8 @@ public class StorageProxy implements StorageProxyMBean
         List<Row> rows;
         int numRequestRounds = 0;
         int numRequestQueries = 0;
+
+        ClientRequestMetrics rangeMetrics = consistencyLevelRangeMetrics.get(consistency_level);
         // now scan until we have enough results
         try
         {
