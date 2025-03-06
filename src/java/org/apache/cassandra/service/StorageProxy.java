@@ -2448,6 +2448,10 @@ public class StorageProxy implements StorageProxyMBean
 
     private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel cl)
     {
+        if (cl.isSerialConsistency())
+        {
+            return cl;
+        }
         ConsistencyLevel coerceConsistencyLevel = DatabaseDescriptor.getCoerceReadConsistencyLevel();
         return coerceConsistencyLevel == null ? cl : coerceConsistencyLevel;
     }
