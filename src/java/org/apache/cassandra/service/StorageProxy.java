@@ -2461,8 +2461,8 @@ public class StorageProxy implements StorageProxyMBean
         {
             return consistencyLevel;
         }
-        ConsistencyLevel coerceConsistencyLevel = DatabaseDescriptor.getCoerceReadConsistencyLevel();
-        return coerceConsistencyLevel == null ? consistencyLevel : coerceConsistencyLevel;
+        boolean shouldCoerce = DatabaseDescriptor.getCoerceReadConsistencyAll();
+        return shouldCoerce ? ConsistencyLevel.ALL : consistencyLevel;
     }
 
     private static boolean consistencyLevelIsSafeToCoerce(ConsistencyLevel consistencyLevel)

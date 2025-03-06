@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.EncryptionOptions.ClientEncryptionOptions;
 import org.apache.cassandra.config.EncryptionOptions.ServerEncryptionOptions;
-import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.supercsv.io.CsvListReader;
 import org.supercsv.prefs.CsvPreference;
@@ -315,7 +314,7 @@ public class Config
     public int otc_coalescing_window_us = otc_coalescing_window_us_default;
     public int otc_coalescing_enough_coalesced_messages = 8;
 
-    public volatile ConsistencyLevel coerce_read_consistency_level = null;
+    public volatile boolean coerce_read_consistency_all = false;
 
     public int windows_timer_interval = 0;
 

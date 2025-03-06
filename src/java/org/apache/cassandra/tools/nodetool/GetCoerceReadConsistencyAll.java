@@ -22,12 +22,12 @@ import io.airlift.command.Command;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
-@Command(name = "getcoercereadconsistencylevel", description = "Get the coerce read consistency level, if present")
-public class GetCoerceReadConsistencyLevel extends NodeTool.NodeToolCmd
+@Command(name = "getcoercereadconsistencyall", description = "Get the coerce read consistency level, if present")
+public class GetCoerceReadConsistencyAll extends NodeTool.NodeToolCmd
 {
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.output().out.println(probe.getCoerceReadConsistencyLevel());
+        probe.output().out.println(probe.getCoerceReadConsistencyAll());
     }
 }

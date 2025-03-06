@@ -1184,14 +1184,14 @@ public class NodeProbe implements AutoCloseable
         return spProxy.getReadRepairRepairedBackground();
     }
 
-    public String getCoerceReadConsistencyLevel()
+    public boolean getCoerceReadConsistencyAll()
     {
-        return ssProxy.getCoerceReadConsistencyLevel();
+        return ssProxy.getCoerceReadConsistencyAll();
     }
 
-    public void setCoerceReadConsistencyLevel(String consistencyLevel)
+    public void setCoerceReadConsistencyAll(boolean value)
     {
-        ssProxy.setCoerceReadConsistencyLevel(consistencyLevel);
+        ssProxy.setCoerceReadConsistencyAll(value);
     }
 
     // JMX getters for the o.a.c.metrics API below.

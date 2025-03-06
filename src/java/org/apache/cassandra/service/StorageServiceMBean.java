@@ -933,7 +933,7 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      */
     public boolean isNewCluster();
 
-    public String getCoerceReadConsistencyLevel();
+    public boolean getCoerceReadConsistencyAll();
 
-    public void setCoerceReadConsistencyLevel(String consistencyLevel);
+    public void setCoerceReadConsistencyAll(boolean value);
 }

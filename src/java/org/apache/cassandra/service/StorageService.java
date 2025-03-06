@@ -5529,16 +5529,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Updated write_delay_in_s to {}", SafeArg.of("value", writeDelay));
     }
 
-    public void setCoerceReadConsistencyLevel(String consistencyLevel)
+    public void setCoerceReadConsistencyAll(boolean value)
     {
-        DatabaseDescriptor.setCoerceReadConsistencyLevel(consistencyLevel != null
-                                                         ? ConsistencyLevel.valueOf(consistencyLevel)
-                                                         : null);
-        logger.info("Updated coerce_read_consistency_level to {}", SafeArg.of("value", consistencyLevel));
+        DatabaseDescriptor.setCoerceReadConsistencyAll(value);
+        logger.info("Updated coerce_read_consistency_level to {}", SafeArg.of("value", value));
     }
 
-    public String getCoerceReadConsistencyLevel()
+    public boolean getCoerceReadConsistencyAll()
     {
-        return String.valueOf(DatabaseDescriptor.getCoerceReadConsistencyLevel());
+        return DatabaseDescriptor.getCoerceReadConsistencyAll();
     }
 }
