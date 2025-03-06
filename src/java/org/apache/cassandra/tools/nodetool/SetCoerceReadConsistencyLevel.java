@@ -23,16 +23,16 @@ import io.airlift.command.Command;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
-@Command(name = "setcoercereadconsistencylevel", description = "Set a delay for all writes performed on this node")
+@Command(name = "setcoercereadconsistencylevel", description = "Set the consistency level used by all read requests, regardless of what is set by the client")
 public class SetCoerceReadConsistencyLevel extends NodeTool.NodeToolCmd
 {
 
-    @Arguments(title = "consistency_level", usage = "<CL name>", description = "Cassandra CONSISTENCY_LEVEL in UPPER_SNAKE_CASE", required = true)
+    @Arguments(title = "consistency_level", usage = "<CL name>", description = "Cassandra CONSISTENCY_LEVEL in UPPER_SNAKE_CASE, or NULL to disable", required = true)
     private String consistencyLevel = null;
 
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.setCoerceReadConsistencyLevel(consistencyLevel);
+        probe.setCoerceReadConsistencyLevel("NULL".equalsIgnoreCase(consistencyLevel) ? null : consistencyLevel);
     }
 }
