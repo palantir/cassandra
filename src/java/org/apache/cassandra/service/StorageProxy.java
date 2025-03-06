@@ -1266,7 +1266,6 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> read(List<ReadCommand> commands, ConsistencyLevel consistencyLevel)
     throws UnavailableException, IsBootstrappingException, ReadFailureException, ReadTimeoutException, InvalidRequestException
     {
-        consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel);
         // When using serial CL, the ClientState should be provided
         assert !consistencyLevel.isSerialConsistency();
         return read(commands, consistencyLevel, null);
