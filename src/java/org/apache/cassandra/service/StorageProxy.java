@@ -2456,13 +2456,13 @@ public class StorageProxy implements StorageProxyMBean
         return ReadRepairMetrics.repairedBackground.getCount();
     }
 
-    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel cl)
+    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
     {
-        if (cl.isSerialConsistency())
+        if (consistencyLevel.isSerialConsistency())
         {
-            return cl;
+            return consistencyLevel;
         }
         ConsistencyLevel coerceConsistencyLevel = DatabaseDescriptor.getCoerceReadConsistencyLevel();
-        return coerceConsistencyLevel == null ? cl : coerceConsistencyLevel;
+        return coerceConsistencyLevel == null ? consistencyLevel : coerceConsistencyLevel;
     }
 }

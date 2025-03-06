@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
@@ -5530,13 +5532,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
     public void setCoerceReadConsistencyLevel(String consistencyLevel)
     {
-        DatabaseDescriptor.setCoerceReadConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel));
+        DatabaseDescriptor.setCoerceReadConsistencyLevel(consistencyLevel != null
+                                                         ? ConsistencyLevel.valueOf(consistencyLevel)
+                                                         : null);
         logger.info("Updated coerce_read_consistency_level to {}", SafeArg.of("value", consistencyLevel));
     }
 
     public String getCoerceReadConsistencyLevel()
     {
-        ConsistencyLevel coerceReadConsistencyLevel = DatabaseDescriptor.getCoerceReadConsistencyLevel();
-        return coerceReadConsistencyLevel != null ? coerceReadConsistencyLevel.toString() : null;
+        return String.valueOf(DatabaseDescriptor.getCoerceReadConsistencyLevel());
     }
 }

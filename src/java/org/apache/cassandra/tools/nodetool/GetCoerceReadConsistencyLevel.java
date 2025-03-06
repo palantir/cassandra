@@ -30,7 +30,6 @@ public class GetCoerceReadConsistencyLevel extends NodeTool.NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        String coerceReadConsistencyLevel = probe.getCoerceReadConsistencyLevel();
-        probe.output().out.println(coerceReadConsistencyLevel == null ? "null" : coerceReadConsistencyLevel);
+        probe.output().out.println(probe.getCoerceReadConsistencyLevel());
     }
 }
