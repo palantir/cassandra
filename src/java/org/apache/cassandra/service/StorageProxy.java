@@ -226,9 +226,9 @@ public class StorageProxy implements StorageProxyMBean
                 Tracing.trace("Reading existing values for CAS precondition");
                 long timestamp = System.currentTimeMillis();
                 ReadCommand readCommand = ReadCommand.create(keyspaceName, key, cfName, timestamp, request.readFilter());
-                ConsistencyLevel consistencyForPrecondition = maybeCoerceReadConsistencyLevel(consistencyForPaxos == ConsistencyLevel.LOCAL_SERIAL
+                ConsistencyLevel consistencyForPrecondition = consistencyForPaxos == ConsistencyLevel.LOCAL_SERIAL
                                                               ? ConsistencyLevel.LOCAL_QUORUM
-                                                              : LocalQuorumReadForSerialCasSetting.instance.consistencyLevelForSerialCas());
+                                                              : LocalQuorumReadForSerialCasSetting.instance.consistencyLevelForSerialCas();
                 List<Row> rows = read(Arrays.asList(readCommand), consistencyForPrecondition);
                 ColumnFamily current = rows.get(0).cf;
                 if (current == null)
