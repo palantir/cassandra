@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.palantir.cassandra.utils.CountingCellIterator;
 import com.codahale.metrics.*;
 import org.apache.cassandra.db.ColumnFamilyStore;
+import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -183,6 +184,10 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics coordinatorReadLatency;
     public final LatencyMetrics coordinatorReadScanLatency;
     public final LatencyMetrics coordinatorScanLatency;
+
+    public final Map<ConsistencyLevel, LatencyMetrics> coordinatorReadLatencyByCL;
+    public final Map<ConsistencyLevel, LatencyMetrics> coordinatorReadScanLatencyByCL;
+    public final Map<ConsistencyLevel, LatencyMetrics> coordinatorScanLatencyByCL;
 
     public final LatencyMetrics blockingReadRepairLatency;
     public final Meter blockingReadRepairs;
@@ -416,6 +421,10 @@ public class ColumnFamilyMetrics
         coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
         coordinatorReadScanLatency = new LatencyMetrics(factory, "CoordinatorReadScan",  new LatencyMetrics(globalNameFactory, "CoordinatorReadScan"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
+        coordinatorReadLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", cl.toString(), coordinatorReadLatency));
+        coordinatorReadScanLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", cl.toString(), coordinatorReadScanLatency));
+        coordinatorScanLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", cl.toString(), coordinatorScanLatency));
+
         blockingReadRepairLatency = new LatencyMetrics(factory, "BlockingReadRepair", new LatencyMetrics(globalNameFactory, "BlockingReadRepair"));
         blockingReadRepairs = Metrics.meter(factory.createMetricName("BlockingReadRepairs"));
         backgroundReadRepairs = Metrics.meter(factory.createMetricName("BackgroundReadRepairs"));

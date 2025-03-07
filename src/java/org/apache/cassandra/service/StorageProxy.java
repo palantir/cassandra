@@ -92,12 +92,10 @@ public class StorageProxy implements StorageProxyMBean
     private static final ClientRequestMetrics topReadMetrics = new ClientRequestMetrics("Read");
     private static final ClientRequestMetrics topRangeMetrics = new ClientRequestMetrics("RangeSlice");
     private static final ClientRequestMetrics topWriteMetrics = new ClientRequestMetrics("Write");
-    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelReadMetrics = Arrays.stream(
-            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topReadMetrics)));
-    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelRangeMetrics = Arrays.stream(
-            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topRangeMetrics)));
-    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelWriteMetrics = Arrays.stream(
-            ConsistencyLevel.values()).collect(Collectors.toMap(e -> e, e -> new ConsistencyLevelRequestMetrics(e, topWriteMetrics)));
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelReadMetrics = MetricUtils.byConsistencyLevel(topReadMetrics);
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelRangeMetrics = MetricUtils.byConsistencyLevel(topRangeMetrics);
+    private static final Map<ConsistencyLevel, ConsistencyLevelRequestMetrics> consistencyLevelWriteMetrics = MetricUtils.byConsistencyLevel(topWriteMetrics);
+
 
     private static final CASClientRequestMetrics casWriteMetrics = new CASClientRequestMetrics("CASWrite");
     private static final CASClientRequestMetrics casReadMetrics = new CASClientRequestMetrics("CASRead");
@@ -1359,7 +1357,7 @@ public class StorageProxy implements StorageProxyMBean
             casReadMetrics.addNano(latency);
             // TODO avoid giving every command the same latency number.  Can fix this in CASSADRA-5329
             for (ReadCommand command : commands)
-                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatency.addNano(latency);
+                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatencyByCL.get(consistencyForFetch).addNano(latency);
         }
 
         return rows;
@@ -1397,7 +1395,7 @@ public class StorageProxy implements StorageProxyMBean
             readMetrics.addNano(latency);
             // TODO avoid giving every command the same latency number.  Can fix this in CASSADRA-5329
             for (ReadCommand command : commands)
-                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatency.addNano(latency);
+                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatencyByCL.get(consistencyLevel).addNano(latency);
         }
 
         return rows;
@@ -1962,7 +1960,7 @@ public class StorageProxy implements StorageProxyMBean
                         break;
                     }
                 }
-                Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorReadScanLatency.addNano(System.nanoTime() - readStartTime);
+                Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorReadScanLatencyByCL.get(consistency_level).addNano(System.nanoTime() - readStartTime);
 
                 try
                 {
@@ -2028,7 +2026,7 @@ public class StorageProxy implements StorageProxyMBean
             rangeMetrics.addNano(latency);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestQueries.update(numRequestQueries);
             Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanRequestRounds.update(numRequestRounds);
-            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatency.addNano(latency);
+            Keyspace.open(command.keyspace).getColumnFamilyStore(command.columnFamily).metric.coordinatorScanLatencyByCL.get(consistency_level).addNano(latency);
         }
         return command.postReconciliationProcessing(rows);
     }
