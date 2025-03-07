@@ -189,6 +189,9 @@ public class ColumnFamilyMetrics
     public final Meter attemptedReadRepairs;
     public final Meter backgroundReadRepairs;
 
+    public final Meter digestReads;
+    public final Meter dataReads;
+
     public final Counter largePartitionsCompacted;
 
     /** Request rounds in range scan queries on this CF **/
@@ -420,6 +423,8 @@ public class ColumnFamilyMetrics
         blockingReadRepairs = Metrics.meter(factory.createMetricName("BlockingReadRepairs"));
         backgroundReadRepairs = Metrics.meter(factory.createMetricName("BackgroundReadRepairs"));
         attemptedReadRepairs = Metrics.meter(factory.createMetricName("AttemptedReadRepairs"));
+        digestReads = Metrics.meter(factory.createMetricName("DigestReads"));
+        dataReads = Metrics.meter(factory.createMetricName("DataReads"));
         largePartitionsCompacted = Metrics.counter("LargePartitionsCompacted");
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
