@@ -60,6 +60,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public final ColumnSlice[] slices;
     public final boolean reversed;
+    public final boolean usePageToken;
     public volatile int count;
     public final int compositesToGroup;
 
@@ -106,13 +107,19 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count, int compositesToGroup)
     {
+        this(slices, reversed, false, count, compositesToGroup);
+    }
+
+    public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, boolean usePageToken, int count, int compositesToGroup)
+    {
         this.slices = slices;
         this.reversed = reversed;
+        this.usePageToken = usePageToken;
         this.count = count;
         this.compositesToGroup = compositesToGroup;
         this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
-                                             ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
-                                             : null;
+                ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
+                : null;
     }
 
     public void setMetrics(ColumnFamilyMetrics metrics) {
@@ -302,9 +309,38 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
+        // only set page token if usePageToken is true
+        // if the range scan completes, set the pageToken to a "end of row" value
+        // otherwise set it to a cell name if we hit on of the defensive guards, except in the case we hit the guard on the last column of the row, in which
+        // case return the "end of row" value again
+
+        CellName firstCellName = null;
+        CellName previousCellName = null;
+        long cellsReadCount = 0;
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
+            assert cell != null;
+
+            if (firstCellName == null)
+            {
+                firstCellName = cell.name();
+            }
+
+            if (usePageToken)
+            {
+                if (hitRangeScanThreshold(++cellsReadCount))
+                {
+                    assert cell.name() != firstCellName;
+                    assert previousCellName != null;
+                    assert cell.name() != previousCellName;
+
+                    container.setPageToken(cell);
+                    break;
+                }
+                previousCellName = cell.name();
+            }
+
 
             if (logger.isTraceEnabled())
                 logger.trace("collecting {} of {}: {}", columnCounter.live(), count, cell.getString(container.getComparator()));
@@ -374,6 +410,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
                       reducedCells.tombstones(),
                       reducedCells.droppableTombstones() + reducedCells.droppableTtls(),
                       warnTombstones ? " (see tombstone_warn_threshold)" : "");
+    }
+
+    private boolean hitRangeScanThreshold(long cellsRead)
+    {
+        return cellsRead >= DatabaseDescriptor.getRangeScanCellsReadThreshold();
     }
 
     private String getSlicesInfo(ColumnFamily container)
@@ -607,6 +648,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (ColumnSlice slice : f.slices)
                 type.sliceSerializer().serialize(slice, out, version);
             out.writeBoolean(f.reversed);
+            out.writeBoolean(f.usePageToken);
             int count = f.count;
             out.writeInt(count);
 
@@ -620,6 +662,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (int i = 0; i < slices.length; i++)
                 slices[i] = type.sliceSerializer().deserialize(in, version);
             boolean reversed = in.readBoolean();
+            boolean usePageToken = in.readBoolean();
             int count = in.readInt();
             int compositesToGroup = in.readInt();
 
@@ -635,6 +678,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (ColumnSlice slice : f.slices)
                 size += type.sliceSerializer().serializedSize(slice, version);
             size += sizes.sizeof(f.reversed);
+            size += sizes.sizeof(f.usePageToken);
             size += sizes.sizeof(f.count);
 
             size += sizes.sizeof(f.compositesToGroup);

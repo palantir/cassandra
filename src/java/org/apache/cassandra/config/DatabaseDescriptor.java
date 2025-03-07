@@ -1312,6 +1312,11 @@ public class DatabaseDescriptor
         return conf.tombstone_failure_threshold;
     }
 
+    public static int getRangeScanCellsReadThreshold()
+    {
+        return conf.range_scan_cells_read_threshold;
+    }
+
     public static void setTombstoneFailureThreshold(int threshold)
     {
         conf.tombstone_failure_threshold = threshold;

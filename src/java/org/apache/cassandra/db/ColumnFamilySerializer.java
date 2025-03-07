@@ -71,6 +71,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
                 written++;
             }
             assert count == written: "Table had " + count + " columns, but " + written + " written";
+            columnSerializer.serialize(cf.pageToken(), out);
         }
         catch (IOException e)
         {
@@ -94,6 +95,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             return null;
 
         ColumnFamily cf = factory.create(Schema.instance.getCFMetaData(deserializeCfId(in, version)));
+        ColumnSerializer columnSerializer = cf.getComparator().columnSerializer();
 
         if (cf.metadata().isSuper() && version < MessagingService.VERSION_20)
         {
@@ -102,12 +104,11 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         else
         {
             cf.delete(cf.getComparator().deletionInfoSerializer().deserialize(in, version));
-
-            ColumnSerializer columnSerializer = cf.getComparator().columnSerializer();
             int size = in.readInt();
             for (int i = 0; i < size; ++i)
                 cf.addColumn(columnSerializer.deserialize(in, flag));
         }
+        cf.setPageToken(columnSerializer.deserialize(in, flag));
         return cf;
     }
 

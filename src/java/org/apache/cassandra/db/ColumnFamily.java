@@ -60,6 +60,8 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     protected final CFMetaData metadata;
 
+    private Cell pageToken;
+
     protected ColumnFamily(CFMetaData metadata)
     {
         assert metadata != null;
@@ -94,6 +96,17 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
                               ? new ColumnCounter(now)
                               : new ColumnCounter.GroupByPrefix(now, getComparator(), metadata.clusteringColumns().size(), true);
         return counter.countAll(this).live();
+    }
+
+    public void setPageToken(Cell cell)
+    {
+        assert pageToken == null;
+        pageToken = cell;
+    }
+
+    public Cell pageToken()
+    {
+        return pageToken;
     }
 
     /**
