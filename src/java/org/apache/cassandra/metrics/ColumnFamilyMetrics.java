@@ -421,9 +421,9 @@ public class ColumnFamilyMetrics
         coordinatorReadLatency = new LatencyMetrics(factory, "CoordinatorRead",  new LatencyMetrics(globalNameFactory, "CoordinatorRead"));
         coordinatorReadScanLatency = new LatencyMetrics(factory, "CoordinatorReadScan",  new LatencyMetrics(globalNameFactory, "CoordinatorReadScan"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
-        coordinatorReadLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", cl.toString(), coordinatorReadLatency));
-        coordinatorReadScanLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", cl.toString(), coordinatorReadScanLatency));
-        coordinatorScanLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", cl.toString(), coordinatorScanLatency));
+        coordinatorReadLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", ",consistency=" + cl, coordinatorReadLatency));
+        coordinatorReadScanLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", ",consistency=" + cl, coordinatorReadScanLatency));
+        coordinatorScanLatencyByCL = MetricUtils.byConsistencyLevel(cl -> new LatencyMetrics(factory, "CoordinatorRead", ",consistency=" + cl, coordinatorScanLatency));
 
         blockingReadRepairLatency = new LatencyMetrics(factory, "BlockingReadRepair", new LatencyMetrics(globalNameFactory, "BlockingReadRepair"));
         blockingReadRepairs = Metrics.meter(factory.createMetricName("BlockingReadRepairs"));
