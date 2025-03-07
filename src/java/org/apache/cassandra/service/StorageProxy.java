@@ -1443,6 +1443,7 @@ public class StorageProxy implements StorageProxyMBean
                 try
                 {
                     Row row = exec.get();
+                    Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
                     if (row != null)
                     {
                         row = exec.command.maybeTrim(row);
@@ -1895,6 +1896,7 @@ public class StorageProxy implements StorageProxyMBean
                     }
                     scanHandlers.add(Pair.create(nodeCmd, handler));
                     numRequestQueries++;
+
                 }
                 Tracing.trace("Submitted {} concurrent range requests covering {} ranges", concurrentRequests, i - concurrentFetchStartingIndex);
 
