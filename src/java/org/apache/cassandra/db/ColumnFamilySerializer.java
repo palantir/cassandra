@@ -71,7 +71,11 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
                 written++;
             }
             assert count == written: "Table had " + count + " columns, but " + written + " written";
-            columnSerializer.serialize(cf.pageToken(), out);
+            out.writeBoolean(cf.isPageTokenSet());
+            if (cf.isPageTokenSet())
+            {
+                columnSerializer.serialize(cf.pageToken(), out);
+            }
         }
         catch (IOException e)
         {
@@ -108,7 +112,11 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             for (int i = 0; i < size; ++i)
                 cf.addColumn(columnSerializer.deserialize(in, flag));
         }
-        cf.setPageToken(columnSerializer.deserialize(in, flag));
+        boolean isPageTokenSet = in.readBoolean();
+        if (isPageTokenSet)
+        {
+            cf.setPageToken(columnSerializer.deserialize(in, flag));
+        }
         return cf;
     }
 
@@ -122,6 +130,16 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         return size;
     }
 
+    public long pageTokenSerializedSize(ColumnFamily cf, TypeSizes typeSizes)
+    {
+        long size = typeSizes.sizeof(cf.isPageTokenSet());
+        if (cf.isPageTokenSet())
+        {
+            size += cf.getComparator().columnSerializer().serializedSize(cf.pageToken(), typeSizes);
+        }
+        return size;
+    }
+
     public long serializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
     {
         if (cf == null)
@@ -132,7 +150,8 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         {
             return typeSizes.sizeof(true)  /* nullness bool */
                  + cfIdSerializedSize(cf.id(), typeSizes, version)  /* id */
-                 + contentSerializedSize(cf, typeSizes, version);
+                    + contentSerializedSize(cf, typeSizes, version)
+                    + pageTokenSerializedSize(cf, typeSizes);
         }
     }
 

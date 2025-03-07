@@ -666,7 +666,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             int count = in.readInt();
             int compositesToGroup = in.readInt();
 
-            return new SliceQueryFilter(slices, reversed, count, compositesToGroup);
+            return new SliceQueryFilter(slices, reversed, usePageToken, count, compositesToGroup);
         }
 
         public long serializedSize(SliceQueryFilter f, int version)

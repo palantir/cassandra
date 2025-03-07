@@ -59,8 +59,8 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     public static final ColumnFamilySerializer serializer = new ColumnFamilySerializer();
 
     protected final CFMetaData metadata;
-
     private Cell pageToken;
+    private boolean isPageTokenSet = false;
 
     protected ColumnFamily(CFMetaData metadata)
     {
@@ -100,8 +100,14 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public void setPageToken(Cell cell)
     {
-        assert pageToken == null;
+        assert pageToken == null && !isPageTokenSet;
+        isPageTokenSet = true;
         pageToken = cell;
+    }
+
+    public boolean isPageTokenSet()
+    {
+        return isPageTokenSet;
     }
 
     public Cell pageToken()
