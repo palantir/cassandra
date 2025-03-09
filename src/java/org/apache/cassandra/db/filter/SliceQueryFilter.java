@@ -317,7 +317,6 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
         CellName firstCellName = null;
         CellName previousCellName = null;
-        long cellsReadCount = 0;
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
@@ -330,7 +329,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             if (usePageToken)
             {
-                if (hitRangeScanThreshold(++cellsReadCount))
+                if (hitRangeScanThreshold(reducedCells.deadAndLiveCells()))
                 {
                     assert cell.name() != firstCellName;
                     assert previousCellName != null;
