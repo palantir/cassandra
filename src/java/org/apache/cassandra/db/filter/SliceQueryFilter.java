@@ -31,6 +31,7 @@ import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,9 +61,9 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public final ColumnSlice[] slices;
     public final boolean reversed;
-    public final boolean usePageToken;
     public volatile int count;
     public final int compositesToGroup;
+    public final boolean usePageToken;
 
     private boolean hitTombstoneFailureThreshold = false;
     private boolean hitTombstoneWarnThreshold = false;
@@ -648,11 +649,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (ColumnSlice slice : f.slices)
                 type.sliceSerializer().serialize(slice, out, version);
             out.writeBoolean(f.reversed);
-            out.writeBoolean(f.usePageToken);
             int count = f.count;
             out.writeInt(count);
 
             out.writeInt(f.compositesToGroup);
+            out.writeBoolean(f.usePageToken);
         }
 
         public SliceQueryFilter deserialize(DataInput in, int version) throws IOException
@@ -662,9 +663,14 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (int i = 0; i < slices.length; i++)
                 slices[i] = type.sliceSerializer().deserialize(in, version);
             boolean reversed = in.readBoolean();
-            boolean usePageToken = in.readBoolean();
             int count = in.readInt();
+
             int compositesToGroup = in.readInt();
+            boolean usePageToken = false;
+            if (version >= MessagingService.VERSION_23)
+            {
+                usePageToken = in.readBoolean();
+            }
 
             return new SliceQueryFilter(slices, reversed, usePageToken, count, compositesToGroup);
         }
@@ -678,10 +684,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
             for (ColumnSlice slice : f.slices)
                 size += type.sliceSerializer().serializedSize(slice, version);
             size += sizes.sizeof(f.reversed);
-            size += sizes.sizeof(f.usePageToken);
             size += sizes.sizeof(f.count);
 
             size += sizes.sizeof(f.compositesToGroup);
+            size += sizes.sizeof(f.usePageToken);
             return size;
         }
     }

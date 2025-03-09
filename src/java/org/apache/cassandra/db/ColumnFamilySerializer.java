@@ -112,10 +112,13 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             for (int i = 0; i < size; ++i)
                 cf.addColumn(columnSerializer.deserialize(in, flag));
         }
-        boolean isPageTokenSet = in.readBoolean();
-        if (isPageTokenSet)
+        if (version >= MessagingService.VERSION_23)
         {
-            cf.setPageToken(columnSerializer.deserialize(in, flag));
+            boolean isPageTokenSet = in.readBoolean();
+            if (isPageTokenSet)
+            {
+                cf.setPageToken(columnSerializer.deserialize(in, flag));
+            }
         }
         return cf;
     }

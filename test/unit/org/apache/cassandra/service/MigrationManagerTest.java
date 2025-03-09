@@ -52,10 +52,10 @@ public class MigrationManagerTest
         HOST_3 = InetAddress.getByName("10.0.0.3");
         HOST_4 = InetAddress.getByName("10.0.0.4");
         hosts = ImmutableSet.of(HOST_1, HOST_2, HOST_3, HOST_4);
-        MessagingService.instance().setVersion(HOST_1, MessagingService.VERSION_22);
-        MessagingService.instance().setVersion(HOST_2, MessagingService.VERSION_22);
-        MessagingService.instance().setVersion(HOST_3, MessagingService.VERSION_22);
-        MessagingService.instance().setVersion(HOST_4, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_1, MessagingService.VERSION_23);
+        MessagingService.instance().setVersion(HOST_2, MessagingService.VERSION_23);
+        MessagingService.instance().setVersion(HOST_3, MessagingService.VERSION_23);
+        MessagingService.instance().setVersion(HOST_4, MessagingService.VERSION_23);
     }
 
     @Before

@@ -118,6 +118,7 @@ public class SerializationsTest extends AbstractSerializationsTester
         DataInputStream in = getInput("db.RangeSliceCommand.bin");
         for (int i = 0; i < 6; i++)
             MessageIn.read(in, getVersion(), -1);
+        // reading is failing here because it doesn't detect the correct version during deserialization
         in.close();
     }
 
