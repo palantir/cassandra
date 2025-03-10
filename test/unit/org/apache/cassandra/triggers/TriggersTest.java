@@ -186,7 +186,8 @@ public class TriggersTest
                    Collections.<Column>emptyList(),
                    Collections.singletonList(getColumnForInsert("v1", 6)),
                    org.apache.cassandra.thrift.ConsistencyLevel.LOCAL_SERIAL,
-                   org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                   org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                   null);
 
         assertUpdateIsAugmented(6);
     }
@@ -244,7 +245,8 @@ public class TriggersTest
                        Collections.<Column>emptyList(),
                        Collections.singletonList(getColumnForInsert("v1", 9)),
                        org.apache.cassandra.thrift.ConsistencyLevel.LOCAL_SERIAL,
-                       org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                       org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                       null);
         }
         finally
         {
@@ -269,7 +271,8 @@ public class TriggersTest
                        Collections.<Column>emptyList(),
                        Collections.singletonList(getColumnForInsert("v1", 10)),
                        org.apache.cassandra.thrift.ConsistencyLevel.LOCAL_SERIAL,
-                       org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                       org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                       null);
         }
         finally
         {

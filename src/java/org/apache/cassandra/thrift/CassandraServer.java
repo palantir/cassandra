@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
+import com.palantir.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -862,7 +863,8 @@ public class CassandraServer implements Cassandra.Iface
                          String column_family,
                          List<Column> updates,
                          ConsistencyLevel serial_consistency_level,
-                         ConsistencyLevel commit_consistency_level)
+                         ConsistencyLevel commit_consistency_level,
+                         org.apache.cassandra.thrift.Tracing tracing)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested()) {
@@ -881,6 +883,7 @@ public class CassandraServer implements Cassandra.Iface
             logger.trace("put_unless_exists");
         }
 
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("put_unless_exists", tracing);
         try
         {
             ThriftClientState cState = state();
@@ -942,6 +945,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -950,7 +954,22 @@ public class CassandraServer implements Cassandra.Iface
                          List<Column> expected,
                          List<Column> updates,
                          ConsistencyLevel serial_consistency_level,
-                         ConsistencyLevel commit_consistency_level)
+                         ConsistencyLevel commit_consistency_level
+    )
+    throws InvalidRequestException, UnavailableException, TimedOutException
+    {
+        return cas(key, column_family, expected, updates, serial_consistency_level, commit_consistency_level, null);
+    }
+
+
+    public CASResult cas(ByteBuffer key,
+                         String column_family,
+                         List<Column> expected,
+                         List<Column> updates,
+                         ConsistencyLevel serial_consistency_level,
+                         ConsistencyLevel commit_consistency_level,
+                         org.apache.cassandra.thrift.Tracing tracing
+                         )
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -971,6 +990,7 @@ public class CassandraServer implements Cassandra.Iface
             logger.trace("cas");
         }
 
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("cas", tracing);
         try
         {
             ThriftClientState cState = state();
@@ -1043,6 +1063,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 

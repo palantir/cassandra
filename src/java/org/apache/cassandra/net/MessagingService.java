@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
+import com.palantir.cassandra.tracing.PalantirTracing;
+import com.palantir.tracing.TagTranslator;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -794,6 +796,14 @@ public final class MessagingService implements MessagingServiceMBean
         }
     }
 
+    private static final TagTranslator<MessageIn<?>> messageInTagTranslator = new TagTranslator<MessageIn<?>>()
+    {
+        public <T> void translate(TagAdapter<T> tagAdapter, T t, MessageIn<?> messageIn)
+        {
+            tagAdapter.tag(t, "verb", messageIn.verb.name());
+        }
+    };
+
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
     {
         TraceState state = Tracing.instance.initializeFromMessage(message);
@@ -805,7 +815,17 @@ public final class MessagingService implements MessagingServiceMBean
             if (!ms.allowIncomingMessage(message, id))
                 return;
 
-        Runnable runnable = new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp);
+        Runnable runnable = () -> {
+            PalantirTracing.initializeTracerFromIncomingRpcServerIncoming(message);
+            try
+            {
+                new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp).run();
+            }
+            finally
+            {
+                PalantirTracing.closeServerSpanInterNode(message);
+            }
+        };
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());
         assert stage != null : "No stage for message type " + message.verb;
 
