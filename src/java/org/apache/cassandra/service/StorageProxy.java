@@ -1896,7 +1896,6 @@ public class StorageProxy implements StorageProxyMBean
                     }
                     scanHandlers.add(Pair.create(nodeCmd, handler));
                     numRequestQueries++;
-
                 }
                 Tracing.trace("Submitted {} concurrent range requests covering {} ranges", concurrentRequests, i - concurrentFetchStartingIndex);
 
