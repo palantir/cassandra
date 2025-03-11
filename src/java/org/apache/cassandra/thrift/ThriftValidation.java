@@ -668,4 +668,25 @@ public class ThriftValidation
             filter = SuperColumns.fromSCFilter(metadata.comparator, superColumn, filter);
         return filter;
     }
+
+    public static IDiskAtomFilter asIFilterUsingPageToken(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn)
+    {
+        SliceRange sr = sp.slice_range;
+        IDiskAtomFilter filter;
+
+        CellNameType comparator = metadata.isSuper()
+                ? new SimpleDenseCellNameType(metadata.comparator.subtype(superColumn == null ? 0 : 1))
+                : metadata.comparator;
+
+        assert sr != null;
+        filter = new SliceQueryFilter(comparator.fromByteBuffer(sr.start),
+                comparator.fromByteBuffer(sr.finish),
+                sr.reversed,
+                true,
+                sr.count);
+
+        assert !metadata.isSuper();
+
+        return filter;
+    }
 }

@@ -122,4 +122,17 @@ public class PageToken
     {
         return (token1 == null && token2 == null) || (token1 != null && token1.equals(token2));
     }
+
+    @Override
+    public String toString()
+    {
+        if (reachedEnd)
+        {
+            return "EndOfRow";
+        }
+        else
+        {
+            return "Cell(" + token.name().toString() + ")";
+        }
+    }
 }

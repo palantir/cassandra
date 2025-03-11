@@ -32,13 +32,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.db.IColumnFamilyStoreValidator;
+import org.apache.cassandra.db.filter.*;
 import org.apache.cassandra.db.index.PerRowSecondaryIndexTest;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -60,12 +58,6 @@ import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.CellNames;
 import org.apache.cassandra.db.composites.Composites;
-import org.apache.cassandra.db.filter.ColumnSlice;
-import org.apache.cassandra.db.filter.ExtendedFilter;
-import org.apache.cassandra.db.filter.IDiskAtomFilter;
-import org.apache.cassandra.db.filter.NamesQueryFilter;
-import org.apache.cassandra.db.filter.QueryFilter;
-import org.apache.cassandra.db.filter.SliceQueryFilter;
 import org.apache.cassandra.db.index.SecondaryIndex;
 import org.apache.cassandra.db.marshal.IntegerType;
 import org.apache.cassandra.db.marshal.LexicalUUIDType;
@@ -1189,6 +1181,20 @@ public class ColumnFamilyStoreTest
         assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
     }
 
+    private static void assertTotalColCountAndPageTokens(Collection<Row> rows, int expectedCount, List<PageToken> pageTokens)
+    {
+        int columns = 0;
+        int i = 0;
+        for (Row row : rows)
+        {
+            columns += row.getLiveCount(new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, expectedCount), System.currentTimeMillis());
+            PageToken pageToken = pageTokens.get(i);
+            assert pageToken.isReachedEnd() ? row.cf.pageToken().isReachedEnd() : pageToken.getToken().equals(row.cf.pageToken().getToken());
+            ++i;
+        }
+        assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
+    }
+
 
     @Test
     public void testRangeSliceColumnsLimit() throws Throwable
@@ -1392,6 +1398,96 @@ public class ColumnFamilyStoreTest
         row2 = iter.next();
         assertColumnNames(row1, "c1", "c2");
         assertColumnNames(row2, "c1");
+    }
+
+    @Test
+    public void testRangeSlicePageToken() throws Throwable
+    {
+        String keyspaceName = KEYSPACE1;
+        String cfName = CF_STANDARD1;
+        Keyspace keyspace = Keyspace.open(keyspaceName);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+        cfs.clearUnsafe();
+
+        Cell[] cols = new Cell[7];
+        for (int i = 0; i < 7; i++)
+        {
+            cols[i] = column("c" + i, "value", 1);
+        }
+        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
+        putColsStandard(cfs, Util.dk("B"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5]);
+        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
+        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3]);
+        putColsStandard(cfs, Util.dk("E"), cols[0], cols[1], cols[2]);
+        cfs.forceBlockingFlush();
+
+        SlicePredicate spAll = new SlicePredicate();
+        spAll.setSlice_range(new SliceRange());
+        spAll.getSlice_range().setCount(1);
+        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
+        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
+
+        SlicePredicate spStartC1 = new SlicePredicate();
+        spStartC1.setSlice_range(new SliceRange());
+        spStartC1.getSlice_range().setCount(1);
+        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
+        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
+
+        SlicePredicate spStartC1EndC4 = new SlicePredicate();
+        spStartC1EndC4.setSlice_range(new SliceRange());
+        spStartC1EndC4.getSlice_range().setCount(1);
+        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
+        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
+
+        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
+        PageToken pageToken5 = PageToken.createPageToken(cols[5]);
+        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
+
+        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
+                        null,
+                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                19,
+                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
+        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
+                        null,
+                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                7,
+                ImmutableList.of(pageTokenEnd, pageTokenEnd));
+        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
+                        null,
+                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                17,
+                ImmutableList.of(pageToken5, pageToken5, pageTokenEnd, pageTokenEnd, pageTokenEnd));
+        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
+                        null,
+                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                5,
+                ImmutableList.of(pageTokenEnd, pageTokenEnd));
+        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
+                        null,
+                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                17,
+                ImmutableList.of(pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd));
     }
 
     private static String toString(Collection<Row> rows)

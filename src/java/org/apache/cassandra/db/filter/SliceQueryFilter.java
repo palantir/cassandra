@@ -82,6 +82,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this(new ColumnSlice(start, finish), reversed, count);
     }
 
+    public SliceQueryFilter(Composite start, Composite finish, boolean reversed, boolean usePageToken, int count)
+    {
+        this(new ColumnSlice(start, finish), reversed, usePageToken, count);
+    }
+
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count, int compositesToGroup)
     {
         this(new ColumnSlice(start, finish), reversed, count, compositesToGroup);
@@ -90,6 +95,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public SliceQueryFilter(ColumnSlice slice, boolean reversed, int count)
     {
         this(new ColumnSlice[]{ slice }, reversed, count);
+    }
+
+    public SliceQueryFilter(ColumnSlice slice, boolean reversed, boolean usePageToken, int count)
+    {
+        this(new ColumnSlice[]{slice}, reversed, usePageToken, count);
     }
 
     public SliceQueryFilter(ColumnSlice slice, boolean reversed, int count, int compositesToGroup)
@@ -104,6 +114,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count)
     {
         this(slices, reversed, count, -1);
+    }
+
+    public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, boolean usePageToken, int count)
+    {
+        this(slices, reversed, usePageToken, count, -1);
     }
 
     public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count, int compositesToGroup)

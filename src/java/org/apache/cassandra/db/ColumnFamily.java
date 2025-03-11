@@ -410,7 +410,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         if (isMarkedForDelete())
             sb.append(" -").append(deletionInfo()).append("-");
 
-        sb.append(" [").append(CellNames.getColumnsString(getComparator(), this)).append("])");
+        sb.append(" [").append(CellNames.getColumnsString(getComparator(), this)).append("], pageToken=").append(pageToken()).append(")");
         return sb.toString();
     }
 
