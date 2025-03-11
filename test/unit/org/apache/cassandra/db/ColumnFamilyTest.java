@@ -110,11 +110,9 @@ public class ColumnFamilyTest
     }
 
     @Test
-    public void testPageTokenWithEmptyColumns() throws IOException
+    public void testValuedPageTokenWithEmptyColumns() throws IOException
     {
-        ColumnFamily cf;
-
-        cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
         DataOutputBuffer bufOut = new DataOutputBuffer();
         Cell pageToken = column("1", "Daniel Guo is a good man: 1", 314);
         cf.setPageToken(pageToken);
@@ -122,43 +120,85 @@ public class ColumnFamilyTest
 
         // verify
         ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
-        cf = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
-        assert Iterables.size(cf.getColumnNames()) == 0;
-        assert cf.pageToken().equals(pageToken);
+        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        assert Iterables.size(cfDeserialized.getColumnNames()) == 0;
+        assert cfDeserialized.pageToken().equals(cf.pageToken());
     }
 
     @Test
-    public void testPageTokenWithNonEmptyColumns() throws IOException
+    public void testEndedPageTokenWithEmptyColumns() throws IOException
     {
-        ColumnFamily cf;
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        DataOutputBuffer bufOut = new DataOutputBuffer();
+        cf.setPageToken(null);
+        ColumnFamily.serializer.serialize(cf, bufOut, version);
 
+        // verify
+        ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
+        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        assert Iterables.size(cfDeserialized.getColumnNames()) == 0;
+        assert cfDeserialized.pageToken().equals(cf.pageToken());
+    }
+
+    @Test
+    public void testValuedPageTokenWithNonEmptyColumns() throws IOException
+    {
         TreeMap<String, String> map = new TreeMap<>();
         for (int i = 100; i < 1000; ++i)
         {
             map.put(Integer.toString(i), "Daniel Guo is a good man: " + i);
         }
 
-        // write
-        cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
         DataOutputBuffer bufOut = new DataOutputBuffer();
         for (String cName : map.navigableKeySet())
         {
             cf.addColumn(column(cName, map.get(cName), 314));
         }
-        Cell pageToken = column("1000", "Daniel Guo is a good man: 1000", 314);
+        Cell pageToken = column("1", "Daniel Guo is a good man: 1", 314);
         cf.setPageToken(pageToken);
         ColumnFamily.serializer.serialize(cf, bufOut, version);
 
         // verify
         ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
-        cf = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
         for (String cName : map.navigableKeySet())
         {
             ByteBuffer val = cf.getColumn(cellname(cName)).value();
             assert new String(val.array(), val.position(), val.remaining()).equals(map.get(cName));
         }
         assert Iterables.size(cf.getColumnNames()) == map.size();
-        assert cf.pageToken().equals(pageToken);
+        assert cfDeserialized.pageToken().equals(cf.pageToken());
+    }
+
+    @Test
+    public void testEndedPageTokenWithNonEmptyColumns() throws IOException
+    {
+        TreeMap<String, String> map = new TreeMap<>();
+        for (int i = 100; i < 1000; ++i)
+        {
+            map.put(Integer.toString(i), "Daniel Guo is a good man: " + i);
+        }
+
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        DataOutputBuffer bufOut = new DataOutputBuffer();
+        for (String cName : map.navigableKeySet())
+        {
+            cf.addColumn(column(cName, map.get(cName), 314));
+        }
+        cf.setPageToken(null);
+        ColumnFamily.serializer.serialize(cf, bufOut, version);
+
+        // verify
+        ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
+        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        for (String cName : map.navigableKeySet())
+        {
+            ByteBuffer val = cf.getColumn(cellname(cName)).value();
+            assert new String(val.array(), val.position(), val.remaining()).equals(map.get(cName));
+        }
+        assert Iterables.size(cf.getColumnNames()) == map.size();
+        assert cfDeserialized.pageToken().equals(cf.pageToken());
     }
 
     @Test

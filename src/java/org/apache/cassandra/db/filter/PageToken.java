@@ -29,18 +29,18 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 
 public class PageToken
 {
-    private final Cell pageToken;
+    private final Cell token;
     private final boolean reachedEnd;
 
     private PageToken(Cell pageToken, boolean reachedEnd)
     {
-        this.pageToken = pageToken;
+        this.token = pageToken;
         this.reachedEnd = reachedEnd;
     }
 
-    public Cell getPageToken()
+    public Cell getToken()
     {
-        return pageToken;
+        return token;
     }
 
     public boolean isReachedEnd()
@@ -72,7 +72,7 @@ public class PageToken
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
-                columnSerializer.serialize(pagetoken.pageToken, out);
+                columnSerializer.serialize(pagetoken.token, out);
             }
         }
 
@@ -101,9 +101,25 @@ public class PageToken
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
-                size += columnSerializer.serializedSize(pagetoken.pageToken, typeSizes);
+                size += columnSerializer.serializedSize(pagetoken.token, typeSizes);
             }
             return size;
         }
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        return this == o || (o instanceof PageToken && equals((PageToken) o));
+    }
+
+    private boolean equals(PageToken pageToken)
+    {
+        return equals(token, pageToken.token) && reachedEnd == pageToken.reachedEnd;
+    }
+
+    private static boolean equals(Cell token1, Cell token2)
+    {
+        return (token1 == null && token2 == null) || (token1 != null && token1.equals(token2));
     }
 }

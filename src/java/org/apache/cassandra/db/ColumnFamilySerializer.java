@@ -27,7 +27,6 @@ import org.apache.cassandra.io.ISSTableSerializer;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.sstable.format.Version;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.UUIDSerializer;
 
@@ -119,7 +118,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             boolean isPageTokenSet = in.readBoolean();
             if (isPageTokenSet)
             {
-                cf.setPageToken(new PageToken.Serializer(columnSerializer).deserialize(in, flag, version).getPageToken());
+                cf.setPageToken(new PageToken.Serializer(columnSerializer).deserialize(in, flag, version).getToken());
             }
         }
         return cf;
