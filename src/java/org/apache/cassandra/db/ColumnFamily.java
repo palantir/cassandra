@@ -39,6 +39,7 @@ import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.CellNames;
 import org.apache.cassandra.db.filter.ColumnCounter;
 import org.apache.cassandra.db.filter.ColumnSlice;
+import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.io.sstable.ColumnNameHelper;
 import org.apache.cassandra.io.sstable.ColumnStats;
 import org.apache.cassandra.io.sstable.SSTable;
@@ -59,7 +60,8 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     public static final ColumnFamilySerializer serializer = new ColumnFamilySerializer();
 
     protected final CFMetaData metadata;
-    private Cell pageToken;
+
+    private PageToken pageToken;
     private boolean isPageTokenSet = false;
 
     protected ColumnFamily(CFMetaData metadata)
@@ -101,18 +103,26 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     public void setPageToken(Cell cell)
     {
         assert pageToken == null && !isPageTokenSet;
+
         isPageTokenSet = true;
-        pageToken = cell;
+        if (cell != null)
+        {
+            pageToken = PageToken.createPageToken(cell);
+        }
+        else
+        {
+            pageToken = PageToken.createPageTokenReachedEnd();
+        }
+    }
+
+    public PageToken pageToken()
+    {
+        return pageToken;
     }
 
     public boolean isPageTokenSet()
     {
         return isPageTokenSet;
-    }
-
-    public Cell pageToken()
-    {
-        return pageToken;
     }
 
     /**

@@ -22,10 +22,12 @@ import java.io.IOException;
 import java.util.UUID;
 
 import org.apache.cassandra.config.Schema;
+import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.io.ISSTableSerializer;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.sstable.format.Version;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.UUIDSerializer;
 
@@ -74,7 +76,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             out.writeBoolean(cf.isPageTokenSet());
             if (cf.isPageTokenSet())
             {
-                columnSerializer.serialize(cf.pageToken(), out);
+                new PageToken.Serializer(columnSerializer).serialize(cf.pageToken(), out, version);
             }
         }
         catch (IOException e)
@@ -117,7 +119,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             boolean isPageTokenSet = in.readBoolean();
             if (isPageTokenSet)
             {
-                cf.setPageToken(columnSerializer.deserialize(in, flag));
+                cf.setPageToken(new PageToken.Serializer(columnSerializer).deserialize(in, flag, version).getPageToken());
             }
         }
         return cf;
@@ -133,12 +135,12 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         return size;
     }
 
-    public long pageTokenSerializedSize(ColumnFamily cf, TypeSizes typeSizes)
+    public long pageTokenSerializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
     {
         long size = typeSizes.sizeof(cf.isPageTokenSet());
         if (cf.isPageTokenSet())
         {
-            size += cf.getComparator().columnSerializer().serializedSize(cf.pageToken(), typeSizes);
+            size += new PageToken.Serializer(cf.getComparator().columnSerializer()).serializedSize(cf.pageToken(), typeSizes, version);
         }
         return size;
     }
@@ -154,7 +156,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             return typeSizes.sizeof(true)  /* nullness bool */
                  + cfIdSerializedSize(cf.id(), typeSizes, version)  /* id */
                     + contentSerializedSize(cf, typeSizes, version)
-                    + pageTokenSerializedSize(cf, typeSizes);
+                   + pageTokenSerializedSize(cf, typeSizes, version);
         }
     }
 

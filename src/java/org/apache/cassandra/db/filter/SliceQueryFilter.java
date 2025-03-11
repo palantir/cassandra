@@ -315,30 +315,25 @@ public class SliceQueryFilter implements IDiskAtomFilter
         // otherwise set it to a cell name if we hit on of the defensive guards, except in the case we hit the guard on the last column of the row, in which
         // case return the "end of row" value again
 
-        CellName firstCellName = null;
-        CellName previousCellName = null;
+        CellName firstCell = null;
+        CellName lastCellInContainer = null;
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
             assert cell != null;
 
-            if (firstCellName == null)
+            if (firstCell == null)
             {
-                firstCellName = cell.name();
+                firstCell = cell.name();
             }
 
-            if (usePageToken)
+            if (usePageToken && hitRangeScanThreshold(reducedCells.deadAndLiveCells()))
             {
-                if (hitRangeScanThreshold(reducedCells.deadAndLiveCells()))
-                {
-                    assert cell.name() != firstCellName;
-                    assert previousCellName != null;
-                    assert cell.name() != previousCellName;
+                assert cell.name() != firstCell;
+                assert lastCellInContainer == null || cell.name() != lastCellInContainer;
 
-                    container.setPageToken(cell);
-                    break;
-                }
-                previousCellName = cell.name();
+                container.setPageToken(cell);
+                break;
             }
 
 
@@ -371,6 +366,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             }
 
             container.appendColumn(cell);
+            lastCellInContainer = cell.name();
 
             if (LOG_HIGH_MEMORY_COLLECTION)
             {
@@ -387,6 +383,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
                     }
                 }
             }
+        }
+
+        if (usePageToken && container.pageToken() == null)
+        {
+            container.setPageToken(null);
         }
 
         boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneWarnThreshold();
