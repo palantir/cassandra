@@ -130,7 +130,7 @@ public class ColumnFamilyTest
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
         DataOutputBuffer bufOut = new DataOutputBuffer();
-        cf.setPageToken(null);
+        cf.setPageTokenEndOfRow();
         ColumnFamily.serializer.serialize(cf, bufOut, version);
 
         // verify
@@ -186,7 +186,7 @@ public class ColumnFamilyTest
         {
             cf.addColumn(column(cName, map.get(cName), 314));
         }
-        cf.setPageToken(null);
+        cf.setPageTokenEndOfRow();
         ColumnFamily.serializer.serialize(cf, bufOut, version);
 
         // verify

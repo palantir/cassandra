@@ -387,7 +387,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
         if (usePageToken && container.pageToken() == null)
         {
-            container.setPageToken(null);
+            container.setPageTokenEndOfRow();
         }
 
         boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneWarnThreshold();

@@ -102,17 +102,19 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public void setPageToken(Cell cell)
     {
+        assert cell != null;
         assert pageToken == null && !isPageTokenSet;
 
         isPageTokenSet = true;
-        if (cell != null)
-        {
-            pageToken = PageToken.createPageToken(cell);
-        }
-        else
-        {
-            pageToken = PageToken.createPageTokenReachedEnd();
-        }
+        pageToken = PageToken.createPageToken(cell);
+    }
+
+    public void setPageTokenEndOfRow()
+    {
+        assert pageToken == null && !isPageTokenSet;
+
+        isPageTokenSet = true;
+        pageToken = PageToken.createPageTokenReachedEnd();
     }
 
     public PageToken pageToken()

@@ -118,7 +118,15 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             boolean isPageTokenSet = in.readBoolean();
             if (isPageTokenSet)
             {
-                cf.setPageToken(new PageToken.Serializer(columnSerializer).deserialize(in, flag, version).getToken());
+                PageToken pageToken = new PageToken.Serializer(columnSerializer).deserialize(in, flag, version);
+                if (pageToken.isReachedEnd())
+                {
+                    cf.setPageTokenEndOfRow();
+                }
+                else
+                {
+                    cf.setPageToken(pageToken.getToken());
+                }
             }
         }
         return cf;
