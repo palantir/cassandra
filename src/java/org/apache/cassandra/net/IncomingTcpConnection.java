@@ -70,7 +70,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
             }
             catch (SocketException se)
             {
-                logger.warn("Failed to set receive buffer size on internode socket. {}", UnsafeArg.of("exception", se));
+                logger.warn("Failed to set receive buffer size on internode socket.", se);
             }
         }
     }
@@ -94,16 +94,16 @@ public class IncomingTcpConnection extends Thread implements Closeable
         }
         catch (EOFException e)
         {
-            logger.trace("eof reading from socket; closing {}", UnsafeArg.of("exception", e));
+            logger.trace("eof reading from socket; closing", e);
             // connection will be reset so no need to throw an exception.
         }
         catch (UnknownColumnFamilyException e)
         {
-            logger.warn("UnknownColumnFamilyException reading from socket; closing {}", UnsafeArg.of("exception", e));
+            logger.warn("UnknownColumnFamilyException reading from socket; closing", e);
         }
         catch (IOException e)
         {
-            logger.trace("IOException reading from socket; closing {}", UnsafeArg.of("exception", e));
+            logger.trace("IOException reading from socket; closing", e);
         }
         finally
         {
@@ -125,7 +125,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
         }
         catch (IOException e)
         {
-            logger.trace("Error closing socket {}", UnsafeArg.of("exception", e));
+            logger.trace("Error closing socket", e);
         }
         finally
         {

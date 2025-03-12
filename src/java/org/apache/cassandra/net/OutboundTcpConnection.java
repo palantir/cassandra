@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.logsafe.SafeArg;
-import com.palantir.logsafe.UnsafeArg;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -109,7 +108,7 @@ public class OutboundTcpConnection extends Thread
         case "MOVINGAVERAGE":
         case "FIXED":
         case "DISABLED":
-            logger.info("OutboundTcpConnection using coalescing strategy {}", strategy);
+            logger.info("OutboundTcpConnection using coalescing strategy {}", SafeArg.of("strategy", strategy));
             break;
             default:
                 //Check that it can be loaded
@@ -252,8 +251,7 @@ public class OutboundTcpConnection extends Thread
                     JVMStabilityInspector.inspectThrowable(e);
                     // really shouldn't get here, as exception handling in writeConnected() is reasonably robust
                     // but we want to catch anything bad we don't drop the messages in the current batch
-                    logger.error("error processing a message intended for {} {}", SafeArg.of("endpoint", poolReference.endPoint()),
-                                 UnsafeArg.of("exception", e));
+                    logger.error("error processing a message intended for {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
                 }
                 currentMsgBufferCount = --count;
             }
@@ -340,7 +338,7 @@ public class OutboundTcpConnection extends Thread
             if (e instanceof IOException || e.getCause() instanceof IOException)
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("error writing to {} {}", SafeArg.of("endpoint", poolReference.endPoint()), UnsafeArg.of("exception", e));
+                    logger.trace("error writing to {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
 
                 // if the message was important, such as a repair acknowledgement, put it back on the queue
                 // to retry after re-connecting.  See CASSANDRA-5393
@@ -361,7 +359,7 @@ public class OutboundTcpConnection extends Thread
             else
             {
                 // Non IO exceptions are likely a programming error so let's not silence them
-                logger.error("error writing to {} {}", SafeArg.of("endpoint", poolReference.endPoint()), UnsafeArg.of("exception", e));
+                logger.error("error writing to {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
             }
         }
     }
@@ -428,8 +426,7 @@ public class OutboundTcpConnection extends Thread
             catch (IOException e)
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("exception closing connection {} {}", SafeArg.of("endpoint", poolReference.endPoint()),
-                                 UnsafeArg.of("exception", e));
+                    logger.trace("exception closing connection {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
             }
             out = null;
             socket = null;
@@ -509,7 +506,7 @@ public class OutboundTcpConnection extends Thread
                         // Additionally, third party seed providers may throw exceptions if network is flakey
                         // Regardless of what's thrown, we must catch it, disconnect, and try again
                         JVMStabilityInspector.inspectThrowable(e);
-                        logger.warn("Configuration error prevented outbound connection: {}", UnsafeArg.of("exception", e.getLocalizedMessage()));
+                        logger.warn("Configuration error prevented outbound connection: {}", e.getLocalizedMessage());
                     }
                     finally
                     {
@@ -554,8 +551,7 @@ public class OutboundTcpConnection extends Thread
             }
             catch (SSLHandshakeException e)
             {
-                logger.error("SSL handshake error for outbound connection {} {}", SafeArg.of("endpoint", socket.getInetAddress()),
-                             UnsafeArg.of("exception", e));
+                logger.error("SSL handshake error for outbound connection {}", SafeArg.of("endpoint", socket.getInetAddress()), e);
                 socket = null;
                 if (ENABLE_SSL_NTE) {
                     // EOFException is thrown (sometimes) when a node is turned off unexpectately.
@@ -572,8 +568,7 @@ public class OutboundTcpConnection extends Thread
             {
                 socket = null;
                 if (logger.isTraceEnabled())
-                    logger.trace("unable to connect {} {}", SafeArg.of("endpoint", poolReference.endPoint()),
-                                 UnsafeArg.of( "exception", e));
+                    logger.trace("unable to connect {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
                 Uninterruptibles.sleepUninterruptibly(OPEN_RETRY_DELAY, TimeUnit.MILLISECONDS);
             }
         }
@@ -596,11 +591,11 @@ public class OutboundTcpConnection extends Thread
                 }
                 catch (IOException ex)
                 {
-                    final String msg = "Cannot handshake version {} {}";
+                    final String msg = "Cannot handshake version {}";
                     if (logger.isTraceEnabled())
-                        logger.trace(msg, SafeArg.of("endpoint", poolReference.endPoint()), UnsafeArg.of("exception", ex));
+                        logger.trace(msg, SafeArg.of("endpoint", poolReference.endPoint()), ex);
                     else
-                        logger.info(msg, SafeArg.of("endpoint", poolReference.endPoint()), UnsafeArg.of("exception", ex));
+                        logger.info(msg, SafeArg.of("endpoint", poolReference.endPoint()), ex);
                 }
                 finally
                 {

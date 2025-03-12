@@ -729,7 +729,7 @@ public final class MessagingService implements MessagingServiceMBean
                          SafeArg.of("id", id), SafeArg.of("to", to));
 
         if (to.equals(FBUtilities.getBroadcastAddress()))
-            logger.trace("Message-to-self {} going over MessagingService", UnsafeArg.of("message", message));
+            logger.trace("Message-to-self {} going over MessagingService", message);
 
         // message sinks are a testing hook
         for (IMessageSink ms : messageSinks)
@@ -948,9 +948,10 @@ public final class MessagingService implements MessagingServiceMBean
     private void logDroppedMessages()
     {
         List<String> logs = getDroppedMessagesLogs();
-        if (logs.size() > 0)
+        if (logs.size() > 0) {
             logger.info("Dropped messages: {}", SafeArg.of("logs", logs));
             StatusLogger.log();
+        }
     }
 
     @VisibleForTesting
@@ -1053,12 +1054,12 @@ public final class MessagingService implements MessagingServiceMBean
                 }
                 catch (SSLHandshakeException e)
                 {
-                    logger.debug("SSL handshake error for inbound connection", SafeArg.of("endpoint", socket), UnsafeArg.of("exception", e));
+                    logger.debug("SSL handshake error for inbound connection {}", SafeArg.of("endpoint", socket), e);
                     FileUtils.closeQuietly(socket);
                 }
                 catch (Throwable t)
                 {
-                    logger.trace("Error reading the socket {}", SafeArg.of("endpoint", socket), UnsafeArg.of("exception", t));
+                    logger.trace("Error reading the socket {}", SafeArg.of("endpoint", socket), t);
                     FileUtils.closeQuietly(socket);
                 }
             }
