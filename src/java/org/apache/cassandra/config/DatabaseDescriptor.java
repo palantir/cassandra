@@ -1951,6 +1951,11 @@ public class DatabaseDescriptor
         conf.counter_cache_keys_to_save = counterCacheKeysToSave;
     }
 
+    public static boolean isReadRequestDigestCheckEnabled()
+    {
+        return conf.read_request_digest_check_enabled;
+    }
+
     public static int getStreamingSocketTimeout()
     {
         return conf.streaming_socket_timeout_in_ms;

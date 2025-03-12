@@ -34,6 +34,7 @@ import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import org.apache.cassandra.tools.Util;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1428,7 +1429,10 @@ public class StorageProxy implements StorageProxyMBean
                 assert !command.isDigestQuery();
 
                 AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
-                exec.executeAsync();
+                if (DatabaseDescriptor.isReadRequestDigestCheckEnabled())
+                {
+                    exec.executeAsync();
+                }
                 readExecutors[i] = exec;
             }
 
@@ -1442,6 +1446,10 @@ public class StorageProxy implements StorageProxyMBean
             {
                 try
                 {
+                    if (!DatabaseDescriptor.isReadRequestDigestCheckEnabled())
+                    {
+                        throw new DigestMismatchException(exec.resolver.key, ByteBufferUtil.bytes("fake digest 1"), ByteBufferUtil.bytes("fake digest 2"));
+                    }
                     Row row = exec.get();
                     Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
                     if (row != null)
