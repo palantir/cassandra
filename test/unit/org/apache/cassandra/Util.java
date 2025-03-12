@@ -129,6 +129,11 @@ public class Util
         return new BufferExpiringCell(cellname(name), ByteBufferUtil.bytes(value), timestamp, ttl);
     }
 
+    public static Cell expiredColumn(String name, String value, long timestamp)
+    {
+        return new BufferExpiringCell(cellname(name), ByteBufferUtil.bytes(value), timestamp, 1, 0);
+    }
+
     public static Token token(String key)
     {
         return StorageService.getPartitioner().getToken(ByteBufferUtil.bytes(key));
