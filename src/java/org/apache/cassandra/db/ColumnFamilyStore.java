@@ -1899,6 +1899,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return getColumnFamily(QueryFilter.getSliceFilter(key, name, start, finish, reversed, limit, timestamp));
     }
 
+    public ColumnFamily getColumnFamilyUsingPageToken(DecoratedKey key,
+                                                      Composite start,
+                                                      Composite finish,
+                                                      boolean reversed,
+                                                      int limit,
+                                                      long timestamp)
+    {
+        return getColumnFamily(QueryFilter.getSliceFilterUsingPageToken(key, name, start, finish, reversed, limit, timestamp));
+    }
+
     /**
      * Fetch the row and columns given by filter.key if it is in the cache; if not, read it from disk and cache it
      *

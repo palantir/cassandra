@@ -1787,7 +1787,6 @@ public class ColumnFamilyStoreTest
         PageToken pageTokenBetweenC3C4 = PageToken.createPageToken(pointTombstoneBetweenC3C4);
         PageToken pageToken3 = PageToken.createPageToken(cols[3]);
         PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-        PageToken pageToken5 = PageToken.createPageToken(cols[5]);
         PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
 
         // rows: all ranges, columns: all ranges
@@ -1871,8 +1870,6 @@ public class ColumnFamilyStoreTest
                 2,
                 ImmutableList.of(pageTokenEnd, pageTokenEnd));
     }
-
-    // also need test for range read slice
 
     private static String toString(Collection<Row> rows)
     {
