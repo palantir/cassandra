@@ -668,7 +668,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
             out.writeInt(count);
 
             out.writeInt(f.compositesToGroup);
-            out.writeBoolean(f.usePageToken);
+            if (version >= MessagingService.VERSION_23)
+            {
+                out.writeBoolean(f.usePageToken);
+            }
         }
 
         public SliceQueryFilter deserialize(DataInput in, int version) throws IOException
@@ -702,7 +705,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
             size += sizes.sizeof(f.count);
 
             size += sizes.sizeof(f.compositesToGroup);
-            size += sizes.sizeof(f.usePageToken);
+            if (version >= MessagingService.VERSION_23)
+            {
+                size += sizes.sizeof(f.usePageToken);
+            }
             return size;
         }
     }

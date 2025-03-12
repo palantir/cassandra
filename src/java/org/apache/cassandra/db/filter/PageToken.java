@@ -26,6 +26,7 @@ import org.apache.cassandra.db.ColumnSerializer;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.net.MessagingService;
 
 public class PageToken
 {
@@ -69,6 +70,7 @@ public class PageToken
 
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
+            assert version >= MessagingService.VERSION_23;
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
@@ -98,6 +100,7 @@ public class PageToken
 
         public long serializedSize(PageToken pagetoken, TypeSizes typeSizes, int version)
         {
+            assert version >= MessagingService.VERSION_23;
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
