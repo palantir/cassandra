@@ -29,6 +29,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4FastDecompressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -68,7 +70,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
             }
             catch (SocketException se)
             {
-                logger.warn("Failed to set receive buffer size on internode socket.", se);
+                logger.warn("Failed to set receive buffer size on internode socket. {}", UnsafeArg.of("exception", se));
             }
         }
     }
@@ -92,16 +94,16 @@ public class IncomingTcpConnection extends Thread implements Closeable
         }
         catch (EOFException e)
         {
-            logger.trace("eof reading from socket; closing", e);
+            logger.trace("eof reading from socket; closing {}", UnsafeArg.of("exception", e));
             // connection will be reset so no need to throw an exception.
         }
         catch (UnknownColumnFamilyException e)
         {
-            logger.warn("UnknownColumnFamilyException reading from socket; closing", e);
+            logger.warn("UnknownColumnFamilyException reading from socket; closing {}", UnsafeArg.of("exception", e));
         }
         catch (IOException e)
         {
-            logger.trace("IOException reading from socket; closing", e);
+            logger.trace("IOException reading from socket; closing {}", UnsafeArg.of("exception", e));
         }
         finally
         {
@@ -115,7 +117,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
         try
         {
             if (logger.isTraceEnabled())
-                logger.trace("Closing socket {} - isclosed: {}", socket, socket.isClosed());
+                logger.trace("Closing socket {} - isclosed: {}", SafeArg.of("socket", socket.getInetAddress()), SafeArg.of("closed", socket.isClosed()));
             if (!socket.isClosed())
             {
                 socket.close();
@@ -123,7 +125,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
         }
         catch (IOException e)
         {
-            logger.trace("Error closing socket", e);
+            logger.trace("Error closing socket {}", UnsafeArg.of("exception", e));
         }
         finally
         {
@@ -146,7 +148,8 @@ public class IncomingTcpConnection extends Thread implements Closeable
         from = CompactEndpointSerializationHelper.deserialize(in);
         // record the (true) version of the endpoint
         MessagingService.instance().setVersion(from, maxVersion);
-        logger.trace("Set version for {} to {} (will use {})", from, maxVersion, MessagingService.instance().getVersion(from));
+        logger.trace("Set version for {} to {} (will use {})", SafeArg.of("endpoint", from), SafeArg.of("maxVersion", maxVersion),
+                     SafeArg.of("version", MessagingService.instance().getVersion(from)));
 
         if (compressed)
         {
@@ -209,7 +212,7 @@ public class IncomingTcpConnection extends Thread implements Closeable
         }
         else
         {
-            logger.trace("Received connection from newer protocol version {}. Ignoring message", version);
+            logger.trace("Received connection from newer protocol version {}. Ignoring message", SafeArg.of("version", version));
         }
         return message.from;
     }
