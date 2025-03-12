@@ -78,8 +78,7 @@ public class IncomingStreamingConnection extends Thread implements Closeable
         }
         catch (Throwable t)
         {
-            logger.error("Error while reading from socket from {} {}.", SafeArg.of("endpoint", socket.getRemoteSocketAddress()),
-                         UnsafeArg.of("exception", t));
+            logger.error("Error while reading from socket from {}.", SafeArg.of("endpoint", socket.getRemoteSocketAddress()), t);
             close();
         }
     }
