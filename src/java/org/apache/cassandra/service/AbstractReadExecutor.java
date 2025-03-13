@@ -255,7 +255,7 @@ public abstract class AbstractReadExecutor
 
         public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
         {
-            super(command, DatabaseDescriptor.isReadRequestDigestCheckEnabled() ? new RowDigestResolver(command.ksName, command.key, targetReplicas.size()) : new RowDataResolver(command.ksName, command.key, command.filter(), command.timestamp, targetReplicas.size()), consistencyLevel, targetReplicas, cfs);
+            super(command, DatabaseDescriptor.isReadRequestDigestCheckEnabled() ? new RowDigestResolver(command.ksName, command.key, targetReplicas.size()) : new RowDataResolver(command.ksName, command.key, command.filter(), command.timestamp, targetReplicas.size()), DatabaseDescriptor.isReadRequestDigestCheckEnabled() ? consistencyLevel : ConsistencyLevel.ALL, targetReplicas, cfs);
         }
 
         public void executeAsync()
