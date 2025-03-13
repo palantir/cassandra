@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,8 @@ import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.FBUtilities;
 
+import javax.xml.crypto.Data;
+
 /**
  * Sends a read request to the replicas needed to satisfy a given ConsistencyLevel.
  *
@@ -67,7 +70,7 @@ public abstract class AbstractReadExecutor
 
     protected final ReadCommand command;
     protected final List<InetAddress> targetReplicas;
-    protected final RowDigestResolver resolver;
+    protected final AbstractRowResolver resolver;
     protected final ReadCallback<ReadResponse, Row> handler;
     protected final TraceState traceState;
     protected final ColumnFamilyStore cfs;
@@ -75,10 +78,15 @@ public abstract class AbstractReadExecutor
 
     AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
     {
+        this(command, new RowDigestResolver(command.ksName, command.key, targetReplicas.size()), consistencyLevel, targetReplicas, cfs);
+    }
+
+    AbstractReadExecutor(ReadCommand command, AbstractRowResolver resolver, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
+    {
         this.command = command;
+        this.resolver = resolver;
         this.targetReplicas = targetReplicas;
         this.cfs = cfs;
-        resolver = new RowDigestResolver(command.ksName, command.key, targetReplicas.size());
         traceState = Tracing.instance.get();
         this.latencies = new ConcurrentLinkedQueue<>();
         handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
@@ -247,11 +255,16 @@ public abstract class AbstractReadExecutor
 
         public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
         {
-            super(command, consistencyLevel, targetReplicas, cfs);
+            super(command, DatabaseDescriptor.isReadRequestDigestCheckEnabled() ? new RowDigestResolver(command.ksName, command.key, targetReplicas.size()) : new RowDataResolver(command.ksName, command.key, command.filter(), command.timestamp, targetReplicas.size()), consistencyLevel, targetReplicas, cfs);
         }
 
         public void executeAsync()
         {
+            if (!DatabaseDescriptor.isReadRequestDigestCheckEnabled())
+            {
+                makeDataRequests(targetReplicas);
+                return;
+            }
             makeDataRequests(targetReplicas.subList(0, 1));
             if (targetReplicas.size() > 1)
                 makeDigestRequests(targetReplicas.subList(1, targetReplicas.size()));
