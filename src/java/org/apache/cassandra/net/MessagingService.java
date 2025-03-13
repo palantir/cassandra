@@ -537,7 +537,7 @@ public final class MessagingService implements MessagingServiceMBean
                 throw new RuntimeException(e);
             }
             String nic = FBUtilities.getNetworkInterface(localEp);
-            logger.info("Starting Messaging Service on {}:{}{}", SafeArg.of("localEp", localEp), SafeArg.of("storagePort", DatabaseDescriptor.getStoragePort()),
+            logger.info("Starting Messaging Service on {}:{}{}", SafeArg.of("endpoint", localEp), SafeArg.of("storagePort", DatabaseDescriptor.getStoragePort()),
                         UnsafeArg.of("nic", nic == null? "" : String.format(" (%s)", nic)));
             ss.add(socket);
         }
@@ -725,7 +725,7 @@ public final class MessagingService implements MessagingServiceMBean
     public void sendOneWay(MessageOut message, int id, InetAddress to)
     {
         if (logger.isTraceEnabled())
-            logger.trace("{} sending {} to {}@{}", SafeArg.of("broadcastAddress", FBUtilities.getBroadcastAddress()), SafeArg.of("verb", message.verb),
+            logger.trace("{} sending {} to {}@{}", SafeArg.of("endpoint", FBUtilities.getBroadcastAddress()), SafeArg.of("verb", message.verb),
                          SafeArg.of("id", id), SafeArg.of("to", to));
 
         if (to.equals(FBUtilities.getBroadcastAddress()))
@@ -801,7 +801,7 @@ public final class MessagingService implements MessagingServiceMBean
     {
         TraceState state = Tracing.instance.initializeFromMessage(message);
         if (state != null)
-            state.trace("{} message received from {}", SafeArg.of("verb", message.verb), SafeArg.of("from", message.from));
+            state.trace("{} message received from {}", SafeArg.of("verb", message.verb), SafeArg.of("endpoint", message.from));
 
         // message sinks are a testing hook
         for (IMessageSink ms : messageSinks)
@@ -1054,12 +1054,12 @@ public final class MessagingService implements MessagingServiceMBean
                 }
                 catch (SSLHandshakeException e)
                 {
-                    logger.debug("SSL handshake error for inbound connection {}", SafeArg.of("endpoint", socket), e);
+                    logger.debug("SSL handshake error for inbound connection {}", SafeArg.of("socket", socket), e);
                     FileUtils.closeQuietly(socket);
                 }
                 catch (Throwable t)
                 {
-                    logger.trace("Error reading the socket {}", SafeArg.of("endpoint", socket), t);
+                    logger.trace("Error reading the socket {}", SafeArg.of("socket", socket), t);
                     FileUtils.closeQuietly(socket);
                 }
             }
