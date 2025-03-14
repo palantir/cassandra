@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -443,7 +445,7 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public void convict(InetAddress ep)
     {
-        logger.trace("Resetting pool for {}", ep);
+        logger.trace("Resetting pool for {}", SafeArg.of("endpoint", ep));
         getConnectionPool(ep).reset();
     }
 
@@ -489,7 +491,7 @@ public final class MessagingService implements MessagingServiceMBean
                 throw new ConfigurationException("Unable to create ssl socket", e);
             }
             // setReuseAddress happens in the factory.
-            logger.info("Starting Encrypted Messaging Service on SSL port {}", DatabaseDescriptor.getSSLStoragePort());
+            logger.info("Starting Encrypted Messaging Service on SSL port {}", SafeArg.of("sslStoragePort", DatabaseDescriptor.getSSLStoragePort()));
         }
 
         if (DatabaseDescriptor.getServerEncryptionOptions().internode_encryption != ServerEncryptionOptions.InternodeEncryption.all)
@@ -535,8 +537,8 @@ public final class MessagingService implements MessagingServiceMBean
                 throw new RuntimeException(e);
             }
             String nic = FBUtilities.getNetworkInterface(localEp);
-            logger.info("Starting Messaging Service on {}:{}{}", localEp, DatabaseDescriptor.getStoragePort(),
-                        nic == null? "" : String.format(" (%s)", nic));
+            logger.info("Starting Messaging Service on {}:{}{}", SafeArg.of("endpoint", localEp), SafeArg.of("storagePort", DatabaseDescriptor.getStoragePort()),
+                        UnsafeArg.of("nic", nic == null? "" : String.format(" (%s)", nic)));
             ss.add(socket);
         }
         return ss;
@@ -723,7 +725,8 @@ public final class MessagingService implements MessagingServiceMBean
     public void sendOneWay(MessageOut message, int id, InetAddress to)
     {
         if (logger.isTraceEnabled())
-            logger.trace("{} sending {} to {}@{}", FBUtilities.getBroadcastAddress(), message.verb, id, to);
+            logger.trace("{} sending {} to {}@{}", SafeArg.of("endpoint", FBUtilities.getBroadcastAddress()), SafeArg.of("verb", message.verb),
+                         SafeArg.of("id", id), SafeArg.of("to", to));
 
         if (to.equals(FBUtilities.getBroadcastAddress()))
             logger.trace("Message-to-self {} going over MessagingService", message);
@@ -798,7 +801,7 @@ public final class MessagingService implements MessagingServiceMBean
     {
         TraceState state = Tracing.instance.initializeFromMessage(message);
         if (state != null)
-            state.trace("{} message received from {}", message.verb, message.from);
+            state.trace("{} message received from {}", SafeArg.of("verb", message.verb), SafeArg.of("endpoint", message.from));
 
         // message sinks are a testing hook
         for (IMessageSink ms : messageSinks)
@@ -856,7 +859,7 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public int setVersion(InetAddress endpoint, int version)
     {
-        logger.trace("Setting version {} for {}", version, endpoint);
+        logger.trace("Setting version {} for {}", SafeArg.of("version", version), SafeArg.of("endpoint", endpoint));
 
         if (version < VERSION_22)
             allNodesAtLeast22 = false;
@@ -872,7 +875,7 @@ public final class MessagingService implements MessagingServiceMBean
 
     public void resetVersion(InetAddress endpoint)
     {
-        logger.trace("Resetting version for {}", endpoint);
+        logger.trace("Resetting version for {}", SafeArg.of("endpoint", endpoint));
         Integer removed = versions.remove(endpoint);
         if (removed != null && removed <= VERSION_22)
             refreshAllNodesAtLeast22();
@@ -897,7 +900,7 @@ public final class MessagingService implements MessagingServiceMBean
         if (v == null)
         {
             // we don't know the version. assume current. we'll know soon enough if that was incorrect.
-            logger.trace("Assuming current protocol version for {}", endpoint);
+            logger.trace("Assuming current protocol version for {}", SafeArg.of("endpoint", endpoint));
             return MessagingService.current_version;
         }
         else
@@ -945,11 +948,10 @@ public final class MessagingService implements MessagingServiceMBean
     private void logDroppedMessages()
     {
         List<String> logs = getDroppedMessagesLogs();
-        for (String log : logs)
-            logger.info(log);
-
-        if (logs.size() > 0)
+        if (logs.size() > 0) {
+            logger.info("Dropped messages: {}", SafeArg.of("logs", logs));
             StatusLogger.log();
+        }
     }
 
     @VisibleForTesting
@@ -998,11 +1000,11 @@ public final class MessagingService implements MessagingServiceMBean
                 {
                     socket = server.accept();
                     InetAddress remote = socket.getInetAddress();
-                    logger.trace("Attempting to accept incoming connection from {}", remote);
+                    logger.trace("Attempting to accept incoming connection from {}", SafeArg.of("endpoint", remote));
 
                     if (!authenticate(socket))
                     {
-                        logger.trace("remote {} failed to authenticate", remote);
+                        logger.trace("remote {} failed to authenticate", SafeArg.of("endpoint", remote));
                         socket.close();
                         continue;
                     }
@@ -1020,7 +1022,7 @@ public final class MessagingService implements MessagingServiceMBean
                         if (e.getCause() instanceof EOFException)
                         {
                             // Reduce noise from cross-VPC networking healthchecks disconnecting immediately
-                            logger.trace("Remote closed the input stream {}", remote);
+                            logger.trace("Remote closed the input stream {}", SafeArg.of("endpoint", remote));
                             FileUtils.closeQuietly(socket);
                             continue;
                         }
@@ -1029,7 +1031,7 @@ public final class MessagingService implements MessagingServiceMBean
                     int header = in.readInt();
                     boolean isStream = MessagingService.getBits(header, 3, 1) == 1;
                     int version = MessagingService.getBits(header, 15, 8);
-                    logger.trace("Connection version {} from {}", version, socket.getInetAddress());
+                    logger.trace("Connection version {} from {}", SafeArg.of("version", version), SafeArg.of("endpoint", socket.getInetAddress()));
                     socket.setSoTimeout(0);
 
                     Thread thread = isStream
@@ -1037,7 +1039,7 @@ public final class MessagingService implements MessagingServiceMBean
                                   : new IncomingTcpConnection(version, MessagingService.getBits(header, 2, 1) == 1, socket, connections);
                     thread.start();
                     connections.add((Closeable) thread);
-                    logger.trace("Successfully accepted incoming connection from {}", remote);
+                    logger.trace("Successfully accepted incoming connection from {}", SafeArg.of("endpoint", remote));
                 }
                 catch (AsynchronousCloseException e)
                 {
@@ -1052,12 +1054,12 @@ public final class MessagingService implements MessagingServiceMBean
                 }
                 catch (SSLHandshakeException e)
                 {
-                    logger.debug("SSL handshake error for inbound connection from " + socket, e);
+                    logger.debug("SSL handshake error for inbound connection {}", SafeArg.of("socket", socket), e);
                     FileUtils.closeQuietly(socket);
                 }
                 catch (Throwable t)
                 {
-                    logger.trace("Error reading the socket {}", socket, t);
+                    logger.trace("Error reading the socket {}", SafeArg.of("socket", socket), t);
                     FileUtils.closeQuietly(socket);
                 }
             }
