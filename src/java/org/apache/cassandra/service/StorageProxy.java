@@ -1556,9 +1556,12 @@ public class StorageProxy implements StorageProxyMBean
                         RowDataResolver resolver = (RowDataResolver)handler.resolver;
                         try
                         {
-                            // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
-                            // behind on writes in case the out-of-sync row is read multiple times in quick succession
-                            FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                            if (!DatabaseDescriptor.getDisableBlockOnReadRepair())
+                            {
+                                // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
+                                // behind on writes in case the out-of-sync row is read multiple times in quick succession
+                                FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                            }
                         }
                         catch (TimeoutException e)
                         {

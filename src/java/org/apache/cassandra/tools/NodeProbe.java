@@ -1194,6 +1194,26 @@ public class NodeProbe implements AutoCloseable
         ssProxy.setCoerceReadConsistencyAll(value);
     }
 
+    public boolean getDisableReadRepairMutation()
+    {
+        return ssProxy.getDisableReadRepairMutation();
+    }
+
+    public void setDisableReadRepairMutation(boolean value)
+    {
+        ssProxy.setDisableReadRepairMutation(value);
+    }
+
+    public boolean getDisableBlockOnReadRepair()
+    {
+        return ssProxy.getDisableBlockOnReadRepair();
+    }
+
+    public void setDisableBlockOnReadRepair(boolean value)
+    {
+        ssProxy.setDisableBlockOnReadRepair(value);
+    }
+
     // JMX getters for the o.a.c.metrics API below.
     /**
      * Retrieve cache metrics based on the cache type (KeyCache, RowCache, or CounterCache)
