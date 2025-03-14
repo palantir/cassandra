@@ -128,8 +128,8 @@ public class CompactionTask extends AbstractCompactionTask
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
 
-        if (expectedWriteSize > 200 * 1024 * 1024 * 1024) {
-            logger.info(String.format("Compaction for ks/cf %s/%s exceeds 200GiB with total size of %d", cfs.keyspace, cfs.name, expectedWriteSize));
+        if (expectedWriteSize > 5 * 1024 * 1024 * 1024) {
+            logger.info(String.format("Compaction for ks/cf %s/%s exceeds 5GiB with total size of %d", cfs.keyspace, cfs.name, expectedWriteSize));
         }
 
         // sanity check: all sstables must belong to the same cfs
