@@ -89,7 +89,7 @@ public abstract class AbstractReadExecutor
         this.cfs = cfs;
         traceState = Tracing.instance.get();
         this.latencies = new ConcurrentLinkedQueue<>();
-        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
+        handler = new ReadCallback<>(resolver, consistencyLevel, targetReplicas.size(), command, targetReplicas, Optional.of(latencies));
     }
 
     @VisibleForTesting

@@ -110,6 +110,28 @@ public class ReadCallback<TMessage, TResolved> implements IAsyncCallbackWithFail
                         ConsistencyLevel consistencyLevel,
                         int blockfor,
                         IReadCommand command,
+                        List<InetAddress> filteredEndpoints,
+                        Optional<Collection<Long>> latencies)
+    {
+        this(resolver,
+                consistencyLevel,
+                blockfor,
+                command,
+                Keyspace.open(command.getKeyspace()),
+                filteredEndpoints,
+                latencies);
+
+        if (logger.isTraceEnabled())
+        {
+            logger.trace(String.format("Blockfor is %s; setting up requests to %s",
+                    blockfor, StringUtils.join(this.endpoints, ",")));
+        }
+    }
+
+    public ReadCallback(IResponseResolver<TMessage, TResolved> resolver,
+                        ConsistencyLevel consistencyLevel,
+                        int blockfor,
+                        IReadCommand command,
                         Keyspace keyspace,
                         List<InetAddress> endpoints) {
         this(resolver, consistencyLevel, blockfor, command, keyspace, endpoints, Optional.empty());
