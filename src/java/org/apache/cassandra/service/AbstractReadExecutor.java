@@ -173,7 +173,16 @@ public abstract class AbstractReadExecutor
      */
     public Row get() throws ReadFailureException, ReadTimeoutException, DigestMismatchException
     {
-        return handler.get();
+        Row row = handler.get();
+        if (handler.resolver instanceof RowDataResolver)
+        {
+            Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.avoidedReadRepairs.mark();
+        }
+        else
+        {
+            Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairs.mark();
+        }
+        return row;
     }
 
     /**
