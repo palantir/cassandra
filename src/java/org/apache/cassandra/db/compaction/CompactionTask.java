@@ -128,6 +128,14 @@ public class CompactionTask extends AbstractCompactionTask
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
 
+        if (expectedWriteSize > 5 * 1024 * 1024 * 1024)
+        {
+            logger.info("Compaction for ks/cf {}/{} exceeds 5GiB with total size of {}",
+                    SafeArg.of("keyspace", cfs.keyspace),
+                    SafeArg.of("columnFamily", cfs.name),
+                    SafeArg.of("size", expectedWriteSize));
+        }
+
         // sanity check: all sstables must belong to the same cfs
         assert !Iterables.any(transaction.originals(), new Predicate<SSTableReader>()
         {
