@@ -165,7 +165,11 @@ public class NodeTool
                 SetWriteDelay.class,
                 SetRangeScanTokenRangesWarnThreshold.class,
                 GetCoerceReadConsistencyAll.class,
-                SetCoerceReadConsistencyAll.class
+                SetCoerceReadConsistencyAll.class,
+                GetDisableReadRepairMutation.class,
+                SetDisableReadRepairMutation.class,
+                GetDisableBlockOnReadRepair.class,
+                SetDisableBlockOnReadRepair.class
         );
 
         Cli.CliBuilder<NodeToolCmdRunnable> builder = Cli.builder("nodetool");
