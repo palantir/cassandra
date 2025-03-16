@@ -32,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
@@ -293,6 +294,7 @@ public class CompactionTask extends AbstractCompactionTask
             // update the metrics
             cfs.metric.compactionBytesWritten.inc(endsize);
             cfs.metric.compactionsCompleted.inc();
+            CompactionThroughputThrottler.instance.maybeRemoveThrottledCompaction(cfs.metadata);
         }
     }
 
