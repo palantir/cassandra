@@ -712,10 +712,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Set<Integer> ancestors;
             try
             {
+                logger.debug("Deserializing metadata component of sstable", UnsafeArg.of("sstable", desc.baseFilename()));
                 CompactionMetadata compactionMetadata = (CompactionMetadata) desc.getMetadataSerializer().deserialize(desc, MetadataType.COMPACTION);
                 ancestors = compactionMetadata.ancestors;
             }
-            catch (IOException e)
+            catch (IOException | ArrayIndexOutOfBoundsException e)
             {
                 throw new FSReadError(e, desc.filenameFor(Component.STATS));
             }

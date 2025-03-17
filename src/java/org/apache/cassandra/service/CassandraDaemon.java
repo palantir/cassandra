@@ -286,7 +286,13 @@ public class CassandraDaemon
         {
             for (CFMetaData cfm : Schema.instance.getKeyspaceMetaData(keyspaceName).values())
             {
+                logger.debug("Running removeUnusedSstables for keyspace and columnFamily",
+                             SafeArg.of("keyspace", cfm.ksName),
+                             SafeArg.of("cf", cfm.cfName));
                 ColumnFamilyStore.removeUnusedSstables(cfm, unfinishedCompactions.getOrDefault(cfm.ksAndCFName, ImmutableMap.of()));
+                logger.debug("Finished running removeUnusedSstables for keyspace and columnFamily",
+                             SafeArg.of("keyspace", cfm.ksName),
+                             SafeArg.of("cf", cfm.cfName));
             }
 
             if (keyspaceName.equals(SystemKeyspace.NAME))
