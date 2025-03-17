@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.*;
 
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
@@ -134,8 +133,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this.count = count;
         this.compositesToGroup = compositesToGroup;
         this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
-                ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
-                : null;
+                                             ? Long.parseLong(System.getProperty("palantir_cassandra.high_memory_collection_threshold_in_mb")) * FileUtils.ONE_MB
+                                             : null;
     }
 
     public void setMetrics(ColumnFamilyMetrics metrics) {
@@ -326,9 +325,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long metadataSizeCollected = 0;
 
         // only set page token if usePageToken is true
-        // if the range scan completes, set the pageToken to a "end of row" value
-        // otherwise set it to a cell name if we hit on of the defensive guards, except in the case we hit the guard on the last column of the row, in which
-        // case return the "end of row" value again
+        // if the range scan completes, set the pageToken to "end of row" value
+        // otherwise set it to a cell name if we hit one of the defensive guards
 
         CellName firstCell = null;
         CellName lastCellInContainer = null;
@@ -668,7 +666,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             out.writeInt(count);
 
             out.writeInt(f.compositesToGroup);
-            if (version >= MessagingService.VERSION_23)
+            if (version >= MessagingService.VERSION_22_18)
             {
                 out.writeBoolean(f.usePageToken);
             }
@@ -685,7 +683,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             int compositesToGroup = in.readInt();
             boolean usePageToken = false;
-            if (version >= MessagingService.VERSION_23)
+            if (version >= MessagingService.VERSION_22_18)
             {
                 usePageToken = in.readBoolean();
             }
@@ -705,7 +703,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             size += sizes.sizeof(f.count);
 
             size += sizes.sizeof(f.compositesToGroup);
-            if (version >= MessagingService.VERSION_23)
+            if (version >= MessagingService.VERSION_22_18)
             {
                 size += sizes.sizeof(f.usePageToken);
             }

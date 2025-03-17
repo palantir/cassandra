@@ -70,7 +70,7 @@ public class PageToken
 
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_23;
+            assert version >= MessagingService.VERSION_22_18;
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
@@ -100,7 +100,7 @@ public class PageToken
 
         public long serializedSize(PageToken pagetoken, TypeSizes typeSizes, int version)
         {
-            assert version >= MessagingService.VERSION_23;
+            assert version >= MessagingService.VERSION_22_18;
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {

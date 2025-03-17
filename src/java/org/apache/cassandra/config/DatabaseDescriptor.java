@@ -1314,7 +1314,7 @@ public class DatabaseDescriptor
 
     public static int getRangeScanCellsReadThreshold()
     {
-        return Integer.getInteger("cassandra.range_scan_cells_read_threshold", conf.range_scan_cells_read_threshold);
+        return Integer.getInteger("palantir_cassandra.range_scan_cells_read_threshold", conf.range_scan_cells_read_threshold);
     }
 
     public static void setTombstoneFailureThreshold(int threshold)
