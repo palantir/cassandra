@@ -219,7 +219,7 @@ public class ColumnIndex
             }
         }
 
-        private void maybeWriteRowHeader() throws IOException
+        public void maybeWriteRowHeader() throws IOException
         {
             if (lastColumn == null)
             {
