@@ -1967,7 +1967,10 @@ public class StorageProxy implements StorageProxyMBean
 
                 try
                 {
-                    FBUtilities.waitOnFutures(repairResponses, DatabaseDescriptor.getWriteRpcTimeout());
+                    if (!DatabaseDescriptor.getDisableBlockOnReadRepair())
+                    {
+                        FBUtilities.waitOnFutures(repairResponses, DatabaseDescriptor.getWriteRpcTimeout());
+                    }
                 }
                 catch (TimeoutException ex)
                 {
