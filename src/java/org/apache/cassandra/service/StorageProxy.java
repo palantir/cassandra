@@ -1431,6 +1431,7 @@ public class StorageProxy implements StorageProxyMBean
                 AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
                 if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.isReadRequestDigestCheckEnabled())
                 {
+                    readExecutors[i] = exec;
                     continue;
                 }
                 exec.executeAsync();
