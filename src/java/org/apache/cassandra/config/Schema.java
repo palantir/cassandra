@@ -21,7 +21,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
-import com.palantir.logsafe.SafeArg;
+import com.palantir.cassandra.db.SystemPalantir;
 import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.base.Splitter;
@@ -60,7 +60,7 @@ public class Schema
                         Splitter.on(",").splitToList(System.getProperty("palantir_cassandra.additional_system_keyspaces", "")));
     public static final Set<String> SYSTEM_KEYSPACES = ImmutableSet.<String>builder()
             .add(SystemKeyspace.NAME, SystemDistributedKeyspace.NAME, TraceKeyspace.NAME, AuthKeyspace.NAME)
-            .add("system_palantir")
+            .add(SystemPalantir.NAME)
             .addAll(additionalSystemKeyspaces)
             .build();
 
