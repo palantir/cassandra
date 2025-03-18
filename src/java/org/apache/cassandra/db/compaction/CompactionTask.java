@@ -129,10 +129,10 @@ public class CompactionTask extends AbstractCompactionTask
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
 
-        if (expectedWriteSize > 5 * 1024 * 1024 * 1024)
+        if (expectedWriteSize > 5 * 1024 * 1024 * 1024L)
         {
             logger.info("Compaction for ks/cf {}/{} exceeds 5GiB with total size of {}",
-                    SafeArg.of("keyspace", cfs.keyspace),
+                    SafeArg.of("keyspace", cfs.keyspace.getName()),
                     SafeArg.of("columnFamily", cfs.name),
                     SafeArg.of("size", expectedWriteSize));
         }
