@@ -409,6 +409,42 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         return sb.toString();
     }
 
+    public static ByteBuffer digestWithPageToken(ColumnFamily cf, PageToken pageToken)
+    {
+        MessageDigest digest = FBUtilities.threadLocalMD5Digest();
+        if (cf != null)
+        {
+            if (pageToken.isReachedEnd())
+            {
+                cf.updateDigest(digest);
+            }
+            else
+            {
+                cf.updateDigestWithPageToken(digest, pageToken);
+            }
+        }
+        return ByteBuffer.wrap(digest.digest());
+    }
+
+    public void updateDigestWithPageToken(MessageDigest digest, PageToken pageToken)
+    {
+        assert !pageToken.isReachedEnd();
+        
+        for (Cell cell : this)
+        {
+            if (metadata.comparator.compare(cell.name(), pageToken.getToken().name()) < 0)
+            {
+                cell.updateDigest(digest);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        deletionInfo().updateDigest(digest);
+    }
+
     public static ByteBuffer digest(ColumnFamily cf)
     {
         MessageDigest digest = FBUtilities.threadLocalMD5Digest();
