@@ -70,7 +70,7 @@ public abstract class AbstractReadExecutor
 
     protected final ReadCommand command;
     protected final List<InetAddress> targetReplicas;
-    protected final AbstractRowResolver resolver;
+    protected final RowDigestResolver resolver;
     protected final ReadCallback<ReadResponse, Row> handler;
     protected final TraceState traceState;
     protected final ColumnFamilyStore cfs;
@@ -78,18 +78,13 @@ public abstract class AbstractReadExecutor
 
     AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
     {
-        this(command, new RowDigestResolver(command.ksName, command.key, targetReplicas.size()), consistencyLevel, targetReplicas, cfs);
-    }
-
-    AbstractReadExecutor(ReadCommand command, AbstractRowResolver resolver, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
-    {
         this.command = command;
-        this.resolver = resolver;
         this.targetReplicas = targetReplicas;
         this.cfs = cfs;
+        resolver = new RowDigestResolver(command.ksName, command.key, targetReplicas.size());
         traceState = Tracing.instance.get();
         this.latencies = new ConcurrentLinkedQueue<>();
-        handler = new ReadCallback<>(resolver, consistencyLevel, targetReplicas.size(), command, targetReplicas, Optional.of(latencies));
+        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
     }
 
     @VisibleForTesting
@@ -173,16 +168,7 @@ public abstract class AbstractReadExecutor
      */
     public Row get() throws ReadFailureException, ReadTimeoutException, DigestMismatchException
     {
-        Row row = handler.get();
-        if (handler.resolver instanceof RowDataResolver)
-        {
-            Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.avoidedReadRepairs.mark();
-        }
-        else
-        {
-            Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.blockingReadRepairs.mark();
-        }
-        return row;
+        return handler.get();
     }
 
     /**
@@ -264,7 +250,7 @@ public abstract class AbstractReadExecutor
 
         public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
         {
-            super(command, DatabaseDescriptor.isReadRequestDigestCheckEnabled() ? new RowDigestResolver(command.ksName, command.key, targetReplicas.size()) : new RowDataResolver(command.ksName, command.key, command.filter(), command.timestamp, targetReplicas.size()), DatabaseDescriptor.isReadRequestDigestCheckEnabled() ? consistencyLevel : ConsistencyLevel.ALL, targetReplicas, cfs);
+            super(command, consistencyLevel, targetReplicas, cfs);
         }
 
         public void executeAsync()
