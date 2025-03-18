@@ -20,10 +20,12 @@ package org.apache.cassandra.db.filter;
 
 import java.io.DataInput;
 import java.io.IOException;
+import java.util.Comparator;
 
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnSerializer;
 import org.apache.cassandra.db.TypeSizes;
+import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
@@ -136,6 +138,37 @@ public class PageToken
         else
         {
             return "Cell(" + token.name().toString() + ")";
+        }
+    }
+
+    public static class Comparator implements java.util.Comparator<PageToken>
+    {
+        private final CellNameType cellComparator;
+
+        public Comparator(CellNameType cellComparator)
+        {
+            this.cellComparator = cellComparator;
+        }
+
+        @Override
+        public int compare(PageToken pageToken1, PageToken pageToken2)
+        {
+            if (pageToken1.isReachedEnd() && pageToken2.isReachedEnd())
+            {
+                return 0;
+            }
+            else if (pageToken2.isReachedEnd())
+            {
+                return -1;
+            }
+            else if (pageToken1.isReachedEnd())
+            {
+                return 1;
+            }
+            else
+            {
+                return cellComparator.compare(pageToken1.getToken().name(), pageToken2.getToken().name());
+            }
         }
     }
 }
