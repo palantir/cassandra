@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import javax.management.*;
 import javax.management.openmbean.TabularData;
 import javax.management.openmbean.TabularDataSupport;
+import javax.xml.crypto.Data;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -5429,6 +5430,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public boolean isNewCluster()
     {
         return Boolean.parseBoolean(System.getProperty("palantir_cassandra.is_new_cluster", "false"));
+    }
+
+    @Override
+    public boolean getReadRequestDigestCheckEnabled()
+    {
+        return DatabaseDescriptor.getReadRequestDigestCheckEnabled();
+    }
+
+    @Override
+    public void setReadRequestDigestCheckEnabled(boolean enabled)
+    {
+        DatabaseDescriptor.setReadRequestDigestCheckEnabled(enabled);
+        logger.info("Updated read_request_digest_check_enabled to {}", SafeArg.of("enabled", enabled));
     }
 
     @Override

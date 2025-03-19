@@ -34,7 +34,6 @@ import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
-import org.apache.cassandra.tools.Util;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1429,7 +1428,7 @@ public class StorageProxy implements StorageProxyMBean
                 assert !command.isDigestQuery();
 
                 AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
-                if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.isReadRequestDigestCheckEnabled())
+                if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.getReadRequestDigestCheckEnabled())
                 {
                     readExecutors[i] = exec;
                     continue;
@@ -1440,7 +1439,7 @@ public class StorageProxy implements StorageProxyMBean
 
             for (AbstractReadExecutor exec : readExecutors)
             {
-                if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.isReadRequestDigestCheckEnabled())
+                if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.getReadRequestDigestCheckEnabled())
                 {
                     continue;
                 }
@@ -1455,7 +1454,7 @@ public class StorageProxy implements StorageProxyMBean
             {
                 try
                 {
-                    if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.isReadRequestDigestCheckEnabled())
+                    if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.getReadRequestDigestCheckEnabled())
                     {
                         throw new DigestMismatchException(exec.resolver.key, ByteBufferUtil.bytes("fake digest 1"), ByteBufferUtil.bytes("fake digest 2"));
                     }
