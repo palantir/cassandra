@@ -61,6 +61,7 @@ public class CompactionTask extends AbstractCompactionTask
     protected static long totalBytesCompacted = 0;
     private CompactionExecutorStatsCollector collector;
     private static final boolean CONSIDER_CONCURRENT_COMPACTIONS = Boolean.getBoolean("palantir_cassandra.consider_concurrent_compactions");
+    private static final long FIVE_GIBIBYTES_IN_BYTES = 5 * 1024 * 1024 * 1024L;
 
     public CompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int gcBefore, boolean offline)
     {
@@ -129,10 +130,10 @@ public class CompactionTask extends AbstractCompactionTask
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
 
-        if (expectedWriteSize > 5 * 1024 * 1024 * 1024)
+        if (expectedWriteSize > FIVE_GIBIBYTES_IN_BYTES)
         {
             logger.info("Compaction for ks/cf {}/{} exceeds 5GiB with total size of {}",
-                    SafeArg.of("keyspace", cfs.keyspace),
+                    SafeArg.of("keyspace", cfs.keyspace.getName()),
                     SafeArg.of("columnFamily", cfs.name),
                     SafeArg.of("size", expectedWriteSize));
         }
