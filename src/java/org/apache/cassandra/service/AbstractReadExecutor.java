@@ -255,11 +255,6 @@ public abstract class AbstractReadExecutor
 
         public void executeAsync()
         {
-            if (!DatabaseDescriptor.isReadRequestDigestCheckEnabled())
-            {
-                makeDataRequests(targetReplicas);
-                return;
-            }
             makeDataRequests(targetReplicas.subList(0, 1));
             if (targetReplicas.size() > 1)
                 makeDigestRequests(targetReplicas.subList(1, targetReplicas.size()));
