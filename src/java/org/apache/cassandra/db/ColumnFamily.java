@@ -121,7 +121,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public boolean isPageTokenSet()
     {
-        return pageToken == null;
+        return pageToken != null;
     }
 
     /**
