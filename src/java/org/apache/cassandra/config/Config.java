@@ -314,6 +314,8 @@ public class Config
     public int otc_coalescing_window_us = otc_coalescing_window_us_default;
     public int otc_coalescing_enough_coalesced_messages = 8;
 
+    public volatile boolean coerce_read_consistency_all = false;
+
     public int windows_timer_interval = 0;
 
     public boolean enable_user_defined_functions = false;

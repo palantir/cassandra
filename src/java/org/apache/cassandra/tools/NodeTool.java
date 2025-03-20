@@ -23,7 +23,6 @@ import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.function.Consumer;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
@@ -164,7 +163,9 @@ public class NodeTool
                 DynamicEndpointSnitchStats.class,
                 SetReadDelay.class,
                 SetWriteDelay.class,
-                SetRangeScanTokenRangesWarnThreshold.class
+                SetRangeScanTokenRangesWarnThreshold.class,
+                GetCoerceReadConsistencyAll.class,
+                SetCoerceReadConsistencyAll.class
         );
 
         Cli.CliBuilder<NodeToolCmdRunnable> builder = Cli.builder("nodetool");

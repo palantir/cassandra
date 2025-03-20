@@ -45,6 +45,7 @@ public class LatencyMetrics
     
     protected final MetricNameFactory factory;
     protected final String namePrefix;
+    protected final String nameSuffix;
 
     /**
      * Create LatencyMetrics with given group, type, and scope. Name prefix for each metric will be empty.
@@ -77,11 +78,17 @@ public class LatencyMetrics
      */
     public LatencyMetrics(MetricNameFactory factory, String namePrefix)
     {
+        this(factory, namePrefix, "");
+    }
+
+    public LatencyMetrics(MetricNameFactory factory, String namePrefix, String nameSuffix)
+    {
         this.factory = factory;
         this.namePrefix = namePrefix;
+        this.nameSuffix = nameSuffix;
 
-        latency = Metrics.timer(factory.createMetricName(namePrefix + "Latency"));
-        totalLatency = Metrics.counter(factory.createMetricName(namePrefix + "TotalLatency"));
+        latency = Metrics.timer(factory.createMetricName(namePrefix + "Latency" + nameSuffix));
+        totalLatency = Metrics.counter(factory.createMetricName(namePrefix + "TotalLatency" + nameSuffix));
     }
     
     /**
@@ -94,7 +101,12 @@ public class LatencyMetrics
      */
     public LatencyMetrics(MetricNameFactory factory, String namePrefix, LatencyMetrics ... parents)
     {
-        this(factory, namePrefix);
+        this(factory, namePrefix, "", parents);
+    }
+
+    public LatencyMetrics(MetricNameFactory factory, String namePrefix, String nameSuffix, LatencyMetrics ... parents)
+    {
+        this(factory, namePrefix, nameSuffix);
         this.parents.addAll(ImmutableList.copyOf(parents));
     }
 

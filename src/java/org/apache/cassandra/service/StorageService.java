@@ -5560,4 +5560,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         DatabaseDescriptor.setWriteDelay(writeDelay);
         logger.info("Updated write_delay_in_s to {}", SafeArg.of("value", writeDelay));
     }
+
+    public void setCoerceReadConsistencyAll(boolean value)
+    {
+        DatabaseDescriptor.setCoerceReadConsistencyAll(value);
+        logger.info("Updated coerce_read_consistency_level to {}", SafeArg.of("value", value));
+    }
+
+    public boolean getCoerceReadConsistencyAll()
+    {
+        return DatabaseDescriptor.getCoerceReadConsistencyAll();
+    }
 }
