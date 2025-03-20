@@ -62,7 +62,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     protected final CFMetaData metadata;
 
     private PageToken pageToken;
-    private boolean isPageTokenSet = false;
 
     protected ColumnFamily(CFMetaData metadata)
     {
@@ -103,17 +102,15 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     public void setPageToken(Cell cell)
     {
         assert cell != null;
-        assert pageToken == null && !isPageTokenSet;
+        assert pageToken == null;
 
-        isPageTokenSet = true;
         pageToken = PageToken.createPageToken(cell);
     }
 
     public void setPageTokenEndOfRow()
     {
-        assert pageToken == null && !isPageTokenSet;
+        assert pageToken == null;
 
-        isPageTokenSet = true;
         pageToken = PageToken.createPageTokenReachedEnd();
     }
 
@@ -124,7 +121,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public boolean isPageTokenSet()
     {
-        return isPageTokenSet;
+        return pageToken == null;
     }
 
     /**
