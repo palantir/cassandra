@@ -41,6 +41,10 @@ num_tokens: 256
 # This is the replica factor within the datacenter, like NTS.
 # allocate_tokens_for_local_replication_factor: 3
 
+# If both allocate_tokens_for_keyspace and allocate_tokens_for_local_replication_factor are set
+# then allocate_tokens_for_keyspace will be used, and
+# allocate_tokens_for_local_replication_factor will be ignored.
+
 # initial_token allows you to specify tokens manually.  While you can use it with
 # vnodes (num_tokens > 1, above) -- in which case you should provide a 
 # comma-separated list -- it's primarily used when adding nodes # to legacy clusters
