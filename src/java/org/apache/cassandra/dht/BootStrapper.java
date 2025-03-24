@@ -205,7 +205,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
                                             int numTokens,
                                             int schemaWaitDelay)
     {
-        StorageService.instance.waitForSchema(schemaWaitDelay);
+        StorageService.instance.waitForSchema(schemaWaitDelay, !DatabaseDescriptor.getIsNewCluster());
         if (!FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress()))
             Gossiper.waitToSettle();
 
@@ -224,7 +224,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
                                             int numTokens,
                                             int schemaWaitDelay)
     {
-        StorageService.instance.waitForSchema(schemaWaitDelay);
+        StorageService.instance.waitForSchema(schemaWaitDelay, !DatabaseDescriptor.getIsNewCluster());
         if (!FBUtilities.getBroadcastAddress().equals(InetAddress.getLoopbackAddress()))
             Gossiper.waitToSettle();
 

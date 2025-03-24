@@ -66,6 +66,7 @@ public class BootStrapperTest
     @BeforeClass
     public static void setup() throws ConfigurationException
     {
+        System.setProperty("palantir_cassandra.is_new_cluster", "true");
         oldPartitioner = DatabaseDescriptor.getPartitioner();
         DatabaseDescriptor.setPartitioner(Murmur3Partitioner.instance);
         SchemaLoader.startGossiper();
