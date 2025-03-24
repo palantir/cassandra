@@ -79,6 +79,12 @@ public class BootStrapperTest
         DatabaseDescriptor.setPartitioner(oldPartitioner);
     }
 
+    @Test
+    public void foo()
+    {
+        //
+    }
+
 //    @Test
 //    public void testSourceTargetComputation() throws UnknownHostException
 //    {
