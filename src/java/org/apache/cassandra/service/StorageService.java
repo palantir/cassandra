@@ -902,14 +902,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    public void waitForSchema(int delay)
+    public void waitForSchema(int delay, boolean requirePeers)
     {
         // first sleep the delay to make sure we see all our peers
         Uninterruptibles.sleepUninterruptibly(delay, TimeUnit.MILLISECONDS);
 
         // if our schema hasn't matched yet, keep sleeping until it does
         // (post CASSANDRA-1391 we don't expect this to be necessary very often, but it doesn't hurt to be careful)
-        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(requirePeers);
         List<InetAddress> ignoredEndpoints = replacing && !isReplacingSameAddress() ?
                                              ImmutableList.of(DatabaseDescriptor.getReplaceAddress()) : ImmutableList.of();
 
@@ -979,7 +979,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 setBootstrapState(SystemKeyspace.BootstrapState.IN_PROGRESS);
             }
             setMode(Mode.JOINING, "waiting for ring information", true);
-            waitForSchema(delay);
+            waitForSchema(delay, true);
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
@@ -4176,7 +4176,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (operationMode != Mode.NORMAL)
             throw new UnsupportedOperationException("Node in " + operationMode + " state; wait for status to become normal or restart");
 
-        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck();
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(true);
         if(!schemaAgreementCheck.isSchemaInAgreement()) {
             throw new UnsupportedOperationException("The cluster does not agree on schema; wait for agreement before triggering a decommission");
         }

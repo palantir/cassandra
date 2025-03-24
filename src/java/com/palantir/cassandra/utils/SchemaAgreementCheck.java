@@ -45,26 +45,26 @@ public class SchemaAgreementCheck
     private final Supplier<UUID> localSchemaVersionSupplier;
     private final Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier;
     private final InetAddress localAddress;
-    private final boolean isNewCluster;
+    private final boolean requirePeers;
 
-    public SchemaAgreementCheck()
+    public SchemaAgreementCheck(boolean requirePeers)
     {
         this(Schema.instance::getVersion,
              Gossiper.instance::getEndpointStates,
              FBUtilities.getBroadcastAddress(),
-             Boolean.getBoolean("palantir_cassandra.is_new_cluster"));
+             requirePeers);
     }
 
     @VisibleForTesting
     SchemaAgreementCheck(Supplier<UUID> localSchemaVersionSupplier,
                          Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier,
                          InetAddress localAddress,
-                         boolean isNewCluster)
+                         boolean requirePeers)
     {
         this.localSchemaVersionSupplier = localSchemaVersionSupplier;
         this.endpointStatesSupplier = endpointStatesSupplier;
         this.localAddress = localAddress;
-        this.isNewCluster = isNewCluster;
+        this.requirePeers = requirePeers;
     }
 
     public boolean isSchemaInAgreement() {
@@ -84,7 +84,7 @@ public class SchemaAgreementCheck
                           .filter(endpointState -> !ignoredEndpoints.contains(endpointState.getKey()))
                           .filter(endpointState -> !isLeftOrRemoved(endpointState.getValue()))
                           .allMatch(endpointState -> schemaIsEqualToLocalVersion(localSchemaVersion, endpointState.getKey(), endpointState.getValue()));
-            return (peerEndpointsExist || isNewCluster) && schemaIsInAgreeement;
+            return (peerEndpointsExist || !requirePeers) && schemaIsInAgreeement;
         }
         catch (Exception e)
         {

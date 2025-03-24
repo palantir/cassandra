@@ -692,7 +692,7 @@ public class DatabaseDescriptor
             conf.server_encryption_options = conf.encryption_options;
         }
 
-        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster"))
+        if (getIsNewCluster())
         {
             if (conf.data_file_directories.length == 0)
                 throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
@@ -2105,5 +2105,10 @@ public class DatabaseDescriptor
 
     public static int getWriteDelay() {
         return conf.write_delay_in_s;
+    }
+
+    public static boolean getIsNewCluster()
+    {
+        return Boolean.getBoolean("palantir_cassandra.is_new_cluster");
     }
 }
