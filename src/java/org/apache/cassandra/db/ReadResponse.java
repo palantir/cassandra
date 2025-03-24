@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 /*
@@ -38,6 +39,7 @@ public class ReadResponse
 
     private final Row row;
     private volatile ByteBuffer digest;
+    // need to add page token here or somehow incorporate into the digest
 
     public ReadResponse(ByteBuffer digest)
     {
