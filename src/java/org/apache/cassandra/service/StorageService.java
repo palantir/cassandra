@@ -917,8 +917,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             setMode(Mode.JOINING, "waiting for schema information to complete", true);
             logger.info(
-            "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
-            SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
+                "Local schema version {} is not consistent with peers, waiting for schema to become consistent",
+                SafeArg.of("localSchemaVersion", Schema.instance.getVersion().toString()));
             Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
         }
     }
