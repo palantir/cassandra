@@ -37,8 +37,6 @@ import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.EndpointState;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.VersionedValue;
-import org.apache.cassandra.locator.TokenMetadata;
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.FBUtilities;
 
 public class SchemaAgreementCheck
@@ -47,18 +45,26 @@ public class SchemaAgreementCheck
     private final Supplier<UUID> localSchemaVersionSupplier;
     private final Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier;
     private final InetAddress localAddress;
+    private final boolean isNewCluster;
 
     public SchemaAgreementCheck()
     {
-        this(Schema.instance::getVersion, Gossiper.instance::getEndpointStates, FBUtilities.getBroadcastAddress());
+        this(Schema.instance::getVersion,
+             Gossiper.instance::getEndpointStates,
+             FBUtilities.getBroadcastAddress(),
+             Boolean.getBoolean("palantir_cassandra.is_new_cluster"));
     }
 
     @VisibleForTesting
-    SchemaAgreementCheck(Supplier<UUID> localSchemaVersionSupplier, Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier, InetAddress localAddress)
+    SchemaAgreementCheck(Supplier<UUID> localSchemaVersionSupplier,
+                         Supplier<Set<Map.Entry<InetAddress, EndpointState>>> endpointStatesSupplier,
+                         InetAddress localAddress,
+                         boolean isNewCluster)
     {
         this.localSchemaVersionSupplier = localSchemaVersionSupplier;
         this.endpointStatesSupplier = endpointStatesSupplier;
         this.localAddress = localAddress;
+        this.isNewCluster = isNewCluster;
     }
 
     public boolean isSchemaInAgreement() {
@@ -78,7 +84,7 @@ public class SchemaAgreementCheck
                           .filter(endpointState -> !ignoredEndpoints.contains(endpointState.getKey()))
                           .filter(endpointState -> !isLeftOrRemoved(endpointState.getValue()))
                           .allMatch(endpointState -> schemaIsEqualToLocalVersion(localSchemaVersion, endpointState.getKey(), endpointState.getValue()));
-            return peerEndpointsExist && schemaIsInAgreeement;
+            return (peerEndpointsExist || isNewCluster) && schemaIsInAgreeement;
         }
         catch (Exception e)
         {
