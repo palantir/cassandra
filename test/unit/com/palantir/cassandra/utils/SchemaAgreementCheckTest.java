@@ -177,6 +177,19 @@ public class SchemaAgreementCheckTest
         assertThat(schemaAgreementCheck.isSchemaInAgreement()).isFalse();
     }
 
+    @Test
+    public void checkSchemaAgreement_passesIfEndpointsAreMissingRequirePeersDisabled()
+    {
+        UUID schema = UUID.randomUUID();
+        EndpointState state = createNormal(schema);
+
+        SchemaAgreementCheck schemaAgreementCheck = new SchemaAgreementCheck(() -> schema,
+                                                                             () -> ImmutableMap.of(InetAddresses.forString("127.0.0.1"), state).entrySet(),
+                                                                             InetAddresses.forString("127.0.0.1"),
+                                                                             false);
+        assertThat(schemaAgreementCheck.isSchemaInAgreement()).isTrue();
+    }
+
     private static EndpointState createNormal(UUID schema)
     {
         EndpointState state = EndpointStateFactory.create();
