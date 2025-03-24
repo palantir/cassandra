@@ -224,12 +224,12 @@ public class CassandraDaemon
         // This should be the first write to SystemKeyspace (CASSANDRA-11742)
         SystemKeyspace.persistLocalMetadata();
 
-        maybeInitJmx();
-
         Directories.scheduleVerifyingDiskDoesNotExceedThresholdChecks();
 
         doNotStartupClientInterfacesIfDisabled();
-        completeSetupMayThrowSstableException();
+        beginSetupMayThrowSstableException();
+        maybeInitJmx();
+        recoverCommitlogAndCompleteSetup();
 
         logger.debug("Completed CassandraDaemon setup.");
     }
@@ -261,7 +261,8 @@ public class CassandraDaemon
     }
 
     /* This part of setup may throw a CorruptSSTableException. */
-    private void completeSetupMayThrowSstableException() {
+    private void beginSetupMayThrowSstableException()
+    {
         // load schema from disk
         Schema.instance.loadFromDisk();
 
@@ -335,8 +336,6 @@ public class CassandraDaemon
             JVMStabilityInspector.inspectThrowable(t);
             logger.warn("Unable to start GCInspector (currently only supported on the Sun JVM)");
         }
-
-        recoverCommitlogAndCompleteSetup();
     }
 
     private void recoverCommitlogAndCompleteSetup() {
@@ -813,7 +812,8 @@ public class CassandraDaemon
             if (!CassandraDaemon.instance.setupCompleted())
             {
                 // if setup wasn't completed, then an FS error occurred early; we should re-attempt
-                CassandraDaemon.instance.completeSetupMayThrowSstableException();
+                CassandraDaemon.instance.beginSetupMayThrowSstableException();
+                CassandraDaemon.instance.recoverCommitlogAndCompleteSetup();
             }
             else
             {
