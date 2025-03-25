@@ -228,6 +228,8 @@ public class CassandraDaemon
 
         doNotStartupClientInterfacesIfDisabled();
         beginSetupMayThrowSstableException();
+        // It is important to only initialize JMX at this point because `beginSetupMayThrowSstableException` does compaction product cleanup,
+        // which must happen after sstable views have been initialized. Some JMX endpoints could otherwise intialize the views prematurely.
         maybeInitJmx();
         recoverCommitlogAndCompleteSetup();
 
