@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
@@ -35,28 +36,29 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 public class ReadResponse
 {
     public static final IVersionedSerializer<ReadResponse> serializer = new ReadResponseSerializer();
-    private static final AtomicReferenceFieldUpdater<ReadResponse, ByteBuffer> digestUpdater = AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, ByteBuffer.class, "digest");
 
     private final Row row;
     private volatile ByteBuffer digest;
+    private volatile PageToken pageToken;
     // need to add page token here or somehow incorporate into the digest
 
-    public ReadResponse(ByteBuffer digest)
+    public ReadResponse(ByteBuffer digest, PageToken pageToken)
     {
-        this(null, digest);
+        this(null, digest, pageToken);
         assert digest != null;
     }
 
     public ReadResponse(Row row)
     {
-        this(row, null);
+        this(row, null, null);
         assert row != null;
     }
 
-    public ReadResponse(Row row, ByteBuffer digest)
+    public ReadResponse(Row row, ByteBuffer digest, PageToken pageToken)
     {
         this.row = row;
         this.digest = digest;
+        this.pageToken = pageToken;
     }
 
     public Row row()
@@ -69,16 +71,9 @@ public class ReadResponse
         return digest;
     }
 
-    public void setDigest(ByteBuffer digest)
+    public synchronized void setDigest(ByteBuffer digest)
     {
-        ByteBuffer curr = this.digest;
-        if (!digestUpdater.compareAndSet(this, curr, digest))
-        {
-            assert digest.equals(this.digest) :
-                String.format("Digest mismatch : %s vs %s",
-                              Arrays.toString(digest.array()),
-                              Arrays.toString(this.digest.array()));
-        }
+        this.digest = digest;
     }
 
     public boolean isDigestQuery()
