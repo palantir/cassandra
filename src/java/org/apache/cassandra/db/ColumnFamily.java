@@ -409,7 +409,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         return sb.toString();
     }
 
-    public static ByteBuffer digestWithPageToken(ColumnFamily cf, PageToken pageToken)
+    public static ByteBuffer digestLimitByPageToken(ColumnFamily cf, PageToken pageToken)
     {
         MessageDigest digest = FBUtilities.threadLocalMD5Digest();
         if (cf != null)
@@ -420,13 +420,13 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
             }
             else
             {
-                cf.updateDigestWithPageToken(digest, pageToken);
+                cf.updateDigestLimitByPageToken(digest, pageToken);
             }
         }
         return ByteBuffer.wrap(digest.digest());
     }
 
-    public void updateDigestWithPageToken(MessageDigest digest, PageToken pageToken)
+    public void updateDigestLimitByPageToken(MessageDigest digest, PageToken pageToken)
     {
         assert !pageToken.isReachedEnd();
         
