@@ -267,13 +267,16 @@ public class BigTableWriter extends SSTableWriter
 
                 columnIndexer.add(atom); // This write the atom on disk too
             }
-            if(dataFile.getFilePointer() - currentPosition == 0)
+
+            if (dataFile.getFilePointer() - currentPosition == 0)
             {
-                logger.warn("No column cells written for key {} in appendFromStream for keyspace {} and cf {}",
+                logger.warn("No cells written for key {} in appendFromStream for keyspace {} and cf {}",
                             UnsafeArg.of("key", key),
                             SafeArg.of("keyspace", metadata.ksName),
-                            SafeArg.of("cf", metadata.cfName));
+                            SafeArg.of("cf", metadata.cfName),
+                            SafeArg.of(""));
             }
+            // Adds row header if no cells was written for this key
             columnIndexer.maybeWriteRowHeader();
 
             columnIndexer.finishAddingAtoms();
