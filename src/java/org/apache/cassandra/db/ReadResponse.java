@@ -109,12 +109,7 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
             out.writeBoolean(pageTokenDigestExists);
             if (pageTokenDigestExists)
             {
-                boolean hasReachedEnd = pageTokenDigest.isReachedEnd();
-                out.writeBoolean(hasReachedEnd);
-                if (!hasReachedEnd)
-                {
-                    out.write(pageTokenDigest.digest());
-                }
+
             }
         }
         if (!response.isDigestQuery())
