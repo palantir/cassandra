@@ -18,10 +18,7 @@
 
 package org.apache.cassandra.db.filter;
 
-import org.apache.cassandra.db.ColumnFamily;
-import org.apache.cassandra.db.ColumnSerializer;
-import org.apache.cassandra.db.Row;
-import org.apache.cassandra.db.TypeSizes;
+import org.apache.cassandra.db.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
@@ -63,6 +60,17 @@ public class PageTokenDigest
     public static PageTokenDigest createPageTokenReachedEnd()
     {
         return new PageTokenDigest(null, true);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        return this == o || (o instanceof PageTokenDigest && equals((PageTokenDigest) o));
+    }
+
+    private boolean equals(PageTokenDigest pageTokenDigest)
+    {
+        return digest.equals(pageTokenDigest.digest) && reachedEnd == pageTokenDigest.reachedEnd;
     }
 
     public static class PageTokenDigestSerializer implements IVersionedSerializer<PageTokenDigest>

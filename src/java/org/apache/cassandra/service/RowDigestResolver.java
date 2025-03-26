@@ -43,7 +43,9 @@ public class RowDigestResolver extends AbstractRowResolver
             if (!result.isDigestQuery())
             {
                 if (result.digest() == null)
-                    result.setDigest(ColumnFamily.digest(result.row().cf));
+                {
+                    result.setDigest(ColumnFamily.digest(result.row().cf), null);
+                }
 
                 return result.row();
             }
@@ -87,7 +89,9 @@ public class RowDigestResolver extends AbstractRowResolver
                 // note that this allows for multiple data replies, post-CASSANDRA-5932
                 data = response.row().cf;
                 if (response.digest() == null)
-                    message.payload.setDigest(ColumnFamily.digest(data));
+                {
+                    message.payload.setDigest(ColumnFamily.digest(data), null);
+                }
 
                 newDigest = response.digest();
             }

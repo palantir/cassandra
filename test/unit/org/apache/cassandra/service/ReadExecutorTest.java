@@ -87,10 +87,10 @@ public class ReadExecutorTest {
         when(exc.isLocalRequest(remoteEndpoint)).thenReturn(false);
 
         MessageIn<ReadResponse> readResponse = MessageIn.create(remoteEndpoint,
-                                                                new ReadResponse(mock(Row.class)),
-                                                                Collections.emptyMap(),
-                                                                MessagingService.Verb.INTERNAL_RESPONSE,
-                                                                MessagingService.current_version);
+                new ReadResponse(mock(Row.class), null),
+                Collections.emptyMap(),
+                MessagingService.Verb.INTERNAL_RESPONSE,
+                MessagingService.current_version);
 
         assertThat(exc.latencies).isEmpty();
         exc.executeAsync();
@@ -111,10 +111,10 @@ public class ReadExecutorTest {
         exc.executeAsync();
 
         MessageIn<ReadResponse> readResponse = MessageIn.create(remoteEndpoint,
-                                                                new ReadResponse(mock(Row.class)),
-                                                                Collections.emptyMap(),
-                                                                MessagingService.Verb.INTERNAL_RESPONSE,
-                                                                MessagingService.current_version);
+                new ReadResponse(mock(Row.class), null),
+                Collections.emptyMap(),
+                MessagingService.Verb.INTERNAL_RESPONSE,
+                MessagingService.current_version);
         exc.handler.response(readResponse);
         exc.get();
         assertThat(exc.latencies).hasSize(2);
