@@ -71,7 +71,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
         }
         else
         {
-            return new ReadResponse(row, null);
+            return new ReadResponse(row);
         }
     }
 }

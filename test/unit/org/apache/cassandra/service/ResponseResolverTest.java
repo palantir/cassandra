@@ -302,7 +302,7 @@ public class ResponseResolverTest extends SchemaLoader
     private MessageIn<ReadResponse> makeReadResponse(String address, Row row) throws UnknownHostException
     {
         return MessageIn.create(InetAddress.getByName(address),
-                new ReadResponse(row, null),
+                new ReadResponse(row),
                 Collections.<String, byte[]>emptyMap(),
                 MessagingService.Verb.INTERNAL_RESPONSE,
                 MessagingService.current_version);
