@@ -34,7 +34,7 @@ import java.nio.ByteBuffer;
 
 public class PageTokenDigest
 {
-    public static final Row.RowSerializer serializer = new Row.RowSerializer();
+    public static final PageTokenDigestSerializer serializer = new PageTokenDigestSerializer();
 
     private final ByteBuffer digest;
     private final boolean reachedEnd;
