@@ -109,7 +109,7 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
             out.writeBoolean(pageTokenDigestExists);
             if (pageTokenDigestExists)
             {
-
+                PageTokenDigest.serializer.serialize(pageTokenDigest, out, version);
             }
         }
         if (!response.isDigestQuery())
@@ -140,14 +140,35 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         boolean isDigest = in.readBoolean();
         assert isDigest == digestSize > 0;
 
-        Row row = null;
-        if (!isDigest)
+        if (isDigest)
         {
-            // This is coming from a remote host
-            row = Row.serializer.deserialize(in, version, ColumnSerializer.Flag.FROM_REMOTE);
+            if (version < MessagingService.VERSION_22_18)
+            {
+                return new ReadResponse(ByteBuffer.wrap(digest), null);
+            }
+            boolean pageTokenDigestExists = in.readBoolean();
+            if (pageTokenDigestExists)
+            {
+                PageTokenDigest pageTokenDigest = PageTokenDigest.serializer.deserialize(in, version);
+                return new ReadResponse(ByteBuffer.wrap(digest), pageTokenDigest);
+            }
+            return new ReadResponse(ByteBuffer.wrap(digest), null);
         }
 
-        return isDigest ? new ReadResponse(ByteBuffer.wrap(digest)) : new ReadResponse(row);
+        // This is coming from a remote host
+        Row row = Row.serializer.deserialize(in, version, ColumnSerializer.Flag.FROM_REMOTE);
+
+        if (version < MessagingService.VERSION_22_18)
+        {
+            return new ReadResponse(row, null);
+        }
+        boolean pageTokenExists = in.readBoolean();
+        if (pageTokenExists)
+        {
+            PageToken pageToken = new PageToken.Serializer(row.cf.getComparator().columnSerializer()).deserialize(in, version);
+            return new ReadResponse(row, pageToken);
+        }
+        return new ReadResponse(row, null);
     }
 
     public long serializedSize(ReadResponse response, int version)
@@ -157,8 +178,29 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         int size = typeSizes.sizeof(buffer.remaining());
         size += buffer.remaining();
         size += typeSizes.sizeof(response.isDigestQuery());
+        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_18)
+        {
+            boolean pageTokenDigestExists = response.pageTokenDigest() != null;
+            size += typeSizes.sizeof(pageTokenDigestExists);
+            if (pageTokenDigestExists)
+            {
+                size += PageTokenDigest.serializer.serializedSize(response.pageTokenDigest(), version);
+            }
+        }
         if (!response.isDigestQuery())
+        {
             size += Row.serializer.serializedSize(response.row(), version);
+            if (version >= MessagingService.VERSION_22_18)
+            {
+                boolean pageTokenExists = response.pageToken() != null;
+                size += typeSizes.sizeof(pageTokenExists);
+                if (pageTokenExists)
+                {
+                    size += new PageToken.Serializer(response.row().cf.getComparator().columnSerializer()).serializedSize(response.pageToken(), version);
+                }
+            }
+        }
+
         return size;
     }
 }
