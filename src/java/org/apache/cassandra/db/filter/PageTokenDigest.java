@@ -73,6 +73,19 @@ public class PageTokenDigest
         return digest.equals(pageTokenDigest.digest) && reachedEnd == pageTokenDigest.reachedEnd;
     }
 
+    @Override
+    public String toString()
+    {
+        if (reachedEnd)
+        {
+            return "EndOfRowDigest";
+        }
+        else
+        {
+            return "PageTokenDigest(" + ByteBufferUtil.bytesToHex(digest) + ")";
+        }
+    }
+
     public static class PageTokenDigestSerializer implements IVersionedSerializer<PageTokenDigest>
     {
         @Override
