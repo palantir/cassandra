@@ -44,7 +44,7 @@ public class RowDigestResolver extends AbstractRowResolver
             {
                 if (result.digest() == null)
                 {
-                    result.setDigest(ColumnFamily.digest(result.row().cf), null);
+                    result.setDigest(ColumnFamily.digest(result.row().cf), result.row().cf.pageToken() == null ? null : result.row().cf.pageToken().digest());
                 }
 
                 return result.row();
