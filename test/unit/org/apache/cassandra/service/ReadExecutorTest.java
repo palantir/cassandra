@@ -87,7 +87,7 @@ public class ReadExecutorTest {
         when(exc.isLocalRequest(remoteEndpoint)).thenReturn(false);
 
         MessageIn<ReadResponse> readResponse = MessageIn.create(remoteEndpoint,
-                new ReadResponse(mock(Row.class), null),
+                new ReadResponse(mock(Row.class)),
                 Collections.emptyMap(),
                 MessagingService.Verb.INTERNAL_RESPONSE,
                 MessagingService.current_version);
@@ -111,7 +111,7 @@ public class ReadExecutorTest {
         exc.executeAsync();
 
         MessageIn<ReadResponse> readResponse = MessageIn.create(remoteEndpoint,
-                new ReadResponse(mock(Row.class), null),
+                new ReadResponse(mock(Row.class)),
                 Collections.emptyMap(),
                 MessagingService.Verb.INTERNAL_RESPONSE,
                 MessagingService.current_version);

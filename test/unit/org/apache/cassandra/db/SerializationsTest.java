@@ -375,52 +375,39 @@ public class SerializationsTest extends AbstractSerializationsTester
     public void testReadResponseSerializeAndDeserialize() throws IOException
     {
         PageTokenDigest pageTokenDigest = PageTokenDigest.createPageTokenDigest(statics.digest);
-        PageToken pageToken = PageToken.createPageToken(statics.cell);
 
         ReadResponse response1 = new ReadResponse(statics.digest, null);
         ReadResponse response2 = new ReadResponse(statics.digest, pageTokenDigest);
-        ReadResponse response3 = new ReadResponse(statics.StandardRow, null);
-        ReadResponse response4 = new ReadResponse(statics.StandardRow, pageToken);
+        ReadResponse response3 = new ReadResponse(statics.StandardRow);
 
         DataOutputStreamPlus out = getOutput("db.ReadResponse.bin");
 
         ReadResponse.serializer.serialize(response1, out, getVersion());
         ReadResponse.serializer.serialize(response2, out, getVersion());
         ReadResponse.serializer.serialize(response3, out, getVersion());
-        ReadResponse.serializer.serialize(response4, out, getVersion());
 
         out.close();
 
         testSerializedSize(response1, ReadResponse.serializer);
         testSerializedSize(response2, ReadResponse.serializer);
         testSerializedSize(response3, ReadResponse.serializer);
-        testSerializedSize(response4, ReadResponse.serializer);
 
         DataInputStream in = getInput("db.ReadResponse.bin");
         ReadResponse deserializedResponse1 = ReadResponse.serializer.deserialize(in, getVersion());
         ReadResponse deserializedResponse2 = ReadResponse.serializer.deserialize(in, getVersion());
         ReadResponse deserializedResponse3 = ReadResponse.serializer.deserialize(in, getVersion());
-        ReadResponse deserializedResponse4 = ReadResponse.serializer.deserialize(in, getVersion());
 
         assert deserializedResponse1.digest().equals(response1.digest());
         assert deserializedResponse1.pageTokenDigest() == null;
         assert deserializedResponse1.row() == null;
-        assert deserializedResponse1.pageToken() == null;
 
         assert deserializedResponse2.digest().equals(response2.digest());
         assert deserializedResponse2.pageTokenDigest().equals(response2.pageTokenDigest());
         assert deserializedResponse2.row() == null;
-        assert deserializedResponse2.pageToken() == null;
 
         assert deserializedResponse3.digest() == null;
         assert deserializedResponse3.pageTokenDigest() == null;
         assert deserializedResponse3.row().key.equals(response3.row().key);
-        assert deserializedResponse3.pageToken() == null;
-
-        assert deserializedResponse4.digest() == null;
-        assert deserializedResponse4.pageTokenDigest() == null;
-        assert deserializedResponse4.row().key.equals(response4.row().key);
-        assert deserializedResponse4.pageToken().equals(response4.pageToken());
     }
 
     private void testWriteResponseWrite() throws IOException
