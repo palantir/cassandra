@@ -346,6 +346,84 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert deserializedPageToken2.getToken().equals(pageTokenHasValue.getToken());
     }
 
+    @Test
+    public void testPageTokenDigestSerializeAndDeserialize() throws IOException
+    {
+        PageTokenDigest pageTokenDigestReachedEnd = PageTokenDigest.createPageTokenReachedEnd();
+        PageTokenDigest pageTokenDigestHasValue = PageTokenDigest.createPageTokenDigest(statics.digest);
+
+        DataOutputStreamPlus out = getOutput("db.PageTokenDigest.bin");
+
+        PageTokenDigest.serializer.serialize(pageTokenDigestReachedEnd, out, getVersion());
+        PageTokenDigest.serializer.serialize(pageTokenDigestHasValue, out, getVersion());
+
+        out.close();
+
+        testSerializedSize(pageTokenDigestReachedEnd, PageTokenDigest.serializer);
+        testSerializedSize(pageTokenDigestHasValue, PageTokenDigest.serializer);
+
+        DataInputStream in = getInput("db.PageTokenDigest.bin");
+        PageTokenDigest deserializedPageToken1 = PageTokenDigest.serializer.deserialize(in, getVersion());
+        PageTokenDigest deserializedPageToken2 = PageTokenDigest.serializer.deserialize(in, getVersion());
+
+        assert deserializedPageToken1.isReachedEnd();
+        assert deserializedPageToken1.digest() == null;
+        assert !deserializedPageToken2.isReachedEnd();
+        assert deserializedPageToken2.digest().equals(pageTokenDigestHasValue.digest());
+    }
+
+    @Test
+    public void testReadResponseSerializeAndDeserialize() throws IOException
+    {
+        PageTokenDigest pageTokenDigest = PageTokenDigest.createPageTokenDigest(statics.digest);
+        PageToken pageToken = PageToken.createPageToken(statics.cell);
+
+        ReadResponse response1 = new ReadResponse(statics.digest, null);
+        ReadResponse response2 = new ReadResponse(statics.digest, pageTokenDigest);
+        ReadResponse response3 = new ReadResponse(statics.StandardRow, null);
+        ReadResponse response4 = new ReadResponse(statics.StandardRow, pageToken);
+
+        DataOutputStreamPlus out = getOutput("db.ReadResponse.bin");
+
+        ReadResponse.serializer.serialize(response1, out, getVersion());
+        ReadResponse.serializer.serialize(response2, out, getVersion());
+        ReadResponse.serializer.serialize(response3, out, getVersion());
+        ReadResponse.serializer.serialize(response4, out, getVersion());
+
+        out.close();
+
+        testSerializedSize(response1, ReadResponse.serializer);
+        testSerializedSize(response2, ReadResponse.serializer);
+        testSerializedSize(response3, ReadResponse.serializer);
+        testSerializedSize(response4, ReadResponse.serializer);
+
+        DataInputStream in = getInput("db.ReadResponse.bin");
+        ReadResponse deserializedResponse1 = ReadResponse.serializer.deserialize(in, getVersion());
+        ReadResponse deserializedResponse2 = ReadResponse.serializer.deserialize(in, getVersion());
+        ReadResponse deserializedResponse3 = ReadResponse.serializer.deserialize(in, getVersion());
+        ReadResponse deserializedResponse4 = ReadResponse.serializer.deserialize(in, getVersion());
+
+        assert deserializedResponse1.digest().equals(response1.digest());
+        assert deserializedResponse1.pageTokenDigest() == null;
+        assert deserializedResponse1.row() == null;
+        assert deserializedResponse1.pageToken() == null;
+
+        assert deserializedResponse2.digest().equals(response2.digest());
+        assert deserializedResponse2.pageTokenDigest().equals(response2.pageTokenDigest());
+        assert deserializedResponse2.row() == null;
+        assert deserializedResponse2.pageToken() == null;
+
+        assert deserializedResponse3.digest() == null;
+        assert deserializedResponse3.pageTokenDigest() == null;
+        assert deserializedResponse3.row().key.equals(response3.row().key);
+        assert deserializedResponse3.pageToken() == null;
+
+        assert deserializedResponse4.digest() == null;
+        assert deserializedResponse4.pageTokenDigest() == null;
+        assert deserializedResponse4.row().key.equals(response4.row().key);
+        assert deserializedResponse4.pageToken().equals(response4.pageToken());
+    }
+
     private void testWriteResponseWrite() throws IOException
     {
         WriteResponse aff = new WriteResponse();
@@ -408,6 +486,7 @@ public class SerializationsTest extends AbstractSerializationsTester
         private final ColumnFamily SuperCf = ArrayBackedSortedColumns.factory.create(KS, SuperCF);
 
         private final Cell cell = new BufferCell(CellNames.simpleDense(StandardCharsets.UTF_8.encode("dummy")));
+        private final ByteBuffer digest = ByteBufferUtil.bytes("dummy");
 
         private final Row StandardRow = new Row(Util.dk("key0"), StandardCf);
         private final Row SuperRow = new Row(Util.dk("key1"), SuperCf);
