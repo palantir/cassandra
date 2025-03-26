@@ -21,7 +21,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 
 import org.apache.cassandra.db.filter.PageToken;
-import org.apache.cassandra.db.filter.PageToken.PageTokenDigest;
+import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
