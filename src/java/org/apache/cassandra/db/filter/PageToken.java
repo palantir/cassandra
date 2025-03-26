@@ -85,6 +85,7 @@ public class PageToken
             this.columnSerializer = columnSerializer;
         }
 
+        @Override
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
             assert version >= MessagingService.VERSION_22_18;
@@ -95,8 +96,10 @@ public class PageToken
             }
         }
 
+        @Override
         public PageToken deserialize(DataInput in, int version) throws IOException
         {
+            assert version >= MessagingService.VERSION_22_18;
             return deserialize(in, ColumnSerializer.Flag.LOCAL, version);
         }
 
@@ -110,14 +113,15 @@ public class PageToken
             return PageToken.createPageToken(columnSerializer.deserialize(in, flag));
         }
 
+        @Override
         public long serializedSize(PageToken pageToken, int version)
         {
+            assert version >= MessagingService.VERSION_22_18;
             return serializedSize(pageToken, TypeSizes.NATIVE, version);
         }
 
         public long serializedSize(PageToken pagetoken, TypeSizes typeSizes, int version)
         {
-            assert version >= MessagingService.VERSION_22_18;
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
@@ -184,38 +188,6 @@ public class PageToken
             {
                 return cellComparator.compare(pageToken1.getToken().name(), pageToken2.getToken().name());
             }
-        }
-    }
-
-    public static class PageTokenDigest
-    {
-        private final ByteBuffer digest;
-        private final boolean reachedEnd;
-
-        private PageTokenDigest(ByteBuffer digest, boolean reachedEnd)
-        {
-            this.digest = digest;
-            this.reachedEnd = reachedEnd;
-        }
-
-        public ByteBuffer digest()
-        {
-            return digest;
-        }
-
-        public boolean isReachedEnd()
-        {
-            return reachedEnd;
-        }
-
-        public static PageTokenDigest createPageTokenDigest(ByteBuffer digest)
-        {
-            return new PageTokenDigest(digest, false);
-        }
-
-        public static PageTokenDigest createPageTokenReachedEnd()
-        {
-            return new PageTokenDigest(null, true);
         }
     }
 }
