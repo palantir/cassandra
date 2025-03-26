@@ -273,8 +273,7 @@ public class BigTableWriter extends SSTableWriter
                 logger.warn("No cells written for key {} in appendFromStream for keyspace {} and cf {}",
                             UnsafeArg.of("key", key),
                             SafeArg.of("keyspace", metadata.ksName),
-                            SafeArg.of("cf", metadata.cfName),
-                            SafeArg.of(""));
+                            SafeArg.of("cf", metadata.cfName));
             }
             // Adds row header if no cells was written for this key
             columnIndexer.maybeWriteRowHeader();
