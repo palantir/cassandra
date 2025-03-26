@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.db;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -67,7 +68,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
     {
         if (command.isDigestQuery())
         {
-            return new ReadResponse(ColumnFamily.digest(row.cf), row.cf.pageToken() == null ? null : row.cf.pageToken().digest());
+            return new ReadResponse(ColumnFamily.digest(row.cf), (row.cf == null || row.cf.pageToken() == null) ? null : row.cf.pageToken().digest());
         }
         else
         {
