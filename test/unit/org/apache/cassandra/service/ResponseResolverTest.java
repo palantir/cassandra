@@ -302,10 +302,10 @@ public class ResponseResolverTest extends SchemaLoader
     private MessageIn<ReadResponse> makeReadResponse(String address, Row row) throws UnknownHostException
     {
         return MessageIn.create(InetAddress.getByName(address),
-                                new ReadResponse(row),
-                                Collections.<String, byte[]>emptyMap(),
-                                MessagingService.Verb.INTERNAL_RESPONSE,
-                                MessagingService.current_version);
+                new ReadResponse(row, null),
+                Collections.<String, byte[]>emptyMap(),
+                MessagingService.Verb.INTERNAL_RESPONSE,
+                MessagingService.current_version);
     }
 
     private MessageIn<RangeSliceReply> makeRangeSlice(String address, Row ... rows) throws UnknownHostException

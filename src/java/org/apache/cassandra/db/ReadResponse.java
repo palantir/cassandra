@@ -54,7 +54,7 @@ public class ReadResponse
         assert row != null;
     }
 
-    public ReadResponse(Row row, PageToken pageToken, ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    private ReadResponse(Row row, PageToken pageToken, ByteBuffer digest, PageTokenDigest pageTokenDigest)
     {
         this.row = row;
         this.pageToken = pageToken;

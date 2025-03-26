@@ -57,11 +57,11 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
     {
         if (command.isDigestQuery())
         {
-            return new ReadResponse(ColumnFamily.digest(row.cf));
+            return new ReadResponse(ColumnFamily.digest(row.cf), null);
         }
         else
         {
-            return new ReadResponse(row);
+            return new ReadResponse(row, null);
         }
     }
 }
