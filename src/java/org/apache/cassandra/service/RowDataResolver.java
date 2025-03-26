@@ -29,6 +29,7 @@ import com.google.common.collect.Iterables;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
+import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
@@ -158,6 +159,38 @@ public class RowDataResolver extends AbstractRowResolver
                 iters.add(FBUtilities.closeableIterator(version.iterator()));
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
         return ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
+    }
+
+    private PageToken minPageToken(Iterable<ColumnFamily> versions)
+    {
+        PageToken lowestPageToken = null;
+        PageToken.Comparator comparator = null;
+        for (ColumnFamily version : versions)
+        {
+            if (version == null)
+            {
+                continue;
+            }
+            if (comparator == null)
+            {
+                comparator = new PageToken.Comparator(version.getComparator());
+            }
+        }
+        assert comparator != null;
+
+        for (ColumnFamily version : versions)
+        {
+            if (version == null)
+            {
+                continue;
+            }
+
+            if (lowestPageToken == null || comparator.compare(lowestPageToken, version.pageToken()) > 0)
+            {
+                lowestPageToken = version.pageToken();
+            }
+        }
+        return lowestPageToken;
     }
 
     public Row getData()
