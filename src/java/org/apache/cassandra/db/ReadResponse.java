@@ -19,10 +19,9 @@ package org.apache.cassandra.db;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.cassandra.db.filter.PageToken;
+import org.apache.cassandra.db.filter.PageToken.PageTokenDigest;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
@@ -38,27 +37,29 @@ public class ReadResponse
     public static final IVersionedSerializer<ReadResponse> serializer = new ReadResponseSerializer();
 
     private final Row row;
+    private final PageToken pageToken;
     private volatile ByteBuffer digest;
-    private volatile PageToken pageToken;
+    private volatile PageTokenDigest pageTokenDigest;
     // need to add page token here or somehow incorporate into the digest
 
-    public ReadResponse(ByteBuffer digest, PageToken pageToken)
+    public ReadResponse(ByteBuffer digest, PageTokenDigest pageTokenDigest)
     {
-        this(null, digest, pageToken);
+        this(null, null, digest, pageTokenDigest);
         assert digest != null;
     }
 
-    public ReadResponse(Row row)
+    public ReadResponse(Row row, PageToken pageToken)
     {
-        this(row, null, null);
+        this(row, pageToken, null, null);
         assert row != null;
     }
 
-    public ReadResponse(Row row, ByteBuffer digest, PageToken pageToken)
+    public ReadResponse(Row row, PageToken pageToken, ByteBuffer digest, PageTokenDigest pageTokenDigest)
     {
         this.row = row;
-        this.digest = digest;
         this.pageToken = pageToken;
+        this.digest = digest;
+        this.pageTokenDigest = pageTokenDigest;
     }
 
     public Row row()
@@ -66,14 +67,25 @@ public class ReadResponse
         return row;
     }
 
+    public PageToken pageToken()
+    {
+        return pageToken;
+    }
+
     public ByteBuffer digest()
     {
         return digest;
     }
 
-    public synchronized void setDigest(ByteBuffer digest)
+    public PageTokenDigest pageTokenDigest()
+    {
+        return pageTokenDigest;
+    }
+
+    public synchronized void setDigest(ByteBuffer digest, PageTokenDigest pageTokenDigest)
     {
         this.digest = digest;
+        this.pageTokenDigest = pageTokenDigest;
     }
 
     public boolean isDigestQuery()
@@ -90,8 +102,35 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         ByteBuffer buffer = response.isDigestQuery() ? response.digest() : ByteBufferUtil.EMPTY_BYTE_BUFFER;
         out.write(buffer);
         out.writeBoolean(response.isDigestQuery());
+        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_18)
+        {
+            PageTokenDigest pageTokenDigest = response.pageTokenDigest();
+            boolean pageTokenDigestExists = pageTokenDigest != null;
+            out.writeBoolean(pageTokenDigestExists);
+            if (pageTokenDigestExists)
+            {
+                boolean hasReachedEnd = pageTokenDigest.isReachedEnd();
+                out.writeBoolean(hasReachedEnd);
+                if (!hasReachedEnd)
+                {
+                    out.write(pageTokenDigest.digest());
+                }
+            }
+        }
         if (!response.isDigestQuery())
+        {
             Row.serializer.serialize(response.row(), out, version);
+            if (version >= MessagingService.VERSION_22_18)
+            {
+                PageToken pageToken = response.pageToken();
+                boolean pageTokenDigestExists = pageToken != null;
+                out.writeBoolean(pageTokenDigestExists);
+                if (pageTokenDigestExists)
+                {
+                    new PageToken.Serializer(response.row().cf.getComparator().columnSerializer()).serialize(pageToken, out, version);
+                }
+            }
+        }
     }
 
     public ReadResponse deserialize(DataInput in, int version) throws IOException

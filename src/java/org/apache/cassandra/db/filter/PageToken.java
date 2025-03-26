@@ -20,15 +20,19 @@ package org.apache.cassandra.db.filter;
 
 import java.io.DataInput;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.security.MessageDigest;
 import java.util.Comparator;
 
 import org.apache.cassandra.db.Cell;
+import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnSerializer;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.utils.FBUtilities;
 
 public class PageToken
 {
@@ -49,6 +53,17 @@ public class PageToken
     public boolean isReachedEnd()
     {
         return reachedEnd;
+    }
+
+    public PageTokenDigest digest()
+    {
+        if (reachedEnd)
+        {
+            return PageTokenDigest.createPageTokenReachedEnd();
+        }
+        MessageDigest digest = FBUtilities.threadLocalMD5Digest();
+        token.updateDigest(digest);
+        return PageTokenDigest.createPageTokenDigest(ByteBuffer.wrap(digest.digest()));
     }
 
     public static PageToken createPageToken(Cell pageToken)
@@ -169,6 +184,38 @@ public class PageToken
             {
                 return cellComparator.compare(pageToken1.getToken().name(), pageToken2.getToken().name());
             }
+        }
+    }
+
+    public static class PageTokenDigest
+    {
+        private final ByteBuffer digest;
+        private final boolean reachedEnd;
+
+        private PageTokenDigest(ByteBuffer digest, boolean reachedEnd)
+        {
+            this.digest = digest;
+            this.reachedEnd = reachedEnd;
+        }
+
+        public ByteBuffer digest()
+        {
+            return digest;
+        }
+
+        public boolean isReachedEnd()
+        {
+            return reachedEnd;
+        }
+
+        public static PageTokenDigest createPageTokenDigest(ByteBuffer digest)
+        {
+            return new PageTokenDigest(digest, false);
+        }
+
+        public static PageTokenDigest createPageTokenReachedEnd()
+        {
+            return new PageTokenDigest(null, true);
         }
     }
 }
