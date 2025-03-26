@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
+import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.net.MessageIn;
 
 public class RowDigestResolver extends AbstractRowResolver
@@ -74,15 +75,18 @@ public class RowDigestResolver extends AbstractRowResolver
         // also extract the data reply, if any.
         ColumnFamily data = null;
         ByteBuffer digest = null;
+        PageTokenDigest pageTokenDigest = null;
 
         for (MessageIn<ReadResponse> message : replies)
         {
             ReadResponse response = message.payload;
 
             ByteBuffer newDigest;
+            PageTokenDigest newPageTokenDigest;
             if (response.isDigestQuery())
             {
                 newDigest = response.digest();
+                newPageTokenDigest = response.pageTokenDigest();
             }
             else
             {
@@ -90,16 +94,22 @@ public class RowDigestResolver extends AbstractRowResolver
                 data = response.row().cf;
                 if (response.digest() == null)
                 {
-                    message.payload.setDigest(ColumnFamily.digest(data), null);
+                    message.payload.setDigest(ColumnFamily.digest(data), (data == null || data.pageToken() == null) ? null : data.pageToken().digest());
                 }
 
                 newDigest = response.digest();
+                newPageTokenDigest = response.pageTokenDigest();
             }
 
             if (digest == null)
+            {
                 digest = newDigest;
-            else if (!digest.equals(newDigest))
-                throw new DigestMismatchException(key, digest, newDigest);
+                pageTokenDigest = newPageTokenDigest;
+            }
+            else if (!digest.equals(newDigest) || (pageTokenDigest != null && !pageTokenDigest.equals(newPageTokenDigest)))
+            {
+                throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
+            }
         }
 
         if (logger.isTraceEnabled())
