@@ -268,7 +268,7 @@ public class BigTableWriter extends SSTableWriter
                 columnIndexer.add(atom); // This write the atom on disk too
             }
 
-            if (dataFile.getFilePointer() - currentPosition == 0)
+            if (columnIndexer.isLive() && columnIndexer.noAddedColumns())
             {
                 logger.warn("No cells written for key {} in appendFromStream for keyspace {} and cf {}",
                             UnsafeArg.of("key", key),

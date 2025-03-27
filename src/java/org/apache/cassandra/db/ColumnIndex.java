@@ -221,7 +221,7 @@ public class ColumnIndex
 
         public void maybeWriteRowHeader() throws IOException
         {
-            if (lastColumn == null)
+            if (noAddedColumns())
             {
                 ByteBufferUtil.writeWithShortLength(key, output);
                 DeletionTime.serializer.serialize(deletionInfo.getTopLevelDeletion(), output);
@@ -235,11 +235,19 @@ public class ColumnIndex
             blockSize += size;
         }
 
+        public boolean noAddedColumns() {
+            return lastColumn == null;
+        }
+
+        public boolean isLive() {
+            return deletionInfo.isLive();
+        }
+
         public ColumnIndex build()
         {
             assert !tombstoneTracker.hasUnwrittenTombstones();  // finishAddingAtoms must be called before building.
             // all columns were GC'd after all
-            if (lastColumn == null)
+            if (noAddedColumns())
                 return ColumnIndex.EMPTY;
 
             // the last column may have fallen on an index boundary already.  if not, index it explicitly.
@@ -256,7 +264,7 @@ public class ColumnIndex
 
         public void maybeWriteEmptyRowHeader() throws IOException
         {
-            if (!deletionInfo.isLive())
+            if (!isLive())
                 maybeWriteRowHeader();
         }
     }
