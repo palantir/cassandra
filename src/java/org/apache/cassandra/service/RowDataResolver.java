@@ -157,39 +157,45 @@ public class RowDataResolver extends AbstractRowResolver
             if (version != null)
                 iters.add(FBUtilities.closeableIterator(version.iterator()));
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
-        return ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
+        resolved = ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
+        PageToken resolvedPageToken = resolvedPageToken(versions, resolved);
+        return resolved.cloneLimitByPageToken(resolvedPageToken);
     }
 
-    private PageToken minPageToken(Iterable<ColumnFamily> versions)
+    private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
     {
-        PageToken lowestPageToken = null;
+        Iterable<ColumnFamily> allCfs = Iterables.concat(
+                versions,
+                Collections.singleton(resolved)
+        );
+        PageToken resolvedPageToken = null;
         PageToken.Comparator comparator = null;
-        for (ColumnFamily version : versions)
+        for (ColumnFamily cf : allCfs)
         {
-            if (version == null)
+            if (cf == null)
             {
                 continue;
             }
             if (comparator == null)
             {
-                comparator = new PageToken.Comparator(version.getComparator());
+                comparator = new PageToken.Comparator(cf.getComparator());
             }
         }
         assert comparator != null;
 
-        for (ColumnFamily version : versions)
+        for (ColumnFamily cf : allCfs)
         {
-            if (version == null)
+            if (cf == null)
             {
                 continue;
             }
 
-            if (lowestPageToken == null || comparator.compare(lowestPageToken, version.pageToken()) > 0)
+            if (resolvedPageToken == null || comparator.compare(resolvedPageToken, cf.pageToken()) > 0)
             {
-                lowestPageToken = version.pageToken();
+                resolvedPageToken = cf.pageToken();
             }
         }
-        return lowestPageToken;
+        return resolvedPageToken;
     }
 
     public Row getData()
