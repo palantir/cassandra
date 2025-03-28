@@ -696,7 +696,15 @@
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
   <dependency groupId="com.google.guava" artifactId="guava"/>
       </artifact:pom>
-
+      <artifact:pom id="test-pom"
+                    artifactId="cassandra-test"
+                    url="https://cassandra.apache.org"
+                    name="Apache Cassandra">
+      <parent groupId="org.apache.cassandra"
+              artifactId="cassandra-parent"
+              version="${version}"/>
+      <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
+      </artifact:pom>
     </target>
 
     <target name="maven-ant-tasks-retrieve-build" depends="maven-declare-dependencies" unless="without.maven">
@@ -919,6 +927,8 @@
 	    <artifact:writepom pomRefId="all-pom" file="${build.dir}/${final.name}.pom"/>
 	    <artifact:writepom pomRefId="clientutil-pom"
 	    	               file="${build.dir}/${ant.project.name}-clientutil-${version}.pom"/>
+        <artifact:writepom pomRefId="test-pom"
+                           file="${build.dir}/${ant.project.name}-test-${version}.pom"/>
 	</target>
 
 	<target name="write-poms" unless="without.maven">

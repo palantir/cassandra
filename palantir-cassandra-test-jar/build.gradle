@@ -17,6 +17,8 @@
 apply from: "${project.rootDir}/gradle/generate-pom-from-existing-file.gradle"
 apply plugin: 'com.palantir.external-publish-custom'
 
+tasks.withType(Javadoc).all { enabled = false }
+
 externalPublishing {
     publication('maven') {
         artifactId 'cassandra-test'
@@ -26,9 +28,9 @@ externalPublishing {
         artifact(file("${jarFileNameRoot}-sources.jar")) {
             classifier 'sources'
         }
-        artifact(file("${jarFileNameRoot}-javadoc.jar")) {
-            classifier 'javadoc'
-        }
+//        artifact(file("${jarFileNameRoot}-javadoc.jar")) {
+//            classifier 'javadoc'
+//        }
 
         pom.withXml {
             generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-test-${project.version}.pom")
