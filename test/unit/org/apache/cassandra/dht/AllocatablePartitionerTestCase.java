@@ -22,12 +22,11 @@ package org.apache.cassandra.dht;
 
 import org.junit.Test;
 
-public class Murmur3PartitionerTest extends PartitionerTestCase
+public abstract class AllocatablePartitionerTestCase extends PartitionerTestCase
 {
-    public void initPartitioner()
-    {
-        partitioner = Murmur3Partitioner.instance;
-    }
+    public abstract void initPartitioner();
+
+    public abstract Token almostMax();
 
     @Override
     protected void midpointMinimumTestCase()
@@ -57,7 +56,7 @@ public class Murmur3PartitionerTest extends PartitionerTestCase
     @Test
     public void testSplitExceedMaximumCase()
     {
-        Murmur3Partitioner.LongToken left = new Murmur3Partitioner.LongToken(Long.MAX_VALUE - 100);
+        Token left = almostMax();
         assertSplit(left, tok("a"), 16);
     }
 }
