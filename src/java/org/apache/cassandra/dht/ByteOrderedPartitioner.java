@@ -50,10 +50,11 @@ public class ByteOrderedPartitioner implements IPartitioner
     private static final int GENERATED_TOKEN_LENGTH = 16;
     public static final BytesToken MINIMUM = new BytesToken(ArrayUtils.EMPTY_BYTE_ARRAY);
     public static final BytesToken MAXIMUM = new BytesToken(new byte[GENERATED_TOKEN_LENGTH]);
+    public static final BigDecimal MIN_TOKEN_MAGNITUDE = new BigDecimal(bigForBytes(MINIMUM.token, MINIMUM.token.length));
     public static final BigDecimal MAX_TOKEN_MAGNITUDE;
     static {
         Arrays.fill(MAXIMUM.token, (byte) 0xFF);
-        MAX_TOKEN_MAGNITUDE = new BigDecimal(bigForBytes(MAXIMUM.token, GENERATED_TOKEN_LENGTH));
+        MAX_TOKEN_MAGNITUDE = new BigDecimal(bigForBytes(MAXIMUM.token, MAXIMUM.token.length));
     }
 
     public static final BigInteger BYTE_MASK = new BigInteger("255");
@@ -210,21 +211,22 @@ public class ByteOrderedPartitioner implements IPartitioner
         {
             // wrapping case
             // L + ((R - min) + (max - L)) * pct
-            BigInteger maxTokenInt = bigForBytes(MAXIMUM.token, MAXIMUM.token.length);
-            BigInteger minTokenInt = bigForBytes(MINIMUM.token, MINIMUM.token.length);
-            BigDecimal max = new BigDecimal(maxTokenInt);
-            BigDecimal min = new BigDecimal(minTokenInt);
+            BigDecimal max = MAX_TOKEN_MAGNITUDE;
+            BigDecimal min = MIN_TOKEN_MAGNITUDE;
 
             BigInteger token = max.subtract(min).add(r).subtract(l).multiply(ratio).add(l).toBigInteger();
 
-            if (token.compareTo(maxTokenInt) <= 0)
+            BigInteger maxToken = MAX_TOKEN_MAGNITUDE.toBigInteger();
+
+            if (token.compareTo(maxToken) <= 0)
             {
                 newToken = bytesForBig(token, sigbytes, false);
             }
             else
             {
                 // if the value is above maximum
-                newToken = bytesForBig(minTokenInt.add(token.subtract(maxTokenInt)), sigbytes, false);
+                BigInteger minToken = min.toBigInteger();
+                newToken = bytesForBig(minToken.add(token.subtract(maxToken)), sigbytes, false);
             }
         }
         return new BytesToken(newToken);
