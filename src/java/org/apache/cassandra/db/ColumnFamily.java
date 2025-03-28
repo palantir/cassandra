@@ -73,6 +73,10 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     {
         T cf = factory.create(metadata, reversedInsertOrder);
         cf.delete(this);
+        if (pageToken != null)
+        {
+            cf.setPageToken(pageToken);
+        }
         return cf;
     }
 
@@ -97,6 +101,40 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
                               ? new ColumnCounter(now)
                               : new ColumnCounter.GroupByPrefix(now, getComparator(), metadata.clusteringColumns().size(), true);
         return counter.countAll(this).live();
+    }
+
+    public ColumnFamily cloneLimitByPageToken(PageToken pageToken)
+    {
+        ColumnFamily cf = cloneMeShallow();
+        cf.delete(this);
+
+        CellNameType comparator = getComparator();
+        Collection<Cell> cells = getSortedColumns();
+
+        for (Iterator<Cell> iter = cells.iterator(); iter.hasNext(); )
+        {
+            Cell cell = iter.next();
+
+            if (comparator.compare(cell.name(), pageToken.getToken().name()) < 0)
+            {
+                cf.addColumn(cell);
+            }
+            else
+            {
+                break;
+            }
+        }
+        cf.setPageToken(pageToken);
+
+        return cf;
+    }
+
+    public void setPageToken(PageToken pageToken)
+    {
+        assert pageToken != null;
+        assert this.pageToken == null;
+
+        this.pageToken = pageToken;
     }
 
     public void setPageToken(Cell cell)
