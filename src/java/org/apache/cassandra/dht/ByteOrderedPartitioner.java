@@ -47,12 +47,13 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class ByteOrderedPartitioner implements IPartitioner
 {
+    private static final int GENERATED_TOKEN_LENGTH = 16;
     public static final BytesToken MINIMUM = new BytesToken(ArrayUtils.EMPTY_BYTE_ARRAY);
-    public static final BytesToken MAXIMUM = new BytesToken(new byte[16]);
+    public static final BytesToken MAXIMUM = new BytesToken(new byte[GENERATED_TOKEN_LENGTH]);
     public static final BigDecimal MAX_TOKEN_MAGNITUDE;
     static {
         Arrays.fill(MAXIMUM.token, (byte) 0xFF);
-        MAX_TOKEN_MAGNITUDE = new BigDecimal(bigForBytes(MAXIMUM.token, 16));
+        MAX_TOKEN_MAGNITUDE = new BigDecimal(bigForBytes(MAXIMUM.token, GENERATED_TOKEN_LENGTH));
     }
 
     public static final BigInteger BYTE_MASK = new BigInteger("255");
@@ -130,7 +131,7 @@ public class ByteOrderedPartitioner implements IPartitioner
         public double size(Token next)
         {
             BytesToken n = (BytesToken) next;
-            BigDecimal size = new BigDecimal(bigForBytes(n.token, 16).subtract(bigForBytes(token, 16)));
+            BigDecimal size = new BigDecimal(bigForBytes(n.token, GENERATED_TOKEN_LENGTH).subtract(bigForBytes(token, GENERATED_TOKEN_LENGTH)));
             BigDecimal d = size.divide(MAX_TOKEN_MAGNITUDE, MathContext.DECIMAL64); // Scale so that the full range is 1.
             return (d.compareTo(BigDecimal.ZERO) > 0 ? d : d.add(BigDecimal.ONE)).doubleValue(); // Adjust for signed long, also making sure t.size(t) == 1.
         }
@@ -138,7 +139,7 @@ public class ByteOrderedPartitioner implements IPartitioner
         @Override
         public Token increaseSlightly()
         {
-            if (token.length < 16)
+            if (token.length < GENERATED_TOKEN_LENGTH)
             {
                 byte[] newToken = Arrays.copyOf(token, token.length + 1);
                 newToken[token.length] = 0;
@@ -150,9 +151,9 @@ public class ByteOrderedPartitioner implements IPartitioner
             }
             else
             {
-                byte[] result = new byte[16];
-                System.arraycopy(token, 0, result, 0, 16);
-                for (int i = 15; i >= 0; i--) {
+                byte[] result = new byte[GENERATED_TOKEN_LENGTH];
+                System.arraycopy(token, 0, result, 0, GENERATED_TOKEN_LENGTH);
+                for (int i = GENERATED_TOKEN_LENGTH-1; i >= 0; i--) {
                     if (result[i] != (byte) 0xFF) {
                         result[i]++;
                         break;
@@ -195,9 +196,9 @@ public class ByteOrderedPartitioner implements IPartitioner
         BytesToken lToken = (BytesToken) left;
         BytesToken rToken = (BytesToken) right;
 
-        int sigbytes = 16;
-        BigDecimal l = new BigDecimal(bigForBytes(lToken.token, 16)),
-                   r = new BigDecimal(bigForBytes(rToken.token, 16)),
+        int sigbytes = GENERATED_TOKEN_LENGTH;
+        BigDecimal l = new BigDecimal(bigForBytes(lToken.token, sigbytes)),
+                   r = new BigDecimal(bigForBytes(rToken.token, sigbytes)),
                    ratio = BigDecimal.valueOf(ratioToLeft);
         byte[] newToken;
 
