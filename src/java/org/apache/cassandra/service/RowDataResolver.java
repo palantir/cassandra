@@ -185,7 +185,7 @@ public class RowDataResolver extends AbstractRowResolver
 
         for (ColumnFamily cf : allCfs)
         {
-            if (cf == null)
+            if (cf == null || !cf.isPageTokenSet())
             {
                 continue;
             }
