@@ -1865,6 +1865,23 @@ public class CompactionManager implements CompactionManagerMBean
         validationExecutor.setMaximumPoolSize(number);
     }
 
+    public Map<String, Integer> getPendingTasksByKeyspaceAndTable()
+    {
+        Map<String, Integer> pendingCompactions = new HashMap<>();
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                int estimatedRemainingTasks = cfs.getCompactionStrategy().getEstimatedRemainingTasks();
+                if (estimatedRemainingTasks > 0)
+                {
+                    pendingCompactions.put(String.format("%s/%s", keyspaceName, cfs.getColumnFamilyName()), estimatedRemainingTasks);
+                }
+            }
+        }
+        return pendingCompactions;
+    }
+
     /**
      * Try to stop all of the compactions for given ColumnFamilies.
      *
