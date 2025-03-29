@@ -25,9 +25,9 @@ externalPublishing {
 
         def jarFileNameRoot = "${project.rootDir}/build/palantir-cassandra-test-${project.version}"
         artifact(file("${jarFileNameRoot}.jar"))
-        artifact(file("${jarFileNameRoot}-sources.jar")) {
-            classifier 'sources'
-        }
+//        artifact(file("${jarFileNameRoot}-sources.jar")) {
+//            classifier 'sources'
+//        }
 //        artifact(file("${jarFileNameRoot}-javadoc.jar")) {
 //            classifier 'javadoc'
 //        }
