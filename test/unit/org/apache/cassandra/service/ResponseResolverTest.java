@@ -27,6 +27,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.cassandra.db.filter.PageToken;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -75,6 +76,18 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
+    public void testSingleMessageWithPageToken_RowDigestResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf.addColumn(column("c1", "v1", 0));
+        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
+        Row row = new Row(key, cf);
+
+        testReadResponses(new RowDigestResolver(KEYSPACE, key, MAX_RESPONSE_COUNT), row, makeReadResponse("127.0.0.1", row));
+    }
+
+    @Test
     public void testMultipleMessages_RowDigestResolver() throws DigestMismatchException, UnknownHostException
     {
         ByteBuffer key = bytes("key");
@@ -87,6 +100,22 @@ public class ResponseResolverTest extends SchemaLoader
                           makeReadResponse("127.0.0.1", row),
                           makeReadResponse("127.0.0.2", row),
                           makeReadResponse("127.0.0.3", row));
+    }
+
+    @Test
+    public void testMultipleMessagesWithPageToken_RowDigestResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf.addColumn(column("c1", "v1", 0));
+        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
+        Row row = new Row(key, cf);
+
+        testReadResponses(new RowDigestResolver(KEYSPACE, key, MAX_RESPONSE_COUNT),
+                row,
+                makeReadResponse("127.0.0.1", row),
+                makeReadResponse("127.0.0.2", row),
+                makeReadResponse("127.0.0.3", row));
     }
 
     @Test(expected = DigestMismatchException.class)
