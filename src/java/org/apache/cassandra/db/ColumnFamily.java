@@ -430,8 +430,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
             return false;
 
         ColumnFamily comparison = (ColumnFamily) o;
-        System.out.println("page token here: ");
-        System.out.println(pageToken);
 
         return metadata.equals(comparison.metadata)
                && deletionInfo().equals(comparison.deletionInfo())
