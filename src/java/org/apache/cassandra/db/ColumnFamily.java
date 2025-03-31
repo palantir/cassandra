@@ -102,7 +102,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public ColumnFamily cloneLimitByPageToken(PageToken pageToken)
     {
-        assert pageToken != null;
         ColumnFamily cf = cloneMeShallow();
         cf.delete(this);
 
@@ -113,7 +112,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         {
             Cell cell = iter.next();
 
-            if (comparator.compare(cell.name(), pageToken.getCell().name()) < 0)
+            if (pageToken == null || pageToken.isReachedEnd() || comparator.compare(cell.name(), pageToken.getCell().name()) < 0)
             {
                 cf.addColumn(cell);
             }
@@ -122,7 +121,10 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
                 break;
             }
         }
-        cf.setPageToken(pageToken);
+        if (pageToken != null)
+        {
+            cf.setPageToken(pageToken);
+        }
 
         return cf;
     }
@@ -244,7 +246,8 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public abstract void delete(DeletionInfo info);
     public abstract void delete(DeletionTime deletionTime);
-    protected abstract void delete(RangeTombstone tombstone);
+
+    public abstract void delete(RangeTombstone tombstone);
 
     public abstract SearchIterator<CellName, Cell> searchIterator();
 
