@@ -100,13 +100,9 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public ColumnFamily cloneLimitByPageToken(PageToken pageToken)
     {
+        assert pageToken != null;
         ColumnFamily cf = cloneMeShallow();
         cf.delete(this);
-
-        if (pageToken == null)
-        {
-            return cf;
-        }
 
         CellNameType comparator = getComparator();
         Collection<Cell> cells = getSortedColumns();
