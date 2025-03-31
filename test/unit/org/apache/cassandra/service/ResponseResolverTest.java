@@ -170,6 +170,24 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
+    public void testSingleMessageWithPageToken_RowDataResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf.addColumn(column("c1", "v1", 0));
+        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
+        Row row = new Row(key, cf);
+
+        testReadResponses(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                row,
+                makeReadResponse("127.0.0.1", row));
+    }
+
+    @Test
     public void testMultipleMessages_RowDataResolver() throws DigestMismatchException, UnknownHostException
     {
         ByteBuffer key = bytes("key");
@@ -189,6 +207,58 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
+    public void testMultipleMessagesWithPageToken_RowDataResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf.addColumn(column("c1", "v1", 0));
+        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
+        Row row = new Row(key, cf);
+
+        testReadResponses(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                row,
+                makeReadResponse("127.0.0.1", row),
+                makeReadResponse("127.0.0.2", row),
+                makeReadResponse("127.0.0.3", row));
+    }
+
+    @Test
+    public void testMultipleMessagesWithDifferentPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c1", "v1", 0));
+        cf2.setPageToken(PageToken.createPageToken(column("c3", "v4", 0)));
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c1", "v1", 0));
+        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+
+        testReadResponses(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                row1,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
+    }
+
+    @Test
     public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
     {
         ByteBuffer key = bytes("key");
@@ -205,6 +275,38 @@ public class ResponseResolverTest extends SchemaLoader
                             makeReadResponse("127.0.0.1", row),
                             makeReadResponse("127.0.0.2", row),
                             makeReadResponse("127.0.0.3", row));
+    }
+
+    @Test
+    public void testMultipleThreadsWithPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c1", "v1", 0));
+        cf2.setPageToken(PageToken.createPageToken(column("c3", "v4", 0)));
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c1", "v1", 0));
+        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+
+        testReadResponsesMT(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                row1,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
     }
 
     @Test
