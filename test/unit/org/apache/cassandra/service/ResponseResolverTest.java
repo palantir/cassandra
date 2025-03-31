@@ -23,9 +23,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 import org.apache.cassandra.db.filter.PageToken;
 import org.junit.BeforeClass;
@@ -138,7 +136,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleThreads_RowDigestResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
+    public void testMultipleThreads_RowDigestResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
     {
         ByteBuffer key = bytes("key");
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
@@ -259,7 +257,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
+    public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
     {
         ByteBuffer key = bytes("key");
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
@@ -278,7 +276,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleThreadsWithPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
+    public void testMultipleThreadsWithPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
     {
         ByteBuffer key = bytes("key");
 
@@ -304,6 +302,44 @@ public class ResponseResolverTest extends SchemaLoader
                         System.currentTimeMillis(),
                         MAX_RESPONSE_COUNT),
                 row1,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
+    }
+
+    @Test
+    public void testMultipleThreadsWithDifferentCfs_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c11", "v11", 0));
+        cf2.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c111", "v111", 0));
+        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
+
+        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        resolvedCf.addColumn(column("c1", "v1", 0));
+        resolvedCf.addColumn(column("c11", "v11", 0));
+        resolvedCf.addColumn(column("c111", "v111", 0));
+        resolvedCf.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+        Row resolved = new Row(key, resolvedCf);
+
+        testReadResponsesMT(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                resolved,
                 makeReadResponse("127.0.0.1", row1),
                 makeReadResponse("127.0.0.2", row2),
                 makeReadResponse("127.0.0.3", row3));
@@ -361,7 +397,10 @@ public class ResponseResolverTest extends SchemaLoader
             resolver.preprocess(message);
 
             Row row = resolver.getData();
-            checkSame(expected, row);
+            if (resolver.replies.size() == 1)
+            {
+                checkSame(expected, row);
+            }
 
             row = resolver.resolve();
             checkSame(expected, row);
@@ -370,7 +409,7 @@ public class ResponseResolverTest extends SchemaLoader
 
     private void testReadResponsesMT(final AbstractRowResolver resolver,
                                      final Row expected,
-                                     final MessageIn<ReadResponse> ... messages) throws InterruptedException
+                                     final MessageIn<ReadResponse>... messages) throws InterruptedException, ExecutionException
     {
         for (MessageIn<ReadResponse> message : messages)
             resolver.preprocess(message);
@@ -378,17 +417,21 @@ public class ResponseResolverTest extends SchemaLoader
         final int threadCount = 45;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         final CountDownLatch finished = new CountDownLatch(threadCount);
+        Future<?>[] futures = new Future[threadCount];
 
         for (int i = 0; i < threadCount; i++)
         {
-            executorService.submit(new Runnable()
+            futures[i] = executorService.submit(new Runnable()
             {
                 public void run()
                 {
                     try
                     {
                         Row row = resolver.getData();
-                        checkSame(expected, row);
+                        if (resolver.replies.size() == 1)
+                        {
+                            checkSame(expected, row);
+                        }
 
                         row = resolver.resolve();
                         checkSame(expected, row);
@@ -407,6 +450,11 @@ public class ResponseResolverTest extends SchemaLoader
 
         finished.await();
         assertEquals(0, executorService.shutdownNow().size());
+
+        for (int i = 0; i < threadCount; i++)
+        {
+            futures[i].get();
+        }
 
     }
 
