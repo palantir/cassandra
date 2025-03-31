@@ -608,6 +608,24 @@ struct KeyPredicate {
     2: optional SlicePredicate predicate,
 }
 
+/**
+ * A token returned to the client to indicate the starting column for the next query.
+ * If end_of_row is true, then the paging is complete.
+ */
+struct PageToken {
+    1: optional binary column_name,
+    2: required bool end_of_row,
+}
+
+/**
+ * A token returned to the client to indicate the starting column for the next query.
+ * If end_of_row is true, then the paging is complete.
+ */
+struct PageResult {
+    1: required list<ColumnOrSuperColumn> columns,
+    2: required PageToken page_token,
+}
+
 service Cassandra {
   # auth methods
   void login(1: required AuthenticationRequest auth_request) throws (1:AuthenticationException authnx, 2:AuthorizationException authzx),
@@ -656,6 +674,15 @@ service Cassandra {
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
+    Performs a multiget_slice supporting pagination by returning a page token.
+  */
+  map<binary,PageResult> multiget_slice_paging(1:required list<binary> keys,
+                                                       2:required ColumnParent column_parent,
+                                                       3:required SlicePredicate predicate,
+                                                       4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+  /**
     Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
     users may specify more than one <code>KeyPredicate</code> for each distinct key in the <code>request</code>.
 
@@ -670,6 +697,14 @@ service Cassandra {
     We also do not make guarantees on the ordering of the lists for each key.
   */
   map<binary,list<list<ColumnOrSuperColumn>>> multiget_multislice(1:required list<KeyPredicate> request,
+                                                                  2:required ColumnParent column_parent,
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
+
+/**
+ * Performs a multiget_multislice supporting pagination by returning a page token.
+ */
+  map<binary,list<PageResult>> multiget_multislice_paging(1:required list<KeyPredicate> request,
                                                                   2:required ColumnParent column_parent,
                                                                   3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
