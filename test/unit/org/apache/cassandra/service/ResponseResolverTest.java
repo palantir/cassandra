@@ -41,6 +41,7 @@ import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.apache.cassandra.Util.column;
+import static org.apache.cassandra.Util.tombstone;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -314,10 +315,11 @@ public class ResponseResolverTest extends SchemaLoader
 
         ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
         cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
 
         ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
         cf2.addColumn(column("c11", "v11", 0));
-        cf2.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
 
         ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
         cf3.addColumn(column("c111", "v111", 0));
@@ -328,6 +330,166 @@ public class ResponseResolverTest extends SchemaLoader
         resolvedCf.addColumn(column("c11", "v11", 0));
         resolvedCf.addColumn(column("c111", "v111", 0));
         resolvedCf.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+        Row resolved = new Row(key, resolvedCf);
+
+        testReadResponsesMT(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                resolved,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
+    }
+
+    @Test
+    public void testMultipleThreadsWithDifferentCfsTombstones_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c11", "v11", 0));
+        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
+        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c111", "v111", 0));
+        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
+
+        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        resolvedCf.addColumn(column("c1", "v1", 0));
+        resolvedCf.addColumn(column("c11", "v11", 0));
+        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
+        resolvedCf.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+        Row resolved = new Row(key, resolvedCf);
+
+        testReadResponsesMT(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                resolved,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
+    }
+
+    @Test
+    public void testMultipleThreadsWithEndedPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c11", "v11", 0));
+        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
+        cf2.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c111", "v111", 0));
+        cf3.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        resolvedCf.addColumn(column("c1", "v1", 0));
+        resolvedCf.addColumn(column("c11", "v11", 0));
+        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
+        resolvedCf.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+        Row resolved = new Row(key, resolvedCf);
+
+        testReadResponsesMT(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                resolved,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
+    }
+
+    @Test
+    public void testMultipleThreadsWithMixedPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c11", "v11", 0));
+        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
+        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c111", "v111", 0));
+        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
+
+        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        resolvedCf.addColumn(column("c1", "v1", 0));
+        resolvedCf.addColumn(column("c11", "v11", 0));
+        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
+        resolvedCf.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+        Row row3 = new Row(key, cf3);
+        Row resolved = new Row(key, resolvedCf);
+
+        testReadResponsesMT(new RowDataResolver(KEYSPACE,
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        MAX_RESPONSE_COUNT),
+                resolved,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2),
+                makeReadResponse("127.0.0.3", row3));
+    }
+
+    @Test
+    public void testMultipleThreadsWithMixedPageTokensEnded_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf2.addColumn(column("c11", "v11", 0));
+        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
+        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
+
+        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        cf3.addColumn(column("c111", "v111", 0));
+        cf3.setPageToken(PageToken.createPageTokenReachedEnd());
+
+        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
+        resolvedCf.addColumn(column("c1", "v1", 0));
+        resolvedCf.addColumn(column("c11", "v11", 0));
+        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
+        resolvedCf.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
 
         Row row1 = new Row(key, cf1);
         Row row2 = new Row(key, cf2);

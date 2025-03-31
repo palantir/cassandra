@@ -150,7 +150,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         delete(new DeletionInfo(delTime));
     }
 
-    protected void delete(RangeTombstone tombstone)
+    public void delete(RangeTombstone tombstone)
     {
         delete(new DeletionInfo(tombstone, getComparator()));
     }
