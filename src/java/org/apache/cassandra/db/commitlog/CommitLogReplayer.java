@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.tjake.ICRC32;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
@@ -120,8 +121,8 @@ public class CommitLogReplayer
                     if (replayFilter.includes(cfs.metadata))
                     {
                         logger.info("Restore point in time is before latest truncation of table {}.{}. Clearing truncation record.",
-                                    cfs.metadata.ksName,
-                                    cfs.metadata.cfName);
+                                    SafeArg.of("ksName", cfs.metadata.ksName),
+                                    SafeArg.of("cfName", cfs.metadata.cfName));
                         SystemKeyspace.removeTruncationRecord(cfs.metadata.cfId);
                         truncatedAt = null;
                     }
@@ -136,7 +137,9 @@ public class CommitLogReplayer
         }
         if (globalPosition == null)
             globalPosition = ReplayPosition.firstNotCovered(cfPersisted.values());
-        logger.debug("Global replay position is {} from columnfamilies {}", globalPosition, FBUtilities.toString(cfPersisted));
+        logger.debug("Global replay position is {} from columnfamilies {}",
+                     SafeArg.of("globalPosition", globalPosition),
+                     SafeArg.of("columnFamilies", FBUtilities.toString(cfPersisted)));
         return new CommitLogReplayer(commitLog, globalPosition, cfPersisted, replayFilter);
     }
 
@@ -166,7 +169,7 @@ public class CommitLogReplayer
             {
                 if (shouldSkip(file))
                 {
-                    logger.info("Skipping playback of empty log: {}", file.getName());
+                    logger.info("Skipping playback of empty log: {}", SafeArg.of("fileName", file.getName()));
                 }
                 else
                 {
@@ -198,7 +201,9 @@ public class CommitLogReplayer
     public int blockForWrites()
     {
         for (Map.Entry<UUID, AtomicInteger> entry : invalidMutations.entrySet())
-            logger.warn(String.format("Skipped %d mutations from unknown (probably removed) CF with id %s", entry.getValue().intValue(), entry.getKey()));
+            logger.warn("Skipped {} mutations from unknown (probably removed) CF with id {}",
+                        SafeArg.of("count", entry.getValue().intValue()),
+                        SafeArg.of("cfId", entry.getKey()));
 
         // wait for all the writes to finish on the mutation stage
         FBUtilities.waitOnFutures(futures);
