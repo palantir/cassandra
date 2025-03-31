@@ -117,7 +117,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         {
             Cell cell = iter.next();
 
-            if (comparator.compare(cell.name(), pageToken.getToken().name()) < 0)
+            if (comparator.compare(cell.name(), pageToken.getCell().name()) < 0)
             {
                 cf.addColumn(cell);
             }
@@ -475,7 +475,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         
         for (Cell cell : this)
         {
-            if (metadata.comparator.compare(cell.name(), pageToken.getToken().name()) < 0)
+            if (metadata.comparator.compare(cell.name(), pageToken.getCell().name()) < 0)
             {
                 cell.updateDigest(digest);
             }
