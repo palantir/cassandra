@@ -927,8 +927,8 @@
 	    <artifact:writepom pomRefId="all-pom" file="${build.dir}/${final.name}.pom"/>
 	    <artifact:writepom pomRefId="clientutil-pom"
 	    	               file="${build.dir}/${ant.project.name}-clientutil-${version}.pom"/>
-        <artifact:writepom pomRefId="test-pom"
-                           file="${build.dir}/${ant.project.name}-test-${version}.pom"/>
+	    <artifact:writepom pomRefId="test-pom"
+	                       file="${build.dir}/${ant.project.name}-test-${version}.pom"/>
 	</target>
 
 	<target name="write-poms" unless="without.maven">
