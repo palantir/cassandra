@@ -18,6 +18,10 @@
 */
 package org.apache.cassandra.db;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -25,13 +29,19 @@ import org.apache.cassandra.FilterExperiment;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.KSMetaData;
+import org.apache.cassandra.cql3.restrictions.MultiColumnRestriction;
+import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
+import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
 import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.filter.QueryFilter;
+import org.apache.cassandra.db.filter.SliceQueryFilter;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.io.sstable.ColumnStats;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 
+import static org.apache.cassandra.Util.cellname;
 import static org.junit.Assert.assertEquals;
 
 public class CollationControllerTest
@@ -49,6 +59,59 @@ public class CollationControllerTest
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CFGCGRACE).gcGraceSeconds(0));
+    }
+
+    @Test
+    public void expiredRangeTombstone() {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF);
+        DecoratedKey key = Util.dk("key1");
+
+        Mutation delete = new Mutation(keyspace.getName(), key.getKey());
+        delete.deleteRange(cfs.name, Util.cellname("Column1"), Util.cellname("Column1"), 10);
+        delete.apply();
+
+        Mutation mutate = new Mutation(keyspace.getName(), key.getKey());
+        mutate.add(cfs.name, Util.cellname("Column1"),  ByteBufferUtil.bytes("asdf"), 0);
+        mutate.applyUnsafe();
+
+        QueryFilter filter = new QueryFilter(key, CF, new IdentityQueryFilter(), 864000);
+        ColumnFamily cf = cfs.getColumnFamily(filter);
+        List<Iterator<? extends OnDiskAtom>> iterators = new ArrayList<>();
+        iterators.add(new IdentityQueryFilter().getColumnIterator(key, cf));
+        filter.collateOnDiskAtom(cf, iterators, Integer.MIN_VALUE);
+
+        cf.iterator().forEachRemaining(cell -> {
+            if (cell != null) {
+                System.out.println(cell.getString(cf.getComparator()));
+            }
+        });
+    }
+
+    @Test
+    public void expiredRangeTombstoneIsRemoved() {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF);
+        DecoratedKey key = Util.dk("key1");
+
+        Mutation mutation2 = new Mutation(keyspace.getName(), key.getKey());
+        mutation2.add(cfs.name, Util.cellname("Column1"),  ByteBufferUtil.bytes("asdf"), 0);
+        mutation2.applyUnsafe();
+
+
+        Mutation mutation = new Mutation(keyspace.getName(), key.getKey());
+        mutation.deleteRange(cfs.name, Util.cellname("Column1"), Util.cellname("Column1"), 10);
+        mutation.apply();
+
+        QueryFilter filter = new QueryFilter(key, CF, new IdentityQueryFilter(), 864000);
+        ColumnFamily cf = cfs.getColumnFamily(filter);
+
+        System.out.println("HERE");
+        cf.iterator().forEachRemaining(cell -> {
+            if (cell != null) {
+                System.out.println(cell.getString(cf.getComparator()));
+            }
+        });
     }
 
     @Test
@@ -96,8 +159,12 @@ public class CollationControllerTest
         // recent than the maxTimestamp of the very first sstable we flushed, we should only read the 2 first sstables.
         filter = QueryFilter.getIdentityFilter(dk, cfs.name, System.currentTimeMillis());
         controller = new CollationController(cfs, filter, Integer.MIN_VALUE);
-        controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED);
+        ColumnFamily cf = controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED);
         assertEquals(2, controller.getSstablesIterated());
+        cf.iterator().forEachRemaining(cell -> {
+            System.out.println("Yo");
+            if (cell != null) System.out.println(cell.getString(cf.getComparator()));
+        });
     }
 
     @Test

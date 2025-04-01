@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Iterables;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
@@ -117,8 +118,10 @@ public class RowDataResolver extends AbstractRowResolver
             if (diffCf == null) // no repair needs to happen
                 continue;
 
+            logger.info("Metadata {}", SafeArg.of("deletionInfo", diffCf.deletionInfo()));
             // create and send the mutation message based on the diff
             Mutation mutation = new Mutation(keyspaceName, key.getKey(), diffCf);
+
             // use a separate verb here because we don't want these to be get the white glove hint-
             // on-timeout behavior that a "real" mutation gets
             Tracing.trace("Sending read-repair-mutation to {}", endpoints.get(i));

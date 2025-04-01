@@ -23,10 +23,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.google.common.collect.AbstractIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.RangeSliceReply;
 import org.apache.cassandra.db.Row;
+import org.apache.cassandra.dht.tokenallocator.TokenAllocation;
 import org.apache.cassandra.net.AsyncOneResponse;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.utils.CloseableIterator;
@@ -39,6 +44,8 @@ import org.apache.cassandra.utils.Pair;
  */
 public class RangeSliceResponseResolver implements IResponseResolver<RangeSliceReply, Iterable<Row>>
 {
+    private static final Logger logger = LoggerFactory.getLogger(RangeSliceResponseResolver.class);
+
     private static final Comparator<Pair<Row,InetAddress>> pairComparator = new Comparator<Pair<Row, InetAddress>>()
     {
         public int compare(Pair<Row, InetAddress> o1, Pair<Row, InetAddress> o2)
@@ -142,6 +149,8 @@ public class RangeSliceResponseResolver implements IResponseResolver<RangeSliceR
 
         protected Row getReduced()
         {
+            logger.info("Reduced {} {} {}", SafeArg.of("key", key.getToken()),  SafeArg.of("versions", versions.size()), SafeArg.of("sources", versionSources));
+
             ColumnFamily resolved = versions.size() > 1
                                   ? RowDataResolver.resolveSuperset(versions, timestamp)
                                   : versions.get(0);
@@ -158,8 +167,16 @@ public class RangeSliceResponseResolver implements IResponseResolver<RangeSliceR
                 }
             }
             // resolved can be null even if versions doesn't have all nulls because of the call to removeDeleted in resolveSuperSet
-            if (resolved != null)
+            if (resolved != null) {
+                logger.info("No resolved");
                 repairResults.addAll(RowDataResolver.scheduleRepairs(resolved, keyspaceName, key, versions, versionSources));
+            } else {
+                resolved.iterator().forEachRemaining(cell -> {
+                    if (cell != null) {
+                        logger.info("Cell {}", SafeArg.of("deletionTime", cell.getLocalDeletionTime()));
+                    }
+                });
+            }
             versions.clear();
             versionSources.clear();
             return new Row(key, resolved);

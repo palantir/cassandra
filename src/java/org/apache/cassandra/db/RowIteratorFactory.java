@@ -103,6 +103,7 @@ public class RowIteratorFactory
                 }
                 else
                 {
+                    // hdoan: We never follow this code path given cache row
                     QueryFilter keyFilter = new QueryFilter(key, cfs.name, filter, now);
                     returnCF = cfs.filterColumnFamily(cached, keyFilter);
                 }
