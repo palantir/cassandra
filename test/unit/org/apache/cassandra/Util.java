@@ -30,6 +30,13 @@ import java.util.concurrent.Future;
 
 import com.google.common.base.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.ColumnDefinition;
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.db.compaction.AbstractCompactionTask;
@@ -56,7 +63,9 @@ import static org.junit.Assert.assertTrue;
 
 public class Util
 {
-    private static List<UUID> hostIdPool = new ArrayList<UUID>();
+    private static final Logger logger = LoggerFactory.getLogger(Util.class);
+
+    private static List<UUID> hostIdPool = new ArrayList<>();
 
     public static DecoratedKey dk(String key)
     {
@@ -387,5 +396,62 @@ public class Util
     public static void joinThread(Thread thread) throws InterruptedException
     {
         thread.join(10000);
+    }
+
+    public static AssertionError runCatchingAssertionError(Runnable test)
+    {
+        try
+        {
+            test.run();
+            return null;
+        }
+        catch (AssertionError e)
+        {
+            return e;
+        }
+    }
+
+    /**
+     * Wrapper function used to run a test that can sometimes flake for uncontrollable reasons.
+     *
+     * If the given test fails on the first run, it is executed the given number of times again, expecting all secondary
+     * runs to succeed. If they do, the failure is understood as a flake and the test is treated as passing.
+     *
+     * Do not use this if the test is deterministic and its success is not influenced by external factors (such as time,
+     * selection of random seed, network failures, etc.). If the test can be made independent of such factors, it is
+     * probably preferable to do so rather than use this method.
+     *
+     * @param test The test to run.
+     * @param rerunsOnFailure How many times to re-run it if it fails. All reruns must pass.
+     * @param message Message to send to System.err on initial failure.
+     */
+    public static void flakyTest(Runnable test, int rerunsOnFailure, String message)
+    {
+        AssertionError e = runCatchingAssertionError(test);
+        if (e == null)
+            return;     // success
+
+        logger.info("Test failed. {}", message, e);
+        logger.info("Re-running {} times to verify it isn't failing more often than it should.", rerunsOnFailure);
+
+        int rerunsFailed = 0;
+        for (int i = 0; i < rerunsOnFailure; ++i)
+        {
+            AssertionError t = runCatchingAssertionError(test);
+            if (t != null)
+            {
+                ++rerunsFailed;
+                e.addSuppressed(t);
+
+                logger.debug("Test failed again, total num failures: {}", rerunsFailed, t);
+            }
+        }
+        if (rerunsFailed > 0)
+        {
+            logger.error("Test failed in {} of the {} reruns.", rerunsFailed, rerunsOnFailure);
+            throw e;
+        }
+
+        logger.info("All reruns succeeded. Failure treated as flake.");
     }
 }

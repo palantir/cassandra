@@ -27,6 +27,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.streaming.StreamResultFuture;
 import org.apache.cassandra.streaming.messages.StreamInitMessage;
@@ -76,7 +78,7 @@ public class IncomingStreamingConnection extends Thread implements Closeable
         }
         catch (Throwable t)
         {
-            logger.error("Error while reading from socket from {}.", socket.getRemoteSocketAddress(), t);
+            logger.error("Error while reading from socket from {}.", SafeArg.of("endpoint", socket.getRemoteSocketAddress()), t);
             close();
         }
     }

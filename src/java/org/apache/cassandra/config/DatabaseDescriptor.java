@@ -692,7 +692,7 @@ public class DatabaseDescriptor
             conf.server_encryption_options = conf.encryption_options;
         }
 
-        if (Boolean.getBoolean("palantir_cassandra.is_new_cluster"))
+        if (getIsNewCluster())
         {
             if (conf.data_file_directories.length == 0)
                 throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
@@ -984,6 +984,16 @@ public class DatabaseDescriptor
     public static Collection<String> getInitialTokens()
     {
         return tokensFromString(System.getProperty("cassandra.initial_token", conf.initial_token));
+    }
+
+    public static String getAllocateTokensForKeyspace()
+    {
+        return System.getProperty("cassandra.allocate_tokens_for_keyspace", conf.allocate_tokens_for_keyspace);
+    }
+
+    public static Integer getAllocateTokensForLocalRf()
+    {
+        return Integer.getInteger("cassandra.allocate_tokens_for_local_replication_factor", conf.allocate_tokens_for_local_replication_factor);
     }
 
     public static Collection<String> tokensFromString(String tokenString)
@@ -2100,5 +2110,10 @@ public class DatabaseDescriptor
 
     public static int getWriteDelay() {
         return conf.write_delay_in_s;
+    }
+
+    public static boolean getIsNewCluster()
+    {
+        return Boolean.getBoolean("palantir_cassandra.is_new_cluster");
     }
 }

@@ -20,10 +20,7 @@ package org.apache.cassandra.dht;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.cassandra.db.DecoratedKey;
@@ -80,6 +77,42 @@ public class Murmur3Partitioner implements IPartitioner
         }
 
         return new LongToken(midpoint.longValue());
+    }
+
+    public Token split(Token lToken, Token rToken, double ratioToLeft)
+    {
+        BigDecimal l = BigDecimal.valueOf(((LongToken) lToken).token),
+                   r = BigDecimal.valueOf(((LongToken) rToken).token),
+                   ratio = BigDecimal.valueOf(ratioToLeft);
+        long newToken;
+
+        if (l.compareTo(r) < 0)
+        {
+            newToken = r.subtract(l).multiply(ratio).add(l).toBigInteger().longValue();
+        }
+        else
+        {
+            // wrapping case
+            // L + ((R - min) + (max - L)) * pct
+            BigDecimal max = BigDecimal.valueOf(MAXIMUM);
+            BigDecimal min = BigDecimal.valueOf(MINIMUM.token);
+
+            BigInteger token = max.subtract(min).add(r).subtract(l).multiply(ratio).add(l).toBigInteger();
+
+            BigInteger maxToken = BigInteger.valueOf(MAXIMUM);
+
+            if (token.compareTo(maxToken) <= 0)
+            {
+                newToken = token.longValue();
+            }
+            else
+            {
+                // if the value is above maximum
+                BigInteger minToken = BigInteger.valueOf(MINIMUM.token);
+                newToken = minToken.add(token.subtract(maxToken)).longValue();
+            }
+        }
+        return new LongToken(newToken);
     }
 
     public LongToken getMinimumToken()
@@ -140,6 +173,21 @@ public class Murmur3Partitioner implements IPartitioner
         {
             return token;
         }
+
+        @Override
+        public double size(Token next)
+        {
+            LongToken n = (LongToken) next;
+            long v = n.token - token;  // Overflow acceptable and desired.
+            double d = Math.scalb((double) v, -Long.SIZE); // Scale so that the full range is 1.
+            return d > 0.0 ? d : (d + 1.0); // Adjust for signed long, also making sure t.size(t) == 1.
+        }
+
+        @Override
+        public Token increaseSlightly()
+        {
+            return new LongToken(token + 1);
+        }
     }
 
     /**
@@ -170,7 +218,12 @@ public class Murmur3Partitioner implements IPartitioner
 
     public LongToken getRandomToken()
     {
-        return new LongToken(normalize(ThreadLocalRandom.current().nextLong()));
+        return getRandomToken(ThreadLocalRandom.current());
+    }
+
+    public LongToken getRandomToken(Random r)
+    {
+        return new LongToken(normalize(r.nextLong()));
     }
 
     private long normalize(long v)

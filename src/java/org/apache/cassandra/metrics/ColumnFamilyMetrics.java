@@ -185,9 +185,13 @@ public class ColumnFamilyMetrics
     public final LatencyMetrics coordinatorScanLatency;
 
     public final LatencyMetrics blockingReadRepairLatency;
+    public final Meter avoidedReadRepairs;
     public final Meter blockingReadRepairs;
     public final Meter attemptedReadRepairs;
     public final Meter backgroundReadRepairs;
+
+    public final Meter digestReads;
+    public final Meter dataReads;
 
     public final Counter largePartitionsCompacted;
 
@@ -417,9 +421,12 @@ public class ColumnFamilyMetrics
         coordinatorReadScanLatency = new LatencyMetrics(factory, "CoordinatorReadScan",  new LatencyMetrics(globalNameFactory, "CoordinatorReadScan"));
         coordinatorScanLatency = new LatencyMetrics(factory, "CoordinatorScan", new LatencyMetrics(globalNameFactory, "CoordinatorScan"));
         blockingReadRepairLatency = new LatencyMetrics(factory, "BlockingReadRepair", new LatencyMetrics(globalNameFactory, "BlockingReadRepair"));
+        avoidedReadRepairs = Metrics.meter(factory.createMetricName("AvoidedReadRepairs"));
         blockingReadRepairs = Metrics.meter(factory.createMetricName("BlockingReadRepairs"));
         backgroundReadRepairs = Metrics.meter(factory.createMetricName("BackgroundReadRepairs"));
         attemptedReadRepairs = Metrics.meter(factory.createMetricName("AttemptedReadRepairs"));
+        digestReads = Metrics.meter(factory.createMetricName("DigestReads"));
+        dataReads = Metrics.meter(factory.createMetricName("DataReads"));
         largePartitionsCompacted = Metrics.counter("LargePartitionsCompacted");
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");

@@ -85,7 +85,7 @@ Merged from 2.1:
  * Fix compaction and flush exception not captured (CASSANDRA-13833)
  * Make BatchlogManagerMBean.forceBatchlogReplay() blocking (CASSANDRA-13809)
  * Uncaught exceptions in Netty pipeline (CASSANDRA-13649)
- * Prevent integer overflow on exabyte filesystems (CASSANDRA-13067) 
+ * Prevent integer overflow on exabyte filesystems (CASSANDRA-13067)
  * Fix queries with LIMIT and filtering on clustering columns (CASSANDRA-11223)
  * Fix potential NPE when resume bootstrap fails (CASSANDRA-13272)
  * Fix toJSONString for the UDT, tuple and collection types (CASSANDRA-13592)
@@ -132,7 +132,7 @@ Merged from 2.1:
  * Fix negative mean latency metric (CASSANDRA-12876)
  * Use only one file pointer when creating commitlog segments (CASSANDRA-12539)
  * Fix speculative retry bugs (CASSANDRA-13009)
- * Fix handling of nulls and unsets in IN conditions (CASSANDRA-12981) 
+ * Fix handling of nulls and unsets in IN conditions (CASSANDRA-12981)
  * Remove support for non-JavaScript UDFs (CASSANDRA-12883)
  * Fix DynamicEndpointSnitch noop in multi-datacenter situations (CASSANDRA-13074)
  * cqlsh copy-from: encode column names to avoid primary key parsing errors (CASSANDRA-12909)
@@ -263,19 +263,19 @@ Merged from 2.1:
  * Do not consider local node a valid source during replace (CASSANDRA-11848)
  * Avoid holding SSTableReaders for duration of incremental repair (CASSANDRA-11739)
  * Add message dropped tasks to nodetool netstats (CASSANDRA-11855)
- * Don't compute expensive MaxPurgeableTimestamp until we've verified there's an 
+ * Don't compute expensive MaxPurgeableTimestamp until we've verified there's an
    expired tombstone (CASSANDRA-11834)
  * Add option to disable use of severity in DynamicEndpointSnitch (CASSANDRA-11737)
  * cqlsh COPY FROM fails for null values with non-prepared statements (CASSANDRA-11631)
  * Make cython optional in pylib/setup.py (CASSANDRA-11630)
- * Change order of directory searching for cassandra.in.sh to favor local one 
+ * Change order of directory searching for cassandra.in.sh to favor local one
    (CASSANDRA-11628)
  * cqlsh COPY FROM fails with []{} chars in UDT/tuple fields/values (CASSANDRA-11633)
  * clqsh: COPY FROM throws TypeError with Cython extensions enabled (CASSANDRA-11574)
  * cqlsh: COPY FROM ignores NULL values in conversion (CASSANDRA-11549)
  * (cqlsh) Fix potential COPY deadlock when parent process is terminating child
    processes (CASSANDRA-11505)
- * Validate levels when building LeveledScanner to avoid overlaps with orphaned 
+ * Validate levels when building LeveledScanner to avoid overlaps with orphaned
    sstables (CASSANDRA-9935)
 
 
@@ -500,7 +500,7 @@ Merged from 2.1:
  * Defer default role manager setup until all nodes are on 2.2+ (CASSANDRA-9761)
  * Cancel transaction for sstables we wont redistribute index summary
    for (CASSANDRA-10270)
- * Handle missing RoleManager in config after upgrade to 2.2 (CASSANDRA-10209) 
+ * Handle missing RoleManager in config after upgrade to 2.2 (CASSANDRA-10209)
  * Retry snapshot deletion after compaction and gc on Windows (CASSANDRA-10222)
  * Fix failure to start with space in directory path on Windows (CASSANDRA-10239)
  * Fix repair hang when snapshot failed (CASSANDRA-10057)
@@ -627,7 +627,7 @@ Merged from 2.1:
  * (cqlsh) Fix bad check for CQL compatibility when DESCRIBE'ing
    COMPACT STORAGE tables with no clustering columns
  * Eliminate strong self-reference chains in sstable ref tidiers (CASSANDRA-9656)
- * Ensure StreamSession uses canonical sstable reader instances (CASSANDRA-9700) 
+ * Ensure StreamSession uses canonical sstable reader instances (CASSANDRA-9700)
  * Ensure memtable book keeping is not corrupted in the event we shrink usage (CASSANDRA-9681)
  * Update internal python driver for cqlsh (CASSANDRA-9064)
  * Fix IndexOutOfBoundsException when inserting tuple with too many
