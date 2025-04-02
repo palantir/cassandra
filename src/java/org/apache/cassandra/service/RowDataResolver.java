@@ -138,10 +138,10 @@ public class RowDataResolver extends AbstractRowResolver {
         ColumnFamily resolved = null;
         for (ColumnFamily cf : versions)
         {
-            logger.info("Column family for versions {} {}", SafeArg.of("cf", cf.metadata().ksAndCFName), SafeArg.of("deletionInfo", cf.deletionInfo()));
             if (cf == null)
                 continue;
 
+            logger.info("Column family for versions {} {}", SafeArg.of("cf", cf.metadata().ksAndCFName), SafeArg.of("deletionInfo", cf.deletionInfo()));
             if (resolved == null)
                 resolved = cf.cloneMeShallow();
             else
