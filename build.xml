@@ -1105,6 +1105,11 @@
           <include name="org/apache/cassandra/utils/UUIDGen*.java" />
         </fileset>
       </jar>
+      <jar jarfile="${build.dir}/${ant.project.name}-test-${version}-sources.jar">
+        <fileset dir="${build.test.dir}" defaultexcludes="yes">
+          <include name="org/apache/**/*.java"/>
+        </fileset>
+      </jar>
     </target>
 
     <!-- creates release tarballs -->
