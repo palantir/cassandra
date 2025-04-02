@@ -694,7 +694,7 @@
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
-  <dependency groupId="com.google.guava" artifactId="guava"/>
+        <dependency groupId="com.google.guava" artifactId="guava"/>
       </artifact:pom>
       <artifact:pom id="test-pom"
                     artifactId="cassandra-test"
