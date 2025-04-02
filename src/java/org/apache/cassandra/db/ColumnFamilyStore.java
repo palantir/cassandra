@@ -3000,9 +3000,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
 
-    public void forceMajorCompaction(boolean splitOutput) throws InterruptedException, ExecutionException
+    public void forceMajorCompaction(boolean _splitOutput) throws InterruptedException, ExecutionException
     {
-        CompactionManager.instance.performMaximal(this, splitOutput);
+//        CompactionManager.instance.performMaximal(this, splitOutput);
     }
 
     public static Iterable<ColumnFamilyStore> all()
