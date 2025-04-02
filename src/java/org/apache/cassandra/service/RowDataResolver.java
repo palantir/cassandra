@@ -36,8 +36,7 @@ import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.CloseableIterator;
 import org.apache.cassandra.utils.FBUtilities;
 
-public class RowDataResolver extends AbstractRowResolver
-{
+public class RowDataResolver extends AbstractRowResolver {
     private int maxLiveCount = 0;
     public List<AsyncOneResponse> repairResults = Collections.emptyList();
     private final IDiskAtomFilter filter;
@@ -139,6 +138,7 @@ public class RowDataResolver extends AbstractRowResolver
         ColumnFamily resolved = null;
         for (ColumnFamily cf : versions)
         {
+            logger.info("Column family for versions {} {}", SafeArg.of("cf", cf.metadata().ksAndCFName), SafeArg.of("deletionInfo", cf.deletionInfo()));
             if (cf == null)
                 continue;
 
@@ -147,8 +147,10 @@ public class RowDataResolver extends AbstractRowResolver
             else
                 resolved.delete(cf);
         }
-        if (resolved == null)
+        if (resolved == null) {
+            logger.info("Null resolved");
             return null;
+        }
 
         // mimic the collectCollatedColumn + removeDeleted path that getColumnFamily takes.
         // this will handle removing columns and subcolumns that are suppressed by a row or
@@ -158,6 +160,7 @@ public class RowDataResolver extends AbstractRowResolver
         for (ColumnFamily version : versions)
             if (version != null)
                 iters.add(FBUtilities.closeableIterator(version.iterator()));
+        logger.info("Iterators {}", SafeArg.of("iters", iters.size()));
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
         return ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
     }

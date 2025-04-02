@@ -27,6 +27,7 @@ import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
@@ -302,6 +303,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
+        logger.info("Reduced columns {}", SafeArg.of("deletionInfo", container.deletionInfo()));
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
@@ -311,8 +313,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             // An expired tombstone will be immediately discarded in memory, and needn't be counted.
             // Neither should be any cell shadowed by a range- or a partition tombstone.
-            if (cell.getLocalDeletionTime() < gcBefore || !columnCounter.count(cell, tester))
+            if (cell.getLocalDeletionTime() < gcBefore || !columnCounter.count(cell, tester)) {
+                logger.info("Purgable {}", SafeArg.of("localDeletion", cell.getLocalDeletionTime()));
                 continue;
+            }
 
             // always safe to exit if we've seen more then we need. this will happen if we're grouping composite columns
             // (ColumnCounter#hasSeenAtLeast won't return true until we've seen the start of the next group)

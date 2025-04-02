@@ -156,6 +156,7 @@ public class RangeSliceResponseResolver implements IResponseResolver<RangeSliceR
             // resolved can be null even if versions doesn't have all nulls because of the
             // call to removeDeleted in resolveSuperSet
             if (resolved != null) {
+                logger.info("Resolved {}", SafeArg.of("name", resolved.metadata().ksAndCFName));
                 repairResults
                         .addAll(RowDataResolver.scheduleRepairs(resolved, keyspaceName, key, versions, versionSources));
                 resolved.iterator().forEachRemaining(cell -> {
