@@ -303,7 +303,6 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
-        logger.info("Reduced columns {}", SafeArg.of("deletionInfo", container.deletionInfo()));
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();

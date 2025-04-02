@@ -137,8 +137,7 @@ public class RangeSliceResponseResolver implements IResponseResolver<RangeSliceR
         }
 
         protected Row getReduced() {
-            logger.info("Reduced {} {} {}", SafeArg.of("key", key.getToken()), SafeArg.of("versions", versions.size()),
-                    SafeArg.of("sources", versionSources));
+            logger.info("Reduced {} {} {}", SafeArg.of("key", key.getToken()), SafeArg.of("versions", versions), SafeArg.of("sources", versionSources));
 
             ColumnFamily resolved = versions.size() > 1
                     ? RowDataResolver.resolveSuperset(versions, timestamp)
@@ -156,7 +155,7 @@ public class RangeSliceResponseResolver implements IResponseResolver<RangeSliceR
             // resolved can be null even if versions doesn't have all nulls because of the
             // call to removeDeleted in resolveSuperSet
             if (resolved != null) {
-                logger.info("Resolved {}", SafeArg.of("name", resolved.metadata().ksAndCFName));
+                logger.info("Resolved {} {}", SafeArg.of("name", resolved.metadata().ksAndCFName), SafeArg.of("deletionInfo", resolved.deletionInfo()));
                 repairResults
                         .addAll(RowDataResolver.scheduleRepairs(resolved, keyspaceName, key, versions, versionSources));
                 resolved.iterator().forEachRemaining(cell -> {

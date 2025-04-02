@@ -138,8 +138,10 @@ public class RowDataResolver extends AbstractRowResolver {
         ColumnFamily resolved = null;
         for (ColumnFamily cf : versions)
         {
-            if (cf == null)
+            if (cf == null) {
+                logger.info("Found null version");
                 continue;
+            }
 
             logger.info("Column family for versions {} {}", SafeArg.of("cf", cf.metadata().ksAndCFName), SafeArg.of("deletionInfo", cf.deletionInfo()));
             if (resolved == null)
@@ -162,6 +164,7 @@ public class RowDataResolver extends AbstractRowResolver {
                 iters.add(FBUtilities.closeableIterator(version.iterator()));
         logger.info("Iterators {}", SafeArg.of("iters", iters.size()));
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
+        logger.info("After collating {}", SafeArg.of("deletionInfo", resolved.deletionInfo()));
         return ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
     }
 
