@@ -28,6 +28,9 @@ externalPublishing {
         artifact(file("${jarFileNameRoot}-sources.jar")) {
             classifier 'sources'
         }
+        artifact(file("${jarFileNameRoot}-javadoc.jar")) {
+            classifier 'javadoc'
+        }
 
         pom.withXml {
             generatePomFromExisting(asNode(), "${project.rootDir}/build/palantir-cassandra-test-${project.version}.pom")
