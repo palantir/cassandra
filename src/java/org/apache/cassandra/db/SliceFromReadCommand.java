@@ -60,18 +60,6 @@ public class SliceFromReadCommand extends ReadCommand
 
     public Row getRow(Keyspace keyspace)
     {
-        if (keyspace.getName().equals("dg"))
-        {
-            Composite start = filter.start();
-            Composite finish = filter.finish();
-            StringBuilder sbStart = new StringBuilder();
-            Composite.toString(start.toByteBuffer(), sbStart);
-            StringBuilder sbFinish = new StringBuilder();
-            Composite.toString(finish.toByteBuffer(), sbFinish);
-            logger.info("Received read in verb handler", SafeArg.of("usePageToken", filter.usePageToken), SafeArg.of("start", sbStart.toString()), SafeArg.of("finish", sbFinish.toString()));
-        }
-
-
         CFMetaData cfm = Schema.instance.getCFMetaData(ksName, cfName);
         DecoratedKey dk = StorageService.getPartitioner().decorateKey(key);
 
@@ -96,13 +84,7 @@ public class SliceFromReadCommand extends ReadCommand
             return normalResults;
         }
 
-        Row row = keyspace.getRow(new QueryFilter(dk, cfName, filter, timestamp));
-        if (keyspace.getName().equals("dg") && row != null && row.cf != null)
-        {
-            logger.info("Read done locally from verb handler", SafeArg.of("pageTokenSet", row.cf.isPageTokenSet()), SafeArg.of("pageToken", row.cf.pageToken()));
-        }
-
-        return row;
+        return keyspace.getRow(new QueryFilter(dk, cfName, filter, timestamp));
     }
 
     @Override
