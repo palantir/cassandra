@@ -33,6 +33,7 @@ import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.Token;
@@ -63,12 +64,12 @@ public class TokenAllocation
 
         if (logger.isWarnEnabled())
         {
-            logger.warn("Selected tokens {}", tokens);
+            logger.warn("Selected tokens {}", SafeArg.of("tokens", tokens));
             SummaryStatistics os = replicatedOwnershipStats(tokenMetadataCopy, rs, endpoint);
             tokenMetadataCopy.updateNormalTokens(tokens, endpoint);
             SummaryStatistics ns = replicatedOwnershipStats(tokenMetadataCopy, rs, endpoint);
-            logger.warn("Replicated node load in datacenter before allocation {}", statToString(os));
-            logger.warn("Replicated node load in datacenter after allocation {}", statToString(ns));
+            logger.warn("Replicated node load in datacenter before allocation {}", SafeArg.of("stats", statToString(os)));
+            logger.warn("Replicated node load in datacenter after allocation {}", SafeArg.of("stats", statToString(ns)));
 
             // TODO: Is it worth doing the replicated ownership calculation always to be able to raise this alarm?
             if (ns.getStandardDeviation() > os.getStandardDeviation())
@@ -87,7 +88,7 @@ public class TokenAllocation
         StrategyAdapter strategy = getStrategy(tokenMetadataCopy, replicas, endpoint);
         Collection<Token> tokens = create(tokenMetadata, strategy, partitioner).addUnit(endpoint, numTokens);
         tokens = adjustForCrossDatacenterClashes(tokenMetadata, strategy, tokens);
-        logger.warn("Selected tokens {}", tokens);
+        logger.warn("Selected tokens {}", SafeArg.of("tokens", tokens));
         // SummaryStatistics is not implemented for `allocate_tokens_for_local_replication_factor`
         return tokens;
     }
