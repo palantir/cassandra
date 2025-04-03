@@ -34,6 +34,7 @@ import com.palantir.cassandra.concurrent.LocalReadRunnableTimeoutWatcher;
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
+import com.palantir.logsafe.SafeArg;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1447,6 +1448,10 @@ public class StorageProxy implements StorageProxyMBean
                     if (row != null)
                     {
                         row = exec.command.maybeTrim(row);
+                        if (exec.command.getKeyspace().equals("dg") && row != null && row.cf != null)
+                        {
+                            logger.info("in fetch rows after digest", SafeArg.of("pageToken", row.cf.pageToken()));
+                        }
                         rows.add(row);
                     }
 
@@ -1530,6 +1535,10 @@ public class StorageProxy implements StorageProxyMBean
                         try
                         {
                             row = handler.get();
+                            if (command.getKeyspace().equals("dg") && row != null && row.cf != null)
+                            {
+                                logger.info("in fetch rows after data", SafeArg.of("pageToken", row.cf.pageToken()));
+                            }
                         }
                         catch (DigestMismatchException e)
                         {
