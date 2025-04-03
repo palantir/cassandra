@@ -188,7 +188,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
     private static Collection<Token> getSpecifiedTokens(final TokenMetadata metadata,
                                                         Collection<String> initialTokens)
     {
-        logger.info("tokens manually specified as {}", SafeArg.of("initialTokens", initialTokens));
+        logger.info("Tokens manually specified as {}", SafeArg.of("initialTokens", initialTokens));
         List<Token> tokens = new ArrayList<>(initialTokens.size());
         for (String tokenString : initialTokens)
         {
