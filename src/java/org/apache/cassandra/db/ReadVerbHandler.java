@@ -23,19 +23,14 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.utils.OwnershipVerificationUtils;
-import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
-import org.apache.cassandra.thrift.CassandraServer;
 import org.apache.cassandra.tracing.Tracing;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ReadVerbHandler implements IVerbHandler<ReadCommand>
 {
@@ -50,7 +45,6 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
         ReadCommand command = message.payload;
         OwnershipVerificationUtils.verifyRead(command);
         Keyspace keyspace = Keyspace.open(command.ksName);
-
         Row row = command.getRow(keyspace);
 
         MessageOut<ReadResponse> reply = new MessageOut<ReadResponse>(MessagingService.Verb.REQUEST_RESPONSE,
