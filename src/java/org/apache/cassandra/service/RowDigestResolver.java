@@ -18,8 +18,10 @@
 package org.apache.cassandra.service;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
@@ -108,12 +110,24 @@ public class RowDigestResolver extends AbstractRowResolver
             }
             else if (!digest.equals(newDigest) || (pageTokenDigest != null && !pageTokenDigest.equals(newPageTokenDigest)))
             {
-                throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
+                DigestMismatchException e = new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
+                if (keyspaceName.equals("dg"))
+                {
+                    logger.error("Digest mismatch", e);
+                }
+                throw e;
             }
         }
 
         if (logger.isTraceEnabled())
             logger.trace("resolve: {} ms.", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+
+
+        if (keyspaceName.equals("dg") && data != null)
+        {
+            logger.info("Resolved in Digest", SafeArg.of("pageToken", data.pageToken()));
+        }
+
         return new Row(key, data);
     }
 

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import com.google.common.base.MoreObjects;
+import com.palantir.logsafe.SafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +83,13 @@ public class SliceFromReadCommand extends ReadCommand
             return normalResults;
         }
 
-        return keyspace.getRow(new QueryFilter(dk, cfName, filter, timestamp));
+        Row row = keyspace.getRow(new QueryFilter(dk, cfName, filter, timestamp));
+        if (keyspace.equals("dg") && row != null && row.cf != null)
+        {
+            logger.info("Read done locally from verb handler", SafeArg.of("pageTokenSet", row.cf.isPageTokenSet()), SafeArg.of("pageToken", row.cf.pageToken()));
+        }
+
+        return row;
     }
 
     @Override

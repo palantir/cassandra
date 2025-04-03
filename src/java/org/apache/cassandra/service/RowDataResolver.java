@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Iterables;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
@@ -92,6 +93,11 @@ public class RowDataResolver extends AbstractRowResolver
             // (resolved can be null even if versions doesn't have all nulls because of the call to removeDeleted in resolveSuperSet)
             if (resolved != null)
                 repairResults = scheduleRepairs(resolved, keyspaceName, key, versions, endpoints);
+
+            if (keyspaceName.equals("dg") && resolved != null)
+            {
+                logger.info("Resolved in Data", SafeArg.of("pageToken", resolved.pageToken()));
+            }
         }
         else
         {
