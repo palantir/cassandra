@@ -419,6 +419,11 @@ public class CassandraServer implements Cassandra.Iface
             return new PageResult().setColumns(EMPTY_COLUMNS).setPage_token(new PageToken().setEnd_of_row(true));
         }
 
+        if (!cf.hasColumns())
+        {
+            return new PageResult().setColumns(EMPTY_COLUMNS).setPage_token(thriftifyPageToken(cf.pageToken()));
+        }
+
         assert !cf.metadata().isSuper();
         return thriftifyColumnsPaging(cf.getSortedColumns(), reverseOrder, now, cf.pageToken());
     }
