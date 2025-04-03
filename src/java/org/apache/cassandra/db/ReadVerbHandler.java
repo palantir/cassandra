@@ -38,6 +38,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
     {
         if (StorageService.instance.isBootstrapMode())
         {
+            
             /* Don't service reads! */
             throw new IsBootstrappingException();
         }
