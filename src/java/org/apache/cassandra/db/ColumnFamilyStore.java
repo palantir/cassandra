@@ -3404,7 +3404,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public boolean isRowCacheEnabled()
     {
-        return metadata.getCaching().rowCache.isEnabled() && CacheService.instance.rowCache.getCapacity() > 0;
+        return false;
+//        return metadata.getCaching().rowCache.isEnabled() && CacheService.instance.rowCache.getCapacity() > 0;
     }
 
     public boolean isCounterCacheEnabled()
