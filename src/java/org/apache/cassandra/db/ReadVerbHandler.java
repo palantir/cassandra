@@ -53,18 +53,6 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
         OwnershipVerificationUtils.verifyRead(command);
         Keyspace keyspace = Keyspace.open(command.ksName);
 
-        if (keyspace.getName().equals("dg") && command instanceof SliceFromReadCommand)
-        {
-            SliceFromReadCommand sliceCommand = (SliceFromReadCommand) command;
-            Composite start = sliceCommand.filter.start();
-            Composite finish = sliceCommand.filter.finish();
-            StringBuilder sbStart = new StringBuilder();
-            Composite.toString(start.toByteBuffer(), sbStart);
-            StringBuilder sbFinish = new StringBuilder();
-            Composite.toString(finish.toByteBuffer(), sbFinish);
-            logger.info("Doing local query with filter", SafeArg.of("start", sbStart.toString()), SafeArg.of("finish", sbFinish.toString()));
-        }
-
         Row row = command.getRow(keyspace);
 
         MessageOut<ReadResponse> reply = new MessageOut<ReadResponse>(MessagingService.Verb.REQUEST_RESPONSE,

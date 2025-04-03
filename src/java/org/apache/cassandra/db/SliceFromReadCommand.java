@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 
 import com.google.common.base.MoreObjects;
 import com.palantir.logsafe.SafeArg;
+import org.apache.cassandra.db.composites.Composite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,8 +62,15 @@ public class SliceFromReadCommand extends ReadCommand
     {
         if (keyspace.getName().equals("dg"))
         {
-            logger.info("Received read in verb handler", SafeArg.of("usePageToken", filter.usePageToken));
+            Composite start = filter.start();
+            Composite finish = filter.finish();
+            StringBuilder sbStart = new StringBuilder();
+            Composite.toString(start.toByteBuffer(), sbStart);
+            StringBuilder sbFinish = new StringBuilder();
+            Composite.toString(finish.toByteBuffer(), sbFinish);
+            logger.info("Received read in verb handler", SafeArg.of("usePageToken", filter.usePageToken), SafeArg.of("start", sbStart.toString()), SafeArg.of("finish", sbFinish.toString()));
         }
+
 
         CFMetaData cfm = Schema.instance.getCFMetaData(ksName, cfName);
         DecoratedKey dk = StorageService.getPartitioner().decorateKey(key);
