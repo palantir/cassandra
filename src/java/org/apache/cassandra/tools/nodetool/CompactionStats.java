@@ -49,11 +49,9 @@ public class CompactionStats extends NodeToolCmd
     {
         CompactionManagerMBean cm = probe.getCompactionManagerProxy();
         Map<String, Integer> pendingCompactions = cm.getPendingTasksByKeyspaceAndTable();
-        int runningAndPendingCompactions = 0;
-        for (Integer pendingCompaction : pendingCompactions.values())
-        {
-            runningAndPendingCompactions += pendingCompaction;
-        }
+        int runningAndPendingCompactions = pendingCompactions.values().stream()
+                                                             .mapToInt(Integer::intValue)
+                                                             .sum();
         probe.output().out.println("pending tasks: " + runningAndPendingCompactions);
         if (verbose)
         {
