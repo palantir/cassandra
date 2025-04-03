@@ -35,6 +35,7 @@ import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
 import com.palantir.cassandra.settings.LocalQuorumReadForSerialCasSetting;
 import com.palantir.logsafe.SafeArg;
+import org.apache.cassandra.db.composites.Composite;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

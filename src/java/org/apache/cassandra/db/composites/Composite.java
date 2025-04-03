@@ -75,4 +75,34 @@ public interface Composite extends IMeasurableMemory
 
     public int dataSize();
     public Composite copy(CFMetaData cfm, AbstractAllocator allocator);
+
+
+    public static void toString(ByteBuffer bb, StringBuilder sb)
+    {
+        byte[] buf = bb.array();
+
+        int arrayOffset = bb.arrayOffset();
+        int offset = arrayOffset + bb.position();
+        int origLimit = arrayOffset + bb.limit();
+        int limit = (origLimit - offset > 128) ? offset + 128 : origLimit;
+
+        for (int i = offset; i < limit; i++)
+        {
+            if (i > offset)
+            {
+                sb.append(" ");
+            }
+            sb.append(paddedByteString(buf[i]));
+        }
+        if (origLimit != limit)
+        {
+            sb.append("...");
+        }
+    }
+
+    public static String paddedByteString(byte b)
+    {
+        int extended = (b | 0x100) & 0x1ff;
+        return Integer.toHexString(extended).toUpperCase().substring(1);
+    }
 }
