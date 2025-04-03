@@ -59,6 +59,11 @@ public class SliceFromReadCommand extends ReadCommand
 
     public Row getRow(Keyspace keyspace)
     {
+        if (keyspace.getName().equals("dg"))
+        {
+            logger.info("Received read in verb handler", SafeArg.of("usePageToken", filter.usePageToken));
+        }
+
         CFMetaData cfm = Schema.instance.getCFMetaData(ksName, cfName);
         DecoratedKey dk = StorageService.getPartitioner().decorateKey(key);
 
@@ -84,7 +89,7 @@ public class SliceFromReadCommand extends ReadCommand
         }
 
         Row row = keyspace.getRow(new QueryFilter(dk, cfName, filter, timestamp));
-        if (keyspace.equals("dg") && row != null && row.cf != null)
+        if (keyspace.getName().equals("dg") && row != null && row.cf != null)
         {
             logger.info("Read done locally from verb handler", SafeArg.of("pageTokenSet", row.cf.isPageTokenSet()), SafeArg.of("pageToken", row.cf.pageToken()));
         }
