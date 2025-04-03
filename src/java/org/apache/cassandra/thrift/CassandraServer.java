@@ -645,14 +645,6 @@ public class CassandraServer implements Cassandra.Iface
 
         Composite start = metadata.comparator.fromByteBuffer(range.start);
         Composite finish = metadata.comparator.fromByteBuffer(range.finish);
-        if (metadata.ksName.equals("dg") && usePageToken)
-        {
-            StringBuilder sbStart = new StringBuilder();
-            Composite.toString(start.toByteBuffer(), sbStart);
-            StringBuilder sbFinish = new StringBuilder();
-            Composite.toString(finish.toByteBuffer(), sbFinish);
-            logger.info("Doing query with filter", SafeArg.of("start", sbStart.toString()), SafeArg.of("finish", sbFinish.toString()));
-        }
         return new SliceQueryFilter(start, finish, range.reversed, usePageToken, range.count);
     }
 
