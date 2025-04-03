@@ -413,7 +413,7 @@ public class CassandraServer implements Cassandra.Iface
 
     private PageResult thriftifyColumnFamilyPaging(ColumnFamily cf, boolean subcolumnsOnly, boolean reverseOrder, long now)
     {
-        if (cf == null || !cf.hasColumns())
+        if (cf == null)
         {
             return new PageResult().setColumns(EMPTY_COLUMNS).setPage_token(new PageToken().setEnd_of_row(true));
         }
