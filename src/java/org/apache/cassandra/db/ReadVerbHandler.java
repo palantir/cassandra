@@ -23,17 +23,24 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.utils.OwnershipVerificationUtils;
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.thrift.CassandraServer;
 import org.apache.cassandra.tracing.Tracing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ReadVerbHandler implements IVerbHandler<ReadCommand>
 {
+    private static final Logger logger = LoggerFactory.getLogger(ReadVerbHandler.class);
+
     public void doVerb(MessageIn<ReadCommand> message, int id)
     {
         if (StorageService.instance.isBootstrapMode())
@@ -45,6 +52,19 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
         ReadCommand command = message.payload;
         OwnershipVerificationUtils.verifyRead(command);
         Keyspace keyspace = Keyspace.open(command.ksName);
+
+        if (keyspace.getName().equals("dg") && command instanceof SliceFromReadCommand)
+        {
+            SliceFromReadCommand sliceCommand = (SliceFromReadCommand) command;
+            Composite start = sliceCommand.filter.start();
+            Composite finish = sliceCommand.filter.finish();
+            StringBuilder sbStart = new StringBuilder();
+            Composite.toString(start.toByteBuffer(), sbStart);
+            StringBuilder sbFinish = new StringBuilder();
+            Composite.toString(finish.toByteBuffer(), sbFinish);
+            logger.info("Doing local query with filter", SafeArg.of("start", sbStart.toString()), SafeArg.of("finish", sbFinish.toString()));
+        }
+
         Row row = command.getRow(keyspace);
 
         MessageOut<ReadResponse> reply = new MessageOut<ReadResponse>(MessagingService.Verb.REQUEST_RESPONSE,
