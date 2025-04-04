@@ -1449,6 +1449,10 @@ public class StorageProxy implements StorageProxyMBean
                     if (row != null)
                     {
                         row = exec.command.maybeTrim(row);
+                        if (exec.command.getKeyspace().equals("dg") && row != null && row.cf != null)
+                        {
+                            logger.info("in fetch rows after digest", SafeArg.of("pageToken", row.cf.pageToken()));
+                        }
                         rows.add(row);
                     }
 
@@ -1532,6 +1536,10 @@ public class StorageProxy implements StorageProxyMBean
                         try
                         {
                             row = handler.get();
+                            if (command.getKeyspace().equals("dg") && row != null && row.cf != null)
+                            {
+                                logger.info("in fetch rows after data", SafeArg.of("pageToken", row.cf.pageToken()));
+                            }
                         }
                         catch (DigestMismatchException e)
                         {

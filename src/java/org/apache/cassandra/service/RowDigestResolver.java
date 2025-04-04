@@ -110,12 +110,23 @@ public class RowDigestResolver extends AbstractRowResolver
             }
             else if (!digest.equals(newDigest) || (pageTokenDigest != null && !pageTokenDigest.equals(newPageTokenDigest)))
             {
-                throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
+                DigestMismatchException e = new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
+                if (keyspaceName.equals("dg"))
+                {
+                    logger.error("Digest mismatch", e);
+                }
+                throw e;
             }
         }
 
         if (logger.isTraceEnabled())
             logger.trace("resolve: {} ms.", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+
+
+        if (keyspaceName.equals("dg") && data != null)
+        {
+            logger.info("Resolved in Digest", SafeArg.of("pageToken", data.pageToken()));
+        }
 
         return new Row(key, data);
     }
