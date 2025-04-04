@@ -42,6 +42,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
@@ -979,7 +980,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         try (Refs<SSTableReader> refs = Refs.ref(sstables))
         {
             cfs.indexManager.setIndexRemoved(indexes);
-            logger.info("User Requested secondary index re-build for {}/{} indexes", SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+            logger.info("User Requested secondary index re-build for {}/{} indexes", SafeArg.of("keyspace", ksName), SafeArg.of("cfName", cfName));
             cfs.indexManager.maybeBuildSecondaryIndexes(sstables, indexes);
             cfs.indexManager.setIndexBuilt(indexes);
         }
@@ -2656,20 +2657,19 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             {
                 metric.rowCountWarnings.inc();
                 int numTombstonedRows = countTombstonedRows(rows, filter);
-                String msg = String.format("Scanned over %d rows (%d tombstoned) in %s.%s; " +
-                                           "%d rows were requested (see rowcount_warn_threshold); " +
-                                           "lastRow=%s; dataLimits=%s",
-                                           rows.size(),
-                                           numTombstonedRows,
-                                           filter.cfs.metadata.ksName,
-                                           filter.cfs.metadata.cfName,
-                                           filter.maxRows(),
-                                           rawRow == null ? "null" : rawRow.key.toString(),
-                                           filter.dataRange.toString());
                 Tracing.trace("Scanned over {} rows ({} tombstoned) (see tombstone_warn_threshold)",
                               rows.size(),
                               numTombstonedRows);
-                logger.warn(msg);
+                logger.warn("Scanned over {} rows ({} tombstoned) in {}.{}; " +
+                                "{} rows were requested (see rowcount_warn_threshold); " +
+                                "lastRow={}; dataLimits={}",
+                        SafeArg.of("numRows", rows.size()),
+                        SafeArg.of("numTombstonedRows", numTombstonedRows),
+                        SafeArg.of("ksName", filter.cfs.metadata.ksName),
+                        SafeArg.of("cfName", filter.cfs.metadata.cfName),
+                        SafeArg.of("requestedRows", filter.maxRows()),
+                        UnsafeArg.of("rawRowKey", rawRow == null ? "null" : rawRow.key.toString()),
+                        SafeArg.of("dataLimits", filter.dataRange.toString()));
             }
 
             return rows;
@@ -2826,7 +2826,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 }
                 else if (logger.isTraceEnabled())
                 {
-                    logger.trace("using active sstable {}", entries.getKey());
+                    logger.trace("using active sstable {}", UnsafeArg.of("descriptor", entries.getKey()));
                 }
             }
         }
@@ -3094,7 +3094,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         // beginning if we restart before they [the CL segments] are discarded for
         // normal reasons post-truncate.  To prevent this, we store truncation
         // position in the System keyspace.
-        logger.trace("truncating {}", name);
+        logger.trace("truncating {}", SafeArg.of("cfName", name));
 
         final long truncatedAt;
         final ReplayPosition replayAfter;
