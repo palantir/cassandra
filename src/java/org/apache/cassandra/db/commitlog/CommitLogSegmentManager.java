@@ -123,7 +123,7 @@ public class CommitLogSegmentManager
                                 CommitLogSegment newSegment = CommitLogSegment.createSegment(commitLog);
                                 availableSegments.add(newSegment);
                                 logger.info("No segments in reserve; created a fresh one",
-                                            SafeArg.of("segmentId", newSegment.id));
+                                            SafeArg.of("segment", newSegment.id));
                                 hasAvailableSegments.signalAll();
                             }
 
