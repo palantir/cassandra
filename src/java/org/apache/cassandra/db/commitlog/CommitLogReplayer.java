@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.palantir.logsafe.SafeArg;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
@@ -399,8 +400,10 @@ public class CommitLogReplayer
             {
                 int replayPos = replayEnd + CommitLogSegment.SYNC_MARKER_SIZE;
 
-                if (logger.isTraceEnabled())
-                    logger.trace("Replaying {} between {} and {}", file, reader.getFilePointer(), end);
+                logger.debug("Replaying {} between {} and {}",
+                             SafeArg.of("file", file.getName()),
+                             SafeArg.of("start", reader.getFilePointer()),
+                             SafeArg.of("end", end));
                 if (compressor != null)
                 {
                     int uncompressedLength = reader.readInt();
@@ -473,7 +476,7 @@ public class CommitLogReplayer
 
         if (globalPosition.segment > desc.id)
         {
-            logger.trace("skipping replay of fully-flushed {}", file);
+            logger.debug("Skipping replay of fully-flushed {}", SafeArg.of("file", file.getName()));
             return true;
         }
         return false;
