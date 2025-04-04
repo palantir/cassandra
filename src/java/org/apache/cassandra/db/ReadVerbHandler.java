@@ -30,6 +30,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
 {
     public void doVerb(MessageIn<ReadCommand> message, int id)
     {
+        // ok
         if (StorageService.instance.isBootstrapMode())
         {
             /* Don't service reads! */
