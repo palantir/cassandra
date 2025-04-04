@@ -18,8 +18,10 @@
 package org.apache.cassandra.service;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
@@ -114,6 +116,7 @@ public class RowDigestResolver extends AbstractRowResolver
 
         if (logger.isTraceEnabled())
             logger.trace("resolve: {} ms.", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+
         return new Row(key, data);
     }
 

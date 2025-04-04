@@ -358,7 +358,7 @@ public class CassandraDaemon
             throw new RuntimeException(e);
         }
 
-        enableAutoCompaction();
+//        enableAutoCompaction();
 
         SystemKeyspace.finishStartup();
 
@@ -508,19 +508,19 @@ public class CassandraDaemon
         return retval;
     }
 
-    public static void enableAutoCompaction() {
-        for (Keyspace keyspace : Keyspace.all())
-        {
-            for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
-            {
-                for (final ColumnFamilyStore store : cfs.concatWithIndexes())
-                {
-                    if (store.getCompactionStrategy().shouldBeEnabled())
-                        store.enableAutoCompaction();
-                }
-            }
-        }
-    }
+//    public static void enableAutoCompaction() {
+//        for (Keyspace keyspace : Keyspace.all())
+//        {
+//            for (ColumnFamilyStore cfs : keyspace.getColumnFamilyStores())
+//            {
+//                for (final ColumnFamilyStore store : cfs.concatWithIndexes())
+//                {
+//                    if (store.getCompactionStrategy().shouldBeEnabled())
+//                        store.enableAutoCompaction();
+//                }
+//            }
+//        }
+//    }
 
     @VisibleForTesting
     public void completeSetup()
@@ -822,7 +822,7 @@ public class CassandraDaemon
                 StorageService.instance.startGossiping();
                 StorageService.instance.setOperationModeNormal();
                 CassandraDaemon.instance.start();
-                enableAutoCompaction();
+//                enableAutoCompaction();
             }
         }
 

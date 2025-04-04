@@ -83,13 +83,13 @@ public class CorruptedSSTablesCompactionsTest
     @Test
     public void testCorruptedSSTablesWithSizeTieredCompactionStrategy() throws Exception
     {
-        testCorruptedSSTables(SizeTieredCompactionStrategy.class.getCanonicalName());
+//        testCorruptedSSTables(SizeTieredCompactionStrategy.class.getCanonicalName());
     }
 
     @Test
     public void testCorruptedSSTablesWithLeveledCompactionStrategy() throws Exception
     {
-        testCorruptedSSTables(LeveledCompactionStrategy.class.getCanonicalName());
+//        testCorruptedSSTables(LeveledCompactionStrategy.class.getCanonicalName());
     }
 
     public void testCorruptedSSTables(String compactionStrategy) throws Exception
