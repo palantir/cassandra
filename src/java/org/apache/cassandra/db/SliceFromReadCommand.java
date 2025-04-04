@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import com.google.common.base.MoreObjects;
-import com.palantir.logsafe.SafeArg;
-import org.apache.cassandra.db.composites.Composite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
