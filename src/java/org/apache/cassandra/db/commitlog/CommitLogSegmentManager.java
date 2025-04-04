@@ -379,7 +379,7 @@ public class CommitLogSegmentManager
     {
         logger.debug("Segment {} is no longer active and will be deleted {}",
                      SafeArg.of("segment", segment.id),
-                     SafeArg.of("archiveScriptDelete", deleteFile));
+                     SafeArg.of("deleteNow", deleteFile));
 
         segmentManagementTasks.add(new Runnable()
         {
