@@ -188,7 +188,8 @@ public class CachingOptions
 
         public boolean isEnabled()
         {
-            return type == Type.ALL;
+            return false;
+//            return type == Type.ALL;
         }
 
         @Override

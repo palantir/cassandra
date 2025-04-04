@@ -5291,12 +5291,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         }
     }
 
-    public void enableAutoCompaction(String ks, String... columnFamilies) throws IOException
+    public void enableAutoCompaction(String _ks, String... _columnFamilies) throws IOException
     {
-        for (ColumnFamilyStore cfs : getValidColumnFamilies(true, true, ks, columnFamilies))
-        {
-            cfs.enableAutoCompaction();
-        }
+//        for (ColumnFamilyStore cfs : getValidColumnFamilies(true, true, ks, columnFamilies))
+//        {
+//            cfs.enableAutoCompaction();
+//        }
     }
 
     public void disableAutoCompaction() {
@@ -5313,16 +5313,16 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     }
 
     public static void enableAutoCompaction() {
-        for (String keyspaceName : Schema.instance.getKeyspaces())
-        {
-            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
-            {
-                for (ColumnFamilyStore store : cfs.concatWithIndexes())
-                {
-                    store.enableAutoCompaction();
-                }
-            }
-        }
+//        for (String keyspaceName : Schema.instance.getKeyspaces())
+//        {
+//            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+//            {
+//                for (ColumnFamilyStore store : cfs.concatWithIndexes())
+//                {
+//                    store.enableAutoCompaction();
+//                }
+//            }
+//        }
     }
 
     // Unsafe as does not check state before disabling the node
