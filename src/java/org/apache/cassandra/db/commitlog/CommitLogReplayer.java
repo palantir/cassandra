@@ -137,7 +137,9 @@ public class CommitLogReplayer
         }
         if (globalPosition == null)
             globalPosition = ReplayPosition.firstNotCovered(cfPersisted.values());
-        logger.debug("Global replay position is {} from columnfamilies {}", globalPosition, FBUtilities.toString(cfPersisted));
+        logger.debug("Global replay position {} is from columnfamilies {}",
+                     SafeArg.of("globalPosition", globalPosition),
+                     SafeArg.of("columnFamilies", FBUtilities.toString(cfPersisted)));
         return new CommitLogReplayer(commitLog, globalPosition, cfPersisted, replayFilter);
     }
 
