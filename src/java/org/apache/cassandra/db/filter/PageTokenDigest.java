@@ -28,6 +28,7 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 import java.io.DataInput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 public class PageTokenDigest
 {
@@ -70,7 +71,7 @@ public class PageTokenDigest
 
     private boolean equals(PageTokenDigest pageTokenDigest)
     {
-        return digest.equals(pageTokenDigest.digest) && reachedEnd == pageTokenDigest.reachedEnd;
+        return Objects.equals(digest, pageTokenDigest.digest) && reachedEnd == pageTokenDigest.reachedEnd;
     }
 
     @Override
