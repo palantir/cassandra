@@ -1099,8 +1099,13 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
         }
 
-        logger.debug("Enqueuing flush of {} for cause {}: {}", SafeArg.of("cfName", name), SafeArg.of("flushCause", flushReason), SafeArg.of("heapInfo", String.format("%d (%.0f%%) on-heap, %d (%.0f%%) off-heap",
-                onHeapTotal, onHeapRatio * 100, offHeapTotal, offHeapRatio * 100)));
+        logger.debug("Enqueuing flush of {} for cause {}: {}",
+                SafeArg.of("cfName", name),
+                SafeArg.of("flushCause", flushReason),
+                SafeArg.of("onHeapTotal", onHeapTotal),
+                SafeArg.of("onHeapPercent", onHeapRatio * 100),
+                SafeArg.of("offHeapTotal", offHeapTotal),
+                SafeArg.of("offHeapPercent", offHeapRatio * 100));
     }
 
 
@@ -2574,7 +2579,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public List<Row> filter(AbstractScanIterator rowIterator, ExtendedFilter filter)
     {
-        logger.trace("Filtering {} for rows matching {}", SafeArg.of("rowIterator", rowIterator), SafeArg.of("filter", filter));
+        logger.trace("Filtering {} for rows matching {}", SafeArg.of("rowIterator", rowIterator.toString()), UnsafeArg.of("filter", filter));
         List<Row> rows = new ArrayList<Row>();
         int columnsCount = 0;
         int total = 0, matched = 0;
