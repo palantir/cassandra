@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -631,7 +633,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 continue;
 
             // missing the DATA file! all components are orphaned
-            logger.warn("Removing orphans for {}: {}", UnsafeArg.of("desc", desc), UnsafeArg.of("components", components));
+            logger.warn("Removing orphans for {}: {}", SafeArg.of("desc", desc.toStringSafe()), UnsafeArg.of("components", components));
             for (Component component : components)
             {
                 FileUtils.deleteWithConfirm(desc.filenameFor(component));
@@ -649,7 +651,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 if (tmpCacheFilePattern.matcher(file.getName()).matches())
                     if (!file.delete())
                     {
-                        logger.warn("could not delete {}", UnsafeArg.of("file", file.getAbsolutePath()));
+                        logger.warn("could not delete {} in saved caches", SafeArg.of("file", file.getName()));
                     }
         }
 
@@ -2739,7 +2741,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
                     if (logger.isTraceEnabled())
                     {
-                        logger.trace("Snapshot for {} keyspace data file {} created in {}", SafeArg.of("keyspace", keyspace), UnsafeArg.of("dataFile", ssTable.getFilename()), SafeArg.of("snapshotDirectory", snapshotDirectory));
+                        logger.trace("Snapshot for {} keyspace data file {} created in {}", SafeArg.of("keyspace", keyspace), SafeArg.of("dataFile", Paths.get(ssTable.getFilename()).getFileName()), SafeArg.of("snapshotDirectory", snapshotDirectory.getName()));
                     }
                     snapshottedSSTables.add(ssTable);
                 }
@@ -2783,14 +2785,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 ephemeralSnapshotMarker.getParentFile().mkdirs();
 
             Files.createFile(ephemeralSnapshotMarker.toPath());
-            logger.trace("Created ephemeral snapshot marker file on {}.", UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()));
+            logger.trace("Created ephemeral snapshot marker file on {}.", UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of("markerName", ephemeralSnapshotMarker.getName()));
         }
         catch (IOException e)
         {
             logger.warn("Could not create marker file {} for ephemeral snapshot {}. " +
                                       "In case there is a failure in the operation that created " +
                                       "this snapshot, you may need to clean it manually afterwards.",
-                    UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of("snapshot", snapshot), e);
+                    UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of("snapshot", snapshot), SafeArg.of("markerName", ephemeralSnapshotMarker.getName()), e);
         }
     }
 
