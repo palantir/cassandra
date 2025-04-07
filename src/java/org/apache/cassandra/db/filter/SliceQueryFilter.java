@@ -27,6 +27,8 @@ import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
@@ -285,8 +287,9 @@ public class SliceQueryFilter implements IDiskAtomFilter
         columnCounter = columnCounter(container.getComparator(), now);
         DeletionInfo deletionInfo = container.deletionInfo();
         logger.trace("Ranged tombstones read {} and droppable {} for {}",
-                     deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
-                     deletionInfo.getRangeTombstoneCounter().getDroppableCount(), container.metadata().ksAndCFName);
+                    SafeArg.of("nonDroppableTombstones", deletionInfo.getRangeTombstoneCounter().getNonDroppableCount()),
+                    SafeArg.of("droppableTombstones", deletionInfo.getRangeTombstoneCounter().getDroppableCount()),
+                    SafeArg.of("cf", container.metadata().ksAndCFName));
 
         if (metrics != null)
         {
@@ -307,7 +310,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
             Cell cell = reducedCells.next();
 
             if (logger.isTraceEnabled())
-                logger.trace("collecting {} of {}: {}", columnCounter.live(), count, cell.getString(container.getComparator()));
+                logger.trace("collecting {} of {}: {}", SafeArg.of("liveCells", columnCounter.live()), SafeArg.of("readCells", count),
+                            SafeArg.of("cell", cell.getString(container.getComparator())));
 
             // An expired tombstone will be immediately discarded in memory, and needn't be counted.
             // Neither should be any cell shadowed by a range- or a partition tombstone.
@@ -324,7 +328,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
                 hitTombstoneFailureThreshold = true;
                 Tracing.trace("Scanned over {} dead cells; query aborted (see tombstone_failure_threshold); slices={}",
                               DatabaseDescriptor.getTombstoneFailureThreshold(), getSlicesInfo(container));
-
+                logger.error("Tombstone exceed threshold {} {} {} {}",
+                                SafeArg.of("cf", container.metadata().ksAndCFName),
+                                SafeArg.of("cell", container.getComparator().getString(cell.name())),
+                                SafeArg.of("slices", getSlicesInfo(container)),
+                                UnsafeArg.of("key", key));
                 throw new TombstoneOverwhelmingException(reducedCells,
                                                          count,
                                                          container.metadata().ksName,
@@ -346,7 +354,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
                     if (dataSizeCollected + metadataSizeCollected > highMemoryCollectionThreshold)
                     {
                         logger.warn("Breached memory threshold while collecting cells for keyspace/cf {} and key {}; data size: {}; metadata size: {}",
-                                    container.metadata().ksAndCFName, key, dataSizeCollected, metadataSizeCollected);
+                                    SafeArg.of("cf", container.metadata().ksAndCFName),
+                                    UnsafeArg.of("key", key),
+                                    SafeArg.of("dataSizeCollected", dataSizeCollected),
+                                    SafeArg.of("metadataSizeCollected", metadataSizeCollected));
                         hasBreachedCollectionThreshold = true;
                     }
                 }
@@ -367,8 +378,18 @@ public class SliceQueryFilter implements IDiskAtomFilter
                                        count,
                                        getSlicesInfo(container));
             ClientWarn.instance.warn(msg);
-            logger.warn(msg);
+            logger.warn("Tombstones warning {} {} {} {} {}",
+                        SafeArg.of("liveCells", reducedCells.live()),
+                        SafeArg.of("tombstones", reducedCells.tombstones()),
+                        SafeArg.of("droppableCells", reducedCells.droppableTombstones() + reducedCells.droppableTtls()),
+                        SafeArg.of("cf", container.metadata().ksAndCFName),
+                        UnsafeArg.of("key", key));
         }
+        logger.trace("Read {} live, {} tombstoned, and {} droppable cells {}",
+                    SafeArg.of("liveCells", columnCounter.live()),
+                    SafeArg.of("tombstones", reducedCells.tombstones()),
+                    SafeArg.of("droppableCells", reducedCells.droppableTombstones() + reducedCells.droppableTtls()),
+                    SafeArg.of("tombstoneWarning", true));
         Tracing.trace("Read {} live, {} tombstoned, and {} droppable cells{}",
                       columnCounter.live(),
                       reducedCells.tombstones(),

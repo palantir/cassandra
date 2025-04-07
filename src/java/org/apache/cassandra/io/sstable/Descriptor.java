@@ -327,6 +327,15 @@ public class Descriptor
         return version.isCompatible();
     }
 
+    public String toStringSafe()
+    {
+        StringBuilder buff = new StringBuilder();
+        buff.append("keyspace: " + ksname + ", ");
+        buff.append("columnfamily: " + cfname + ", ");
+        appendFileName(buff);
+        return buff.toString();
+    }
+
     @Override
     public String toString()
     {
