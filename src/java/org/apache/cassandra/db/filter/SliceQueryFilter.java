@@ -354,7 +354,8 @@ public class SliceQueryFilter implements IDiskAtomFilter
                     if (dataSizeCollected + metadataSizeCollected > highMemoryCollectionThreshold)
                     {
                         logger.warn("Breached memory threshold while collecting cells for keyspace/cf {} and key {}; data size: {}; metadata size: {}",
-                                    SafeArg.of("cf", container.metadata().ksAndCFName), UnsafeArg.of("key", key),
+                                    SafeArg.of("cf", container.metadata().ksAndCFName),
+                                    UnsafeArg.of("key", key),
                                     SafeArg.of("dataSizeCollected", dataSizeCollected),
                                     SafeArg.of("metadataSizeCollected", metadataSizeCollected));
                         hasBreachedCollectionThreshold = true;
