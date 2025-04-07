@@ -57,7 +57,7 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
         testNewCluster(new ByteOrderedPartitioner());
     }
 
-    private void testNewCluster(IPartitioner partitioner)
+    public void testNewCluster(IPartitioner partitioner)
     {
         for (int perUnitCount = 1; perUnitCount <= MAX_VNODE_COUNT; perUnitCount *= 4)
         {
@@ -117,7 +117,7 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
         testExistingCluster(new ByteOrderedPartitioner());
     }
 
-    private void testExistingCluster(IPartitioner partitioner)
+    public void testExistingCluster(IPartitioner partitioner)
     {
         for (int perUnitCount = 1; perUnitCount <= MAX_VNODE_COUNT; perUnitCount *= 4)
         {
