@@ -1730,6 +1730,44 @@ public class ColumnFamilyStoreTest
                 ImmutableList.of(pageTokenEnd, pageTokenEnd));
     }
 
+//    @Test
+//    public void testRangeSlicePageTokenWithExpiredRangeTombstones()
+//    {
+//        String keyspaceName = KEYSPACE1;
+//        String cfName = CF_STANDARD1;
+//        Keyspace keyspace = Keyspace.open(keyspaceName);
+//        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
+//        cfs.clearUnsafe();
+//
+//        Cell[] cols = new Cell[7];
+//        for (int i = 0; i < 7; i++)
+//        {
+//            cols[i] = column("c" + i, "value", 1);
+//        }
+//        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
+//        cfs.forceBlockingFlush();
+//        deleteRange(cfs, Util.dk("A"), tombstone("c0", "c1", System.currentTimeMillis(), (int) System.currentTimeMillis())); // 864000
+//
+//        SlicePredicate spAll = new SlicePredicate();
+//        spAll.setSlice_range(new SliceRange());
+//        spAll.getSlice_range().setCount(100);
+//        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
+//        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
+//
+//        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
+//
+//        // rows: all ranges, columns: all ranges
+//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
+//                        null,
+//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
+//                        100,
+//                        System.currentTimeMillis() + 864000L * 10000000,
+//                        true,
+//                        false),
+//                2,
+//                ImmutableList.of(pageToken4));
+//    }
+
     @Test
     public void testRangeSlicesPageTokenWithPointTombstones()
     {

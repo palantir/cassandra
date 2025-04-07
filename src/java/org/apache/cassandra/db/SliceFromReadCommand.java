@@ -97,9 +97,16 @@ public class SliceFromReadCommand extends ReadCommand
         }
 
         Row row = keyspace.getRow(new QueryFilter(dk, cfName, filter, timestamp));
-        if (keyspace.getName().equals("dg") && row != null && row.cf != null)
+        if (keyspace.getName().equals("dg") && row != null)
         {
-            logger.info("Read done locally from verb handler", SafeArg.of("pageTokenSet", row.cf.isPageTokenSet()), SafeArg.of("pageToken", row.cf.pageToken()));
+            if (row.cf != null)
+            {
+                logger.info("Read done locally from verb handler", SafeArg.of("pageTokenSet", row.cf.isPageTokenSet()), SafeArg.of("pageToken", row.cf.pageToken()));
+            }
+            else
+            {
+                logger.info("Read done locally from verb handler but cf is null");
+            }
         }
 
         return row;
