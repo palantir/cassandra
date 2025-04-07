@@ -1540,8 +1540,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         // purge old top-level and range tombstones
         cf.purgeTombstones(gcBefore);
 
-        // if there are no columns or tombstones left, return null
-        return cf;
+        // if there are no columns or tombstones or page token left, return null
+        return !cf.hasColumns() && !cf.isMarkedForDelete() && !cf.isPageTokenSet() ? null : cf;
     }
 
     /**
