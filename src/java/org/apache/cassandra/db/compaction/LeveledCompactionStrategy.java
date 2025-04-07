@@ -65,10 +65,14 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
                 {                     
                     if (configuredMaxSSTableSize >= 1000)
                         logger.warn("Max sstable size of {}MB is configured for {}.{}; having a unit of compaction this large is probably a bad idea",
-                                configuredMaxSSTableSize, cfs.name, cfs.getColumnFamilyName());
+                                    SafeArg.of("configuredMaxSSTableSize",configuredMaxSSTableSize),
+                                    SafeArg.of("keyspace", cfs.keyspace),
+                                    SafeArg.of("cf", cfs.getColumnFamilyName()));
                     if (configuredMaxSSTableSize < 50)  
                         logger.warn("Max sstable size of {}MB is configured for {}.{}.  Testing done for CASSANDRA-5727 indicates that performance improves up to 160MB",
-                                configuredMaxSSTableSize, cfs.name, cfs.getColumnFamilyName());
+                                    SafeArg.of("configuredMaxSSTableSize",configuredMaxSSTableSize),
+                                    SafeArg.of("keyspace", cfs.keyspace),
+                                    SafeArg.of("cf", cfs.getColumnFamilyName()));
                 }
             }
         }
@@ -235,7 +239,10 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
                 logger.warn("Live sstable {} from level {} is not on corresponding level in the leveled manifest." +
                             " This is not a problem per se, but may indicate an orphaned sstable due to a failed" +
                             " compaction not cleaned up properly.",
-                             sstable.getFilename(), level);
+                            SafeArg.of("keyspace", cfs.keyspace),
+                            SafeArg.of("cf", cfs.getColumnFamilyName()),
+                            SafeArg.of("sstable", sstable.descriptor.generation),
+                            SafeArg.of("level", level));
                 level = -1;
             }
             byLevel.get(level).add(sstable);

@@ -31,6 +31,8 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,14 +167,16 @@ public class CompactionManager implements CompactionManagerMBean
         if (count > 0 && executor.getActiveCount() >= executor.getMaximumPoolSize())
         {
             logger.trace("Background compaction is still running for {}.{} ({} remaining). Skipping",
-                         cfs.keyspace.getName(), cfs.name, count);
+                         SafeArg.of("keyspace", cfs.keyspace.getName()),
+                         SafeArg.of("cf", cfs.name),
+                         SafeArg.of("remaining", count));
             return Collections.emptyList();
         }
 
         logger.trace("Scheduling a background task check for {}.{} with {}",
-                     cfs.keyspace.getName(),
-                     cfs.name,
-                     cfs.getCompactionStrategy().getName());
+                     SafeArg.of("keyspace", cfs.keyspace.getName()),
+                     SafeArg.of("cf", cfs.name),
+                     SafeArg.of("compactionStrategy", cfs.getCompactionStrategy().getName()));
 
         List<Future<?>> futures = new ArrayList<>(1);
         Future<?> fut = executor.submitIfRunning(new BackgroundCompactionCandidate(cfs), "background task");
@@ -247,7 +251,9 @@ public class CompactionManager implements CompactionManagerMBean
         {
             try
             {
-                logger.trace("Checking {}.{}", cfs.keyspace.getName(), cfs.name);
+                logger.trace("Checking {}.{}",
+                             SafeArg.of("keyspace", cfs.keyspace.getName()),
+                             SafeArg.of("cf", cfs.name));
                 if (!cfs.isValid())
                 {
                     logger.trace("Aborting compaction for dropped CF");
@@ -290,7 +296,9 @@ public class CompactionManager implements CompactionManagerMBean
             Iterable<SSTableReader> sstables = compacting != null ? Lists.newArrayList(operation.filterSSTables(compacting)) : Collections.<SSTableReader>emptyList();
             if (Iterables.isEmpty(sstables))
             {
-                logger.info("No sstables for {}.{}", cfs.keyspace.getName(), cfs.name);
+                logger.info("No sstables for {}.{}",
+                            SafeArg.of("keyspace", cfs.keyspace.getName()),
+                            SafeArg.of("cf", cfs.name));
                 return AllSSTableOpStatus.SUCCESSFUL;
             }
 
@@ -352,7 +360,9 @@ public class CompactionManager implements CompactionManagerMBean
             Iterable<SSTableReader> sstables = compacting != null ? Lists.newArrayList(callable.filterSSTables(compacting)) : Collections.<SSTableReader>emptyList();
             if (Iterables.isEmpty(sstables))
             {
-                logger.info("No sstables for {}.{}", cfs.keyspace.getName(), cfs.name);
+                logger.info("No sstables for {}.{}",
+                            SafeArg.of("keyspace", cfs.keyspace.getName()),
+                            SafeArg.of("cf", cfs.name));
                 return Optional.of(ImmutableList.of());
             }
 
@@ -503,7 +513,8 @@ public class CompactionManager implements CompactionManagerMBean
         final Collection<Range<Token>> ranges = StorageService.instance.getLocalRanges(keyspace.getName());
         if (ranges.isEmpty())
         {
-            logger.info("Node owns no data for keyspace {}", keyspace.getName());
+            logger.info("Node owns no data for keyspace {}",
+                        SafeArg.of("keyspace", keyspace.getName()));
             return AllSSTableOpStatus.SUCCESSFUL;
         }
         final boolean hasIndexes = cfStore.indexManager.hasIndexes();
@@ -539,7 +550,8 @@ public class CompactionManager implements CompactionManagerMBean
         final Collection<Range<Token>> ranges = StorageService.instance.getLocalRanges(keyspace.getName());
         if (ranges.isEmpty())
         {
-            logger.info("Node owns no data for keyspace {}", keyspace.getName());
+            logger.info("Node owns no data for keyspace {}",
+                        SafeArg.of("keyspace", keyspace.getName()));
             return true;
         }
         final boolean hasIndexes = cfStore.indexManager.hasIndexes();
@@ -647,8 +659,14 @@ public class CompactionManager implements CompactionManagerMBean
                                       LifecycleTransaction txn,
                                       long repairedAt) throws InterruptedException, IOException
     {
-        logger.info("Starting anticompaction for {}.{} on {}/{} sstables", cfs.keyspace.getName(), cfs.getColumnFamilyName(), validatedForRepair.size(), cfs.getSSTables().size());
-        logger.trace("Starting anticompaction for ranges {}", ranges);
+        logger.info("Starting anticompaction for {}.{} on {}/{} sstables",
+                    SafeArg.of("keyspace", cfs.keyspace.getName()),
+                    SafeArg.of("columnFamily", cfs.getColumnFamilyName()),
+                    SafeArg.of("count", validatedForRepair.size()),
+                    SafeArg.of("outOf", cfs.getSSTables().size()));
+        logger.trace("Starting anticompaction for ranges {}",
+                     SafeArg.of("ranges", ranges));
+
         Set<SSTableReader> sstables = new HashSet<>(validatedForRepair);
         Set<SSTableReader> mutatedRepairStatuses = new HashSet<>(); // SSTables that were completely repaired only
         Set<SSTableReader> nonAnticompacting = new HashSet<>();
@@ -675,7 +693,12 @@ public class CompactionManager implements CompactionManagerMBean
                 {
                     if (r.contains(sstableBounds.left) && r.contains(sstableBounds.right))
                     {
-                        logger.info("SSTable {} fully contained in range {}, mutating repairedAt instead of anticompacting", sstable, r);
+                        logger.info("SSTable {} fully contained in range {}, mutating repairedAt instead of anticompacting",
+                                    SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                                    SafeArg.of("cf", sstable.getColumnFamilyName()),
+                                    SafeArg.of("generation", sstable.descriptor.generation),
+                                    UnsafeArg.of("sstable", sstable.getFilename()),
+                                    SafeArg.of("range", r));
                         sstable.descriptor.getMetadataSerializer().mutateRepairedAt(sstable.descriptor, repairedAt);
                         sstable.reloadSSTableMetadata();
                         if (!nonAnticompacting.contains(sstable)) // don't notify if the SSTable was already repaired
@@ -692,11 +715,23 @@ public class CompactionManager implements CompactionManagerMBean
                 }
 
                 if (!anticompactRanges.isEmpty())
-                    logger.info("SSTable {} ({}) will be anticompacted on ranges: {}", sstable, sstableBounds, StringUtils.join(anticompactRanges, ", "));
+                    logger.info("SSTable {} ({}) will be anticompacted on ranges: {}",
+                                SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                                SafeArg.of("cf", sstable.getColumnFamilyName()),
+                                SafeArg.of("generation", sstable.descriptor.generation),
+                                UnsafeArg.of("sstable", sstable.getFilename()),
+                                SafeArg.of("sstableBounds", sstableBounds),
+                                SafeArg.of("antiCompactRanges", StringUtils.join(anticompactRanges, ", ")));
 
                 if (!shouldAnticompact)
                 {
-                    logger.info("SSTable {} ({}) not subject to anticompaction of repaired ranges {}, not touching repairedAt.", sstable, sstableBounds, normalizedRanges);
+                    logger.info("SSTable {} ({}) not subject to anticompaction of repaired ranges {}, not touching repairedAt.",
+                                SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                                SafeArg.of("cf", sstable.getColumnFamilyName()),
+                                SafeArg.of("generation", sstable.descriptor.generation),
+                                UnsafeArg.of("sstable", sstable.getFilename()),
+                                SafeArg.of("sstableBounds", sstableBounds),
+                                SafeArg.of("normalizedRanges", normalizedRanges));
                     nonAnticompacting.add(sstable);
                     sstableIterator.remove();
                 }
@@ -767,7 +802,11 @@ public class CompactionManager implements CompactionManagerMBean
             Descriptor desc = Descriptor.fromFilename(filename.trim());
             if (Schema.instance.getCFMetaData(desc) == null)
             {
-                logger.warn("Schema does not exist for file {}. Skipping.", filename);
+                logger.warn("Schema does not exist for file {}. Skipping.",
+                            SafeArg.of("keyspace", desc.ksname),
+                            SafeArg.of("cf", desc.cfname),
+                            SafeArg.of("generation", desc.generation),
+                            UnsafeArg.of("filename", filename));
                 continue;
             }
             // group by keyspace/columnfamily
@@ -796,7 +835,11 @@ public class CompactionManager implements CompactionManagerMBean
                     SSTableReader sstable = lookupSSTable(cfs, desc);
                     if (sstable == null)
                     {
-                        logger.info("Will not compact {}: it is not an active sstable", desc);
+                        logger.info("Will not compact {}: it is not an active sstable",
+                                    SafeArg.of("keyspace", desc.ksname),
+                                    SafeArg.of("cf", desc.cfname),
+                                    SafeArg.of("generation", desc.generation),
+                                    UnsafeArg.of("filename", desc.baseFilename()));
                     }
                     else
                     {
@@ -967,7 +1010,11 @@ public class CompactionManager implements CompactionManagerMBean
         }
         if (!needsCleanup(sstable, ranges))
         {
-            logger.trace("Skipping {} for cleanup; all rows should be kept", sstable);
+            logger.trace("Skipping {} for cleanup; all rows should be kept",
+                         SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                         SafeArg.of("cf", sstable.getColumnFamilyName()),
+                         SafeArg.of("generation", sstable.descriptor.generation),
+                         UnsafeArg.of("sstable", sstable.getFilename()));
             return false;
         }
         return true;
@@ -998,7 +1045,11 @@ public class CompactionManager implements CompactionManagerMBean
         if (logger.isTraceEnabled())
             logger.trace("Expected bloom filter size : {}", expectedBloomFilterSize);
 
-        logger.info("Cleaning up {}", sstable);
+        logger.info("Cleaning up {}",
+                    SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                    SafeArg.of("cf", sstable.getColumnFamilyName()),
+                    SafeArg.of("generation", sstable.descriptor.generation),
+                    UnsafeArg.of("sstable", sstable.getFilename()));
 
         File compactionFileLocation = cfs.directories.getWriteableLocationAsFile(cfs.getExpectedCompactedFileSize(txn.originals(), OperationType.CLEANUP));
         if (compactionFileLocation == null)
@@ -1043,14 +1094,22 @@ public class CompactionManager implements CompactionManagerMBean
 
         if (!finished.isEmpty())
         {
-            String format = "Cleaned up to %s.  %,d to %,d (~%d%% of original) bytes for %,d keys.  Time: %,dms.";
             long dTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
             long startsize = sstable.onDiskLength();
             long endsize = 0;
             for (SSTableReader newSstable : finished)
                 endsize += newSstable.onDiskLength();
             double ratio = (double) endsize / (double) startsize;
-            logger.info(String.format(format, finished.get(0).getFilename(), startsize, endsize, (int) (ratio * 100), totalkeysWritten, dTime));
+            logger.info("Cleaned up {},  {} to {} ({} of original) bytes for {} keys.  Time: {} dms.",
+                        SafeArg.of("keyspace", finished.get(0).getKeyspaceName()),
+                        SafeArg.of("cf", finished.get(0).getColumnFamilyName()),
+                        SafeArg.of("generation", finished.get(0).descriptor.generation),
+                        UnsafeArg.of("filename", finished.get(0).getFilename()),
+                        SafeArg.of("startsize", startsize),
+                        SafeArg.of("endsize", endsize),
+                        SafeArg.of("percent", (int) (ratio * 100)),
+                        SafeArg.of("totalKeys", totalkeysWritten),
+                        SafeArg.of("time", dTime));
         }
 
     }
@@ -1304,11 +1363,12 @@ public class CompactionManager implements CompactionManagerMBean
                 // MT serialize may take time
                 long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                 logger.trace("Validation finished in {} msec, depth {} for {} keys, serialized size {} bytes for {}",
-                             duration,
-                             depth,
-                             numPartitions,
-                             MerkleTree.serializer.serializedSize(tree, 0),
-                             validator.desc);
+                             SafeArg.of("duration", duration),
+                             SafeArg.of("depth", depth),
+                             SafeArg.of("numPartitions", numPartitions),
+                             SafeArg.of("serializedSize", MerkleTree.serializer.serializedSize(tree, 0)),
+                             SafeArg.of("keyspace", validator.desc.keyspace),
+                             SafeArg.of("cf", validator.desc.columnFamily));
             }
         }
         finally
@@ -1365,7 +1425,8 @@ public class CompactionManager implements CompactionManagerMBean
     private void doAntiCompaction(ColumnFamilyStore cfs, Collection<Range<Token>> ranges, LifecycleTransaction repaired, long repairedAt)
     {
         int numAnticompact = repaired.originals().size();
-        logger.info("Performing anticompaction on {} sstables", numAnticompact);
+        logger.info("Performing anticompaction on {} sstables",
+                    SafeArg.of("count", numAnticompact));
 
         //Group SSTables
         Collection<Collection<SSTableReader>> groupedSSTables = cfs.getCompactionStrategy().groupSSTablesForAntiCompaction(repaired.originals());
@@ -1380,8 +1441,9 @@ public class CompactionManager implements CompactionManagerMBean
             }
         }
 
-        String format = "Anticompaction completed successfully, anticompacted from {} to {} sstable(s).";
-        logger.info(format, numAnticompact, antiCompactedSSTableCount);
+        logger.info("Anticompaction completed successfully, anticompacted from {} to {} sstable(s).",
+                    SafeArg.of("from", numAnticompact),
+                    SafeArg.of("to", antiCompactedSSTableCount));
     }
 
     private int antiCompactGroup(ColumnFamilyStore cfs, Collection<Range<Token>> ranges,
@@ -1402,7 +1464,10 @@ public class CompactionManager implements CompactionManagerMBean
             return 0;
         }
 
-        logger.info("Anticompacting {}", anticompactionGroup);
+        logger.info("Anticompacting {} in cf {}",
+                    UnsafeArg.of("anticompactionGroup", anticompactionGroup),
+                    SafeArg.of("keyspace", cfs.keyspace),
+                    SafeArg.of("cf", cfs.name));
         Set<SSTableReader> sstableAsSet = anticompactionGroup.originals();
 
         File destination = cfs.directories.getWriteableLocationAsFile(cfs.getExpectedCompactedFileSize(sstableAsSet, OperationType.ANTICOMPACTION));
@@ -1461,11 +1526,12 @@ public class CompactionManager implements CompactionManagerMBean
             repairedSSTableWriter.commit();
             unRepairedSSTableWriter.commit();
 
-            logger.trace("Repaired {} keys out of {} for {}/{} in {}", repairedKeyCount,
-                                                                       repairedKeyCount + unrepairedKeyCount,
-                                                                       cfs.keyspace.getName(),
-                                                                       cfs.getColumnFamilyName(),
-                                                                       anticompactionGroup);
+            logger.trace("Repaired {} keys out of {} for {}/{} in {}",
+                         SafeArg.of("count", repairedKeyCount),
+                         SafeArg.of("outOf", repairedKeyCount + unrepairedKeyCount),
+                         SafeArg.of("keyspace", cfs.keyspace.getName()),
+                         SafeArg.of("cf", cfs.getColumnFamilyName()),
+                         UnsafeArg.of("anticompactionGroup", anticompactionGroup));
             return anticompactedSSTables.size();
         }
         catch (Throwable e)
@@ -1508,7 +1574,10 @@ public class CompactionManager implements CompactionManagerMBean
             {
                 if (!AutoSavingCache.flushInProgress.add(writer.cacheType()))
                 {
-                    logger.trace("Cache flushing was already in progress: skipping {}", writer.getCompactionInfo());
+                    logger.trace("Cache flushing was already in progress: skipping {}",
+                                 UnsafeArg.of("keyspace", writer.getCompactionInfo().getKeyspace()),
+                                 UnsafeArg.of("cf", writer.getCompactionInfo().getColumnFamily()),
+                                 UnsafeArg.of("compactionInfo", writer.getCompactionInfo()));
                     return;
                 }
                 try
@@ -1672,7 +1741,8 @@ public class CompactionManager implements CompactionManagerMBean
         {
             if (isShutdown())
             {
-                logger.info("Executor has been shut down, not submitting {}", name);
+                logger.info("Executor has been shut down, not submitting {}",
+                            SafeArg.of("taskName", name));
                 return Futures.immediateCancelledFuture();
             }
 
@@ -1685,9 +1755,11 @@ public class CompactionManager implements CompactionManagerMBean
             catch (RejectedExecutionException ex)
             {
                 if (isShutdown())
-                    logger.info("Executor has shut down, could not submit {}", name);
+                    logger.info("Executor has shut down, could not submit {}",
+                                SafeArg.of("taskName", name));
                 else
-                    logger.error("Failed to submit {}", name, ex);
+                    logger.error("Failed to submit {}",
+                                 SafeArg.of("taskName", name), ex);
 
                 return Futures.immediateCancelledFuture();
             }
@@ -1799,7 +1871,8 @@ public class CompactionManager implements CompactionManagerMBean
 
     public void stopAllCompactions() {
         for (OperationType type : STOPPABLE_COMPACTION_TYPES) {
-            logger.info("Stopping compactions of type {}", type.name());
+            logger.info("Stopping compactions of type {}",
+                        SafeArg.of("type", type.name()));
             stopCompaction(type.name());
         }
         logger.info("All compactions stopped");
