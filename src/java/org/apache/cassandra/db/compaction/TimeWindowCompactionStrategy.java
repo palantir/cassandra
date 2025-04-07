@@ -31,6 +31,9 @@ import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.*;
+
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,7 +118,8 @@ public class TimeWindowCompactionStrategy extends AbstractCompactionStrategy
         List<SSTableReader> compactionCandidates = new ArrayList<>(getNextNonExpiredSSTables(Sets.difference(candidates, expired), gcBefore));
         if (!expired.isEmpty())
         {
-            logger.debug("Including expired sstables: {}", expired);
+            logger.debug("Including expired sstables: {}",
+                         UnsafeArg.of("sstables", expired));
             compactionCandidates.addAll(expired);
         }
 
@@ -298,12 +302,17 @@ public class TimeWindowCompactionStrategy extends AbstractCompactionStrategy
             }
             else if (bucket.size() >= 2 && key < now)
             {
-                logger.debug("bucket size {} >= 2 and not in current bucket, compacting what's here: {}", bucket.size(), bucket);
+                logger.debug("bucket size {} >= 2 and not in current bucket, compacting what's here: {}",
+                             SafeArg.of("bucketSize", bucket.size()),
+                             UnsafeArg.of("bucket", bucket));
                 return trimToThreshold(bucket, maxThreshold);
             }
             else
             {
-                logger.debug("No compaction necessary for bucket size {} , key {}, now {}", bucket.size(), key, now);
+                logger.debug("No compaction necessary for bucket size {} , key {}, now {}",
+                             SafeArg.of("bucketSize", bucket.size()),
+                             UnsafeArg.of("key", key),
+                             SafeArg.of("now", now));
             }
         }
 
@@ -348,7 +357,8 @@ public class TimeWindowCompactionStrategy extends AbstractCompactionStrategy
         LifecycleTransaction modifier = cfs.getTracker().tryModify(sstables, OperationType.COMPACTION);
         if (modifier == null)
         {
-            logger.debug("Unable to mark {} for compaction; probably a background compaction got to it first.  You can disable background compactions temporarily if this is a problem", sstables);
+            logger.debug("Unable to mark {} for compaction; probably a background compaction got to it first.  You can disable background compactions temporarily if this is a problem",
+                         UnsafeArg.of("sstables", sstables));
             return null;
         }
 
