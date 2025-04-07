@@ -205,10 +205,6 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
                 {
                     Assert.fail(String.format("Expected max unit size below %.4f, was %.4f", maxExpected, su.max));
                 }
-                else
-                {
-                    System.out.println("Threshold: " + maxExpected);
-                }
             }
         }
     }
