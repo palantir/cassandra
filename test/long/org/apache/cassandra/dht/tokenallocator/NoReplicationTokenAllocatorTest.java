@@ -200,10 +200,14 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
             if (verifyMetrics)
             {
                 updateSummary(t, su, st, true);
-                double maxExpected = 1.0 + tc.spreadExpectation() * strategy.spreadExpectation() / perUnitCount / Math.pow(skewFactor, 2);
+                double maxExpected = Math.pow(skewFactor, -0.25) + tc.spreadExpectation() * strategy.spreadExpectation() / perUnitCount;
                 if (su.max > maxExpected)
                 {
                     Assert.fail(String.format("Expected max unit size below %.4f, was %.4f", maxExpected, su.max));
+                }
+                else
+                {
+                    System.out.println("Threshold: " + maxExpected);
                 }
             }
         }
