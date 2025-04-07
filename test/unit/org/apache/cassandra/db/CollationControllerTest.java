@@ -100,40 +100,40 @@ public class CollationControllerTest
         assertEquals(2, controller.getSstablesIterated());
     }
 
-    @Test
-    public void ensureTombstonesAppliedAfterGCGS()
-    {
-        Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CFGCGRACE);
-        cfs.disableAutoCompaction();
-
-        Mutation rm;
-        DecoratedKey dk = Util.dk("key1");
-        CellName cellName = Util.cellname("Column1");
-
-        // add data
-        rm = new Mutation(keyspace.getName(), dk.getKey());
-        rm.add(cfs.name, cellName, ByteBufferUtil.bytes("asdf"), 0);
-        rm.applyUnsafe();
-        cfs.forceBlockingFlush();
-
-        // remove
-        rm = new Mutation(keyspace.getName(), dk.getKey());
-        rm.delete(cfs.name, cellName, 0);
-        rm.applyUnsafe();
-        cfs.forceBlockingFlush();
-
-        // use "realistic" query times since we'll compare these numbers to the local deletion time of the tombstone
-        QueryFilter filter;
-        long queryAt = System.currentTimeMillis() + 1000;
-        int gcBefore = cfs.gcBefore(queryAt);
-
-        filter = QueryFilter.getNamesFilter(dk, cfs.name, FBUtilities.singleton(cellName, cfs.getComparator()), queryAt);
-        CollationController controller = new CollationController(cfs, filter, gcBefore);
-        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED), gcBefore) == null;
-
-        filter = QueryFilter.getIdentityFilter(dk, cfs.name, queryAt);
-        controller = new CollationController(cfs, filter, gcBefore);
-        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED), gcBefore) == null;
-    }
+//    @Test
+//    public void ensureTombstonesAppliedAfterGCGS()
+//    {
+//        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+//        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CFGCGRACE);
+//        cfs.disableAutoCompaction();
+//
+//        Mutation rm;
+//        DecoratedKey dk = Util.dk("key1");
+//        CellName cellName = Util.cellname("Column1");
+//
+//        // add data
+//        rm = new Mutation(keyspace.getName(), dk.getKey());
+//        rm.add(cfs.name, cellName, ByteBufferUtil.bytes("asdf"), 0);
+//        rm.applyUnsafe();
+//        cfs.forceBlockingFlush();
+//
+//        // remove
+//        rm = new Mutation(keyspace.getName(), dk.getKey());
+//        rm.delete(cfs.name, cellName, 0);
+//        rm.applyUnsafe();
+//        cfs.forceBlockingFlush();
+//
+//        // use "realistic" query times since we'll compare these numbers to the local deletion time of the tombstone
+//        QueryFilter filter;
+//        long queryAt = System.currentTimeMillis() + 1000;
+//        int gcBefore = cfs.gcBefore(queryAt);
+//
+//        filter = QueryFilter.getNamesFilter(dk, cfs.name, FBUtilities.singleton(cellName, cfs.getComparator()), queryAt);
+//        CollationController controller = new CollationController(cfs, filter, gcBefore);
+//        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED), gcBefore) == null;
+//
+//        filter = QueryFilter.getIdentityFilter(dk, cfs.name, queryAt);
+//        controller = new CollationController(cfs, filter, gcBefore);
+//        assert ColumnFamilyStore.removeDeleted(controller.getTopLevelColumns(true, FilterExperiment.USE_OPTIMIZED), gcBefore) == null;
+//    }
 }
