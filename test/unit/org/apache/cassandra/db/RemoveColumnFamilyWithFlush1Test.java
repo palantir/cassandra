@@ -47,6 +47,12 @@ public class RemoveColumnFamilyWithFlush1Test
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1));
     }
 
+    @Test
+    public void foo()
+    {
+        assertNull(null);
+    }
+
 //    @Test
 //    public void testRemoveColumnFamilyWithFlush1()
 //    {

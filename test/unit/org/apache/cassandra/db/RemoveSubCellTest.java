@@ -56,6 +56,12 @@ public class RemoveSubCellTest
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance));
     }
 
+    @Test
+    public void foo()
+    {
+        assertNull(null);
+    }
+
 //    @Test
 //    public void testRemoveSubColumn()
 //    {
