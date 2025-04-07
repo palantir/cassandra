@@ -30,6 +30,7 @@ import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.junit.Test;
 
 import junit.framework.Assert;
+import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
@@ -50,7 +51,13 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
         testNewCluster(new RandomPartitioner());
     }
 
-    private void testNewCluster(IPartitioner partitioner)
+    @Test
+    public void testNewClusterWithByteOrderedPartitioner()
+    {
+        testNewCluster(new ByteOrderedPartitioner());
+    }
+
+    public void testNewCluster(IPartitioner partitioner)
     {
         for (int perUnitCount = 1; perUnitCount <= MAX_VNODE_COUNT; perUnitCount *= 4)
         {
@@ -83,7 +90,34 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
         testExistingCluster(new RandomPartitioner());
     }
 
-    private void testExistingCluster(IPartitioner partitioner)
+    @Test
+    public void testExistingClusterWithByteOrderedPartitioner()
+    {
+        testExistingCluster(new ByteOrderedPartitioner());
+    }
+
+    @Test
+    public void testExistingClusterSkewedWithMurmur3Partitioner()
+    {
+        skewFactor = 0.6;
+        testExistingCluster(new Murmur3Partitioner());
+    }
+
+    @Test
+    public void testExistingClusterSkewedWithRandomPartitioner()
+    {
+        skewFactor = 0.5;
+        testExistingCluster(new RandomPartitioner());
+    }
+
+    @Test
+    public void testExistingClusterSkewedWithByteOrderedPartitioner()
+    {
+        skewFactor = 0.5;
+        testExistingCluster(new ByteOrderedPartitioner());
+    }
+
+    public void testExistingCluster(IPartitioner partitioner)
     {
         for (int perUnitCount = 1; perUnitCount <= MAX_VNODE_COUNT; perUnitCount *= 4)
         {
@@ -166,7 +200,7 @@ public class NoReplicationTokenAllocatorTest extends TokenAllocatorTestBase
             if (verifyMetrics)
             {
                 updateSummary(t, su, st, true);
-                double maxExpected = 1.0 + tc.spreadExpectation() * strategy.spreadExpectation() / perUnitCount;
+                double maxExpected = Math.pow(skewFactor, -0.25) + tc.spreadExpectation() * strategy.spreadExpectation() / perUnitCount;
                 if (su.max > maxExpected)
                 {
                     Assert.fail(String.format("Expected max unit size below %.4f, was %.4f", maxExpected, su.max));
