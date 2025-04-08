@@ -241,7 +241,7 @@ public class LeveledCompactionStrategy extends AbstractCompactionStrategy
                             " compaction not cleaned up properly.",
                             SafeArg.of("keyspace", cfs.keyspace),
                             SafeArg.of("cf", cfs.getColumnFamilyName()),
-                            SafeArg.of("sstable", sstable.descriptor.generation),
+                            SafeArg.of("generation", sstable.descriptor.generation),
                             SafeArg.of("level", level));
                 level = -1;
             }

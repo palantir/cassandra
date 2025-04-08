@@ -720,7 +720,7 @@ public class CompactionManager implements CompactionManagerMBean
                                 SafeArg.of("cf", sstable.getColumnFamilyName()),
                                 SafeArg.of("generation", sstable.descriptor.generation),
                                 UnsafeArg.of("sstable", sstable.getFilename()),
-                                SafeArg.of("sstableBounds", sstableBounds),
+                                UnsafeArg.of("sstableBounds", sstableBounds),
                                 SafeArg.of("antiCompactRanges", StringUtils.join(anticompactRanges, ", ")));
 
                 if (!shouldAnticompact)
@@ -730,7 +730,7 @@ public class CompactionManager implements CompactionManagerMBean
                                 SafeArg.of("cf", sstable.getColumnFamilyName()),
                                 SafeArg.of("generation", sstable.descriptor.generation),
                                 UnsafeArg.of("sstable", sstable.getFilename()),
-                                SafeArg.of("sstableBounds", sstableBounds),
+                                UnsafeArg.of("sstableBounds", sstableBounds),
                                 SafeArg.of("normalizedRanges", normalizedRanges));
                     nonAnticompacting.add(sstable);
                     sstableIterator.remove();
@@ -1575,8 +1575,8 @@ public class CompactionManager implements CompactionManagerMBean
                 if (!AutoSavingCache.flushInProgress.add(writer.cacheType()))
                 {
                     logger.trace("Cache flushing was already in progress: skipping {}",
-                                 UnsafeArg.of("keyspace", writer.getCompactionInfo().getKeyspace()),
-                                 UnsafeArg.of("cf", writer.getCompactionInfo().getColumnFamily()),
+                                 SafeArg.of("keyspace", writer.getCompactionInfo().getKeyspace()),
+                                 SafeArg.of("cf", writer.getCompactionInfo().getColumnFamily()),
                                  UnsafeArg.of("compactionInfo", writer.getCompactionInfo()));
                     return;
                 }
