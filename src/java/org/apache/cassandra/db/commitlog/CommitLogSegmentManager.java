@@ -229,7 +229,7 @@ public class CommitLogSegmentManager
                     allocatingFrom = next;
                     activeSegments.add(next);
                     logger.debug("Advanced allocating segment from {} to {}",
-                                 SafeArg.of("old", old.id),
+                                 SafeArg.of("old", old == null ? "null" : old.id),
                                  SafeArg.of("new", next.id));
                 }
             }
