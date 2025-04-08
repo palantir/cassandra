@@ -479,8 +479,7 @@ public class CommitLogReplayer
     public boolean logAndCheckIfShouldSkip(File file, CommitLogDescriptor desc)
     {
         logger.debug("Replaying {} (CL version {}, messaging version {}, compression {})",
-                     UnsafeArg.of("file", file.getPath()),
-                     SafeArg.of("segment", desc.id),
+                     SafeArg.of("file", file.getName()),
                      SafeArg.of("version", desc.version),
                      SafeArg.of("messagingVersion", desc.getMessagingVersion()),
                      UnsafeArg.of("compression", desc.compression));
