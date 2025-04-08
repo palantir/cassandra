@@ -21,6 +21,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -163,7 +164,8 @@ public class CommitLog implements CommitLogMBean
         else
         {
             Arrays.sort(files, new CommitLogSegmentFileComparator());
-            logger.info("Replaying {}", StringUtils.join(files, ", "));
+            logger.info("Replaying {}",
+                        SafeArg.of("commitLogFiles", Arrays.stream(files).map(File::getName).collect(Collectors.toSet())));
             replayed = recover(files);
             logger.info("Log replay complete, {} replayed mutations", replayed);
 

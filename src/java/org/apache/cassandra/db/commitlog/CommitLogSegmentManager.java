@@ -122,7 +122,7 @@ public class CommitLogSegmentManager
                                 // TODO : some error handling in case we fail to create a new segment
                                 CommitLogSegment newSegment = CommitLogSegment.createSegment(commitLog);
                                 availableSegments.add(newSegment);
-                                logger.info("No segments in reserve; created a fresh one",
+                                logger.debug("No segments in reserve; created a fresh one",
                                             SafeArg.of("segment", newSegment.id));
                                 hasAvailableSegments.signalAll();
                             }
@@ -228,6 +228,9 @@ public class CommitLogSegmentManager
                 {
                     allocatingFrom = next;
                     activeSegments.add(next);
+                    logger.debug("Advanced allocating segment from {} to {}",
+                                 SafeArg.of("old", old.id),
+                                 SafeArg.of("new", next.id));
                 }
             }
 
@@ -353,7 +356,8 @@ public class CommitLogSegmentManager
         }
         else
         {
-            logger.warn("segment {} not found in activeSegments queue", segment);
+            logger.warn("Segment {} not found in activeSegments queue",
+                        SafeArg.of("segment", segment.id));
         }
     }
 
