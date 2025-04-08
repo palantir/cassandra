@@ -433,6 +433,9 @@ public class QueryFilter
         return new QueryFilter(key, cfName, new SliceQueryFilter(start, finish, reversed, limit), timestamp);
     }
 
+    /**
+     * Same as QueryFilter#getSliceFilter except the returned slice filter will use a page token
+     */
     public static QueryFilter getSliceFilterUsingPageToken(DecoratedKey key,
                                                            String cfName,
                                                            Composite start,

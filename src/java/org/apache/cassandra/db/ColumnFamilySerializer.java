@@ -48,7 +48,9 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
      * <client-provided deletion time>
      * <column count>
      * <columns, serialized individually>
-    */
+     * <page token set boolean>
+     * <page token if set, serialized using the same serializer as the columns>
+     */
     public void serialize(ColumnFamily cf, DataOutputPlus out, int version)
     {
         try
@@ -72,7 +74,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
                 written++;
             }
             assert count == written: "Table had " + count + " columns, but " + written + " written";
-            if (version >= MessagingService.VERSION_22_18)
+            if (version >= MessagingService.VERSION_22_PLTR)
             {
                 out.writeBoolean(cf.isPageTokenSet());
                 if (cf.isPageTokenSet())
@@ -116,7 +118,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             for (int i = 0; i < size; ++i)
                 cf.addColumn(columnSerializer.deserialize(in, flag));
         }
-        if (version >= MessagingService.VERSION_22_18)
+        if (version >= MessagingService.VERSION_22_PLTR)
         {
             boolean isPageTokenSet = in.readBoolean();
             if (isPageTokenSet)
@@ -128,7 +130,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
                 }
                 else
                 {
-                    cf.setPageToken(pageToken.getToken());
+                    cf.setPageToken(pageToken.getCell());
                 }
             }
         }
@@ -147,7 +149,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
 
     public long pageTokenSerializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
     {
-        if (version < MessagingService.VERSION_22_18)
+        if (version < MessagingService.VERSION_22_PLTR)
         {
             return 0;
         }

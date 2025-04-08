@@ -21,12 +21,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -394,8 +389,9 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         ColumnFamily comparison = (ColumnFamily) o;
 
         return metadata.equals(comparison.metadata)
-               && deletionInfo().equals(comparison.deletionInfo())
-               && ByteBufferUtil.compareUnsigned(digest(this), digest(comparison)) == 0;
+                && deletionInfo().equals(comparison.deletionInfo())
+                && ByteBufferUtil.compareUnsigned(digest(this), digest(comparison)) == 0
+                && Objects.equals(pageToken(), comparison.pageToken());
     }
 
     @Override

@@ -666,7 +666,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             out.writeInt(count);
 
             out.writeInt(f.compositesToGroup);
-            if (version >= MessagingService.VERSION_22_18)
+            if (version >= MessagingService.VERSION_22_PLTR)
             {
                 out.writeBoolean(f.usePageToken);
             }
@@ -683,7 +683,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             int compositesToGroup = in.readInt();
             boolean usePageToken = false;
-            if (version >= MessagingService.VERSION_22_18)
+            if (version >= MessagingService.VERSION_22_PLTR)
             {
                 usePageToken = in.readBoolean();
             }
@@ -703,7 +703,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             size += sizes.sizeof(f.count);
 
             size += sizes.sizeof(f.compositesToGroup);
-            if (version >= MessagingService.VERSION_22_18)
+            if (version >= MessagingService.VERSION_22_PLTR)
             {
                 size += sizes.sizeof(f.usePageToken);
             }
