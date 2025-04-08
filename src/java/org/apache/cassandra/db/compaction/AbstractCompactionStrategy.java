@@ -25,6 +25,8 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -367,7 +369,8 @@ public abstract class AbstractCompactionStrategy
             return false;
 
         if (CompactionController.pendingRangesExistForKeyspace(cfs.keyspace.getName())) {
-            logger.debug("Ignoring sstable because there are pending ranges for keyspace {}", cfs.keyspace.getName());
+            logger.debug("Ignoring sstable because there are pending ranges for keyspace {}",
+                         SafeArg.of("keyspace", cfs.keyspace.getName()));
             return false;
         }
 
@@ -376,7 +379,11 @@ public abstract class AbstractCompactionStrategy
         // elapsed since SSTable created.
         if (System.currentTimeMillis() < sstable.getCreationTimeFor(Component.DATA) + tombstoneCompactionInterval * 1000)
         {
-            logger.debug("Ignoring sstable due to creation time: {}", sstable.descriptor.filenameFor(Component.DATA));
+            logger.debug("Ignoring sstable due to creation time: {}",
+                         SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                         SafeArg.of("cf", sstable.getColumnFamilyName()),
+                         SafeArg.of("generation", sstable.descriptor.generation),
+                         UnsafeArg.of("filename", sstable.descriptor.filenameFor(Component.DATA)));
             return false;
         }
 
@@ -384,8 +391,10 @@ public abstract class AbstractCompactionStrategy
         if (droppableRatio <= tombstoneThreshold)
         {
             logger.debug("Ignoring sstable due to estimated droppable ratio ({}): {}",
-                         droppableRatio,
-                         sstable.descriptor.filenameFor(Component.DATA));
+                         SafeArg.of("droppableRatio", droppableRatio),
+                         SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                         SafeArg.of("cf", sstable.getColumnFamilyName()),
+                         SafeArg.of("generation", sstable.descriptor.generation));
             return false;
         }
 
@@ -414,7 +423,9 @@ public abstract class AbstractCompactionStrategy
 
                 // we have too few samples to estimate correct percentage
                 logger.debug("Ignoring sstable due to index summary being too small: {}",
-                             sstable.descriptor.filenameFor(Component.DATA));
+                             SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                             SafeArg.of("cf", sstable.getColumnFamilyName()),
+                             SafeArg.of("generation", sstable.descriptor.generation));
                 return false;
             }
             // first, calculate estimated keys that do not overlap
@@ -433,9 +444,11 @@ public abstract class AbstractCompactionStrategy
             if (!worthCompacting)
             {
                 logger.debug("Ignoring sstable due to estimated columns ratio ({} * {}): {}",
-                             remainingColumnsRatio,
-                             droppableRatio,
-                             sstable.descriptor.filenameFor(Component.DATA));
+                             SafeArg.of("remainingColumnRatio", remainingColumnsRatio),
+                             SafeArg.of("droppableRatio", droppableRatio),
+                             SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                             SafeArg.of("cf", sstable.getColumnFamilyName()),
+                             SafeArg.of("generation", sstable.descriptor.generation));
             }
             return worthCompacting;
         }

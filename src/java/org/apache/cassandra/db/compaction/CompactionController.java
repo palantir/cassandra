@@ -23,6 +23,9 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +81,8 @@ public class CompactionController implements AutoCloseable
     {
         if (doNotPurgeTombstones(cfs.keyspace.getName()))
         {
-            logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}", cfs.keyspace.getName());
+            logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}",
+                         SafeArg.of("keyspace", cfs.keyspace.getName()));
             return;
         }
 
@@ -96,7 +100,8 @@ public class CompactionController implements AutoCloseable
     {
         if (doNotPurgeTombstones(cfs.keyspace.getName()))
         {
-            logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}", cfs.keyspace.getName());
+            logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}",
+                         SafeArg.of("keyspace", cfs.keyspace.getName()));
             return;
         }
 
@@ -133,13 +138,16 @@ public class CompactionController implements AutoCloseable
      */
     public static Set<SSTableReader> getFullyExpiredSSTables(ColumnFamilyStore cfStore, Iterable<SSTableReader> compacting, Iterable<SSTableReader> overlapping, int gcBefore)
     {
-        logger.trace("Checking droppable sstables in {}", cfStore);
+        logger.trace("Checking droppable sstables in {}",
+                     SafeArg.of("keyspace", cfStore.keyspace.getName()),
+                     SafeArg.of("cf", cfStore.getColumnFamilyName()));
 
         if (compacting == null)
             return Collections.<SSTableReader>emptySet();
 
         if (doNotPurgeTombstones(cfStore.keyspace.getName())) {
-            logger.debug("not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}", cfStore.keyspace.getName());
+            logger.debug("not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}",
+                         SafeArg.of("keyspace", cfStore.keyspace.getName()));
             return Collections.<SSTableReader>emptySet();
         }
 
@@ -182,7 +190,11 @@ public class CompactionController implements AutoCloseable
             else
             {
                logger.trace("Dropping expired SSTable {} (maxLocalDeletionTime={}, gcBefore={})",
-                        candidate, candidate.getSSTableMetadata().maxLocalDeletionTime, gcBefore);
+                            SafeArg.of("keyspace", candidate.getKeyspaceName()),
+                            SafeArg.of("cf", candidate.getColumnFamilyName()),
+                            SafeArg.of("generation", candidate.descriptor.generation),
+                            SafeArg.of("maxLocalDeletionTime", candidate.getSSTableMetadata().maxLocalDeletionTime),
+                            SafeArg.of("gcBefore", gcBefore));
             }
         }
         return new HashSet<>(candidates);
@@ -209,7 +221,8 @@ public class CompactionController implements AutoCloseable
     {
         if (doNotPurgeTombstones(getKeyspace()))
         {
-            logger.debug("Purge evaluator always returning false - doNotPurgeTombstones returned true for keyspace {}", getKeyspace());
+            logger.debug("Purge evaluator always returning false - doNotPurgeTombstones returned true for keyspace {}",
+                         SafeArg.of("keyspace", getKeyspace()));
             return Predicates.alwaysFalse();
         }
 

@@ -27,6 +27,9 @@ import com.google.common.collect.Sets;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.SplittingSizeTieredCompactionWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +91,10 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
             for (int i = 0; i < buckets.size(); i++) {
                 sizes[i] = buckets.get(i).size();
             }
-            logger.trace("Compaction bucket sizes for {}.{} are {}", cfs.keyspace.getName(), cfs.getColumnFamilyName(), Arrays.toString(sizes));
+            logger.trace("Compaction bucket sizes for {}.{} are {}",
+                         SafeArg.of("keyspace", cfs.keyspace.getName()),
+                         SafeArg.of("cf", cfs.getColumnFamilyName()),
+                         SafeArg.of("sizes", Arrays.toString(sizes)));
         }
         updateEstimatedCompactionsByTasks(buckets);
         List<SSTableReader> mostInteresting = mostInterestingBucket(buckets, minThreshold, maxThreshold);
@@ -96,12 +102,17 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
         {
             if (logger.isTraceEnabled())
             {
-                logger.trace("Size of most interesting bucket for {}.{} is {}", cfs.keyspace.getName(), cfs.getColumnFamilyName(), mostInteresting.size());
+                logger.trace("Size of most interesting bucket for {}.{} is {}",
+                             SafeArg.of("keyspace", cfs.keyspace.getName()),
+                             SafeArg.of("cf", cfs.getColumnFamilyName()),
+                             SafeArg.of("mostInteresting", mostInteresting.size()));
             }
             return mostInteresting;
         }
 
-        logger.trace("No interesting bucket for {}.{}. Looking for a single sstable for tombstone compaction", cfs.keyspace.getName(), cfs.getColumnFamilyName());
+        logger.trace("No interesting bucket for {}.{}. Looking for a single sstable for tombstone compaction",
+                     SafeArg.of("keyspace", cfs.keyspace.getName()),
+                     SafeArg.of("cf", cfs.getColumnFamilyName()));
         // if there is no sstable to compact in standard way, try compacting single sstable whose droppable tombstone
         // ratio is greater than threshold.
         List<SSTableReader> sstablesWithTombstones = new ArrayList<>();
@@ -224,7 +235,8 @@ public class SizeTieredCompactionStrategy extends AbstractCompactionStrategy
         LifecycleTransaction transaction = cfs.getTracker().tryModify(sstables, OperationType.COMPACTION);
         if (transaction == null)
         {
-            logger.trace("Unable to mark {} for compaction; probably a background compaction got to it first.  You can disable background compactions temporarily if this is a problem", sstables);
+            logger.trace("Unable to mark {} for compaction; probably a background compaction got to it first.  You can disable background compactions temporarily if this is a problem",
+                         UnsafeArg.of("sstables", sstables));
             return null;
         }
 
