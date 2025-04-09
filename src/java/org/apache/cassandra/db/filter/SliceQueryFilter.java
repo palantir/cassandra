@@ -398,7 +398,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             }
         }
 
-        if (usePageToken && container.pageToken() == null)
+        if (usePageToken && !container.isPageTokenSet())
         {
             container.setPageTokenEndOfRow();
         }
