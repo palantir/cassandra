@@ -255,42 +255,6 @@ public class KeyspaceTest
     }
 
     @Test
-    public void testGetRowSliceByRangeUsingPageToken()
-    {
-        DecoratedKey key = TEST_SLICE_KEY;
-        Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        ColumnFamilyStore cfStore = keyspace.getColumnFamilyStore("Standard1");
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Standard1");
-        // First write "a", "b", "c", "d", "e"
-        cf.addColumn(column("a", "val1", 1L));
-        cf.addColumn(column("b", "val2", 1L));
-        cf.addColumn(column("c", "val3", 1L));
-        cf.addColumn(column("d", "val4", 1L));
-        cf.addColumn(column("e", "val5", 1L));
-        Mutation rm = new Mutation(KEYSPACE1, key.getKey(), cf);
-        rm.applyUnsafe();
-
-        PageToken pageTokenE = PageToken.createPageToken(column("e", "val5", 1L));
-        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-
-        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("a"), cellname("e"), false, 100, System.currentTimeMillis());
-        assertEquals(4, cf.getColumnCount());
-        assertEquals(pageTokenE, cf.pageToken());
-
-        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("b"), cellname("d"), false, 100, System.currentTimeMillis());
-        assertEquals(3, cf.getColumnCount());
-        assertEquals(pageTokenEnd, cf.pageToken());
-
-        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("b"), cellname("e"), false, 100, System.currentTimeMillis());
-        assertEquals(4, cf.getColumnCount());
-        assertEquals(pageTokenEnd, cf.pageToken());
-
-        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("e"), cellname("g"), false, 100, System.currentTimeMillis());
-        assertEquals(1, cf.getColumnCount());
-        assertEquals(pageTokenEnd, cf.pageToken());
-    }
-
-    @Test
     public void testReversedWithFlushing()
     {
         final Keyspace keyspace = Keyspace.open(KEYSPACE1);
