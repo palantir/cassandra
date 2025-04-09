@@ -26,7 +26,6 @@ import java.util.*;
 import java.io.IOException;
 
 import com.google.common.collect.Iterables;
-import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.BeforeClass;

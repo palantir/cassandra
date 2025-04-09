@@ -32,11 +32,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Function;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.db.IColumnFamilyStoreValidator;
-import org.apache.cassandra.db.filter.*;
 import org.apache.cassandra.db.index.PerRowSecondaryIndexTest;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -58,6 +60,12 @@ import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.CellNames;
 import org.apache.cassandra.db.composites.Composites;
+import org.apache.cassandra.db.filter.ColumnSlice;
+import org.apache.cassandra.db.filter.ExtendedFilter;
+import org.apache.cassandra.db.filter.IDiskAtomFilter;
+import org.apache.cassandra.db.filter.NamesQueryFilter;
+import org.apache.cassandra.db.filter.QueryFilter;
+import org.apache.cassandra.db.filter.SliceQueryFilter;
 import org.apache.cassandra.db.index.SecondaryIndex;
 import org.apache.cassandra.db.marshal.IntegerType;
 import org.apache.cassandra.db.marshal.LexicalUUIDType;
@@ -86,7 +94,10 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import static org.apache.cassandra.Util.*;
+import static org.apache.cassandra.Util.cellname;
+import static org.apache.cassandra.Util.column;
+import static org.apache.cassandra.Util.dk;
+import static org.apache.cassandra.Util.rp;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -991,7 +1002,7 @@ public class ColumnFamilyStoreTest
         return sb.toString();
     }
 
-    private static void putColsSuper(ColumnFamilyStore cfs, DecoratedKey key, ByteBuffer scfName, Cell... cols)
+    private static void putColsSuper(ColumnFamilyStore cfs, DecoratedKey key, ByteBuffer scfName, Cell... cols) throws Throwable
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
         for (Cell col : cols)
@@ -1000,22 +1011,11 @@ public class ColumnFamilyStoreTest
         rm.applyUnsafe();
     }
 
-    private static void putColsStandard(ColumnFamilyStore cfs, DecoratedKey key, Cell... cols)
+    private static void putColsStandard(ColumnFamilyStore cfs, DecoratedKey key, Cell... cols) throws Throwable
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
         for (Cell col : cols)
             cf.addColumn(col);
-        Mutation rm = new Mutation(cfs.keyspace.getName(), key.getKey(), cf);
-        rm.applyUnsafe();
-    }
-
-    private static void deleteRange(ColumnFamilyStore cfs, DecoratedKey key, RangeTombstone... rangeTombstones)
-    {
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
-        for (RangeTombstone rangeTombstone : rangeTombstones)
-        {
-            cf.delete(rangeTombstone);
-        }
         Mutation rm = new Mutation(cfs.keyspace.getName(), key.getKey(), cf);
         rm.applyUnsafe();
     }
@@ -1188,21 +1188,6 @@ public class ColumnFamilyStoreTest
         }
         assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
     }
-
-    private static void assertTotalColCountAndPageTokens(Collection<Row> rows, int expectedCount, List<PageToken> pageTokens)
-    {
-        int columns = 0;
-        int i = 0;
-        for (Row row : rows)
-        {
-            columns += row.getLiveCount(new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, expectedCount), System.currentTimeMillis());
-            PageToken pageToken = pageTokens.get(i);
-            assert pageToken.equals(row.cf.pageToken()) : "Expected " + pageToken + " but got " + row.cf.pageToken() + " for row " + row.key;
-            ++i;
-        }
-        assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
-    }
-
 
     @Test
     public void testRangeSliceColumnsLimit() throws Throwable
@@ -1407,7 +1392,7 @@ public class ColumnFamilyStoreTest
         assertColumnNames(row1, "c1", "c2");
         assertColumnNames(row2, "c1");
     }
-    
+
     private static String toString(Collection<Row> rows)
     {
         try

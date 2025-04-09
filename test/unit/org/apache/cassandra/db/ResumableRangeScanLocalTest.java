@@ -611,4 +611,15 @@ public class ResumableRangeScanLocalTest
         assertEquals(1, cf.getColumnCount());
         assertEquals(pageTokenEnd, cf.pageToken());
     }
+
+    private static void deleteRange(ColumnFamilyStore cfs, DecoratedKey key, RangeTombstone... rangeTombstones)
+    {
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
+        for (RangeTombstone rangeTombstone : rangeTombstones)
+        {
+            cf.delete(rangeTombstone);
+        }
+        Mutation rm = new Mutation(cfs.keyspace.getName(), key.getKey(), cf);
+        rm.applyUnsafe();
+    }
 }
