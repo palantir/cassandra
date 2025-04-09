@@ -1189,6 +1189,7 @@ public class ColumnFamilyStoreTest
         assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
     }
 
+
     @Test
     public void testRangeSliceColumnsLimit() throws Throwable
     {
