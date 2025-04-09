@@ -45,6 +45,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.compaction.CompactionInfo.Holder;
+import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.index.SecondaryIndexBuilder;
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
 import org.apache.cassandra.dht.Bounds;
@@ -1227,12 +1228,17 @@ public class CompactionManager implements CompactionManagerMBean
     {
         FileUtils.createDirectory(compactionFileLocation);
 
-        return SSTableWriter.create(cfs.metadata,
-                                    Descriptor.fromFilename(cfs.getTempSSTablePath(compactionFileLocation)),
+        MetadataCollector collector = new MetadataCollector(Collections.singletonList(sstable),
+                                                            cfs.metadata.comparator,
+                                                            sstable.getSSTableLevel(),
+                                                            false);
+
+        return SSTableWriter.create(Descriptor.fromFilename(cfs.getTempSSTablePath(compactionFileLocation)),
                                     expectedBloomFilterSize,
                                     repairedAt,
-                                    sstable.getSSTableLevel(),
-                                    cfs.partitioner);
+                                    cfs.metadata,
+                                    cfs.partitioner,
+                                    collector);
     }
 
     public static SSTableWriter createWriterForAntiCompaction(ColumnFamilyStore cfs,
