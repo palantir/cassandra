@@ -329,7 +329,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
         // otherwise set it to a cell name if we hit one of the defensive guards
 
         CellName firstCell = null;
-        CellName lastCellInContainer = null;
+        CellName lastScannedCellInContainer = null;
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
@@ -342,8 +342,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             if (usePageToken && hitRangeScanThreshold(reducedCells.deadAndLiveCells()))
             {
-                assert cell.name() != firstCell;
-                assert lastCellInContainer == null || cell.name() != lastCellInContainer;
+                assert cell.name() != firstCell :
+                        "Hit the range scan threshold on the first cell. Either the configured threshold is too low or there are unexpected duplicate cells.";
+                assert lastScannedCellInContainer == null || cell.name() != lastScannedCellInContainer :
+                        "Hit the range scan threshold on a cell that is included in the results set. This should never happen.";
 
                 container.setPageToken(cell);
                 break;
@@ -379,7 +381,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             }
 
             container.appendColumn(cell);
-            lastCellInContainer = cell.name();
+            lastScannedCellInContainer = cell.name();
 
             if (LOG_HIGH_MEMORY_COLLECTION)
             {
