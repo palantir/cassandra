@@ -455,9 +455,14 @@ public class ColumnFamilyMetrics
             }
         });
         liveDiskSpaceUsed = createColumnFamilyCounter("LiveDiskSpaceUsed");
-        liveDiskSpaceUsedRatio = Metrics.register(
-            factory.createMetricName("LiveDiskSpaceUsedRatio"),
-            () -> (double) liveDiskSpaceUsed.getCount() / StorageMetrics.load.getCount());
+        liveDiskSpaceUsedRatio = Metrics.register(factory.createMetricName("LiveDiskSpaceUsedRatio"), new RatioGauge()
+        {
+            @Override
+            protected Ratio getRatio()
+            {
+                return Ratio.of(liveDiskSpaceUsed.getCount(), StorageMetrics.load.getCount());
+            }
+        });
         totalDiskSpaceUsed = createColumnFamilyCounter("TotalDiskSpaceUsed");
         minRowSize = createColumnFamilyGauge("MinRowSize", new Gauge<Long>()
         {
