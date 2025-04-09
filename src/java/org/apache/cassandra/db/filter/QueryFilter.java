@@ -434,20 +434,6 @@ public class QueryFilter
     }
 
     /**
-     * Same as QueryFilter#getSliceFilter except the returned slice filter will use a page token
-     */
-    public static QueryFilter getSliceFilterUsingPageToken(DecoratedKey key,
-                                                           String cfName,
-                                                           Composite start,
-                                                           Composite finish,
-                                                           boolean reversed,
-                                                           int limit,
-                                                           long timestamp)
-    {
-        return new QueryFilter(key, cfName, new SliceQueryFilter(start, finish, reversed, true, limit), timestamp);
-    }
-
-    /**
      * return a QueryFilter object that includes every column in the row.
      * This is dangerous on large rows; avoid except for test code.
      */
