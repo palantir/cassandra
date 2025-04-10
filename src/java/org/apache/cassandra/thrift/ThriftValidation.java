@@ -642,6 +642,11 @@ public class ThriftValidation
 
     public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn)
     {
+        return asIFilter(sp, metadata, superColumn, false);
+    }
+
+    public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn, boolean usePageToken)
+    {
         SliceRange sr = sp.slice_range;
         IDiskAtomFilter filter;
 
@@ -658,10 +663,12 @@ public class ThriftValidation
         }
         else
         {
-            filter = new SliceQueryFilter(comparator.fromByteBuffer(sr.start),
-                                          comparator.fromByteBuffer(sr.finish),
-                                          sr.reversed,
-                                          sr.count);
+            filter = new SliceQueryFilter(
+                    comparator.fromByteBuffer(sr.start),
+                    comparator.fromByteBuffer(sr.finish),
+                    sr.reversed, usePageToken,
+                    sr.count
+            );
         }
 
         if (metadata.isSuper())
