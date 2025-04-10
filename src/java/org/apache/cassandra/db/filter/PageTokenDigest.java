@@ -126,7 +126,7 @@ public class PageTokenDigest
         public long serializedSize(PageTokenDigest pageTokenDigest, int version)
         {
             assert version >= MessagingService.VERSION_22_PLTR;
-
+            
             TypeSizes typeSizes = TypeSizes.NATIVE;
 
             boolean hasReachedEnd = pageTokenDigest.isReachedEnd();

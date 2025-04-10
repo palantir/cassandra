@@ -201,7 +201,6 @@ public class StartupChecks
          */
         private void checkOutOfMemoryHandling() throws StartupException
         {
-            System.out.println(System.getProperty("java.version"));
             if (JavaUtils.supportExitOnOutOfMemory(System.getProperty("java.version")))
             {
                 if (!jvmOptionsContainsOneOf("-XX:OnOutOfMemoryError=", "-XX:+ExitOnOutOfMemoryError", "-XX:+CrashOnOutOfMemoryError"))
