@@ -276,6 +276,7 @@ public class ResponseResolverTest extends SchemaLoader
 
         finished.await();
         assertEquals(0, executorService.shutdownNow().size());
+
     }
 
     private void testRangeSlices(RangeSliceResponseResolver resolver, Row[] expected, MessageIn<RangeSliceReply> ... messages)
