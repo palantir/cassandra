@@ -18,6 +18,7 @@
 package org.apache.cassandra.service;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.cassandra.db.ColumnFamily;
@@ -45,7 +46,8 @@ public class RowDigestResolver extends AbstractRowResolver
             {
                 if (result.digest() == null)
                 {
-                    result.setDigest(ColumnFamily.digest(result.row().cf), (result.row().cf == null || result.row().cf.pageToken() == null) ? null : result.row().cf.pageToken().digest());
+                    result.setDigest(ColumnFamily.digest(result.row().cf), (result.row().cf == null || !result.row().cf.isPageTokenSet()) ? null :
+                            result.row().cf.pageToken().digest());
                 }
 
                 return result.row();
@@ -94,7 +96,7 @@ public class RowDigestResolver extends AbstractRowResolver
                 data = response.row().cf;
                 if (response.digest() == null)
                 {
-                    message.payload.setDigest(ColumnFamily.digest(data), (data == null || data.pageToken() == null) ? null : data.pageToken().digest());
+                    message.payload.setDigest(ColumnFamily.digest(data), (data == null || !data.isPageTokenSet()) ? null : data.pageToken().digest());
                 }
 
                 newDigest = response.digest();
@@ -106,7 +108,7 @@ public class RowDigestResolver extends AbstractRowResolver
                 digest = newDigest;
                 pageTokenDigest = newPageTokenDigest;
             }
-            else if (!digest.equals(newDigest) || (pageTokenDigest != null && !pageTokenDigest.equals(newPageTokenDigest)))
+            else if (!digest.equals(newDigest) || !Objects.equals(pageTokenDigest, newPageTokenDigest))
             {
                 throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
             }

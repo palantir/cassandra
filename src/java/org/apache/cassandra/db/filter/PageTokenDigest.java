@@ -22,12 +22,12 @@ import org.apache.cassandra.db.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 import java.io.DataInput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 public class PageTokenDigest
 {
@@ -70,7 +70,7 @@ public class PageTokenDigest
 
     private boolean equals(PageTokenDigest pageTokenDigest)
     {
-        return digest.equals(pageTokenDigest.digest) && reachedEnd == pageTokenDigest.reachedEnd;
+        return Objects.equals(digest, pageTokenDigest.digest) && reachedEnd == pageTokenDigest.reachedEnd;
     }
 
     @Override
@@ -91,7 +91,8 @@ public class PageTokenDigest
         @Override
         public void serialize(PageTokenDigest pageTokenDigest, DataOutputPlus out, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             boolean hasReachedEnd = pageTokenDigest.isReachedEnd();
             out.writeBoolean(hasReachedEnd);
             if (!hasReachedEnd)
@@ -106,7 +107,8 @@ public class PageTokenDigest
         @Override
         public PageTokenDigest deserialize(DataInput in, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             boolean hasReachedEnd = in.readBoolean();
             if (!hasReachedEnd)
             {
@@ -122,7 +124,8 @@ public class PageTokenDigest
         @Override
         public long serializedSize(PageTokenDigest pageTokenDigest, int version)
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             TypeSizes typeSizes = TypeSizes.NATIVE;
 
             boolean hasReachedEnd = pageTokenDigest.isReachedEnd();

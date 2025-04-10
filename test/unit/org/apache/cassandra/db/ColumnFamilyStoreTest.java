@@ -32,11 +32,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Function;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.db.IColumnFamilyStoreValidator;
-import org.apache.cassandra.db.filter.*;
 import org.apache.cassandra.db.index.PerRowSecondaryIndexTest;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -58,6 +60,12 @@ import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.CellNames;
 import org.apache.cassandra.db.composites.Composites;
+import org.apache.cassandra.db.filter.ColumnSlice;
+import org.apache.cassandra.db.filter.ExtendedFilter;
+import org.apache.cassandra.db.filter.IDiskAtomFilter;
+import org.apache.cassandra.db.filter.NamesQueryFilter;
+import org.apache.cassandra.db.filter.QueryFilter;
+import org.apache.cassandra.db.filter.SliceQueryFilter;
 import org.apache.cassandra.db.index.SecondaryIndex;
 import org.apache.cassandra.db.marshal.IntegerType;
 import org.apache.cassandra.db.marshal.LexicalUUIDType;
@@ -86,7 +94,10 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import static org.apache.cassandra.Util.*;
+import static org.apache.cassandra.Util.cellname;
+import static org.apache.cassandra.Util.column;
+import static org.apache.cassandra.Util.dk;
+import static org.apache.cassandra.Util.rp;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -991,7 +1002,7 @@ public class ColumnFamilyStoreTest
         return sb.toString();
     }
 
-    private static void putColsSuper(ColumnFamilyStore cfs, DecoratedKey key, ByteBuffer scfName, Cell... cols)
+    private static void putColsSuper(ColumnFamilyStore cfs, DecoratedKey key, ByteBuffer scfName, Cell... cols) throws Throwable
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
         for (Cell col : cols)
@@ -1000,22 +1011,11 @@ public class ColumnFamilyStoreTest
         rm.applyUnsafe();
     }
 
-    private static void putColsStandard(ColumnFamilyStore cfs, DecoratedKey key, Cell... cols)
+    private static void putColsStandard(ColumnFamilyStore cfs, DecoratedKey key, Cell... cols) throws Throwable
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
         for (Cell col : cols)
             cf.addColumn(col);
-        Mutation rm = new Mutation(cfs.keyspace.getName(), key.getKey(), cf);
-        rm.applyUnsafe();
-    }
-
-    private static void deleteRange(ColumnFamilyStore cfs, DecoratedKey key, RangeTombstone... rangeTombstones)
-    {
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(cfs.keyspace.getName(), cfs.name);
-        for (RangeTombstone rangeTombstone : rangeTombstones)
-        {
-            cf.delete(rangeTombstone);
-        }
         Mutation rm = new Mutation(cfs.keyspace.getName(), key.getKey(), cf);
         rm.applyUnsafe();
     }
@@ -1185,20 +1185,6 @@ public class ColumnFamilyStoreTest
         for (Row row : rows)
         {
             columns += row.getLiveCount(new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, expectedCount), System.currentTimeMillis());
-        }
-        assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
-    }
-
-    private static void assertTotalColCountAndPageTokens(Collection<Row> rows, int expectedCount, List<PageToken> pageTokens)
-    {
-        int columns = 0;
-        int i = 0;
-        for (Row row : rows)
-        {
-            columns += row.getLiveCount(new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, expectedCount), System.currentTimeMillis());
-            PageToken pageToken = pageTokens.get(i);
-            assert pageToken.equals(row.cf.pageToken()) : "Expected " + pageToken + " but got " + row.cf.pageToken() + " for row " + row.key;
-            ++i;
         }
         assert columns == expectedCount : "Expected " + expectedCount + " live columns but got " + columns + ": " + rows;
     }
@@ -1406,469 +1392,6 @@ public class ColumnFamilyStoreTest
         row2 = iter.next();
         assertColumnNames(row1, "c1", "c2");
         assertColumnNames(row2, "c1");
-    }
-
-    @Test
-    public void testRangeSlicePageTokenVariousSlices()
-    {
-        String keyspaceName = KEYSPACE1;
-        String cfName = CF_STANDARD1;
-        Keyspace keyspace = Keyspace.open(keyspaceName);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-        cfs.clearUnsafe();
-
-        Cell[] cols = new Cell[7];
-        for (int i = 0; i < 7; i++)
-        {
-            cols[i] = column("c" + i, "value", 1);
-        }
-        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
-        putColsStandard(cfs, Util.dk("B"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5]);
-        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3]);
-        putColsStandard(cfs, Util.dk("E"), cols[0], cols[1], cols[2]);
-        cfs.forceBlockingFlush();
-
-        SlicePredicate spAll = new SlicePredicate();
-        spAll.setSlice_range(new SliceRange());
-        spAll.getSlice_range().setCount(1);
-        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        SlicePredicate spStartC1 = new SlicePredicate();
-        spStartC1.setSlice_range(new SliceRange());
-        spStartC1.getSlice_range().setCount(1);
-        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        SlicePredicate spEndC4 = new SlicePredicate();
-        spEndC4.setSlice_range(new SliceRange());
-        spEndC4.getSlice_range().setCount(1);
-        spEndC4.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spEndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-
-        SlicePredicate spStartC1EndC4 = new SlicePredicate();
-        spStartC1EndC4.setSlice_range(new SliceRange());
-        spStartC1EndC4.getSlice_range().setCount(1);
-        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-
-        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-        PageToken pageToken5 = PageToken.createPageToken(cols[5]);
-        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-
-        // rows: all ranges, columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                19,
-                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                7,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: [c1, \inf)
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                17,
-                ImmutableList.of(pageToken5, pageToken5, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: [c1, \inf)
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                5,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: (-\inf, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                19,
-                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: (-\inf, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                7,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: [c1, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                17,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: [c1, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                5,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-    }
-
-    @Test
-    public void testRangeSlicePageTokenWithDuplicates()
-    {
-        String keyspaceName = KEYSPACE1;
-        String cfName = CF_STANDARD1;
-        Keyspace keyspace = Keyspace.open(keyspaceName);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-        cfs.clearUnsafe();
-
-        Cell[] cols = new Cell[5];
-        Cell[] colsLaterTs = new Cell[5];
-        for (int i = 0; i < 5; i++)
-        {
-            cols[i] = column("c" + i, "value", 1);
-            colsLaterTs[i] = column("c" + i, "value", 2);
-        }
-        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-        putColsStandard(cfs, Util.dk("B"), cols[0], cols[0], cols[0], cols[0], cols[1]);
-        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-        cfs.forceBlockingFlush();
-        putColsStandard(cfs, Util.dk("C"), colsLaterTs[0], colsLaterTs[1], colsLaterTs[4]);
-        putColsStandard(cfs, Util.dk("D"), colsLaterTs[3], colsLaterTs[4]);
-        cfs.forceBlockingFlush();
-
-        SlicePredicate spAll = new SlicePredicate();
-        spAll.setSlice_range(new SliceRange());
-        spAll.getSlice_range().setCount(1);
-        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-        PageToken pageTokenLater4 = PageToken.createPageToken(colsLaterTs[4]);
-        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-
-        // rows: all ranges, columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                14,
-                ImmutableList.of(pageToken4, pageTokenEnd, pageTokenLater4, pageTokenLater4));
-        // rows: (B, D], columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("B", "D"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                8,
-                ImmutableList.of(pageTokenLater4, pageTokenLater4));
-    }
-
-    @Test
-    public void testRangeSlicePageTokenWithRangeTombstones()
-    {
-        String keyspaceName = KEYSPACE1;
-        String cfName = CF_STANDARD1;
-        Keyspace keyspace = Keyspace.open(keyspaceName);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-        cfs.clearUnsafe();
-
-        Cell[] cols = new Cell[7];
-        for (int i = 0; i < 7; i++)
-        {
-            cols[i] = column("c" + i, "value", 1);
-        }
-        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
-        putColsStandard(cfs, Util.dk("B"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5]);
-        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3]);
-        putColsStandard(cfs, Util.dk("E"), cols[0], cols[1], cols[2]);
-        cfs.forceBlockingFlush();
-        deleteRange(cfs, Util.dk("A"), tombstone("c0", "c1", 2, 2));
-        deleteRange(cfs, Util.dk("B"), tombstone("c0", "c1", 2, 2));
-        deleteRange(cfs, Util.dk("D"), tombstone("c0", "c3", 2, 2));
-
-        SlicePredicate spAll = new SlicePredicate();
-        spAll.setSlice_range(new SliceRange());
-        spAll.getSlice_range().setCount(1);
-        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        SlicePredicate spStartC1 = new SlicePredicate();
-        spStartC1.setSlice_range(new SliceRange());
-        spStartC1.getSlice_range().setCount(1);
-        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        SlicePredicate spEndC4 = new SlicePredicate();
-        spEndC4.setSlice_range(new SliceRange());
-        spEndC4.getSlice_range().setCount(1);
-        spEndC4.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spEndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-
-        SlicePredicate spStartC1EndC4 = new SlicePredicate();
-        spStartC1EndC4.setSlice_range(new SliceRange());
-        spStartC1EndC4.getSlice_range().setCount(1);
-        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-
-        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-        PageToken pageToken5 = PageToken.createPageToken(cols[5]);
-        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-
-        // rows: all ranges, columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                11,
-                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                3,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: [c1, \inf)
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                12,
-                ImmutableList.of(pageToken5, pageToken5, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: [c1, \inf)
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                2,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: (-\inf, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                11,
-                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: (-\inf, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                3,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: [c1, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                12,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: [c1, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                2,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-    }
-
-    @Test
-    public void testRangeSlicesPageTokenWithPointTombstones()
-    {
-        String keyspaceName = KEYSPACE1;
-        String cfName = CF_STANDARD1;
-        Keyspace keyspace = Keyspace.open(keyspaceName);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-        cfs.clearUnsafe();
-
-        Cell[] cols = new Cell[7];
-        Cell[] pointTombstones = new Cell[7];
-        for (int i = 0; i < 7; i++)
-        {
-            cols[i] = column("c" + i, "value", 1);
-            pointTombstones[i] = expiredColumn("c" + i, "value", 1);
-        }
-        Cell pointTombstoneBetweenC1C2 = expiredColumn("c11", "value", 1);
-        Cell pointTombstoneBetweenC3C4 = expiredColumn("c31", "value", 1);
-        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
-        putColsStandard(cfs, Util.dk("B"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5]);
-        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3]);
-        putColsStandard(cfs, Util.dk("E"), cols[0], cols[1], cols[2]);
-        cfs.forceBlockingFlush();
-        putColsStandard(cfs, Util.dk("A"), pointTombstones[0], pointTombstones[1], pointTombstoneBetweenC3C4);
-        putColsStandard(cfs, Util.dk("B"), pointTombstoneBetweenC1C2);
-        putColsStandard(cfs, Util.dk("C"), pointTombstones[0], pointTombstones[1]);
-        putColsStandard(cfs, Util.dk("D"), pointTombstones[0], pointTombstones[1], pointTombstones[2], pointTombstones[3]);
-        cfs.forceBlockingFlush();
-
-        SlicePredicate spAll = new SlicePredicate();
-        spAll.setSlice_range(new SliceRange());
-        spAll.getSlice_range().setCount(1);
-        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        SlicePredicate spStartC1 = new SlicePredicate();
-        spStartC1.setSlice_range(new SliceRange());
-        spStartC1.getSlice_range().setCount(1);
-        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-
-        SlicePredicate spEndC4 = new SlicePredicate();
-        spEndC4.setSlice_range(new SliceRange());
-        spEndC4.getSlice_range().setCount(1);
-        spEndC4.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-        spEndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-
-        SlicePredicate spStartC1EndC4 = new SlicePredicate();
-        spStartC1EndC4.setSlice_range(new SliceRange());
-        spStartC1EndC4.getSlice_range().setCount(1);
-        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-
-        PageToken pageTokenBetweenC3C4 = PageToken.createPageToken(pointTombstoneBetweenC3C4);
-        PageToken pageToken3 = PageToken.createPageToken(cols[3]);
-        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-
-        // rows: all ranges, columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                10,
-                ImmutableList.of(pageTokenBetweenC3C4, pageToken3, pageToken4, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: all ranges
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                3,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: [c1, \inf)
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                10,
-                ImmutableList.of(pageToken4, pageToken4, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: [c1, \inf)
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                2,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: (-\inf, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                10,
-                ImmutableList.of(pageTokenBetweenC3C4, pageToken3, pageToken4, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: (-\inf, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                3,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-        // rows: all ranges, columns: [c1, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                10,
-                ImmutableList.of(pageToken4, pageToken4, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-        // rows: (C, E], columns: [c1, c4]
-        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-                        null,
-                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-                        100,
-                        System.currentTimeMillis(),
-                        true,
-                        false),
-                2,
-                ImmutableList.of(pageTokenEnd, pageTokenEnd));
     }
 
     private static String toString(Collection<Row> rows)

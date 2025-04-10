@@ -1540,8 +1540,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         // purge old top-level and range tombstones
         cf.purgeTombstones(gcBefore);
 
-        // if there are no columns or tombstones left, return null
-        return !cf.hasColumns() && !cf.isMarkedForDelete() ? null : cf;
+        // if there are no columns or tombstones left, and the page token is not set, return null
+        return !cf.hasColumns() && !cf.isMarkedForDelete() && !cf.isPageTokenSet() ? null : cf;
     }
 
     /**
@@ -1897,16 +1897,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                         long timestamp)
     {
         return getColumnFamily(QueryFilter.getSliceFilter(key, name, start, finish, reversed, limit, timestamp));
-    }
-
-    public ColumnFamily getColumnFamilyUsingPageToken(DecoratedKey key,
-                                                      Composite start,
-                                                      Composite finish,
-                                                      boolean reversed,
-                                                      int limit,
-                                                      long timestamp)
-    {
-        return getColumnFamily(QueryFilter.getSliceFilterUsingPageToken(key, name, start, finish, reversed, limit, timestamp));
     }
 
     /**

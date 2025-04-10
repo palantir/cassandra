@@ -473,6 +473,8 @@ public class CassandraServer implements Cassandra.Iface
         return multigetSliceInternal(keyspace, Collections.singletonList(key), column_parent, timestamp, predicate, consistency_level, cState).get(key);
     }
 
+    // implement multiget_slice_paging
+
     public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
@@ -509,6 +511,8 @@ public class CassandraServer implements Cassandra.Iface
             Tracing.instance.stopSession();
         }
     }
+
+    // implement multiget_multislice_paging
 
     @Override
     public Map<ByteBuffer, PageResult> multiget_slice_paging(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException

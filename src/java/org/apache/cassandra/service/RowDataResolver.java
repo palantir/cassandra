@@ -22,7 +22,10 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import com.google.common.collect.Iterables;
 
@@ -114,7 +117,8 @@ public class RowDataResolver extends AbstractRowResolver
 
         for (int i = 0; i < versions.size(); i++)
         {
-            ColumnFamily diffCf = ColumnFamily.diff(versions.get(i), resolved);
+            ColumnFamily version = versions.get(i).cloneMeLimitByPageToken(resolved.pageToken());
+            ColumnFamily diffCf = ColumnFamily.diff(version, resolved);
             if (diffCf == null) // no repair needs to happen
                 continue;
 
@@ -159,43 +163,25 @@ public class RowDataResolver extends AbstractRowResolver
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
         resolved = ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
         PageToken resolvedPageToken = resolvedPageToken(versions, resolved);
-        return resolved.cloneLimitByPageToken(resolvedPageToken);
+        return resolved == null ? null : resolved.cloneMeLimitByPageToken(resolvedPageToken);
     }
 
     private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
     {
-        Iterable<ColumnFamily> allCfs = Iterables.concat(
+        List<ColumnFamily> allCfsWithPageTokens = StreamSupport.stream(Iterables.concat(
                 versions,
                 Collections.singleton(resolved)
-        );
-        PageToken resolvedPageToken = null;
-        PageToken.Comparator comparator = null;
-        for (ColumnFamily cf : allCfs)
-        {
-            if (cf == null)
-            {
-                continue;
-            }
-            if (comparator == null)
-            {
-                comparator = new PageToken.Comparator(cf.getComparator());
-            }
-        }
-        assert comparator != null;
+        ).spliterator(), false).filter(Objects::nonNull).filter(ColumnFamily::isPageTokenSet).collect(Collectors.toList());
 
-        for (ColumnFamily cf : allCfs)
+        if (allCfsWithPageTokens.isEmpty())
         {
-            if (cf == null || !cf.isPageTokenSet())
-            {
-                continue;
-            }
-
-            if (resolvedPageToken == null || comparator.compare(resolvedPageToken, cf.pageToken()) > 0)
-            {
-                resolvedPageToken = cf.pageToken();
-            }
+            return null;
         }
-        return resolvedPageToken;
+
+        List<PageToken> allPageTokens =
+                allCfsWithPageTokens.stream().map(ColumnFamily::pageToken).collect(Collectors.toList());
+
+        return Collections.min(allPageTokens, new PageToken.Comparator(allCfsWithPageTokens.get(0).getComparator()));
     }
 
     public Row getData()
