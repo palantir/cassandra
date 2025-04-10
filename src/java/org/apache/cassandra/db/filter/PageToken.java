@@ -89,6 +89,7 @@ public class PageToken
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
             assert version >= MessagingService.VERSION_22_PLTR;
+
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
@@ -100,6 +101,7 @@ public class PageToken
         public PageToken deserialize(DataInput in, int version) throws IOException
         {
             assert version >= MessagingService.VERSION_22_PLTR;
+
             return deserialize(in, ColumnSerializer.Flag.LOCAL, version);
         }
 
@@ -117,6 +119,7 @@ public class PageToken
         public long serializedSize(PageToken pageToken, int version)
         {
             assert version >= MessagingService.VERSION_22_PLTR;
+
             return serializedSize(pageToken, TypeSizes.NATIVE, version);
         }
 
