@@ -95,7 +95,7 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         ByteBuffer buffer = response.isDigestQuery() ? response.digest() : ByteBufferUtil.EMPTY_BYTE_BUFFER;
         out.write(buffer);
         out.writeBoolean(response.isDigestQuery());
-        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_18)
+        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_PLTR)
         {
             PageTokenDigest pageTokenDigest = response.pageTokenDigest();
             boolean pageTokenDigestExists = pageTokenDigest != null;
@@ -125,7 +125,7 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
 
         if (isDigest)
         {
-            if (version < MessagingService.VERSION_22_18)
+            if (version < MessagingService.VERSION_22_PLTR)
             {
                 return new ReadResponse(ByteBuffer.wrap(digest), null);
             }
@@ -150,7 +150,7 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         int size = typeSizes.sizeof(buffer.remaining());
         size += buffer.remaining();
         size += typeSizes.sizeof(response.isDigestQuery());
-        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_18)
+        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_PLTR)
         {
             boolean pageTokenDigestExists = response.pageTokenDigest() != null;
             size += typeSizes.sizeof(pageTokenDigestExists);

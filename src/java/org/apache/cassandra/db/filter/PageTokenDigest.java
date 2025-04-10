@@ -92,7 +92,7 @@ public class PageTokenDigest
         @Override
         public void serialize(PageTokenDigest pageTokenDigest, DataOutputPlus out, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
             boolean hasReachedEnd = pageTokenDigest.isReachedEnd();
             out.writeBoolean(hasReachedEnd);
             if (!hasReachedEnd)
@@ -107,7 +107,7 @@ public class PageTokenDigest
         @Override
         public PageTokenDigest deserialize(DataInput in, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
             boolean hasReachedEnd = in.readBoolean();
             if (!hasReachedEnd)
             {
@@ -123,7 +123,7 @@ public class PageTokenDigest
         @Override
         public long serializedSize(PageTokenDigest pageTokenDigest, int version)
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
             TypeSizes typeSizes = TypeSizes.NATIVE;
 
             boolean hasReachedEnd = pageTokenDigest.isReachedEnd();
