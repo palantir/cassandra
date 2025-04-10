@@ -461,7 +461,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         sb.append(" [").append(CellNames.getColumnsString(getComparator(), this)).append("], pageToken=").append(pageToken()).append(")");
         return sb.toString();
     }
-    
+
     public static ByteBuffer digest(ColumnFamily cf)
     {
         MessageDigest digest = FBUtilities.threadLocalMD5Digest();
