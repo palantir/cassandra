@@ -164,7 +164,7 @@ public class RowDataResolver extends AbstractRowResolver
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
         resolved = ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
         PageToken resolvedPageToken = resolvedPageToken(versions, resolved);
-        return resolved.cloneMeLimitByPageToken(resolvedPageToken);
+        return resolved == null ? null : resolved.cloneMeLimitByPageToken(resolvedPageToken);
     }
 
     private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
