@@ -1114,6 +1114,13 @@ public class CompactionManager implements CompactionManagerMBean
 
     }
 
+    /* Used in tests. */
+    @VisibleForTesting
+    void doCleanupOne(final ColumnFamilyStore cfs, LifecycleTransaction txn, Collection<Range<Token>> ranges) throws IOException
+    {
+        doCleanupOne(cfs, txn, new CleanupStrategy.Full(cfs, ranges), ranges,false);
+    }
+
     private static abstract class CleanupStrategy
     {
         public static CleanupStrategy get(ColumnFamilyStore cfs, Collection<Range<Token>> ranges)

@@ -41,6 +41,7 @@ import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
+import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.MaxSSTableSizeWriter;
 import org.apache.cassandra.db.filter.QueryFilter;
@@ -74,7 +75,7 @@ import static org.mockito.Mockito.*;
 public class CompactionsTest
 {
     private static final String KEYSPACE1 = "Keyspace1";
-    private static final String CF_STANDARD1 = "CF_STANDARD1";
+    private static final String CF_STANDARD1 = "Standard1";
     private static final String CF_STANDARD2 = "Standard2";
     private static final String CF_STANDARD3 = "Standard3";
     private static final String CF_STANDARD4 = "Standard4";
@@ -82,6 +83,7 @@ public class CompactionsTest
     private static final String CF_STANDARD6 = "Standard6";
     private static final String CF_STANDARD7 = "Standard7";
     private static final String CF_STANDARD8 = "Standard8";
+    private static final String CF_STANDARD9 = "Standard9";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -103,6 +105,7 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD8),
+                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD9),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -701,6 +704,102 @@ public class CompactionsTest
         assertTrue("compaction resources were closed successfully after an interrupted compaction", compaction.compactionController.closed);
     }
 
+    @Test
+    public void testCompactionPropagatesReplayPositions() throws InterruptedException
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        final String cfname = CF_STANDARD9; // use clean(no sstable) CF
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfname);
+
+        // disable compaction while flushing
+        cfs.disableAutoCompaction();
+
+        for (int i = 0; i < 2; i++) {
+            DecoratedKey key = Util.dk(String.valueOf(i));
+            Mutation rm = new Mutation(KEYSPACE1, key.getKey());
+            rm.add(cfname, Util.cellname("col"),
+                   ByteBufferUtil.EMPTY_BYTE_BUFFER,
+                   System.currentTimeMillis());
+            rm.applyUnsafe();
+            cfs.forceBlockingFlush();
+        }
+
+        Collection<SSTableReader> sstables = cfs.getSSTables();
+        assertEquals(2, sstables.size());
+
+        Iterator<SSTableReader> sstableIterator = sstables.iterator();
+        SSTableReader sstable1 = sstableIterator.next();
+        SSTableReader sstable2 = sstableIterator.next();
+
+        int maxGeneration = Math.max(sstable1.descriptor.generation, sstable2.descriptor.generation);
+
+        ReplayPosition lowerBound1 = sstable1.getSSTableMetadata().commitLogLowerBound;
+        ReplayPosition upperBound1 = sstable1.getSSTableMetadata().commitLogUpperBound;
+        ReplayPosition lowerBound2 = sstable2.getSSTableMetadata().commitLogLowerBound;
+        ReplayPosition upperBound2 = sstable2.getSSTableMetadata().commitLogUpperBound;
+
+        ReplayPosition minLowerBound = lowerBound1.compareTo(lowerBound2) < 0 ? lowerBound1 : lowerBound2;
+        ReplayPosition maxUpperBound = upperBound1.compareTo(upperBound2) > 0 ? upperBound1 : upperBound2;
+
+        assertTrue(minLowerBound.compareTo(maxUpperBound) < 0);
+        assertTrue(maxUpperBound != ReplayPosition.NONE);
+
+        String file1 = new File(sstable1.descriptor.filenameFor(Component.DATA)).getAbsolutePath();
+        String file2 = new File(sstable2.descriptor.filenameFor(Component.DATA)).getAbsolutePath();
+
+        CompactionManager.instance.forceUserDefinedCompaction(file1 + "," + file2);
+        do
+        {
+            Thread.sleep(100);
+        } while (CompactionManager.instance.getPendingTasks() > 0 || CompactionManager.instance.getActiveCompactions() > 0);
+        // CF should have only one sstable with generation number advanced
+        sstables = cfs.getSSTables();
+        assertEquals(1, sstables.size());
+        SSTableReader compactedSstable = sstables.iterator().next();
+
+        assertEquals(maxGeneration + 1, compactedSstable.descriptor.generation);
+        assertEquals(minLowerBound, compactedSstable.getSSTableMetadata().commitLogLowerBound);
+        assertEquals(maxUpperBound, compactedSstable.getSSTableMetadata().commitLogUpperBound);
+    }
+
+    @Test
+    public void testCleanupPropagatesReplayPositions() throws IOException
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+        ColumnFamilyStore store = keyspace.getColumnFamilyStore(CF_STANDARD1);
+        store.clearUnsafe();
+
+        // disable compaction while flushing
+        store.disableAutoCompaction();
+
+        // write two groups of 9 keys: [001, 002, ... 008, 009] and [101, 102, ... 108, 109]
+        for (int i = 1; i < 10; i++)
+        {
+            insertRowWithKey(i);
+            insertRowWithKey(i + 100);
+        }
+        store.forceBlockingFlush();
+
+        assertEquals(1, store.getSSTables().size());
+        SSTableReader sstable = store.getSSTables().iterator().next();
+
+        ReplayPosition upperBound = sstable.getSSTableMetadata().commitLogUpperBound;
+        ReplayPosition lowerBound = sstable.getSSTableMetadata().commitLogLowerBound;
+        assertTrue(upperBound != ReplayPosition.NONE);
+
+        LifecycleTransaction txn = store.getTracker().tryModify(store.getSSTables(), OperationType.UNKNOWN);
+        Collection<Range<Token>> ranges = makeRanges(100, 109);
+        CompactionManager.instance.doCleanupOne(store, txn, ranges);
+
+        assertEquals(1, store.getSSTables().size());
+        SSTableReader cleanedSstable = store.getSSTables().iterator().next();
+
+        assertTrue(cleanedSstable.descriptor.generation != sstable.descriptor.generation);
+        assertTrue(cleanedSstable.getSSTableMetadata().commitLogLowerBound == lowerBound);
+        assertTrue(cleanedSstable.getSSTableMetadata().commitLogUpperBound == upperBound);
+
+    }
+
     private static class FailedAbortCompactionWriter extends MaxSSTableSizeWriter
     {
 
@@ -796,7 +895,7 @@ public class CompactionsTest
         long timestamp = System.currentTimeMillis();
         DecoratedKey decoratedKey = Util.dk(String.format("%03d", key));
         Mutation rm = new Mutation(KEYSPACE1, decoratedKey.getKey());
-        rm.add("CF_STANDARD1", Util.cellname("col"), ByteBufferUtil.EMPTY_BYTE_BUFFER, timestamp, 1000);
+        rm.add("Standard1", Util.cellname("col"), ByteBufferUtil.EMPTY_BYTE_BUFFER, timestamp, 1000);
         rm.applyUnsafe();
     }
 
