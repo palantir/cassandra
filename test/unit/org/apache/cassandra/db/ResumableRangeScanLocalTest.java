@@ -19,13 +19,16 @@
 package org.apache.cassandra.db;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
+import org.apache.bcel.generic.FADD;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.KSMetaData;
+import org.apache.cassandra.db.composites.CellName;
+import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.db.composites.Composites;
-import org.apache.cassandra.db.filter.PageToken;
-import org.apache.cassandra.db.filter.QueryFilter;
-import org.apache.cassandra.db.filter.SliceQueryFilter;
+import org.apache.cassandra.db.filter.*;
+import org.apache.cassandra.dht.Bounds;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.commons.collections.CollectionUtils;
@@ -33,16 +36,15 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.apache.cassandra.Util.*;
 import static org.apache.cassandra.config.CFMetaData.DEFAULT_GC_GRACE_SECONDS;
 import static org.junit.Assert.*;
 
 /**
- * This class tests resumable range scans at the local level, that is within a node
+ * This class tests resumable range scans at the local level, that is, within a node
  * The two entry points of interest are ColumnFamilyStore#getColumnFamily(QueryFilter filter) and ColumnFamilyStore#getRangeSlice(ExtendedFilter filter),
  * which are used by SliceFromReadCommand and RangeSliceCommand, respectively.
  */
@@ -55,6 +57,14 @@ public class ResumableRangeScanLocalTest
     public static final int WRITE_TIMESTAMP_MS = 0;
     public static final int DELETE_TIMESTAMP_MS = 1000;
 
+    public static final CellName CELL_NAME_C0 = cellname("c0");
+    public static final CellName CELL_NAME_C1 = cellname("c1");
+    public static final CellName CELL_NAME_C2 = cellname("c2");
+    public static final CellName CELL_NAME_C3 = cellname("c3");
+    public static final CellName CELL_NAME_C4 = cellname("c4");
+    public static final CellName CELL_NAME_C5 = cellname("c5");
+    public static final CellName CELL_NAME_C6 = cellname("c6");
+
     public static final Cell CELL_C0 = column("c0", "value", WRITE_TIMESTAMP_MS);
     public static final Cell CELL_C1 = column("c1", "value", WRITE_TIMESTAMP_MS);
     public static final Cell CELL_C2 = column("c2", "value", WRITE_TIMESTAMP_MS);
@@ -62,11 +72,8 @@ public class ResumableRangeScanLocalTest
     public static final Cell CELL_C4 = column("c4", "value", WRITE_TIMESTAMP_MS);
     public static final Cell CELL_C5 = column("c5", "value", WRITE_TIMESTAMP_MS);
     public static final Cell CELL_C6 = column("c6", "value", WRITE_TIMESTAMP_MS);
-    public static final RangeTombstone TOMBSTONE_C0_C4 = tombstone("c0", "c4", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS);
 
     public ColumnFamilyStore cfs;
-    public QueryFilter queryFilterAll;
-    public QueryFilter queryFilterAllExpiredTombstones;
 
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
@@ -95,10 +102,422 @@ public class ResumableRangeScanLocalTest
                 CELL_C5,
                 CELL_C6
         );
+        cfs.forceBlockingFlush();
+    }
+
+    @Test
+    public void testGetColumnFamily_stopsAtThreshold()
+    {
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_withStartSet()
+    {
+        QueryFilter queryFilterC1 = createQueryFilter(CELL_NAME_C1, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC1);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageToken(CELL_C5));
+    }
+
+    @Test
+    public void testGetColumnFamily_withFinishSet()
+    {
+        QueryFilter queryFilterC5 = createQueryFilter(Composites.EMPTY, CELL_NAME_C5, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC5);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_withStartAndFinishSet()
+    {
+        QueryFilter queryFilterC1C5 = createQueryFilter(CELL_NAME_C1, CELL_NAME_C5, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC1C5);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageToken(CELL_C5));
+    }
+
+    @Test
+    public void testGetColumnFamily_withMultipleSlices()
+    {
+        QueryFilter queryFilterC1C2C4C6 = createQueryFilter(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C6, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC1C2C4C6);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageToken(CELL_C6));
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsEndOfRowPageToken()
+    {
+        QueryFilter queryFilterC4 = createQueryFilter(CELL_NAME_C4, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC4);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C4, CELL_NAME_C5, CELL_NAME_C6), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsValuedPageTokenWhenLastCellHitsThreshold()
+    {
+        QueryFilter queryFilterC2 = createQueryFilter(CELL_NAME_C2, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC2);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageToken(CELL_C6));
+    }
+
+    @Test
+    public void testGetColumnFamily_withSetRangeReturnsValuedPageTokenWhenLastCellHitsThreshold()
+    {
+        QueryFilter queryFilterC2 = createQueryFilter(CELL_NAME_C2, CELL_NAME_C6, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC2);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageToken(CELL_C6));
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsEndOfRowPageTokenWhenLastCellAlmostHitsThreshold()
+    {
+        QueryFilter queryFilterC3 = createQueryFilter(CELL_NAME_C3, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC3);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C3, CELL_NAME_C4, CELL_NAME_C5, CELL_NAME_C6), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetColumnFamily_withSetRangeReturnsEndOfRowPageTokenWhenLastCellAlmostHitsThreshold()
+    {
+        QueryFilter queryFilterC1C4 = createQueryFilter(CELL_NAME_C1, CELL_NAME_C4, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC1C4);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetColumnFamily_withMultipleSlicesReturnsEndOfRowPageToken()
+    {
+        QueryFilter queryFilterC1C2C4C6 = createQueryFilter(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C5, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterC1C2C4C6);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsValuedPageTokenWhenAllTombstoned()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c6", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsValuedPageTokenWhenPartiallyTombstoned()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c2", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsNonNullWhenValuedPageTokenSet()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c6", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        QueryFilter queryFilterAllFarFuture = createQueryFilter(Composites.EMPTY, Composites.EMPTY,
+                DELETE_TIMESTAMP_MS + 2 * DEFAULT_GC_GRACE_SECONDS * 1000);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAllFarFuture);
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsNonNullWhenEndOfRowPageTokenSet()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c6", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        QueryFilter queryFilterAllFarFuture = createQueryFilter(CELL_NAME_C6, Composites.EMPTY,
+                DELETE_TIMESTAMP_MS + 2 * DEFAULT_GC_GRACE_SECONDS * 1000);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAllFarFuture);
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetColumnFamily_correctlyReconcilesDuplicateCells()
+    {
+        putColsStandard(cfs, ROW_KEY, column("c0", "value", WRITE_TIMESTAMP_MS + 1000), column("c1", "value", WRITE_TIMESTAMP_MS + 1000), column("c2", "value"
+                , WRITE_TIMESTAMP_MS + 1000));
+
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_correctlyReconcilesOverlappingTombstones()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c2", DELETE_TIMESTAMP_MS + 1000, DELETE_TIMESTAMP_MS + 1000), tombstone("c1", "c3",
+                DELETE_TIMESTAMP_MS + 1000, DELETE_TIMESTAMP_MS + 1000));
+
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_handlesPointTombstones()
+    {
+        Cell tombstoneC0 = expiredColumn("c0", "value", DELETE_TIMESTAMP_MS + 1000);
+        Cell tombstoneC1 = expiredColumn("c1", "value", DELETE_TIMESTAMP_MS + 1000);
+        putColsStandard(cfs, ROW_KEY, tombstoneC0, tombstoneC1);
+        cfs.forceBlockingFlush();
+
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(tombstoneC0.name(), tombstoneC1.name(), CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetColumnFamily_returnsPointTombstoneValuedPageToken()
+    {
+        Cell tombstoneC0 = expiredColumn("c0", "value", DELETE_TIMESTAMP_MS + 1000);
+        Cell tombstoneC1 = expiredColumn("c1", "value", DELETE_TIMESTAMP_MS + 1000);
+        Cell tombstoneC4 = expiredColumn("c4", "value", DELETE_TIMESTAMP_MS + 1000);
+        putColsStandard(cfs, ROW_KEY, tombstoneC0, tombstoneC1, tombstoneC4);
+        cfs.forceBlockingFlush();
+
+        QueryFilter queryFilterAll = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAll);
+
+        assertCellsAndPageToken(cf, ImmutableList.of(tombstoneC0.name(), tombstoneC1.name(), CELL_NAME_C2, CELL_NAME_C3),
+                PageToken.createPageToken(tombstoneC4));
+    }
+
+
+    @Test
+    public void testGetRangeSlice_stopsAtThreshold()
+    {
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_withStartSet()
+    {
+        ExtendedFilter extendedFilterC1 = createExtendedFilter(CELL_NAME_C1, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC1).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageToken(CELL_C5));
+    }
+
+    @Test
+    public void testGetRangeSlice_withFinishSet()
+    {
+        ExtendedFilter extendedFilterC5 = createExtendedFilter(Composites.EMPTY, CELL_NAME_C5, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC5).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_withStartAndFinishSet()
+    {
+        ExtendedFilter extendedFilterC1C5 = createExtendedFilter(CELL_NAME_C1, CELL_NAME_C5, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC1C5).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageToken(CELL_C5));
+    }
+
+    @Test
+    public void testGetRangeSlice_withMultipleSlices()
+    {
+        ExtendedFilter extendedFilterC1C2C4C6 = createExtendedFilter(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C6, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC1C2C4C6).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageToken(CELL_C6));
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsEndOfRowPageToken()
+    {
+        ExtendedFilter extendedFilterC4 = createExtendedFilter(CELL_NAME_C4, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC4).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C4, CELL_NAME_C5, CELL_NAME_C6), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsValuedPageTokenWhenLastCellHitsThreshold()
+    {
+        ExtendedFilter extendedFilterC2 = createExtendedFilter(CELL_NAME_C2, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC2).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageToken(CELL_C6));
+    }
+
+    @Test
+    public void testGetRangeSlice_withSetRangeReturnsValuedPageTokenWhenLastCellHitsThreshold()
+    {
+        ExtendedFilter extendedFilterC2 = createExtendedFilter(CELL_NAME_C2, CELL_NAME_C6, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC2).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageToken(CELL_C6));
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsEndOfRowPageTokenWhenLastCellAlmostHitsThreshold()
+    {
+        ExtendedFilter extendedFilterC3 = createExtendedFilter(CELL_NAME_C3, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC3).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C3, CELL_NAME_C4, CELL_NAME_C5, CELL_NAME_C6), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetRangeSlice_withSetRangeReturnsEndOfRowPageTokenWhenLastCellAlmostHitsThreshold()
+    {
+        ExtendedFilter extendedFilterC1C4 = createExtendedFilter(CELL_NAME_C1, CELL_NAME_C4, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC1C4).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetRangeSlice_withMultipleSlicesReturnsEndOfRowPageToken()
+    {
+        ExtendedFilter extendedFilterC1C2C4C6 = createExtendedFilter(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C5, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterC1C2C4C6).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C4, CELL_NAME_C5), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsValuedPageTokenWhenAllTombstoned()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c6", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsValuedPageTokenWhenPartiallyTombstoned()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c2", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsNonNullWhenValuedPageTokenSet()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c6", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        ExtendedFilter extendedFilterAllFarFuture = createExtendedFilter(Composites.EMPTY, Composites.EMPTY,
+                DELETE_TIMESTAMP_MS + 2 * DEFAULT_GC_GRACE_SECONDS * 1000);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAllFarFuture).get(0).cf;
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsNonNullWhenEndOfRowPageTokenSet()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c6", DELETE_TIMESTAMP_MS, DELETE_TIMESTAMP_MS));
+
+        ExtendedFilter extendedFilterAllFarFuture = createExtendedFilter(CELL_NAME_C6, Composites.EMPTY,
+                DELETE_TIMESTAMP_MS + 2 * DEFAULT_GC_GRACE_SECONDS * 1000);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAllFarFuture).get(0).cf;
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
+    public void testGetRangeSlice_correctlyReconcilesDuplicateCells()
+    {
+        putColsStandard(cfs, ROW_KEY, column("c0", "value", WRITE_TIMESTAMP_MS + 1000), column("c1", "value", WRITE_TIMESTAMP_MS + 1000), column("c2", "value"
+                , WRITE_TIMESTAMP_MS + 1000));
+
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_correctlyReconcilesOverlappingTombstones()
+    {
+        deleteRange(cfs, ROW_KEY, tombstone("c0", "c2", DELETE_TIMESTAMP_MS + 1000, DELETE_TIMESTAMP_MS + 1000), tombstone("c1", "c3",
+                DELETE_TIMESTAMP_MS + 1000, DELETE_TIMESTAMP_MS + 1000));
+
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_handlesPointTombstones()
+    {
+        Cell tombstoneC0 = expiredColumn("c0", "value", DELETE_TIMESTAMP_MS + 1000);
+        Cell tombstoneC1 = expiredColumn("c1", "value", DELETE_TIMESTAMP_MS + 1000);
+        putColsStandard(cfs, ROW_KEY, tombstoneC0, tombstoneC1);
+        cfs.forceBlockingFlush();
+
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(tombstoneC0.name(), tombstoneC1.name(), CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+    }
+
+    @Test
+    public void testGetRangeSlice_returnsPointTombstoneValuedPageToken()
+    {
+        Cell tombstoneC0 = expiredColumn("c0", "value", DELETE_TIMESTAMP_MS + 1000);
+        Cell tombstoneC1 = expiredColumn("c1", "value", DELETE_TIMESTAMP_MS + 1000);
+        Cell tombstoneC4 = expiredColumn("c4", "value", DELETE_TIMESTAMP_MS + 1000);
+        putColsStandard(cfs, ROW_KEY, tombstoneC0, tombstoneC1, tombstoneC4);
+        cfs.forceBlockingFlush();
+
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAll).get(0).cf;
+
+        assertCellsAndPageToken(cf, ImmutableList.of(tombstoneC0.name(), tombstoneC1.name(), CELL_NAME_C2, CELL_NAME_C3),
+                PageToken.createPageToken(tombstoneC4));
+    }
+
+    @Test
+    public void testGetRangeSlice_handlesMultipleRowsIndependently()
+    {
         putColsStandard(
                 cfs,
                 ROW_KEY_2,
-                CELL_C0,
                 CELL_C1,
                 CELL_C2,
                 CELL_C3,
@@ -108,504 +527,12 @@ public class ResumableRangeScanLocalTest
         );
         cfs.forceBlockingFlush();
 
-        deleteRange(cfs, ROW_KEY_2, TOMBSTONE_C0_C4);
-        cfs.forceBlockingFlush();
+        ExtendedFilter extendedFilterAll = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0);
+        List<Row> rows = cfs.getRangeSlice(extendedFilterAll);
 
-        queryFilterAll = new QueryFilter(ROW_KEY, COLUMN_FAMILY, new SliceQueryFilter(Composites.EMPTY, Composites.EMPTY, false, true, 100), 0);
-        queryFilterAllExpiredTombstones = new QueryFilter(ROW_KEY_2, COLUMN_FAMILY, new SliceQueryFilter(Composites.EMPTY, Composites.EMPTY, false, true, 100),
-                DELETE_TIMESTAMP_MS + 2 * DEFAULT_GC_GRACE_SECONDS * 1000);
+        assertCellsAndPageToken(rows.get(0).cf, ImmutableList.of(CELL_NAME_C0, CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3), PageToken.createPageToken(CELL_C4));
+        assertCellsAndPageToken(rows.get(1).cf, ImmutableList.of(CELL_NAME_C1, CELL_NAME_C2, CELL_NAME_C3, CELL_NAME_C4), PageToken.createPageToken(CELL_C5));
     }
-
-    @Test
-    public void testGetColumnFamily_returnsNonNullWhenPageTokenSet()
-    {
-        ColumnFamily cf = cfs.getColumnFamily(queryFilterAllExpiredTombstones);
-        assertNotNull(cf);
-        assertFalse(cf.hasColumns());
-        assertFalse(cf.isMarkedForDelete());
-        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageToken(CELL_C4));
-    }
-
-//    @Test
-//    public void testRangeSlicePageTokenVariousSlices()
-//    {
-//        SlicePredicate spAll = new SlicePredicate();
-//        spAll.setSlice_range(new SliceRange());
-//        spAll.getSlice_range().setCount(1);
-//        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        SlicePredicate spStartC1 = new SlicePredicate();
-//        spStartC1.setSlice_range(new SliceRange());
-//        spStartC1.getSlice_range().setCount(1);
-//        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-//        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        SlicePredicate spEndC4 = new SlicePredicate().setSlice_range(new SliceRange().setCount(1));
-//        spEndC4.setSlice_range(new SliceRange());
-//        spEndC4.getSlice_range().setCount(1);
-//        spEndC4.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spEndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-//
-//        SlicePredicate spStartC1EndC4 = new SlicePredicate();
-//        spStartC1EndC4.setSlice_range(new SliceRange());
-//        spStartC1EndC4.getSlice_range().setCount(1);
-//        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-//        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-//
-//        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-//        PageToken pageToken5 = PageToken.createPageToken(cols[5]);
-//        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-//
-//        // rows: all ranges, columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                19,
-//                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                7,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: [c1, \inf)
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                17,
-//                ImmutableList.of(pageToken5, pageToken5, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: [c1, \inf)
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                5,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: (-\inf, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                19,
-//                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: (-\inf, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                7,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: [c1, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                17,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: [c1, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                5,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//    }
-//
-//    @Test
-//    public void testRangeSlicePageTokenWithDuplicates()
-//    {
-//        String keyspaceName = KEYSPACE1;
-//        String cfName = CF_STANDARD1;
-//        Keyspace keyspace = Keyspace.open(keyspaceName);
-//        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-//        cfs.clearUnsafe();
-//
-//        Cell[] cols = new Cell[5];
-//        Cell[] colsLaterTs = new Cell[5];
-//        for (int i = 0; i < 5; i++)
-//        {
-//            cols[i] = column("c" + i, "value", 1);
-//            colsLaterTs[i] = column("c" + i, "value", 2);
-//        }
-//        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-//        putColsStandard(cfs, Util.dk("B"), cols[0], cols[0], cols[0], cols[0], cols[1]);
-//        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-//        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-//        cfs.forceBlockingFlush();
-//        putColsStandard(cfs, Util.dk("C"), colsLaterTs[0], colsLaterTs[1], colsLaterTs[4]);
-//        putColsStandard(cfs, Util.dk("D"), colsLaterTs[3], colsLaterTs[4]);
-//        cfs.forceBlockingFlush();
-//
-//        SlicePredicate spAll = new SlicePredicate();
-//        spAll.setSlice_range(new SliceRange());
-//        spAll.getSlice_range().setCount(1);
-//        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-//        PageToken pageTokenLater4 = PageToken.createPageToken(colsLaterTs[4]);
-//        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-//
-//        // rows: all ranges, columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                14,
-//                ImmutableList.of(pageToken4, pageTokenEnd, pageTokenLater4, pageTokenLater4));
-//        // rows: (B, D], columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("B", "D"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                8,
-//                ImmutableList.of(pageTokenLater4, pageTokenLater4));
-//    }
-//
-//    @Test
-//    public void testRangeSlicePageTokenWithRangeTombstones()
-//    {
-//        String keyspaceName = KEYSPACE1;
-//        String cfName = CF_STANDARD1;
-//        Keyspace keyspace = Keyspace.open(keyspaceName);
-//        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-//        cfs.clearUnsafe();
-//
-//        Cell[] cols = new Cell[7];
-//        for (int i = 0; i < 7; i++)
-//        {
-//            cols[i] = column("c" + i, "value", 1);
-//        }
-//        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
-//        putColsStandard(cfs, Util.dk("B"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5]);
-//        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-//        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3]);
-//        putColsStandard(cfs, Util.dk("E"), cols[0], cols[1], cols[2]);
-//        cfs.forceBlockingFlush();
-//        deleteRange(cfs, Util.dk("A"), tombstone("c0", "c1", 2, 2));
-//        deleteRange(cfs, Util.dk("B"), tombstone("c0", "c1", 2, 2));
-//        deleteRange(cfs, Util.dk("D"), tombstone("c0", "c3", 2, 2));
-//
-//        SlicePredicate spAll = new SlicePredicate();
-//        spAll.setSlice_range(new SliceRange());
-//        spAll.getSlice_range().setCount(1);
-//        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        SlicePredicate spStartC1 = new SlicePredicate();
-//        spStartC1.setSlice_range(new SliceRange());
-//        spStartC1.getSlice_range().setCount(1);
-//        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-//        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        SlicePredicate spEndC4 = new SlicePredicate();
-//        spEndC4.setSlice_range(new SliceRange());
-//        spEndC4.getSlice_range().setCount(1);
-//        spEndC4.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spEndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-//
-//        SlicePredicate spStartC1EndC4 = new SlicePredicate();
-//        spStartC1EndC4.setSlice_range(new SliceRange());
-//        spStartC1EndC4.getSlice_range().setCount(1);
-//        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-//        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-//
-//        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-//        PageToken pageToken5 = PageToken.createPageToken(cols[5]);
-//        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-//
-//        // rows: all ranges, columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                11,
-//                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                3,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: [c1, \inf)
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                12,
-//                ImmutableList.of(pageToken5, pageToken5, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: [c1, \inf)
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                2,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: (-\inf, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                11,
-//                ImmutableList.of(pageToken4, pageToken4, pageToken4, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: (-\inf, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                3,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: [c1, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                12,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: [c1, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                2,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//    }
-//
-//    @Test
-//    public void testRangeSlicesPageTokenWithPointTombstones()
-//    {
-//        String keyspaceName = KEYSPACE1;
-//        String cfName = CF_STANDARD1;
-//        Keyspace keyspace = Keyspace.open(keyspaceName);
-//        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfName);
-//        cfs.clearUnsafe();
-//
-//        Cell[] cols = new Cell[7];
-//        Cell[] pointTombstones = new Cell[7];
-//        for (int i = 0; i < 7; i++)
-//        {
-//            cols[i] = column("c" + i, "value", 1);
-//            pointTombstones[i] = expiredColumn("c" + i, "value", 1);
-//        }
-//        Cell pointTombstoneBetweenC1C2 = expiredColumn("c11", "value", 1);
-//        Cell pointTombstoneBetweenC3C4 = expiredColumn("c31", "value", 1);
-//        putColsStandard(cfs, Util.dk("A"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
-//        putColsStandard(cfs, Util.dk("B"), cols[0], cols[1], cols[2], cols[3], cols[4], cols[5]);
-//        putColsStandard(cfs, Util.dk("C"), cols[0], cols[1], cols[2], cols[3], cols[4]);
-//        putColsStandard(cfs, Util.dk("D"), cols[0], cols[1], cols[2], cols[3]);
-//        putColsStandard(cfs, Util.dk("E"), cols[0], cols[1], cols[2]);
-//        cfs.forceBlockingFlush();
-//        putColsStandard(cfs, Util.dk("A"), pointTombstones[0], pointTombstones[1], pointTombstoneBetweenC3C4);
-//        putColsStandard(cfs, Util.dk("B"), pointTombstoneBetweenC1C2);
-//        putColsStandard(cfs, Util.dk("C"), pointTombstones[0], pointTombstones[1]);
-//        putColsStandard(cfs, Util.dk("D"), pointTombstones[0], pointTombstones[1], pointTombstones[2], pointTombstones[3]);
-//        cfs.forceBlockingFlush();
-//
-//        SlicePredicate spAll = new SlicePredicate();
-//        spAll.setSlice_range(new SliceRange());
-//        spAll.getSlice_range().setCount(1);
-//        spAll.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spAll.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        SlicePredicate spStartC1 = new SlicePredicate();
-//        spStartC1.setSlice_range(new SliceRange());
-//        spStartC1.getSlice_range().setCount(1);
-//        spStartC1.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-//        spStartC1.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
-//
-//        SlicePredicate spEndC4 = new SlicePredicate();
-//        spEndC4.setSlice_range(new SliceRange());
-//        spEndC4.getSlice_range().setCount(1);
-//        spEndC4.getSlice_range().setStart(ArrayUtils.EMPTY_BYTE_ARRAY);
-//        spEndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-//
-//        SlicePredicate spStartC1EndC4 = new SlicePredicate();
-//        spStartC1EndC4.setSlice_range(new SliceRange());
-//        spStartC1EndC4.getSlice_range().setCount(1);
-//        spStartC1EndC4.getSlice_range().setStart(ByteBufferUtil.bytes("c1"));
-//        spStartC1EndC4.getSlice_range().setFinish(ByteBufferUtil.bytes("c4"));
-//
-//        PageToken pageTokenBetweenC3C4 = PageToken.createPageToken(pointTombstoneBetweenC3C4);
-//        PageToken pageToken3 = PageToken.createPageToken(cols[3]);
-//        PageToken pageToken4 = PageToken.createPageToken(cols[4]);
-//        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-//
-//        // rows: all ranges, columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                10,
-//                ImmutableList.of(pageTokenBetweenC3C4, pageToken3, pageToken4, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: all ranges
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spAll, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                3,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: [c1, \inf)
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                10,
-//                ImmutableList.of(pageToken4, pageToken4, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: [c1, \inf)
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                2,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: (-\inf, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                10,
-//                ImmutableList.of(pageTokenBetweenC3C4, pageToken3, pageToken4, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: (-\inf, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spEndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                3,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//        // rows: all ranges, columns: [c1, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("", ""),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                10,
-//                ImmutableList.of(pageToken4, pageToken4, pageTokenEnd, pageTokenEnd, pageTokenEnd));
-//        // rows: (C, E], columns: [c1, c4]
-//        assertTotalColCountAndPageTokens(cfs.getRangeSlice(Util.range("C", "E"),
-//                        null,
-//                        ThriftValidation.asIFilterUsingPageToken(spStartC1EndC4, cfs.metadata, null),
-//                        100,
-//                        System.currentTimeMillis(),
-//                        true,
-//                        false),
-//                2,
-//                ImmutableList.of(pageTokenEnd, pageTokenEnd));
-//    }
-//
-//    @Test
-//    public void testGetRowSliceByRangeUsingPageToken()
-//    {
-//        DecoratedKey key = TEST_SLICE_KEY;
-//        Keyspace keyspace = Keyspace.open(KEYSPACE1);
-//        ColumnFamilyStore cfStore = keyspace.getColumnFamilyStore("Standard1");
-//        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, "Standard1");
-//        // First write "a", "b", "c", "d", "e"
-//        cf.addColumn(column("a", "val1", 1L));
-//        cf.addColumn(column("b", "val2", 1L));
-//        cf.addColumn(column("c", "val3", 1L));
-//        cf.addColumn(column("d", "val4", 1L));
-//        cf.addColumn(column("e", "val5", 1L));
-//        Mutation rm = new Mutation(KEYSPACE1, key.getKey(), cf);
-//        rm.applyUnsafe();
-//
-//        PageToken pageTokenE = PageToken.createPageToken(column("e", "val5", 1L));
-//        PageToken pageTokenEnd = PageToken.createPageTokenReachedEnd();
-//
-//        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("a"), cellname("e"), false, 100, System.currentTimeMillis());
-//        assertEquals(4, cf.getColumnCount());
-//        assertEquals(pageTokenE, cf.pageToken());
-//
-//        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("b"), cellname("d"), false, 100, System.currentTimeMillis());
-//        assertEquals(3, cf.getColumnCount());
-//        assertEquals(pageTokenEnd, cf.pageToken());
-//
-//        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("b"), cellname("e"), false, 100, System.currentTimeMillis());
-//        assertEquals(4, cf.getColumnCount());
-//        assertEquals(pageTokenEnd, cf.pageToken());
-//
-//        cf = cfStore.getColumnFamilyUsingPageToken(key, cellname("e"), cellname("g"), false, 100, System.currentTimeMillis());
-//        assertEquals(1, cf.getColumnCount());
-//        assertEquals(pageTokenEnd, cf.pageToken());
-//    }
 
     private static void putColsStandard(ColumnFamilyStore cfs, DecoratedKey key, Cell... cols)
     {
@@ -627,12 +554,41 @@ public class ResumableRangeScanLocalTest
         }
         Mutation rm = new Mutation(cfs.keyspace.getName(), key.getKey(), cf);
         rm.applyUnsafe();
+        cfs.forceBlockingFlush();
     }
 
-    private static void assertCellsAndPageToken(ColumnFamily cf, Collection<Cell> expectedCells, PageToken expectedPageToken)
+    private QueryFilter createQueryFilter(Composite start, Composite finish, long timestamp)
+    {
+        return new QueryFilter(ROW_KEY, COLUMN_FAMILY, new SliceQueryFilter(start, finish, false, true, 100), timestamp);
+    }
+
+    private QueryFilter createQueryFilter(Composite start1, Composite finish1, Composite start2, Composite finish2, long timestamp)
+    {
+        return new QueryFilter(ROW_KEY, COLUMN_FAMILY, new SliceQueryFilter(new ColumnSlice[]{
+                new ColumnSlice(start1, finish1), new ColumnSlice(start2,
+                finish2)}, false, true, 100), timestamp);
+    }
+
+    private ExtendedFilter createExtendedFilter(Composite start, Composite finish, long timestamp)
+    {
+        SliceQueryFilter filter = new SliceQueryFilter(start, finish, false, true, 100);
+        DataRange dataRange = new DataRange(Bounds.makeRowBounds(ROW_KEY.getToken(), ROW_KEY_2.getToken()), filter);
+
+        return ExtendedFilter.create(cfs, dataRange, ImmutableList.of(), 100, false, timestamp);
+    }
+
+    private ExtendedFilter createExtendedFilter(Composite start1, Composite finish1, Composite start2, Composite finish2, long timestamp)
+    {
+        SliceQueryFilter filter = new SliceQueryFilter(new ColumnSlice[]{new ColumnSlice(start1, finish1), new ColumnSlice(start2, finish2)}, false, true, 100);
+        DataRange dataRange = new DataRange(Bounds.makeRowBounds(ROW_KEY.getToken(), ROW_KEY_2.getToken()), filter);
+
+        return ExtendedFilter.create(cfs, dataRange, ImmutableList.of(), 100, false, timestamp);
+    }
+
+    private static void assertCellsAndPageToken(ColumnFamily cf, Collection<CellName> expectedCells, PageToken expectedPageToken)
     {
         assertNotNull(cf);
-        assertTrue(CollectionUtils.isEqualCollection(cf.getSortedColumns(), expectedCells));
+        assertEquals(new HashSet<>(expectedCells), cf.getSortedColumns().stream().map(Cell::name).collect(Collectors.toSet()));
         assertEquals(cf.pageToken(), expectedPageToken);
     }
 }
