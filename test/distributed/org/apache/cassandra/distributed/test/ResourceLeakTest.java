@@ -37,7 +37,7 @@ import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.distributed.Cluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
-import org.apache.cassandra.service.CassandraDaemon;
+import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.SigarLibrary;
 
@@ -148,7 +148,7 @@ public class ResourceLeakTest extends TestBaseImpl
             try (Cluster cluster = Cluster.build(numClusterNodes).withConfig(updater).start())
             {
                 if (cluster.get(1).config().has(GOSSIP)) // Wait for gossip to settle on the seed node
-                    cluster.get(1).runOnInstance(CassandraDaemon::waitForGossipToSettle);
+                    cluster.get(1).runOnInstance(Gossiper::waitToSettle);
 
                 init(cluster);
                 String tableName = "tbl" + loop;

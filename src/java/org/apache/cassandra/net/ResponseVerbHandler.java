@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.tracing.Tracing;
 
 public class ResponseVerbHandler implements IVerbHandler
@@ -35,7 +36,7 @@ public class ResponseVerbHandler implements IVerbHandler
         if (callbackInfo == null)
         {
             String msg = "Callback already removed for {} (from {})";
-            logger.trace(msg, id, message.from);
+            logger.trace(msg, SafeArg.of("id", id), SafeArg.of("endpoint", message.from));
             Tracing.trace(msg, id, message.from);
             return;
         }

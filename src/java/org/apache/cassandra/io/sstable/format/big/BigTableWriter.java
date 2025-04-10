@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
@@ -46,6 +48,7 @@ import org.apache.cassandra.io.util.*;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.FilterFactory;
+import org.apache.cassandra.utils.Hex;
 import org.apache.cassandra.utils.IFilter;
 import org.apache.cassandra.utils.StreamingHistogram;
 import org.apache.cassandra.utils.concurrent.Transactional;
@@ -264,9 +267,18 @@ public class BigTableWriter extends SSTableWriter
 
                 columnIndexer.add(atom); // This write the atom on disk too
             }
-            columnIndexer.finishAddingAtoms();
 
-            columnIndexer.maybeWriteEmptyRowHeader();
+            if (columnIndexer.isLive() && columnIndexer.noAddedColumns())
+            {
+                logger.warn("No cells written for key {} in appendFromStream for keyspace {} and cf {}",
+                            UnsafeArg.of("key", key),
+                            SafeArg.of("keyspace", metadata.ksName),
+                            SafeArg.of("cf", metadata.cfName));
+            }
+            // Adds row header if no cells was written for this key
+            columnIndexer.maybeWriteRowHeader();
+
+            columnIndexer.finishAddingAtoms();
             dataFile.stream.writeShort(END_OF_ROW);
         }
         catch (IOException e)
