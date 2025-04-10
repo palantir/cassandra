@@ -33,6 +33,8 @@ import java.util.concurrent.TimeoutException;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.TabularData;
 
+import org.apache.cassandra.dht.*;
+
 public interface StorageServiceMBean extends NotificationEmitter
 {
     /**
@@ -121,6 +123,8 @@ public interface StorageServiceMBean extends NotificationEmitter
      * @return a collection of tokens formatted as strings
      */
     public List<String> getTokens();
+
+    public void setTokens(Collection<Token> tokens);
 
     /**
      * Fetch string representations of the tokens for a specified node.
