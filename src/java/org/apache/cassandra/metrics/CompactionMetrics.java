@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -50,6 +51,8 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
     public final Meter totalCompactionsCompleted;
     /** Total number of bytes compacted since server [re]start */
     public final Counter bytesCompacted;
+    /** Number of throttled CFs due to disk pressure */
+    public final Gauge<Integer> totalThrottledTables;
 
     public CompactionMetrics(final ThreadPoolExecutor... collectors)
     {
@@ -80,6 +83,7 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
         });
         totalCompactionsCompleted = Metrics.meter(factory.createMetricName("TotalCompactionsCompleted"));
         bytesCompacted = Metrics.counter(factory.createMetricName("BytesCompacted"));
+        totalThrottledTables = Metrics.register(factory.createMetricName("TotalThrottledTables"), CompactionThroughputThrottler.instance::throttledTableCount);
     }
 
     public void beginCompaction(CompactionInfo.Holder ci)

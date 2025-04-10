@@ -3,6 +3,7 @@ package com.palantir.cassandra.db.compaction;
 import com.google.common.util.concurrent.RateLimiter;
 import com.palantir.logsafe.SafeArg;
 
+import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -11,14 +12,38 @@ import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 /**
  * Backpressure mechanism to reduce compaction throughput for large tables as disk fills up
  */
-public class CompactionThroughputThrottler
+public final class CompactionThroughputThrottler
 {
     private static final boolean ENABLE_COMPACTION_THROUGHPUT_THROTTLING = Boolean.getBoolean("palantir_cassandra.enable_compaction_throughput_throttling");
     private static final long THROTTLER_TABLE_SIZE_BYTES = Long.getLong("palantir_cassandra.throttler_table_size_gb", 10L) * 1024L * 1024L * 1024L;
     private static final Logger logger = LoggerFactory.getLogger(CompactionThroughputThrottler.class);
+
+    public static final CompactionThroughputThrottler instance = new CompactionThroughputThrottler();
+    private final Set<UUID> throttledCfs = new HashSet<>();
+
+    private CompactionThroughputThrottler() {}
+
+    public int throttledTableCount()
+    {
+        return throttledCfs.size();
+    }
+
+    public void maybeRemoveThrottledCompaction(CFMetaData cfMetaData)
+    {
+        if (throttledCfs.remove(cfMetaData.cfId) && logger.isDebugEnabled())
+        {
+            logger.debug("Completed throttled compaction for {}/{}.",
+                         SafeArg.of("keyspace", cfMetaData.ksName),
+                         SafeArg.of("table", cfMetaData.cfName));
+        }
+    }
 
     public static RateLimiter getRateLimiter(Pair<String, String> ksCf)
     {
@@ -30,8 +55,9 @@ public class CompactionThroughputThrottler
             return defaultRateLimit;
         }
 
+        ColumnFamilyStore cfs = ColumnFamilyStore.getIfExists(ksCf.left, ksCf.right);
         double diskUsage = Directories.getMaxPathToUtilization().getValue();
-        long liveSpaceUsedBytes = ColumnFamilyStore.getIfExists(keyspace, columnFamily).metric.liveDiskSpaceUsed.getCount();
+        long liveSpaceUsedBytes = cfs.metric.liveDiskSpaceUsed.getCount();
 
         if (liveSpaceUsedBytes < THROTTLER_TABLE_SIZE_BYTES || diskUsage < 0.80d)
         {
@@ -59,6 +85,11 @@ public class CompactionThroughputThrottler
         else if (diskUsage >= 0.80d)
         {
             recommendedRateLimit = RateLimiter.create(Math.min(defaultRateLimit.getRate() / 2, defaultRateLimit.getRate()));
+        }
+
+        if (recommendedRateLimit.getRate() < defaultRateLimit.getRate())
+        {
+            instance.throttledCfs.add(cfs.metadata.cfId);
         }
 
         if (logger.isDebugEnabled())

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.db.RowCountOverwhelmingException;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.filter.TombstoneOverwhelmingException;
 import org.apache.cassandra.db.index.IndexNotAvailableException;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
@@ -61,7 +62,7 @@ public class MessageDeliveryTask implements Runnable
         IVerbHandler verbHandler = MessagingService.instance().getVerbHandler(verb);
         if (verbHandler == null)
         {
-            logger.trace("Unknown verb {}", verb);
+            logger.trace("Unknown verb {}", SafeArg.of("verb", verb));
             return;
         }
 
@@ -88,7 +89,7 @@ public class MessageDeliveryTask implements Runnable
             handleFailure(e);
             if (READ_VERBS.contains(verb))
             {
-                logger.debug("Squelching error message for verb type {} during bootstrap", verb);
+                logger.debug("Squelching error message for verb type {} during bootstrap", SafeArg.of("verb", verb));
             }
             else {
                 throw e;

@@ -32,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
+import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
@@ -60,6 +61,7 @@ public class CompactionTask extends AbstractCompactionTask
     protected static long totalBytesCompacted = 0;
     private CompactionExecutorStatsCollector collector;
     private static final boolean CONSIDER_CONCURRENT_COMPACTIONS = Boolean.getBoolean("palantir_cassandra.consider_concurrent_compactions");
+    private static final long FIVE_GIBIBYTES_IN_BYTES = 5 * 1024 * 1024 * 1024L;
 
     public CompactionTask(ColumnFamilyStore cfs, LifecycleTransaction txn, int gcBefore, boolean offline)
     {
@@ -127,6 +129,14 @@ public class CompactionTask extends AbstractCompactionTask
                                                                           : cfs.directories::checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions;
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
+
+        if (expectedWriteSize > FIVE_GIBIBYTES_IN_BYTES)
+        {
+            logger.info("Compaction for ks/cf {}/{} exceeds 5GiB with total size of {}",
+                    SafeArg.of("keyspace", cfs.keyspace.getName()),
+                    SafeArg.of("columnFamily", cfs.name),
+                    SafeArg.of("size", expectedWriteSize));
+        }
 
         // sanity check: all sstables must belong to the same cfs
         assert !Iterables.any(transaction.originals(), new Predicate<SSTableReader>()
@@ -285,6 +295,7 @@ public class CompactionTask extends AbstractCompactionTask
             // update the metrics
             cfs.metric.compactionBytesWritten.inc(endsize);
             cfs.metric.compactionsCompleted.inc();
+            CompactionThroughputThrottler.instance.maybeRemoveThrottledCompaction(cfs.metadata);
         }
     }
 

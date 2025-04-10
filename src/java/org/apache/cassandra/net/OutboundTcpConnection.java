@@ -108,7 +108,7 @@ public class OutboundTcpConnection extends Thread
         case "MOVINGAVERAGE":
         case "FIXED":
         case "DISABLED":
-            logger.info("OutboundTcpConnection using coalescing strategy {}", strategy);
+            logger.info("OutboundTcpConnection using coalescing strategy {}", SafeArg.of("strategy", strategy));
             break;
             default:
                 //Check that it can be loaded
@@ -117,7 +117,7 @@ public class OutboundTcpConnection extends Thread
 
         int coalescingWindow = DatabaseDescriptor.getOtcCoalescingWindow();
         if (coalescingWindow != Config.otc_coalescing_window_us_default)
-            logger.info("OutboundTcpConnection coalescing window set to {}μs", coalescingWindow);
+            logger.info("OutboundTcpConnection coalescing window set to {}μs", SafeArg.of("coalescingWindow", coalescingWindow));
 
         if (coalescingWindow < 0)
             throw new ExceptionInInitializerError(
@@ -251,7 +251,7 @@ public class OutboundTcpConnection extends Thread
                     JVMStabilityInspector.inspectThrowable(e);
                     // really shouldn't get here, as exception handling in writeConnected() is reasonably robust
                     // but we want to catch anything bad we don't drop the messages in the current batch
-                    logger.error("error processing a message intended for {}", poolReference.endPoint(), e);
+                    logger.error("error processing a message intended for {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
                 }
                 currentMsgBufferCount = --count;
             }
@@ -338,7 +338,7 @@ public class OutboundTcpConnection extends Thread
             if (e instanceof IOException || e.getCause() instanceof IOException)
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("error writing to {}", poolReference.endPoint(), e);
+                    logger.trace("error writing to {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
 
                 // if the message was important, such as a repair acknowledgement, put it back on the queue
                 // to retry after re-connecting.  See CASSANDRA-5393
@@ -359,7 +359,7 @@ public class OutboundTcpConnection extends Thread
             else
             {
                 // Non IO exceptions are likely a programming error so let's not silence them
-                logger.error("error writing to {}", poolReference.endPoint(), e);
+                logger.error("error writing to {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
             }
         }
     }
@@ -421,12 +421,12 @@ public class OutboundTcpConnection extends Thread
             {
                 socket.close();
                 if (logger.isTraceEnabled())
-                    logger.trace("Socket to {} closed", poolReference.endPoint());
+                    logger.trace("Socket to {} closed", SafeArg.of("endpoint", poolReference.endPoint()));
             }
             catch (IOException e)
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("exception closing connection to " + poolReference.endPoint(), e);
+                    logger.trace("exception closing connection {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
             }
             out = null;
             socket = null;
@@ -437,7 +437,7 @@ public class OutboundTcpConnection extends Thread
     private boolean connect()
     {
         if (logger.isTraceEnabled())
-            logger.trace("attempting to connect to {}", poolReference.endPoint());
+            logger.trace("attempting to connect to {}", SafeArg.of("endpoint", poolReference.endPoint()));
 
         long start = System.nanoTime();
         long timeout = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getInternodeConnectionTimeout());
@@ -483,7 +483,7 @@ public class OutboundTcpConnection extends Thread
                     // no version is returned, so disconnect an try again: we will either get
                     // a different target version (targetVersion < MessagingService.VERSION_12)
                     // or if the same version the handshake will finally succeed
-                    logger.trace("Target max version is {}; no version information yet, will retry", maxTargetVersion);
+                    logger.trace("Target max version is {}; no version information yet, will retry", SafeArg.of("version", maxTargetVersion));
                     disconnect();
                     continue;
                 }
@@ -494,11 +494,11 @@ public class OutboundTcpConnection extends Thread
 
                 if (targetVersion > maxTargetVersion)
                 {
-                    logger.trace("Target max version is {}; will reconnect with that version", maxTargetVersion);
+                    logger.trace("Target max version is {}; will reconnect with that version", SafeArg.of("version", maxTargetVersion));
                     try
                     {
                         if (DatabaseDescriptor.getSeeds().contains(poolReference.endPoint()))
-                            logger.warn("Seed gossip version is {}; will not connect with that version", maxTargetVersion);
+                            logger.warn("Seed gossip version is {}; will not connect with that version", SafeArg.of("version", maxTargetVersion));
                     }
                     catch (Throwable e)
                     {
@@ -518,7 +518,7 @@ public class OutboundTcpConnection extends Thread
                 if (targetVersion < maxTargetVersion && targetVersion < MessagingService.current_version)
                 {
                     logger.trace("Detected higher max version {} (using {}); will reconnect when queued messages are done",
-                                 maxTargetVersion, targetVersion);
+                                 SafeArg.of("maxVersion", maxTargetVersion), SafeArg.of("targetVersion", targetVersion));
                     softCloseSocket();
                 }
 
@@ -546,12 +546,12 @@ public class OutboundTcpConnection extends Thread
                     }
                 }
 
-                logger.trace("Successfully connected to {}", poolReference.endPoint());
+                logger.trace("Successfully connected to {}", SafeArg.of("endpoint", poolReference.endPoint()));
                 return true;
             }
             catch (SSLHandshakeException e)
             {
-                logger.error("SSL handshake error for outbound connection to " + socket, e);
+                logger.error("SSL handshake error for outbound connection {}", SafeArg.of("endpoint", socket.getInetAddress()), e);
                 socket = null;
                 if (ENABLE_SSL_NTE) {
                     // EOFException is thrown (sometimes) when a node is turned off unexpectately.
@@ -568,7 +568,7 @@ public class OutboundTcpConnection extends Thread
             {
                 socket = null;
                 if (logger.isTraceEnabled())
-                    logger.trace("unable to connect to " + poolReference.endPoint(), e);
+                    logger.trace("unable to connect {}", SafeArg.of("endpoint", poolReference.endPoint()), e);
                 Uninterruptibles.sleepUninterruptibly(OPEN_RETRY_DELAY, TimeUnit.MILLISECONDS);
             }
         }
@@ -586,16 +586,16 @@ public class OutboundTcpConnection extends Thread
             {
                 try
                 {
-                    logger.info("Handshaking version with {}", poolReference.endPoint());
+                    logger.info("Handshaking version with {}", SafeArg.of("endpoint", poolReference.endPoint()));
                     version.set(inputStream.readInt());
                 }
                 catch (IOException ex)
                 {
-                    final String msg = "Cannot handshake version with " + poolReference.endPoint();
+                    final String msg = "Cannot handshake version {}";
                     if (logger.isTraceEnabled())
-                        logger.trace(msg, ex);
+                        logger.trace(msg, SafeArg.of("endpoint", poolReference.endPoint()), ex);
                     else
-                        logger.info(msg);
+                        logger.info(msg, SafeArg.of("endpoint", poolReference.endPoint()), ex);
                 }
                 finally
                 {

@@ -131,7 +131,7 @@ public class CommitLogStressTest
     ReplayPosition discardedPos;
 
     @BeforeClass
-    static public void initialize() throws IOException
+    public static void initialize() throws IOException
     {
         try (FileInputStream fis = new FileInputStream("CHANGES.txt"))
         {

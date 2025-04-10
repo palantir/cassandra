@@ -1443,6 +1443,7 @@ public class StorageProxy implements StorageProxyMBean
                 try
                 {
                     Row row = exec.get();
+                    Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
                     if (row != null)
                     {
                         row = exec.command.maybeTrim(row);
