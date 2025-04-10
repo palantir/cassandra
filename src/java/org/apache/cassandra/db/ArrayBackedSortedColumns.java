@@ -101,7 +101,7 @@ public class ArrayBackedSortedColumns extends ColumnFamily
         return factory;
     }
 
-    public ColumnFamily cloneMe()
+    public ColumnFamily cloneMeInternal()
     {
         return new ArrayBackedSortedColumns(this);
     }
