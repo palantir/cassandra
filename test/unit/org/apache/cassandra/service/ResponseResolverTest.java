@@ -23,9 +23,10 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import org.apache.cassandra.db.filter.PageToken;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -41,7 +42,6 @@ import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.apache.cassandra.Util.column;
-import static org.apache.cassandra.Util.tombstone;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -109,7 +109,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleThreads_RowDigestResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    public void testMultipleThreads_RowDigestResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
     {
         ByteBuffer key = bytes("key");
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
@@ -160,7 +160,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
     {
         ByteBuffer key = bytes("key");
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
@@ -177,7 +177,7 @@ public class ResponseResolverTest extends SchemaLoader
                             makeReadResponse("127.0.0.2", row),
                             makeReadResponse("127.0.0.3", row));
     }
-    
+
     @Test
     public void testSingleMessage_RangeSliceResolver() throws DigestMismatchException, UnknownHostException
     {
@@ -230,10 +230,7 @@ public class ResponseResolverTest extends SchemaLoader
             resolver.preprocess(message);
 
             Row row = resolver.getData();
-            if (resolver.replies.size() == 1)
-            {
-                checkSame(expected, row);
-            }
+            checkSame(expected, row);
 
             row = resolver.resolve();
             checkSame(expected, row);
@@ -242,7 +239,7 @@ public class ResponseResolverTest extends SchemaLoader
 
     private void testReadResponsesMT(final AbstractRowResolver resolver,
                                      final Row expected,
-                                     final MessageIn<ReadResponse>... messages) throws InterruptedException, ExecutionException
+                                     final MessageIn<ReadResponse>... messages) throws InterruptedException
     {
         for (MessageIn<ReadResponse> message : messages)
             resolver.preprocess(message);
@@ -250,21 +247,17 @@ public class ResponseResolverTest extends SchemaLoader
         final int threadCount = 45;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         final CountDownLatch finished = new CountDownLatch(threadCount);
-        Future<?>[] futures = new Future[threadCount];
 
         for (int i = 0; i < threadCount; i++)
         {
-            futures[i] = executorService.submit(new Runnable()
+            executorService.submit(new Runnable()
             {
                 public void run()
                 {
                     try
                     {
                         Row row = resolver.getData();
-                        if (resolver.replies.size() == 1)
-                        {
-                            checkSame(expected, row);
-                        }
+                        checkSame(expected, row);
 
                         row = resolver.resolve();
                         checkSame(expected, row);
@@ -283,12 +276,6 @@ public class ResponseResolverTest extends SchemaLoader
 
         finished.await();
         assertEquals(0, executorService.shutdownNow().size());
-
-        for (int i = 0; i < threadCount; i++)
-        {
-            futures[i].get();
-        }
-
     }
 
     private void testRangeSlices(RangeSliceResponseResolver resolver, Row[] expected, MessageIn<RangeSliceReply> ... messages)
