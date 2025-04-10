@@ -118,7 +118,8 @@ public class RowDataResolver extends AbstractRowResolver
 
         for (int i = 0; i < versions.size(); i++)
         {
-            ColumnFamily diffCf = ColumnFamily.diff(versions.get(i), resolved);
+            ColumnFamily version = versions.get(i).cloneMeLimitByPageToken(resolved.pageToken());
+            ColumnFamily diffCf = ColumnFamily.diff(version, resolved);
             if (diffCf == null) // no repair needs to happen
                 continue;
 
