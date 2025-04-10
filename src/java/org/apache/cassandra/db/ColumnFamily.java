@@ -110,7 +110,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     {
         if (pageToken == null || pageToken.isReachedEnd())
         {
-            return cloneMe();
+            return this;
         }
 
         ColumnFamily cf = cloneMeShallow();
