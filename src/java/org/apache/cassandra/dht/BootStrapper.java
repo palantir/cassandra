@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.Keyspace;
@@ -187,7 +188,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
     private static Collection<Token> getSpecifiedTokens(final TokenMetadata metadata,
                                                         Collection<String> initialTokens)
     {
-        logger.info("tokens manually specified as {}",  initialTokens);
+        logger.info("Tokens manually specified as {}", SafeArg.of("initialTokens", initialTokens));
         List<Token> tokens = new ArrayList<>(initialTokens.size());
         for (String tokenString : initialTokens)
         {
@@ -241,7 +242,7 @@ public class BootStrapper extends ProgressEventNotifierSupport
                 tokens.add(token);
         }
 
-        logger.info("Generated random tokens. tokens are {}", tokens);
+        logger.info("Generated random tokens. tokens are {}", SafeArg.of("tokens", tokens));
         return tokens;
     }
 

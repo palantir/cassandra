@@ -694,9 +694,17 @@
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
-  <dependency groupId="com.google.guava" artifactId="guava"/>
+        <dependency groupId="com.google.guava" artifactId="guava"/>
       </artifact:pom>
-
+      <artifact:pom id="test-pom"
+                    artifactId="cassandra-test"
+                    url="https://cassandra.apache.org"
+                    name="Apache Cassandra">
+      <parent groupId="org.apache.cassandra"
+              artifactId="cassandra-parent"
+              version="${version}"/>
+      <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
+      </artifact:pom>
     </target>
 
     <target name="maven-ant-tasks-retrieve-build" depends="maven-declare-dependencies" unless="without.maven">
@@ -919,6 +927,8 @@
 	    <artifact:writepom pomRefId="all-pom" file="${build.dir}/${final.name}.pom"/>
 	    <artifact:writepom pomRefId="clientutil-pom"
 	    	               file="${build.dir}/${ant.project.name}-clientutil-${version}.pom"/>
+	    <artifact:writepom pomRefId="test-pom"
+	                       file="${build.dir}/${ant.project.name}-test-${version}.pom"/>
 	</target>
 
 	<target name="write-poms" unless="without.maven">
@@ -1065,8 +1075,18 @@
       </create-javadoc>
       <jar jarfile="${build.dir}/${ant.project.name}-clientutil-${version}-javadoc.jar"
            basedir="${javadoc.jars.dir}/clientutil"/>
+
+      <create-javadoc destdir="${javadoc.jars.dir}/test">
+        <filesets>
+          <fileset dir="${build.test.dir}" defaultexcludes="yes">
+          </fileset>
+        </filesets>
+      </create-javadoc>
+      <jar jarfile="${build.dir}/${ant.project.name}-test-${version}-javadoc.jar"
+           basedir="${javadoc.jars.dir}/test"/>
       <!-- javadoc task always rebuilds so might as well remove the generated docs to prevent
            being pulled into the distribution by accident -->
+
       <delete quiet="true" dir="${javadoc.jars.dir}"/>
     </target>
 
@@ -1093,6 +1113,11 @@
           <include name="org/apache/cassandra/utils/ByteBufferUtil*.java" />
           <include name="org/apache/cassandra/utils/Hex.java" />
           <include name="org/apache/cassandra/utils/UUIDGen*.java" />
+        </fileset>
+      </jar>
+      <jar jarfile="${build.dir}/${ant.project.name}-test-${version}-sources.jar">
+        <fileset dir="${build.test.dir}" defaultexcludes="yes">
+          <include name="org/apache/**/*.java"/>
         </fileset>
       </jar>
     </target>
