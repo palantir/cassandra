@@ -640,7 +640,7 @@ public class ThriftValidation
             throw new org.apache.cassandra.exceptions.InvalidRequestException("system keyspace is not user-modifiable");
     }
 
-    public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn, boolean usePageToken)
+    public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn)
     {
         SliceRange sr = sp.slice_range;
         IDiskAtomFilter filter;
@@ -658,12 +658,10 @@ public class ThriftValidation
         }
         else
         {
-            filter = new SliceQueryFilter(
-                    comparator.fromByteBuffer(sr.start),
-                    comparator.fromByteBuffer(sr.finish),
-                    sr.reversed,
-                    usePageToken,
-                    sr.count);
+            filter = new SliceQueryFilter(comparator.fromByteBuffer(sr.start),
+                                          comparator.fromByteBuffer(sr.finish),
+                                          sr.reversed,
+                                          sr.count);
         }
 
         if (metadata.isSuper())

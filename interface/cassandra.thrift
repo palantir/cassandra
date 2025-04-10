@@ -360,11 +360,6 @@ struct KeySlice {
     2: required list<ColumnOrSuperColumn> columns,
 }
 
-struct KeySlicePage {
-    1: required binary key,
-    2: required PageResult pageResult,
-}
-
 struct KeyCount {
     1: required binary key,
     2: required i32 count
@@ -623,7 +618,8 @@ struct PageToken {
 }
 
 /**
- * The list of columns which are the results of the scan, along with a page token to start the next request with.
+ * A token returned to the client to indicate the starting column for the next query.
+ * If end_of_row is true, then the paging is complete.
  */
 struct PageResult {
     1: required list<ColumnOrSuperColumn> columns,
@@ -705,7 +701,7 @@ service Cassandra {
                                                                   3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
- /**
+/**
  * Performs a multiget_multislice supporting pagination by returning a page token.
  */
   map<binary,list<PageResult>> multiget_multislice_paging(1:required list<KeyPredicate> request,
@@ -730,15 +726,6 @@ service Cassandra {
                                   3:required KeyRange range,
                                   4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
                  throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
-
-  /**
-   Performs a get_range_slices supporting pagination by returning a page token.
-   */
-  list<KeySlicePage> get_range_slices_paging(1:required ColumnParent column_parent,
-                                  2:required SlicePredicate predicate,
-                                  3:required KeyRange range,
-                                  4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
-          throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
    returns a range of columns, wrapping to the next rows if necessary to collect max_results.
