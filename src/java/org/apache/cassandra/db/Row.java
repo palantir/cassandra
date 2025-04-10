@@ -56,23 +56,6 @@ public class Row
                ')';
     }
 
-    @Override
-    public boolean equals(Object o)
-    {
-        if (this == o)
-        {
-            return true;
-        }
-        if (!(o instanceof Row))
-        {
-            return false;
-        }
-
-        Row otherRow = (Row) o;
-
-        return key.equals(otherRow.key) && Objects.equals(cf, otherRow.cf);
-    }
-
     public int getLiveCount(IDiskAtomFilter filter, long now)
     {
         return cf == null ? 0 : filter.getLiveCount(cf, now);

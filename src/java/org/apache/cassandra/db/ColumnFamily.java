@@ -21,7 +21,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -246,7 +252,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public abstract void delete(DeletionInfo info);
     public abstract void delete(DeletionTime deletionTime);
-
     public abstract void delete(RangeTombstone tombstone);
 
     public abstract SearchIterator<CellName, Cell> searchIterator();
