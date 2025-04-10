@@ -1215,95 +1215,95 @@ public class ColumnFamilyStoreTest
         sp.getSlice_range().setFinish(ArrayUtils.EMPTY_BYTE_ARRAY);
 
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              3,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            3);
+                        3,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                3);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              5,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            5);
+                        5,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                5);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              8,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            8);
+                        8,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                8);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              10,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            10);
+                        10,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                10);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              100,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            11);
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                11);
 
         // Check that when querying by name, we always include all names for a
         // gien row even if it means returning more columns than requested (this is necesseray for CQL)
         sp = new SlicePredicate();
         sp.setColumn_names(Arrays.asList(
-            ByteBufferUtil.bytes("c0"),
-            ByteBufferUtil.bytes("c1"),
-            ByteBufferUtil.bytes("c2")
+                ByteBufferUtil.bytes("c0"),
+                ByteBufferUtil.bytes("c1"),
+                ByteBufferUtil.bytes("c2")
         ));
 
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              1,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            3);
+                        1,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                3);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              4,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            5);
+                        4,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                5);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              5,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            5);
+                        5,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                5);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              6,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            8);
+                        6,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                8);
         assertTotalColCount(cfs.getRangeSlice(Util.range("", ""),
-                                              null,
+                        null,
                         ThriftValidation.asIFilter(sp, cfs.metadata, null, false),
-                                              100,
-                                              System.currentTimeMillis(),
-                                              true,
-                                              false),
-                            8);
+                        100,
+                        System.currentTimeMillis(),
+                        true,
+                        false),
+                8);
     }
 
     @Test
