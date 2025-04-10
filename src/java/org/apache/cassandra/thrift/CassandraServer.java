@@ -304,7 +304,7 @@ public class CassandraServer implements Cassandra.Iface
         {
             return new PageToken().setEnd_of_row(true);
         }
-        return new PageToken().setColumn_name(pageToken.getToken().name().toByteBuffer()).setEnd_of_row(false);
+        return new PageToken().setColumn_name(pageToken.getCell().name().toByteBuffer()).setEnd_of_row(false);
     }
 
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> getSlice(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
