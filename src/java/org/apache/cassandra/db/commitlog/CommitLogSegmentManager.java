@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import com.palantir.logsafe.SafeArg;
 import com.google.common.annotations.VisibleForTesting;
@@ -450,6 +451,11 @@ public class CommitLogSegmentManager
      */
     private Future<?> flushDataFrom(List<CommitLogSegment> segments, boolean force, String reason)
     {
+        logger.debug("Flushing data from segments {} with reason {}",
+                     SafeArg.of("segments", segments.stream().map(segment -> segment.id).collect(Collectors.toSet())),
+                     SafeArg.of("reason", reason),
+                     SafeArg.of("force", force));
+
         if (segments.isEmpty())
             return Futures.immediateFuture(null);
         final ReplayPosition maxReplayPosition = segments.get(segments.size() - 1).getContext();

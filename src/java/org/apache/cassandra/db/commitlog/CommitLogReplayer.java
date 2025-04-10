@@ -409,7 +409,7 @@ public class CommitLogReplayer
             {
                 int replayPos = replayEnd + CommitLogSegment.SYNC_MARKER_SIZE;
 
-                logger.debug("Replaying {} between {} and {}",
+                logger.trace("Replaying {} between {} and {}",
                              SafeArg.of("file", file.getName()),
                              SafeArg.of("start", reader.getFilePointer()),
                              SafeArg.of("end", end));
