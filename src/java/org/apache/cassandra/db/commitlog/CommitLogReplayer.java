@@ -31,7 +31,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.palantir.logsafe.SafeArg;
-import com.palantir.logsafe.UnsafeArg;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
@@ -123,8 +122,8 @@ public class CommitLogReplayer
                     if (replayFilter.includes(cfs.metadata))
                     {
                         logger.info("Restore point in time is before latest truncation of table {}.{}. Clearing truncation record.",
-                                    cfs.metadata.ksName,
-                                    cfs.metadata.cfName);
+                                    SafeArg.of("ksName", cfs.metadata.ksName),
+                                    SafeArg.of("cfName", cfs.metadata.cfName));
                         SystemKeyspace.removeTruncationRecord(cfs.metadata.cfId);
                         truncatedAt = null;
                     }
@@ -143,7 +142,7 @@ public class CommitLogReplayer
         if (globalPosition == null)
             globalPosition = ReplayPosition.firstNotCovered(cfPersisted.values());
 
-        logger.debug("Global replay position {} is from columnfamilies {}",
+        logger.debug("Global replay position {} is from columnfamilies filtered: {}; unfiltered: {}",
                      SafeArg.of("globalPosition", globalPosition),
                      SafeArg.of("columnFamiliesWithReplayFilters", cfPersisted.keySet()),
                      SafeArg.of("columnFamiliesWithoutReplayFilters", cfWithoutFilter));
@@ -176,7 +175,7 @@ public class CommitLogReplayer
             {
                 if (shouldSkip(file))
                 {
-                    logger.info("Skipping playback of empty log: {}", file.getName());
+                    logger.info("Skipping playback of empty log: {}", SafeArg.of("fileName", file.getName()));
                 }
                 else
                 {
@@ -208,7 +207,9 @@ public class CommitLogReplayer
     public int blockForWrites()
     {
         for (Map.Entry<UUID, AtomicInteger> entry : invalidMutations.entrySet())
-            logger.warn(String.format("Skipped %d mutations from unknown (probably removed) CF with id %s", entry.getValue().intValue(), entry.getKey()));
+            logger.warn("Skipped {} mutations from unknown (probably removed) CF with id {}",
+                        SafeArg.of("count", entry.getValue().intValue()),
+                        SafeArg.of("cfId", entry.getKey()));
 
         // wait for all the writes to finish on the mutation stage
         FBUtilities.waitOnFutures(futures);
@@ -482,7 +483,7 @@ public class CommitLogReplayer
                      SafeArg.of("file", file.getName()),
                      SafeArg.of("version", desc.version),
                      SafeArg.of("messagingVersion", desc.getMessagingVersion()),
-                     UnsafeArg.of("compression", desc.compression));
+                     SafeArg.of("compression", desc.compression));
 
         if (globalPosition.segment > desc.id)
         {

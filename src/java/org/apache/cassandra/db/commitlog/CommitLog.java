@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.tjake.ICRC32;
+import com.palantir.logsafe.Safe;
+import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import org.apache.cassandra.config.Config;
@@ -168,7 +170,7 @@ public class CommitLog implements CommitLogMBean
             logger.info("Replaying {}",
                         SafeArg.of("commitLogFiles", Arrays.stream(files).map(File::getName).collect(Collectors.toSet())));
             replayed = recover(files);
-            logger.info("Log replay complete, {} replayed mutations", replayed);
+            logger.info("Log replay complete, {} replayed mutations", SafeArg.of("count", replayed));
 
             for (File f : files)
                 allocator.recycleSegment(f);
@@ -309,7 +311,8 @@ public class CommitLog implements CommitLogMBean
      */
     public void discardCompletedSegments(final UUID cfId, final ReplayPosition context)
     {
-        logger.trace("discard completed log segments for {}, table {}", context, cfId);
+        if (logger.isTraceEnabled())
+            logger.trace("discard completed log segments for {}, table {}", SafeArg.of("context", context), SafeArg.of("cfId", cfId));
 
         // Go thru the active segment files, which are ordered oldest to newest, marking the
         // flushed CF as clean, until we reach the segment file containing the ReplayPosition passed
@@ -515,10 +518,13 @@ public class CommitLog implements CommitLogMBean
                     attributes);
                 //$FALL-THROUGH$
             case stop_commit:
-                logger.error(String.format("%s. Commit disk failure policy is %s; terminating thread", message, DatabaseDescriptor.getCommitFailurePolicy()), t);
+                logger.error("{} Commit disk failure policy is {}; terminating thread",
+                             SafeArg.of("message", message),
+                             SafeArg.of("commitFailurePolicy", DatabaseDescriptor.getCommitFailurePolicy()),
+                             t);
                 return false;
             case ignore:
-                logger.error(message, t);
+                logger.error("{}", SafeArg.of("message", message), t);
                 return true;
             default:
                 throw new AssertionError(DatabaseDescriptor.getCommitFailurePolicy());

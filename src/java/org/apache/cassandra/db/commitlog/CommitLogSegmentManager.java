@@ -415,7 +415,10 @@ public class CommitLogSegmentManager
     {
         long total = DatabaseDescriptor.getTotalCommitlogSpaceInMB() * 1024 * 1024;
         long currentSize = size.get();
-        logger.trace("Total active commitlog segment space used is {} out of {}", currentSize, total);
+        if (logger.isTraceEnabled())
+            logger.trace("Total active commitlog segment space used is {} out of {}",
+                         SafeArg.of("currentSize", currentSize),
+                         SafeArg.of("total", total));
         return total - currentSize;
     }
 
@@ -466,7 +469,8 @@ public class CommitLogSegmentManager
                 {
                     // even though we remove the schema entry before a final flush when dropping a CF,
                     // it's still possible for a writer to race and finish his append after the flush.
-                    logger.trace("Marking clean CF {} that doesn't exist anymore", dirtyCFId);
+                    if (logger.isTraceEnabled())
+                        logger.trace("Marking clean CF {} that doesn't exist anymore", SafeArg.of("dirtyCFId", dirtyCFId));
                     segment.markClean(dirtyCFId, segment.getContext());
                 }
                 else if (!flushes.containsKey(dirtyCFId))
