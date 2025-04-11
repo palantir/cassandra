@@ -144,7 +144,7 @@ public class CommitLogReplayer
         if (globalPosition == null)
             globalPosition = ReplayPosition.firstNotCovered(cfPersisted.values());
 
-        logger.debug("Global replay position {} is from columnfamilies filtered: {}; unfiltered:{}",
+        logger.debug("Global replay position {} is from columnfamilies filtered: {}; unfiltered: {}",
                      SafeArg.of("globalPosition", globalPosition),
                      SafeArg.of("columnFamiliesWithReplayFilters", cfPersisted.keySet()),
                      SafeArg.of("columnFamiliesWithoutReplayFilters", cfWithoutFilter));

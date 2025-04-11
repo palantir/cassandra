@@ -117,10 +117,10 @@ public abstract class AbstractCommitLogService
                         {
                             logger.warn("Out of {} commit log syncs over the past {}s with average duration of {}ms, {} have exceeded the configured commit interval by an average of {}ms",
                                         SafeArg.of("syncCount", syncCount),
-                                        SafeArg.of("total duration", (now - firstLagAt) / 1000),
-                                        SafeArg.of("average duration", (double) totalSyncDuration / syncCount),
+                                        SafeArg.of("totalDuration", (now - firstLagAt) / 1000),
+                                        SafeArg.of("averageDuration", (double) totalSyncDuration / syncCount),
                                         SafeArg.of("lagCount", lagCount),
-                                        SafeArg.of("average lag", (double) syncExceededIntervalBy / lagCount));
+                                        SafeArg.of("averageLag", (double) syncExceededIntervalBy / lagCount));
                             firstLagAt = 0;
                         }
 
