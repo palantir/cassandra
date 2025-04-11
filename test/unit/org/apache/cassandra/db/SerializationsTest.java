@@ -118,7 +118,6 @@ public class SerializationsTest extends AbstractSerializationsTester
         DataInputStream in = getInput("db.RangeSliceCommand.bin");
         for (int i = 0; i < 6; i++)
             MessageIn.read(in, getVersion(), -1);
-        // reading is failing here because it doesn't detect the correct version during deserialization
         in.close();
     }
 
@@ -341,9 +340,9 @@ public class SerializationsTest extends AbstractSerializationsTester
         PageToken deserializedPageToken2 = pageTokenSerializer.deserialize(in, getVersion());
 
         assert deserializedPageToken1.isReachedEnd();
-        assert deserializedPageToken1.getToken() == null;
+        assert deserializedPageToken1.getCell() == null;
         assert !deserializedPageToken2.isReachedEnd();
-        assert deserializedPageToken2.getToken().equals(pageTokenHasValue.getToken());
+        assert deserializedPageToken2.getCell().equals(pageTokenHasValue.getCell());
     }
 
     @Test

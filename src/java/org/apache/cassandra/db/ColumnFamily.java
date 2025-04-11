@@ -21,7 +21,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -98,19 +104,22 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         return counter.countAll(this).live();
     }
 
-    public ColumnFamily cloneLimitByPageToken(PageToken pageToken)
+    public ColumnFamily cloneMeLimitByPageToken(PageToken pageToken)
     {
+        if (pageToken == null || pageToken.isReachedEnd())
+        {
+            return this;
+        }
+
         ColumnFamily cf = cloneMeShallow();
         cf.delete(this);
+        cf.setPageToken(pageToken);
 
         CellNameType comparator = getComparator();
-        Collection<Cell> cells = getSortedColumns();
-
-        for (Iterator<Cell> iter = cells.iterator(); iter.hasNext(); )
+        for (Iterator<Cell> iter = getSortedColumns().iterator(); iter.hasNext(); )
         {
             Cell cell = iter.next();
-
-            if (pageToken == null || pageToken.isReachedEnd() || comparator.compare(cell.name(), pageToken.getToken().name()) < 0)
+            if (comparator.compare(cell.name(), pageToken.getCell().name()) < 0)
             {
                 cf.addColumn(cell);
             }
@@ -118,10 +127,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
             {
                 break;
             }
-        }
-        if (pageToken != null)
-        {
-            cf.setPageToken(pageToken);
         }
 
         return cf;
@@ -162,7 +167,17 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     /**
      * Clones the column map.
      */
-    public abstract ColumnFamily cloneMe();
+    public ColumnFamily cloneMe()
+    {
+        ColumnFamily cf = cloneMeInternal();
+        if (pageToken != null)
+        {
+            cf.setPageToken(pageToken);
+        }
+        return cf;
+    }
+
+    public abstract ColumnFamily cloneMeInternal();
 
     public UUID id()
     {
@@ -244,7 +259,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public abstract void delete(DeletionInfo info);
     public abstract void delete(DeletionTime deletionTime);
-
     public abstract void delete(RangeTombstone tombstone);
 
     public abstract SearchIterator<CellName, Cell> searchIterator();
@@ -430,8 +444,9 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         ColumnFamily comparison = (ColumnFamily) o;
 
         return metadata.equals(comparison.metadata)
-               && deletionInfo().equals(comparison.deletionInfo())
-                && ByteBufferUtil.compareUnsigned(digest(this), digest(comparison)) == 0 && Objects.equals(pageToken, comparison.pageToken);
+                && deletionInfo().equals(comparison.deletionInfo())
+                && ByteBufferUtil.compareUnsigned(digest(this), digest(comparison)) == 0
+                && Objects.equals(pageToken(), comparison.pageToken());
     }
 
     @Override
@@ -445,42 +460,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
         sb.append(" [").append(CellNames.getColumnsString(getComparator(), this)).append("], pageToken=").append(pageToken()).append(")");
         return sb.toString();
-    }
-
-    public static ByteBuffer digestLimitByPageToken(ColumnFamily cf, PageToken pageToken)
-    {
-        MessageDigest digest = FBUtilities.threadLocalMD5Digest();
-        if (cf != null)
-        {
-            if (pageToken.isReachedEnd())
-            {
-                cf.updateDigest(digest);
-            }
-            else
-            {
-                cf.updateDigestLimitByPageToken(digest, pageToken);
-            }
-        }
-        return ByteBuffer.wrap(digest.digest());
-    }
-
-    public void updateDigestLimitByPageToken(MessageDigest digest, PageToken pageToken)
-    {
-        assert !pageToken.isReachedEnd();
-        
-        for (Cell cell : this)
-        {
-            if (metadata.comparator.compare(cell.name(), pageToken.getToken().name()) < 0)
-            {
-                cell.updateDigest(digest);
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        deletionInfo().updateDigest(digest);
     }
 
     public static ByteBuffer digest(ColumnFamily cf)

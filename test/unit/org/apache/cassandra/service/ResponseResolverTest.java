@@ -23,9 +23,10 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import org.apache.cassandra.db.filter.PageToken;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -41,7 +42,6 @@ import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessagingService;
 
 import static org.apache.cassandra.Util.column;
-import static org.apache.cassandra.Util.tombstone;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -75,18 +75,6 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testSingleMessageWithPageToken_RowDigestResolver() throws DigestMismatchException, UnknownHostException
-    {
-        ByteBuffer key = bytes("key");
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf.addColumn(column("c1", "v1", 0));
-        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
-        Row row = new Row(key, cf);
-
-        testReadResponses(new RowDigestResolver(KEYSPACE, key, MAX_RESPONSE_COUNT), row, makeReadResponse("127.0.0.1", row));
-    }
-
-    @Test
     public void testMultipleMessages_RowDigestResolver() throws DigestMismatchException, UnknownHostException
     {
         ByteBuffer key = bytes("key");
@@ -99,22 +87,6 @@ public class ResponseResolverTest extends SchemaLoader
                           makeReadResponse("127.0.0.1", row),
                           makeReadResponse("127.0.0.2", row),
                           makeReadResponse("127.0.0.3", row));
-    }
-
-    @Test
-    public void testMultipleMessagesWithPageToken_RowDigestResolver() throws DigestMismatchException, UnknownHostException
-    {
-        ByteBuffer key = bytes("key");
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf.addColumn(column("c1", "v1", 0));
-        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
-        Row row = new Row(key, cf);
-
-        testReadResponses(new RowDigestResolver(KEYSPACE, key, MAX_RESPONSE_COUNT),
-                row,
-                makeReadResponse("127.0.0.1", row),
-                makeReadResponse("127.0.0.2", row),
-                makeReadResponse("127.0.0.3", row));
     }
 
     @Test(expected = DigestMismatchException.class)
@@ -137,7 +109,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleThreads_RowDigestResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    public void testMultipleThreads_RowDigestResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
     {
         ByteBuffer key = bytes("key");
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
@@ -169,24 +141,6 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testSingleMessageWithPageToken_RowDataResolver() throws DigestMismatchException, UnknownHostException
-    {
-        ByteBuffer key = bytes("key");
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf.addColumn(column("c1", "v1", 0));
-        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
-        Row row = new Row(key, cf);
-
-        testReadResponses(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                row,
-                makeReadResponse("127.0.0.1", row));
-    }
-
-    @Test
     public void testMultipleMessages_RowDataResolver() throws DigestMismatchException, UnknownHostException
     {
         ByteBuffer key = bytes("key");
@@ -206,59 +160,7 @@ public class ResponseResolverTest extends SchemaLoader
     }
 
     @Test
-    public void testMultipleMessagesWithPageToken_RowDataResolver() throws DigestMismatchException, UnknownHostException
-    {
-        ByteBuffer key = bytes("key");
-        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf.addColumn(column("c1", "v1", 0));
-        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
-        Row row = new Row(key, cf);
-
-        testReadResponses(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                row,
-                makeReadResponse("127.0.0.1", row),
-                makeReadResponse("127.0.0.2", row),
-                makeReadResponse("127.0.0.3", row));
-    }
-
-    @Test
-    public void testMultipleMessagesWithDifferentPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c1", "v1", 0));
-        cf2.setPageToken(PageToken.createPageToken(column("c3", "v4", 0)));
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c1", "v1", 0));
-        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-
-        testReadResponses(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                row1,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
-    }
-
-    @Test
-    public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
+    public void testMultipleThreads_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException
     {
         ByteBuffer key = bytes("key");
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
@@ -274,237 +176,6 @@ public class ResponseResolverTest extends SchemaLoader
                             makeReadResponse("127.0.0.1", row),
                             makeReadResponse("127.0.0.2", row),
                             makeReadResponse("127.0.0.3", row));
-    }
-
-    @Test
-    public void testMultipleThreadsWithPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c1", "v1", 0));
-        cf2.setPageToken(PageToken.createPageToken(column("c3", "v4", 0)));
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c1", "v1", 0));
-        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-
-        testReadResponsesMT(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                row1,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
-    }
-
-    @Test
-    public void testMultipleThreadsWithDifferentCfs_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c11", "v11", 0));
-        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c111", "v111", 0));
-        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
-
-        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        resolvedCf.addColumn(column("c1", "v1", 0));
-        resolvedCf.addColumn(column("c11", "v11", 0));
-        resolvedCf.addColumn(column("c111", "v111", 0));
-        resolvedCf.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-        Row resolved = new Row(key, resolvedCf);
-
-        testReadResponsesMT(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                resolved,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
-    }
-
-    @Test
-    public void testMultipleThreadsWithDifferentCfsTombstones_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c11", "v11", 0));
-        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
-        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c111", "v111", 0));
-        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
-
-        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        resolvedCf.addColumn(column("c1", "v1", 0));
-        resolvedCf.addColumn(column("c11", "v11", 0));
-        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
-        resolvedCf.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-        Row resolved = new Row(key, resolvedCf);
-
-        testReadResponsesMT(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                resolved,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
-    }
-
-    @Test
-    public void testMultipleThreadsWithEndedPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c11", "v11", 0));
-        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
-        cf2.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c111", "v111", 0));
-        cf3.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        resolvedCf.addColumn(column("c1", "v1", 0));
-        resolvedCf.addColumn(column("c11", "v11", 0));
-        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
-        resolvedCf.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-        Row resolved = new Row(key, resolvedCf);
-
-        testReadResponsesMT(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                resolved,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
-    }
-
-    @Test
-    public void testMultipleThreadsWithMixedPageTokens_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c11", "v11", 0));
-        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
-        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c111", "v111", 0));
-        cf3.setPageToken(PageToken.createPageToken(column("c4", "v4", 0)));
-
-        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        resolvedCf.addColumn(column("c1", "v1", 0));
-        resolvedCf.addColumn(column("c11", "v11", 0));
-        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
-        resolvedCf.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-        Row resolved = new Row(key, resolvedCf);
-
-        testReadResponsesMT(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                resolved,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
-    }
-
-    @Test
-    public void testMultipleThreadsWithMixedPageTokensEnded_RowDataResolver() throws DigestMismatchException, UnknownHostException, InterruptedException, ExecutionException
-    {
-        ByteBuffer key = bytes("key");
-
-        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf1.addColumn(column("c1", "v1", 0));
-        cf1.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf2.addColumn(column("c11", "v11", 0));
-        cf2.delete(tombstone("c111", "c2", 0, 0)); // tombstone
-        cf2.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
-
-        ColumnFamily cf3 = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        cf3.addColumn(column("c111", "v111", 0));
-        cf3.setPageToken(PageToken.createPageTokenReachedEnd());
-
-        ColumnFamily resolvedCf = ArrayBackedSortedColumns.factory.create(KEYSPACE, TABLE);
-        resolvedCf.addColumn(column("c1", "v1", 0));
-        resolvedCf.addColumn(column("c11", "v11", 0));
-        resolvedCf.delete(tombstone("c111", "c2", 0, 0));
-        resolvedCf.setPageToken(PageToken.createPageToken(column("c3", "v3", 0)));
-
-        Row row1 = new Row(key, cf1);
-        Row row2 = new Row(key, cf2);
-        Row row3 = new Row(key, cf3);
-        Row resolved = new Row(key, resolvedCf);
-
-        testReadResponsesMT(new RowDataResolver(KEYSPACE,
-                        key,
-                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                        System.currentTimeMillis(),
-                        MAX_RESPONSE_COUNT),
-                resolved,
-                makeReadResponse("127.0.0.1", row1),
-                makeReadResponse("127.0.0.2", row2),
-                makeReadResponse("127.0.0.3", row3));
     }
 
     @Test
@@ -559,10 +230,7 @@ public class ResponseResolverTest extends SchemaLoader
             resolver.preprocess(message);
 
             Row row = resolver.getData();
-            if (resolver.replies.size() == 1)
-            {
-                checkSame(expected, row);
-            }
+            checkSame(expected, row);
 
             row = resolver.resolve();
             checkSame(expected, row);
@@ -571,7 +239,7 @@ public class ResponseResolverTest extends SchemaLoader
 
     private void testReadResponsesMT(final AbstractRowResolver resolver,
                                      final Row expected,
-                                     final MessageIn<ReadResponse>... messages) throws InterruptedException, ExecutionException
+                                     final MessageIn<ReadResponse>... messages) throws InterruptedException
     {
         for (MessageIn<ReadResponse> message : messages)
             resolver.preprocess(message);
@@ -579,21 +247,17 @@ public class ResponseResolverTest extends SchemaLoader
         final int threadCount = 45;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         final CountDownLatch finished = new CountDownLatch(threadCount);
-        Future<?>[] futures = new Future[threadCount];
 
         for (int i = 0; i < threadCount; i++)
         {
-            futures[i] = executorService.submit(new Runnable()
+            executorService.submit(new Runnable()
             {
                 public void run()
                 {
                     try
                     {
                         Row row = resolver.getData();
-                        if (resolver.replies.size() == 1)
-                        {
-                            checkSame(expected, row);
-                        }
+                        checkSame(expected, row);
 
                         row = resolver.resolve();
                         checkSame(expected, row);
@@ -612,11 +276,6 @@ public class ResponseResolverTest extends SchemaLoader
 
         finished.await();
         assertEquals(0, executorService.shutdownNow().size());
-
-        for (int i = 0; i < threadCount; i++)
-        {
-            futures[i].get();
-        }
 
     }
 

@@ -19,7 +19,6 @@ package org.apache.cassandra.db;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.Objects;
 
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
 import org.apache.cassandra.io.IVersionedSerializer;
@@ -54,23 +53,6 @@ public class Row
                "key=" + key +
                ", cf=" + cf +
                ')';
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-        if (this == o)
-        {
-            return true;
-        }
-        if (!(o instanceof Row))
-        {
-            return false;
-        }
-
-        Row otherRow = (Row) o;
-
-        return key.equals(otherRow.key) && Objects.equals(cf, otherRow.cf);
     }
 
     public int getLiveCount(IDiskAtomFilter filter, long now)

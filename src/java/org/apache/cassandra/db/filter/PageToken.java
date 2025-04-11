@@ -37,18 +37,18 @@ import org.apache.cassandra.utils.FBUtilities;
 
 public class PageToken
 {
-    private final Cell token;
+    private final Cell cell;
     private final boolean reachedEnd;
 
-    private PageToken(Cell pageToken, boolean reachedEnd)
+    private PageToken(Cell cell, boolean reachedEnd)
     {
-        this.token = pageToken;
+        this.cell = cell;
         this.reachedEnd = reachedEnd;
     }
 
-    public Cell getToken()
+    public Cell getCell()
     {
-        return token;
+        return cell;
     }
 
     public boolean isReachedEnd()
@@ -63,7 +63,7 @@ public class PageToken
             return PageTokenDigest.createPageTokenReachedEnd();
         }
         MessageDigest digest = FBUtilities.threadLocalMD5Digest();
-        token.updateDigest(digest);
+        cell.updateDigest(digest);
         return PageTokenDigest.createPageTokenDigest(ByteBuffer.wrap(digest.digest()));
     }
 
@@ -89,18 +89,20 @@ public class PageToken
         @Override
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
-                columnSerializer.serialize(pagetoken.token, out);
+                columnSerializer.serialize(pagetoken.cell, out);
             }
         }
 
         @Override
         public PageToken deserialize(DataInput in, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             return deserialize(in, ColumnSerializer.Flag.LOCAL, version);
         }
 
@@ -117,16 +119,19 @@ public class PageToken
         @Override
         public long serializedSize(PageToken pageToken, int version)
         {
-            assert version >= MessagingService.VERSION_22_18;
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             return serializedSize(pageToken, TypeSizes.NATIVE, version);
         }
 
         public long serializedSize(PageToken pagetoken, TypeSizes typeSizes, int version)
         {
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
-                size += columnSerializer.serializedSize(pagetoken.token, typeSizes);
+                size += columnSerializer.serializedSize(pagetoken.cell, typeSizes);
             }
             return size;
         }
@@ -140,7 +145,7 @@ public class PageToken
 
     private boolean equals(PageToken pageToken)
     {
-        return equals(token, pageToken.token) && reachedEnd == pageToken.reachedEnd;
+        return equals(cell, pageToken.cell) && reachedEnd == pageToken.reachedEnd;
     }
 
     private static boolean equals(Cell token1, Cell token2)
@@ -157,9 +162,7 @@ public class PageToken
         }
         else
         {
-            StringBuilder sb = new StringBuilder();
-            Composite.toString(token.name().toByteBuffer(), sb);
-            return "Cell(" + sb + ")";
+            return "Cell(" + cell.name().toString() + ")";
         }
     }
 
@@ -189,7 +192,7 @@ public class PageToken
             }
             else
             {
-                return cellComparator.compare(pageToken1.getToken().name(), pageToken2.getToken().name());
+                return cellComparator.compare(pageToken1.getCell().name(), pageToken2.getCell().name());
             }
         }
     }
