@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.db.commitlog;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 import org.slf4j.*;
 
@@ -114,8 +115,12 @@ public abstract class AbstractCommitLogService
 
                         if (firstLagAt > 0 && now - firstLagAt >= LAG_REPORT_INTERVAL)
                         {
-                            logger.warn(String.format("Out of %d commit log syncs over the past %ds with average duration of %.2fms, %d have exceeded the configured commit interval by an average of %.2fms",
-                                                      syncCount, (now - firstLagAt) / 1000, (double) totalSyncDuration / syncCount, lagCount, (double) syncExceededIntervalBy / lagCount));
+                            logger.warn("Out of {} commit log syncs over the past {}s with average duration of {}ms, {} have exceeded the configured commit interval by an average of {}ms",
+                                        SafeArg.of("syncCount", syncCount),
+                                        SafeArg.of("total duration", (now - firstLagAt) / 1000),
+                                        SafeArg.of("average duration", (double) totalSyncDuration / syncCount),
+                                        SafeArg.of("lagCount", lagCount),
+                                        SafeArg.of("average lag", (double) syncExceededIntervalBy / lagCount));
                             firstLagAt = 0;
                         }
 
