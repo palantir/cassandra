@@ -413,10 +413,7 @@ public class CassandraServer implements Cassandra.Iface
 
     private PageResult thriftifyColumnFamilyPaging(ColumnFamily cf, boolean subcolumnsOnly, boolean reverseOrder, long now)
     {
-        if (cf == null)
-        {
-            return new PageResult().setColumns(EMPTY_COLUMNS).setPage_token(new PageToken().setEnd_of_row(true));
-        }
+        assert cf != null : "Resolved column family should never be null when using paging, since it includes a page token";
 
         if (!cf.hasColumns())
         {
@@ -537,6 +534,7 @@ public class CassandraServer implements Cassandra.Iface
             String keyspace = cState.getKeyspace();
             markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            ThriftValidation.validateResumableRangeScan(keyspace, column_parent.column_family, Collections.singletonList(predicate));
             return multigetSlicePagingInternal(keyspace, keys, column_parent, System.currentTimeMillis(), predicate, consistency_level, cState);
         }
         catch (RequestValidationException e)
@@ -614,6 +612,8 @@ public class CassandraServer implements Cassandra.Iface
             String keyspace = cState.getKeyspace();
             markRequestMeter(keyspace);
             cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            ThriftValidation.validateResumableRangeScan(keyspace, column_parent.column_family,
+                    request.stream().map(KeyPredicate::getPredicate).collect(Collectors.toList()));
             return multigetMultislicePagingInternal(keyspace, request, column_parent, System.currentTimeMillis(), consistency_level, cState);
         }
         catch (RequestValidationException e)
@@ -1720,6 +1720,7 @@ public class CassandraServer implements Cassandra.Iface
 
             org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
             consistencyLevel.validateForRead(keyspace);
+            ThriftValidation.validateResumableRangeScan(keyspace, column_parent.column_family, Collections.singletonList(predicate));
 
             List<Row> rows = null;
 
