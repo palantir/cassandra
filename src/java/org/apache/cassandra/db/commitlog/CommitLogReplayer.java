@@ -31,7 +31,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.palantir.logsafe.SafeArg;
-import com.palantir.logsafe.UnsafeArg;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
@@ -42,7 +41,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.tjake.ICRC32;
 
-import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
@@ -485,7 +483,7 @@ public class CommitLogReplayer
                      SafeArg.of("file", file.getName()),
                      SafeArg.of("version", desc.version),
                      SafeArg.of("messagingVersion", desc.getMessagingVersion()),
-                     UnsafeArg.of("compression", desc.compression));
+                     SafeArg.of("compression", desc.compression));
 
         if (globalPosition.segment > desc.id)
         {
