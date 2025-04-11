@@ -784,6 +784,7 @@ public class CompactionsTest
 
         ReplayPosition upperBound = sstable.getSSTableMetadata().commitLogUpperBound;
         ReplayPosition lowerBound = sstable.getSSTableMetadata().commitLogLowerBound;
+        assertTrue(lowerBound != ReplayPosition.NONE);
         assertTrue(upperBound != ReplayPosition.NONE);
 
         LifecycleTransaction txn = store.getTracker().tryModify(store.getSSTables(), OperationType.UNKNOWN);
@@ -794,8 +795,8 @@ public class CompactionsTest
         SSTableReader cleanedSstable = store.getSSTables().iterator().next();
 
         assertTrue(cleanedSstable.descriptor.generation != sstable.descriptor.generation);
-        assertTrue(cleanedSstable.getSSTableMetadata().commitLogLowerBound == lowerBound);
-        assertTrue(cleanedSstable.getSSTableMetadata().commitLogUpperBound == upperBound);
+        assertEquals(cleanedSstable.getSSTableMetadata().commitLogLowerBound, lowerBound);
+        assertEquals(cleanedSstable.getSSTableMetadata().commitLogUpperBound, upperBound);
 
     }
 
