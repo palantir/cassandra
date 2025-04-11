@@ -83,7 +83,6 @@ public class CompactionsTest
     private static final String CF_STANDARD6 = "Standard6";
     private static final String CF_STANDARD7 = "Standard7";
     private static final String CF_STANDARD8 = "Standard8";
-    private static final String CF_STANDARD9 = "Standard9";
     private static final String CF_SUPER1 = "Super1";
     private static final String CF_SUPER5 = "Super5";
     private static final String CF_SUPERGC = "SuperDirectGC";
@@ -105,7 +104,6 @@ public class CompactionsTest
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD6),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD7),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD8),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD9),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER1, LongType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPER5, BytesType.instance),
                                     SchemaLoader.superCFMD(KEYSPACE1, CF_SUPERGC, BytesType.instance).gcGraceSeconds(0));
@@ -708,8 +706,9 @@ public class CompactionsTest
     public void testCompactionPropagatesReplayPositions() throws InterruptedException
     {
         Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        final String cfname = CF_STANDARD9; // use clean(no sstable) CF
+        final String cfname = CF_STANDARD4;
         ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(cfname);
+        cfs.clearUnsafe();
 
         // disable compaction while flushing
         cfs.disableAutoCompaction();
