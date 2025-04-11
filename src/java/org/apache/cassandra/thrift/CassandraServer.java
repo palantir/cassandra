@@ -563,11 +563,11 @@ public class CassandraServer implements Cassandra.Iface
             Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
                                                                   "column_parent", column_parent.toString(),
                                                                   "consistency_level", consistency_level.name());
-            Tracing.instance.begin("multiget_multislice_paging", traceParameters);
+            Tracing.instance.begin("multiget_multislice", traceParameters);
         }
         else
         {
-            logger.trace("multiget_multislice_paging");
+            logger.trace("multiget_multislice");
         }
 
         try
@@ -601,11 +601,11 @@ public class CassandraServer implements Cassandra.Iface
             Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
                     "column_parent", column_parent.toString(),
                     "consistency_level", consistency_level.name());
-            Tracing.instance.begin("multiget_multislice", traceParameters);
+            Tracing.instance.begin("multiget_multislice_paging", traceParameters);
         }
         else
         {
-            logger.trace("multiget_multislice");
+            logger.trace("multiget_multislice_paging");
         }
 
         try

@@ -666,7 +666,8 @@ public class ThriftValidation
             filter = new SliceQueryFilter(
                     comparator.fromByteBuffer(sr.start),
                     comparator.fromByteBuffer(sr.finish),
-                    sr.reversed, usePageToken,
+                    sr.reversed,
+                    usePageToken,
                     sr.count
             );
         }
