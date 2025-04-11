@@ -22,6 +22,8 @@ import java.util.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,7 +102,8 @@ public class DateTieredCompactionStrategy extends AbstractCompactionStrategy
         List<SSTableReader> compactionCandidates = new ArrayList<>(getNextNonExpiredSSTables(Sets.difference(candidates, expired), gcBefore));
         if (!expired.isEmpty())
         {
-            logger.trace("Including expired sstables: {}", expired);
+            logger.trace("Including expired sstables: {}",
+                         UnsafeArg.of("expired", expired));
             compactionCandidates.addAll(expired);
         }
         return compactionCandidates;
@@ -135,7 +138,8 @@ public class DateTieredCompactionStrategy extends AbstractCompactionStrategy
         Iterable<SSTableReader> candidates = filterOldSSTables(Lists.newArrayList(candidateSSTables), options.maxSSTableAge, now);
 
         List<List<SSTableReader>> buckets = getBuckets(createSSTableAndMinTimestampPairs(candidates), options.baseTime, base, now, options.maxWindowSize);
-        logger.debug("Compaction buckets are {}", buckets);
+        logger.debug("Compaction buckets are {}",
+                     UnsafeArg.of("buckets", buckets));
         updateEstimatedCompactionsByTasks(buckets);
         List<SSTableReader> mostInteresting = newestBucket(buckets,
                                                            cfs.getMinimumCompactionThreshold(),
@@ -372,7 +376,8 @@ public class DateTieredCompactionStrategy extends AbstractCompactionStrategy
     private static List<SSTableReader> getSSTablesForSTCS(Collection<SSTableReader> sstables, int minThreshold, int maxThreshold, SizeTieredCompactionStrategyOptions stcsOptions)
     {
         List<SSTableReader> s = SizeTieredCompactionStrategy.mostInterestingBucket(getSTCSBuckets(sstables, stcsOptions), minThreshold, maxThreshold);
-        logger.debug("Got sstables {} for STCS from {}", s, sstables);
+        logger.debug("Got sstables {} for STCS from {}", s,
+                     UnsafeArg.of("sstables", sstables));
         return s;
     }
 
@@ -407,7 +412,8 @@ public class DateTieredCompactionStrategy extends AbstractCompactionStrategy
         LifecycleTransaction modifier = cfs.getTracker().tryModify(sstables, OperationType.COMPACTION);
         if (modifier == null)
         {
-            logger.trace("Unable to mark {} for compaction; probably a background compaction got to it first.  You can disable background compactions temporarily if this is a problem", sstables);
+            logger.trace("Unable to mark {} for compaction; probably a background compaction got to it first.  You can disable background compactions temporarily if this is a problem",
+                         UnsafeArg.of("sstables", sstables));
             return null;
         }
 

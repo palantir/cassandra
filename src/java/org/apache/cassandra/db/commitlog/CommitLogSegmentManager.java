@@ -34,6 +34,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.palantir.logsafe.SafeArg;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.*;
@@ -118,9 +119,11 @@ public class CommitLogSegmentManager
                             // if we have no more work to do, check if we should create a new segment
                             if (availableSegments.isEmpty() && (activeSegments.isEmpty() || createReserveSegments))
                             {
-                                logger.trace("No segments in reserve; creating a fresh one");
                                 // TODO : some error handling in case we fail to create a new segment
-                                availableSegments.add(CommitLogSegment.createSegment(commitLog));
+                                CommitLogSegment newSegment = CommitLogSegment.createSegment(commitLog);
+                                availableSegments.add(newSegment);
+                                logger.debug("No segments in reserve; created a fresh one",
+                                            SafeArg.of("segment", newSegment.id));
                                 hasAvailableSegments.signalAll();
                             }
 
@@ -225,6 +228,9 @@ public class CommitLogSegmentManager
                 {
                     allocatingFrom = next;
                     activeSegments.add(next);
+                    logger.debug("Advanced allocating segment from {} to {}",
+                                 SafeArg.of("old", old == null ? "null" : old.id),
+                                 SafeArg.of("new", next.id));
                 }
             }
 
@@ -350,7 +356,8 @@ public class CommitLogSegmentManager
         }
         else
         {
-            logger.warn("segment {} not found in activeSegments queue", segment);
+            logger.warn("Segment {} not found in activeSegments queue",
+                        SafeArg.of("segment", segment.id));
         }
     }
 
@@ -374,7 +381,9 @@ public class CommitLogSegmentManager
      */
     private void discardSegment(final CommitLogSegment segment, final boolean deleteFile)
     {
-        logger.trace("Segment {} is no longer active and will be deleted {}", segment, deleteFile ? "now" : "by the archive script");
+        logger.debug("Segment {} is no longer active and will be deleted {}",
+                     SafeArg.of("segment", segment.id),
+                     SafeArg.of("deleteNow", deleteFile));
 
         segmentManagementTasks.add(new Runnable()
         {

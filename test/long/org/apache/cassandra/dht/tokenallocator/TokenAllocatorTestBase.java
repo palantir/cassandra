@@ -25,6 +25,8 @@ import java.util.Random;
 
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
+import org.junit.Before;
+
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Token;
 
@@ -35,6 +37,14 @@ abstract class TokenAllocatorTestBase
 {
     protected static final int TARGET_CLUSTER_SIZE = 250;
     protected static final int MAX_VNODE_COUNT = 64;
+
+    protected double skewFactor;
+
+    @Before
+    public void beforeEach()
+    {
+        skewFactor = 1;
+    }
 
     interface TestReplicationStrategy extends ReplicationStrategy<Unit>
     {
@@ -111,7 +121,8 @@ abstract class TokenAllocatorTestBase
             int tokens = tc.tokenCount(perUnitCount, rand);
             for (int j = 0; j < tokens; j++)
             {
-                map.put(partitioner.getRandomToken(rand), unit);
+                Token token = partitioner.getRandomToken(rand);
+                map.put(partitioner.split(partitioner.getMinimumToken(), token, skewFactor), unit);
             }
         }
     }

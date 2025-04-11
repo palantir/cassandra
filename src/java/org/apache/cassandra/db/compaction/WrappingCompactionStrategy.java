@@ -29,6 +29,9 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 import com.google.common.collect.ImmutableMap;
+
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +75,10 @@ public final class WrappingCompactionStrategy extends AbstractCompactionStrategy
         super(cfs, cfs.metadata.compactionStrategyOptions);
         reloadCompactionStrategy(cfs.metadata);
         cfs.getTracker().subscribe(this);
-        logger.trace("{} subscribed to the data tracker.", this);
+        logger.trace("{} subscribed to the data tracker.",
+                     SafeArg.of("keyspace", cfs.keyspace),
+                     SafeArg.of("cf", cfs.name),
+                     UnsafeArg.of("tracker", this));
     }
 
     @Override
@@ -371,7 +377,8 @@ public final class WrappingCompactionStrategy extends AbstractCompactionStrategy
                     incrementUnrepairCount(unrepairedTablesPerCf, ksAndCFName);
 
                     if (unrepairedTablesPerCf.get(ksAndCFName) == MAX_SSTABLES_TO_UNREPAIR_PER_CF) {
-                        logger.info("Unrepair threshold has been hit. Will not unrepair any more sstables for {}", ksAndCFName);
+                        logger.info("Unrepair threshold has been hit. Will not unrepair any more sstables for {}",
+                                    SafeArg.of("ksAndCFName", ksAndCFName));
                     }
                 }
 
@@ -401,7 +408,10 @@ public final class WrappingCompactionStrategy extends AbstractCompactionStrategy
 
     private void tryUnrepairingSSTable(SSTableReader sstable)
     {
-        logger.info("Trying to unrepair sstable {}", sstable.descriptor.filenameFor(Component.DATA));
+        logger.info("Trying to unrepair sstable {}",
+                    SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                    SafeArg.of("cf", sstable.getColumnFamilyName()),
+                    SafeArg.of("generation", sstable.descriptor.generation));
         try
         {
             sstable.descriptor.getMetadataSerializer().mutateRepairedAt(sstable.descriptor, ActiveRepairService.UNREPAIRED_SSTABLE);
@@ -409,7 +419,11 @@ public final class WrappingCompactionStrategy extends AbstractCompactionStrategy
         }
         catch (IOException e)
         {
-            logger.error("Could not unrepair sstable {}, moving on...", sstable.descriptor.filenameFor(Component.DATA), e);
+            logger.error("Could not unrepair sstable {}, moving on...",
+                         SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                         SafeArg.of("cf", sstable.getColumnFamilyName()),
+                         SafeArg.of("generation", sstable.descriptor.generation),
+                         e);
         }
     }
 

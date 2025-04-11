@@ -36,7 +36,7 @@ import org.apache.cassandra.dht.Token;
  * we need to separate classes to avoid timeous in case flaky tests need to be repeated, see CASSANDRA-12784.
  */
 @Ignore
-abstract class AbstractReplicationAwareTokenAllocatorTest extends TokenAllocatorTestBase
+public abstract class AbstractReplicationAwareTokenAllocatorTest extends TokenAllocatorTestBase
 {
     static class SimpleReplicationStrategy implements TestReplicationStrategy
     {

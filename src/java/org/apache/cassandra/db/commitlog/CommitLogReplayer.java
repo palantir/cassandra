@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
@@ -103,6 +105,7 @@ public class CommitLogReplayer
     {
         // compute per-CF and global replay positions
         Map<UUID, ReplayPosition.ReplayFilter> cfPersisted = new HashMap<>();
+        Set<UUID> cfWithoutFilter = new HashSet<>();
         ReplayFilter replayFilter = ReplayFilter.create();
         ReplayPosition globalPosition = null;
         for (ColumnFamilyStore cfs : ColumnFamilyStore.all())
@@ -133,13 +136,18 @@ public class CommitLogReplayer
             if (!filter.isEmpty())
                 cfPersisted.put(cfs.metadata.cfId, filter);
             else
+            {
                 globalPosition = ReplayPosition.NONE; // if we have no ranges for this CF, we must replay everything and filter
+                cfWithoutFilter.add(cfs.metadata.cfId);
+            }
         }
         if (globalPosition == null)
             globalPosition = ReplayPosition.firstNotCovered(cfPersisted.values());
-        logger.debug("Global replay position is {} from columnfamilies {}",
+
+        logger.debug("Global replay position {} is from columnfamilies filtered: {}; unfiltered:{}",
                      SafeArg.of("globalPosition", globalPosition),
-                     SafeArg.of("columnFamilies", FBUtilities.toString(cfPersisted)));
+                     SafeArg.of("columnFamiliesWithReplayFilters", cfPersisted.keySet()),
+                     SafeArg.of("columnFamiliesWithoutReplayFilters", cfWithoutFilter));
         return new CommitLogReplayer(commitLog, globalPosition, cfPersisted, replayFilter);
     }
 
@@ -404,8 +412,10 @@ public class CommitLogReplayer
             {
                 int replayPos = replayEnd + CommitLogSegment.SYNC_MARKER_SIZE;
 
-                if (logger.isTraceEnabled())
-                    logger.trace("Replaying {} between {} and {}", file, reader.getFilePointer(), end);
+                logger.debug("Replaying {} between {} and {}",
+                             SafeArg.of("file", file.getName()),
+                             SafeArg.of("start", reader.getFilePointer()),
+                             SafeArg.of("end", end));
                 if (compressor != null)
                 {
                     int uncompressedLength = reader.readInt();
@@ -464,21 +474,22 @@ public class CommitLogReplayer
         finally
         {
             FileUtils.closeQuietly(reader);
-            logger.debug("Finished reading {}", file);
+            logger.debug("Finished reading {}",
+                         SafeArg.of("file", file.getName()));
         }
     }
 
     public boolean logAndCheckIfShouldSkip(File file, CommitLogDescriptor desc)
     {
         logger.debug("Replaying {} (CL version {}, messaging version {}, compression {})",
-                    file.getPath(),
-                    desc.version,
-                    desc.getMessagingVersion(),
-                    desc.compression);
+                     SafeArg.of("file", file.getName()),
+                     SafeArg.of("version", desc.version),
+                     SafeArg.of("messagingVersion", desc.getMessagingVersion()),
+                     UnsafeArg.of("compression", desc.compression));
 
         if (globalPosition.segment > desc.id)
         {
-            logger.trace("skipping replay of fully-flushed {}", file);
+            logger.debug("Skipping replay of fully-flushed {}", SafeArg.of("file", file.getName()));
             return true;
         }
         return false;
