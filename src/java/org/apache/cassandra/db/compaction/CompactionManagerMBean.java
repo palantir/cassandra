@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import javax.management.openmbean.TabularData;
 
+import org.apache.cassandra.db.ColumnFamilyStore;
+
 public interface CompactionManagerMBean
 {
     /** List of running compaction objects. */
@@ -108,7 +110,7 @@ public interface CompactionManagerMBean
     /**
      * Returns a map of pending compactions with associated keyspaces and column families.
      *
-     * @return A map linking keyspace/column family to pending compaction count.
+     * @return A map linking a ColumnFamilyStore to pending compaction count.
      */
-    public Map<String, Integer> getPendingTasksByKeyspaceAndTable();
+    public Map<ColumnFamilyStore, Integer> getPendingTasksByKeyspaceAndColumnFamily();
 }

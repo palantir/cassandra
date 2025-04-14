@@ -1865,9 +1865,9 @@ public class CompactionManager implements CompactionManagerMBean
         validationExecutor.setMaximumPoolSize(number);
     }
 
-    public Map<String, Integer> getPendingTasksByKeyspaceAndTable()
+    public Map<ColumnFamilyStore, Integer> getPendingTasksByKeyspaceAndColumnFamily()
     {
-        Map<String, Integer> pendingCompactions = new HashMap<>();
+        Map<ColumnFamilyStore, Integer> pendingCompactions = new HashMap<>();
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
             for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
@@ -1875,7 +1875,7 @@ public class CompactionManager implements CompactionManagerMBean
                 int estimatedRemainingTasks = cfs.getCompactionStrategy().getEstimatedRemainingTasks();
                 if (estimatedRemainingTasks > 0)
                 {
-                    pendingCompactions.put(String.format("%s/%s", keyspaceName, cfs.getColumnFamilyName()), estimatedRemainingTasks);
+                    pendingCompactions.put(cfs, estimatedRemainingTasks);
                 }
             }
         }

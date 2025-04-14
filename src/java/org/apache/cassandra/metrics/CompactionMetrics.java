@@ -60,13 +60,10 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
         {
             public Integer getValue()
             {
-                int n = 0;
                 // add estimate number of compactions need to be done
-                for (String keyspaceName : Schema.instance.getKeyspaces())
-                {
-                    for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
-                        n += cfs.getCompactionStrategy().getEstimatedRemainingTasks();
-                }
+                int n = CompactionManager.instance.getPendingTasksByKeyspaceAndColumnFamily().values().stream()
+                                                  .mapToInt(Integer::intValue)
+                                                  .sum();
                 // add number of currently running compactions
                 return n + compactions.size();
             }

@@ -25,7 +25,9 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.compaction.CompactionManagerMBean;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.io.util.FileUtils;
@@ -48,14 +50,18 @@ public class CompactionStats extends NodeToolCmd
     public void execute(NodeProbe probe)
     {
         CompactionManagerMBean cm = probe.getCompactionManagerProxy();
-        Map<String, Integer> pendingCompactions = cm.getPendingTasksByKeyspaceAndTable();
+        Map<ColumnFamilyStore, Integer> pendingCompactions = cm.getPendingTasksByKeyspaceAndColumnFamily();
         int runningAndPendingCompactions = pendingCompactions.values().stream()
                                                              .mapToInt(Integer::intValue)
                                                              .sum();
         probe.output().out.println("pending tasks: " + runningAndPendingCompactions);
         if (verbose)
         {
-            probe.output().out.println("pending queued tasks by ks/cf: " + pendingCompactions);
+            String pendingCompactionsSummary = pendingCompactions.entrySet().stream().map(pendingCompactionsByKsCf -> {
+                ColumnFamilyStore cfs = pendingCompactionsByKsCf.getKey();
+                return String.format("%s/%s: %d", cfs.keyspace, cfs.name, pendingCompactionsByKsCf.getValue());
+            }).collect(Collectors.joining(", "));
+            probe.output().out.println("pending queued tasks by ks/cf: " + pendingCompactionsSummary);
         }
 
         long remainingBytes = 0;
