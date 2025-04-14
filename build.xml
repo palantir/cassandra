@@ -1728,6 +1728,8 @@
   <target name="rat-init" depends="maven-ant-tasks-init">
     <artifact:dependencies pathId="rat.classpath">
       <dependency groupId="org.apache.rat" artifactId="apache-rat-tasks" version="0.6" />
+        <remoteRepository refid="central"/>
+        <remoteRepository refid="apache"/>
     </artifact:dependencies>
     <typedef uri="antlib:org.apache.rat.anttasks" classpathref="rat.classpath"/>
   </target>
