@@ -87,7 +87,7 @@ public class SimplePerformanceTest
         for (int i = 0; i < 10; i++) {
             Instant before = Instant.now();
             try {
-                Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+                Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
                 assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C), Iterables.getOnlyElement(result.get(PARTITION_1)));
                 Duration duration = Duration.between(before, Instant.now());
                 min = Ordering.natural().min(min, duration);
@@ -120,7 +120,7 @@ public class SimplePerformanceTest
                             .setName(ByteBufferUtil.bytes(String.valueOf(ch)))
                             .setValue(new byte [0])
                             .setTimestamp(System.nanoTime());
-            server.insert(key, parent, column, ConsistencyLevel.ONE);
+            server.insert(key, parent, column, ConsistencyLevel.ONE, null);
         }
     }
 
@@ -149,7 +149,7 @@ public class SimplePerformanceTest
                 mutation.setDeletion(deletion);
                 mutations.add(mutation);
             }
-            server.batch_mutate(ImmutableMap.of(key, ImmutableMap.of(CF_STANDARD, mutations)), ConsistencyLevel.ALL);
+            server.batch_mutate(ImmutableMap.of(key, ImmutableMap.of(CF_STANDARD, mutations)), ConsistencyLevel.ALL, null);
             Keyspace.open(KEYSPACE).flush().forEach(Futures::getUnchecked);
         }
     }

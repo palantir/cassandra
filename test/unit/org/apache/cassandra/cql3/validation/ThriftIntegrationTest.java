@@ -279,7 +279,7 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         ColumnPath path = new ColumnPath(currentDenseTable());
         path.setSuper_column(ByteBufferUtil.bytes("val1"));
 
-        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE);
+        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE, null);
         assertEquals(cosc.getSuper_column().columns.get(0).name, ByteBufferUtil.bytes(1));
         assertEquals(cosc.getSuper_column().columns.get(0).value, ByteBufferUtil.bytes("value1"));
         assertEquals(cosc.getSuper_column().columns.get(1).name, ByteBufferUtil.bytes(2));
@@ -304,7 +304,7 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         ColumnPath path = new ColumnPath(currentDenseTable());
         path.setSuper_column(ByteBufferUtil.bytes("val1"));
 
-        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE);
+        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE, null);
         assertEquals(cosc.getSuper_column().columns.get(0).name, ByteBufferUtil.bytes(1));
         assertEquals(cosc.getSuper_column().columns.get(0).value, ByteBufferUtil.bytes("value1"));
         assertEquals(cosc.getSuper_column().columns.get(1).name, ByteBufferUtil.bytes(2));
@@ -313,7 +313,7 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         path = new ColumnPath(currentDenseTable());
         path.setSuper_column(ByteBufferUtil.bytes("val2"));
 
-        cosc = client.get(ByteBufferUtil.bytes("key2"), path, ONE);
+        cosc = client.get(ByteBufferUtil.bytes("key2"), path, ONE, null);
         assertEquals(cosc.getSuper_column().columns.get(0).name, ByteBufferUtil.bytes(1));
         assertEquals(cosc.getSuper_column().columns.get(0).value, ByteBufferUtil.bytes("value1"));
         assertEquals(cosc.getSuper_column().columns.get(1).name, ByteBufferUtil.bytes(2));
@@ -357,7 +357,8 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         mutation1.setDeletion(deletion1);
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key2"),
                                                      Collections.singletonMap(currentDenseTable(), Arrays.asList(mutation1))),
-                            ONE);
+                            ONE,
+                            null);
         assertRows(execute(String.format("SELECT * FROM %s.%s WHERE key = 'key2'", KEYSPACE, currentDenseTable())),
                    row("key2", "val2", 4, "value4"),
                    row("key2", "val2", 5, "value5"));
@@ -369,7 +370,8 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         mutation2.setDeletion(deletion2);
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key2"),
                                                      Collections.singletonMap(currentDenseTable(), Arrays.asList(mutation2))),
-                            ONE);
+                            ONE,
+                            null);
 
         assertEmpty(execute(String.format("SELECT * FROM %s.%s WHERE key = 'key2'", KEYSPACE, currentDenseTable())));
 
@@ -492,7 +494,7 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         ColumnPath path = new ColumnPath(currentSparseTable());
         path.setSuper_column(ByteBufferUtil.bytes("val1"));
 
-        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE);
+        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE, null);
         assertEquals(cosc.getSuper_column().columns.get(0).value, ByteBufferUtil.bytes(1L));
         assertEquals(cosc.getSuper_column().columns.get(0).name, ByteBufferUtil.bytes("col1"));
         assertEquals(cosc.getSuper_column().columns.get(1).value, ByteBufferUtil.bytes(2L));
@@ -517,7 +519,7 @@ public class ThriftIntegrationTest extends ThriftCQLTester
         ColumnPath path = new ColumnPath(currentSparseTable());
         path.setSuper_column(ByteBufferUtil.bytes("val1"));
 
-        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE);
+        ColumnOrSuperColumn cosc = client.get(ByteBufferUtil.bytes("key1"), path, ONE, null);
         assertEquals(cosc.getSuper_column().columns.get(0).value, ByteBufferUtil.bytes(1L));
         assertEquals(cosc.getSuper_column().columns.get(0).name, ByteBufferUtil.bytes("col1"));
         assertEquals(cosc.getSuper_column().columns.get(1).value, ByteBufferUtil.bytes(2L));
@@ -682,11 +684,13 @@ public class ThriftIntegrationTest extends ThriftCQLTester
 
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key1"),
                                                      Collections.singletonMap(currentDenseTable(), Arrays.asList(mutation, mutation2))),
-                            ONE);
+                            ONE,
+                            null);
 
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key2"),
                                                      Collections.singletonMap(currentDenseTable(), Arrays.asList(mutation, mutation2))),
-                            ONE);
+                            ONE,
+                            null);
     }
 
     private void populateSparseTable() throws Throwable
@@ -713,11 +717,13 @@ public class ThriftIntegrationTest extends ThriftCQLTester
 
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key1"),
                                                      Collections.singletonMap(currentSparseTable(), Arrays.asList(mutation, mutation2))),
-                            ONE);
+                            ONE,
+                            null);
 
         client.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes("key2"),
                                                      Collections.singletonMap(currentSparseTable(), Arrays.asList(mutation, mutation2))),
-                            ONE);
+                            ONE,
+                            null);
     }
 
     private String currentSparseTable()
