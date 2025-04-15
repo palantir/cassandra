@@ -163,7 +163,7 @@ public class SmartThriftClient implements ThriftClient
             Client client = get(e.getKey());
             try
             {
-                client.client.batch_mutate(Collections.singletonMap(e.getKey(), e.getValue()), consistencyLevel);
+                client.client.batch_mutate(Collections.singletonMap(e.getKey(), e.getValue()), consistencyLevel, null);
             } finally
             {
                 cache.get(client.server).add(client);
@@ -177,7 +177,7 @@ public class SmartThriftClient implements ThriftClient
         Client client = get(key);
         try
         {
-            return client.client.get_slice(key, parent, predicate, consistencyLevel);
+            return client.client.get_slice(key, parent, predicate, consistencyLevel, null);
         } finally
         {
             cache.get(client.server).add(client);
@@ -190,7 +190,7 @@ public class SmartThriftClient implements ThriftClient
         Client client = get(key);
         try
         {
-            client.client.insert(key, column_parent, column, consistency_level);
+            client.client.insert(key, column_parent, column, consistency_level, null);
         } finally
         {
             cache.get(client.server).add(client);
