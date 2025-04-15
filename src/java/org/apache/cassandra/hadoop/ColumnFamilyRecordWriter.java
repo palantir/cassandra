@@ -302,7 +302,7 @@ final class ColumnFamilyRecordWriter extends RecordWriter<ByteBuffer, List<Mutat
                     // send the mutation to the last-used endpoint.  first time through, this will NPE harmlessly.
                     try
                     {
-                        client.batch_mutate(batch, consistencyLevel);
+                        client.batch_mutate(batch, consistencyLevel, null);
                         break;
                     }
                     catch (Exception e)
