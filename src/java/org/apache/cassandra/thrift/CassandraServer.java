@@ -60,6 +60,7 @@ import org.apache.cassandra.scheduler.IRequestScheduler;
 import org.apache.cassandra.serializers.MarshalException;
 import org.apache.cassandra.service.*;
 import org.apache.cassandra.service.pager.QueryPagers;
+import org.apache.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.Pair;
@@ -339,6 +340,7 @@ public class CassandraServer implements Cassandra.Iface
     public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_slice", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -367,6 +369,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -386,6 +389,7 @@ public class CassandraServer implements Cassandra.Iface
     public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("multiget_slice", trace_metadata);
         if (startSessionIfRequested())
         {
             List<String> keysList = Lists.newArrayList();
@@ -417,6 +421,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -424,6 +429,7 @@ public class CassandraServer implements Cassandra.Iface
     public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
             throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("multiget_multislice", trace_metadata);
         if (startSessionIfRequested())
         {
             List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
@@ -456,6 +462,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -595,6 +602,7 @@ public class CassandraServer implements Cassandra.Iface
     public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level, TraceMetadata trace)
     throws InvalidRequestException, NotFoundException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get", trace);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -665,6 +673,7 @@ public class CassandraServer implements Cassandra.Iface
     public int get_count(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_count", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -735,6 +744,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -742,6 +752,7 @@ public class CassandraServer implements Cassandra.Iface
     public Map<ByteBuffer, Integer> multiget_count(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("multiget_count", trace_metadata);
         if (startSessionIfRequested())
         {
             List<String> keysList = Lists.newArrayList();
@@ -787,6 +798,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -835,6 +847,7 @@ public class CassandraServer implements Cassandra.Iface
     public void insert(ByteBuffer key, ColumnParent column_parent, Column column, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("insert", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -859,6 +872,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -872,6 +886,7 @@ public class CassandraServer implements Cassandra.Iface
                          TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("put_unless_exists", trace_metadata);
         if (startSessionIfRequested()) {
             ImmutableMap.Builder<String,String> builder = ImmutableMap.builder();
             builder.put("key", ByteBufferUtil.bytesToHex(key));
@@ -949,6 +964,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -962,6 +978,7 @@ public class CassandraServer implements Cassandra.Iface
                          TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("cas", trace_metadata);
         if (startSessionIfRequested())
         {
             ImmutableMap.Builder<String,String> builder = ImmutableMap.builder();
@@ -1052,6 +1069,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1201,6 +1219,7 @@ public class CassandraServer implements Cassandra.Iface
     public void batch_mutate(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("batch_mutate", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = Maps.newLinkedHashMap();
@@ -1228,6 +1247,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1235,6 +1255,7 @@ public class CassandraServer implements Cassandra.Iface
     public void atomic_batch_mutate(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("atomic_batch_mutate", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = Maps.newLinkedHashMap();
@@ -1262,6 +1283,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1299,6 +1321,7 @@ public class CassandraServer implements Cassandra.Iface
     public void remove(ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("remove", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -1323,6 +1346,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1386,6 +1410,7 @@ public class CassandraServer implements Cassandra.Iface
     public List<KeySlice> get_range_slices(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_range_slices", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of(
@@ -1466,6 +1491,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1473,6 +1499,7 @@ public class CassandraServer implements Cassandra.Iface
     public List<KeySlice> get_paged_slice(String column_family, KeyRange range, ByteBuffer start_column, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_paged_slice", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("column_family", column_family,
@@ -1550,6 +1577,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1570,6 +1598,7 @@ public class CassandraServer implements Cassandra.Iface
     public List<KeySlice> get_indexed_slices(ColumnParent column_parent, IndexClause index_clause, SlicePredicate column_predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_indexed_slices", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("column_parent", column_parent.toString(),
@@ -1624,6 +1653,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -2019,6 +2049,7 @@ public class CassandraServer implements Cassandra.Iface
     public void add(ByteBuffer key, ColumnParent column_parent, CounterColumn column, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
             throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("add", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("column_parent", column_parent.toString(),
@@ -2070,6 +2101,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -2077,6 +2109,7 @@ public class CassandraServer implements Cassandra.Iface
     public void remove_counter(ByteBuffer key, ColumnPath path, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("remove_counter", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -2100,6 +2133,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -2279,6 +2313,7 @@ public class CassandraServer implements Cassandra.Iface
     public List<ColumnOrSuperColumn> get_multi_slice(MultiSliceRequest request)
             throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_multi_slice", request.trace);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(request.key),
@@ -2334,6 +2369,7 @@ public class CassandraServer implements Cassandra.Iface
         finally 
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
