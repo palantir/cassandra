@@ -283,9 +283,8 @@ public class Cassandra {
      * Select multiple slices of a key in a single RPC operation
      * 
      * @param request
-     * @param trace
      */
-    public java.util.List<ColumnOrSuperColumn> get_multi_slice(MultiSliceRequest request, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public java.util.List<ColumnOrSuperColumn> get_multi_slice(MultiSliceRequest request) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * for each schema version present in the cluster, returns a list of nodes at that version.
@@ -529,7 +528,7 @@ public class Cassandra {
 
     public void truncate(java.lang.String cfname, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<Void> resultHandler) throws org.apache.thrift.TException;
 
-    public void get_multi_slice(MultiSliceRequest request, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler) throws org.apache.thrift.TException;
+    public void get_multi_slice(MultiSliceRequest request, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler) throws org.apache.thrift.TException;
 
     public void describe_schema_versions(org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.lang.String,java.util.List<java.lang.String>>> resultHandler) throws org.apache.thrift.TException;
 
@@ -1302,17 +1301,16 @@ public class Cassandra {
     }
 
     @Override
-    public java.util.List<ColumnOrSuperColumn> get_multi_slice(MultiSliceRequest request, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public java.util.List<ColumnOrSuperColumn> get_multi_slice(MultiSliceRequest request) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
-      send_get_multi_slice(request, trace);
+      send_get_multi_slice(request);
       return recv_get_multi_slice();
     }
 
-    public void send_get_multi_slice(MultiSliceRequest request, TraceMetadata trace) throws org.apache.thrift.TException
+    public void send_get_multi_slice(MultiSliceRequest request) throws org.apache.thrift.TException
     {
       get_multi_slice_args args = new get_multi_slice_args();
       args.setRequest(request);
-      args.setTrace(trace);
       sendBase("get_multi_slice", args);
     }
 
@@ -3029,20 +3027,18 @@ public class Cassandra {
     }
 
     @Override
-    public void get_multi_slice(MultiSliceRequest request, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler) throws org.apache.thrift.TException {
+    public void get_multi_slice(MultiSliceRequest request, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      get_multi_slice_call method_call = new get_multi_slice_call(request, trace, resultHandler, this, ___protocolFactory, ___transport);
+      get_multi_slice_call method_call = new get_multi_slice_call(request, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
 
     public static class get_multi_slice_call extends org.apache.thrift.async.TAsyncMethodCall<java.util.List<ColumnOrSuperColumn>> {
       private MultiSliceRequest request;
-      private TraceMetadata trace;
-      public get_multi_slice_call(MultiSliceRequest request, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      public get_multi_slice_call(MultiSliceRequest request, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.request = request;
-        this.trace = trace;
       }
 
       @Override
@@ -3050,7 +3046,6 @@ public class Cassandra {
         prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("get_multi_slice", org.apache.thrift.protocol.TMessageType.CALL, 0));
         get_multi_slice_args args = new get_multi_slice_args();
         args.setRequest(request);
-        args.setTrace(trace);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -4832,7 +4827,7 @@ public class Cassandra {
       public get_multi_slice_result getResult(I iface, get_multi_slice_args args) throws org.apache.thrift.TException {
         get_multi_slice_result result = new get_multi_slice_result();
         try {
-          result.success = iface.get_multi_slice(args.request, args.trace);
+          result.success = iface.get_multi_slice(args.request);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -7425,7 +7420,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, get_multi_slice_args args, org.apache.thrift.async.AsyncMethodCallback<java.util.List<ColumnOrSuperColumn>> resultHandler) throws org.apache.thrift.TException {
-        iface.get_multi_slice(args.request, args.trace,resultHandler);
+        iface.get_multi_slice(args.request,resultHandler);
       }
     }
 
@@ -38216,18 +38211,15 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("get_multi_slice_args");
 
     private static final org.apache.thrift.protocol.TField REQUEST_FIELD_DESC = new org.apache.thrift.protocol.TField("request", org.apache.thrift.protocol.TType.STRUCT, (short)1);
-    private static final org.apache.thrift.protocol.TField TRACE_FIELD_DESC = new org.apache.thrift.protocol.TField("trace", org.apache.thrift.protocol.TType.STRUCT, (short)2);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new get_multi_slice_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new get_multi_slice_argsTupleSchemeFactory();
 
     public @org.apache.thrift.annotation.Nullable MultiSliceRequest request; // required
-    public @org.apache.thrift.annotation.Nullable TraceMetadata trace; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-      REQUEST((short)1, "request"),
-      TRACE((short)2, "trace");
+      REQUEST((short)1, "request");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -38245,8 +38237,6 @@ public class Cassandra {
         switch(fieldId) {
           case 1: // REQUEST
             return REQUEST;
-          case 2: // TRACE
-            return TRACE;
           default:
             return null;
         }
@@ -38295,8 +38285,6 @@ public class Cassandra {
       java.util.Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new java.util.EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
       tmpMap.put(_Fields.REQUEST, new org.apache.thrift.meta_data.FieldMetaData("request", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, MultiSliceRequest.class)));
-      tmpMap.put(_Fields.TRACE, new org.apache.thrift.meta_data.FieldMetaData("trace", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TraceMetadata.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(get_multi_slice_args.class, metaDataMap);
     }
@@ -38305,12 +38293,10 @@ public class Cassandra {
     }
 
     public get_multi_slice_args(
-      MultiSliceRequest request,
-      TraceMetadata trace)
+      MultiSliceRequest request)
     {
       this();
       this.request = request;
-      this.trace = trace;
     }
 
     /**
@@ -38319,9 +38305,6 @@ public class Cassandra {
     public get_multi_slice_args(get_multi_slice_args other) {
       if (other.isSetRequest()) {
         this.request = new MultiSliceRequest(other.request);
-      }
-      if (other.isSetTrace()) {
-        this.trace = new TraceMetadata(other.trace);
       }
     }
 
@@ -38333,7 +38316,6 @@ public class Cassandra {
     @Override
     public void clear() {
       this.request = null;
-      this.trace = null;
     }
 
     @org.apache.thrift.annotation.Nullable
@@ -38361,31 +38343,6 @@ public class Cassandra {
       }
     }
 
-    @org.apache.thrift.annotation.Nullable
-    public TraceMetadata getTrace() {
-      return this.trace;
-    }
-
-    public get_multi_slice_args setTrace(@org.apache.thrift.annotation.Nullable TraceMetadata trace) {
-      this.trace = trace;
-      return this;
-    }
-
-    public void unsetTrace() {
-      this.trace = null;
-    }
-
-    /** Returns true if field trace is set (has been assigned a value) and false otherwise */
-    public boolean isSetTrace() {
-      return this.trace != null;
-    }
-
-    public void setTraceIsSet(boolean value) {
-      if (!value) {
-        this.trace = null;
-      }
-    }
-
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -38394,14 +38351,6 @@ public class Cassandra {
           unsetRequest();
         } else {
           setRequest((MultiSliceRequest)value);
-        }
-        break;
-
-      case TRACE:
-        if (value == null) {
-          unsetTrace();
-        } else {
-          setTrace((TraceMetadata)value);
         }
         break;
 
@@ -38414,9 +38363,6 @@ public class Cassandra {
       switch (field) {
       case REQUEST:
         return getRequest();
-
-      case TRACE:
-        return getTrace();
 
       }
       throw new java.lang.IllegalStateException();
@@ -38432,8 +38378,6 @@ public class Cassandra {
       switch (field) {
       case REQUEST:
         return isSetRequest();
-      case TRACE:
-        return isSetTrace();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -38460,15 +38404,6 @@ public class Cassandra {
           return false;
       }
 
-      boolean this_present_trace = true && this.isSetTrace();
-      boolean that_present_trace = true && that.isSetTrace();
-      if (this_present_trace || that_present_trace) {
-        if (!(this_present_trace && that_present_trace))
-          return false;
-        if (!this.trace.equals(that.trace))
-          return false;
-      }
-
       return true;
     }
 
@@ -38479,10 +38414,6 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetRequest()) ? 131071 : 524287);
       if (isSetRequest())
         hashCode = hashCode * 8191 + request.hashCode();
-
-      hashCode = hashCode * 8191 + ((isSetTrace()) ? 131071 : 524287);
-      if (isSetTrace())
-        hashCode = hashCode * 8191 + trace.hashCode();
 
       return hashCode;
     }
@@ -38501,16 +38432,6 @@ public class Cassandra {
       }
       if (isSetRequest()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.request, other.request);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      lastComparison = java.lang.Boolean.compare(isSetTrace(), other.isSetTrace());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (isSetTrace()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.trace, other.trace);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -38546,14 +38467,6 @@ public class Cassandra {
         sb.append(this.request);
       }
       first = false;
-      if (!first) sb.append(", ");
-      sb.append("trace:");
-      if (this.trace == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.trace);
-      }
-      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -38566,9 +38479,6 @@ public class Cassandra {
       // check for sub-struct validity
       if (request != null) {
         request.validate();
-      }
-      if (trace != null) {
-        trace.validate();
       }
     }
 
@@ -38617,15 +38527,6 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
-            case 2: // TRACE
-              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
-                struct.trace = new TraceMetadata();
-                struct.trace.read(iprot);
-                struct.setTraceIsSet(true);
-              } else { 
-                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-              }
-              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -38647,11 +38548,6 @@ public class Cassandra {
           struct.request.write(oprot);
           oprot.writeFieldEnd();
         }
-        if (struct.trace != null) {
-          oprot.writeFieldBegin(TRACE_FIELD_DESC);
-          struct.trace.write(oprot);
-          oprot.writeFieldEnd();
-        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -38671,14 +38567,6 @@ public class Cassandra {
       public void write(org.apache.thrift.protocol.TProtocol prot, get_multi_slice_args struct) throws org.apache.thrift.TException {
         org.apache.thrift.protocol.TTupleProtocol oprot = (org.apache.thrift.protocol.TTupleProtocol) prot;
         struct.request.write(oprot);
-        java.util.BitSet optionals = new java.util.BitSet();
-        if (struct.isSetTrace()) {
-          optionals.set(0);
-        }
-        oprot.writeBitSet(optionals, 1);
-        if (struct.isSetTrace()) {
-          struct.trace.write(oprot);
-        }
       }
 
       @Override
@@ -38687,12 +38575,6 @@ public class Cassandra {
         struct.request = new MultiSliceRequest();
         struct.request.read(iprot);
         struct.setRequestIsSet(true);
-        java.util.BitSet incoming = iprot.readBitSet(1);
-        if (incoming.get(0)) {
-          struct.trace = new TraceMetadata();
-          struct.trace.read(iprot);
-          struct.setTraceIsSet(true);
-        }
       }
     }
 

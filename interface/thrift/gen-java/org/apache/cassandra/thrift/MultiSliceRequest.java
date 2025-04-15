@@ -47,6 +47,7 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
   private static final org.apache.thrift.protocol.TField REVERSED_FIELD_DESC = new org.apache.thrift.protocol.TField("reversed", org.apache.thrift.protocol.TType.BOOL, (short)4);
   private static final org.apache.thrift.protocol.TField COUNT_FIELD_DESC = new org.apache.thrift.protocol.TField("count", org.apache.thrift.protocol.TType.I32, (short)5);
   private static final org.apache.thrift.protocol.TField CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("consistency_level", org.apache.thrift.protocol.TType.I32, (short)6);
+  private static final org.apache.thrift.protocol.TField TRACE_FIELD_DESC = new org.apache.thrift.protocol.TField("trace", org.apache.thrift.protocol.TType.STRUCT, (short)7);
 
   private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new MultiSliceRequestStandardSchemeFactory();
   private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new MultiSliceRequestTupleSchemeFactory();
@@ -61,6 +62,7 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
    * @see ConsistencyLevel
    */
   public @org.apache.thrift.annotation.Nullable ConsistencyLevel consistency_level; // optional
+  public @org.apache.thrift.annotation.Nullable TraceMetadata trace; // optional
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -73,7 +75,8 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
      * 
      * @see ConsistencyLevel
      */
-    CONSISTENCY_LEVEL((short)6, "consistency_level");
+    CONSISTENCY_LEVEL((short)6, "consistency_level"),
+    TRACE((short)7, "trace");
 
     private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -101,6 +104,8 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
           return COUNT;
         case 6: // CONSISTENCY_LEVEL
           return CONSISTENCY_LEVEL;
+        case 7: // TRACE
+          return TRACE;
         default:
           return null;
       }
@@ -147,7 +152,7 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
   private static final int __REVERSED_ISSET_ID = 0;
   private static final int __COUNT_ISSET_ID = 1;
   private byte __isset_bitfield = 0;
-  private static final _Fields optionals[] = {_Fields.KEY,_Fields.COLUMN_PARENT,_Fields.COLUMN_SLICES,_Fields.REVERSED,_Fields.COUNT,_Fields.CONSISTENCY_LEVEL};
+  private static final _Fields optionals[] = {_Fields.KEY,_Fields.COLUMN_PARENT,_Fields.COLUMN_SLICES,_Fields.REVERSED,_Fields.COUNT,_Fields.CONSISTENCY_LEVEL,_Fields.TRACE};
   public static final java.util.Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
     java.util.Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new java.util.EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
@@ -164,6 +169,8 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
     tmpMap.put(_Fields.CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("consistency_level", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
         new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+    tmpMap.put(_Fields.TRACE, new org.apache.thrift.meta_data.FieldMetaData("trace", org.apache.thrift.TFieldRequirementType.OPTIONAL, 
+        new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TraceMetadata.class)));
     metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(MultiSliceRequest.class, metaDataMap);
   }
@@ -200,6 +207,9 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     if (other.isSetConsistency_level()) {
       this.consistency_level = other.consistency_level;
     }
+    if (other.isSetTrace()) {
+      this.trace = new TraceMetadata(other.trace);
+    }
   }
 
   @Override
@@ -218,6 +228,7 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
 
     this.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.ONE;
 
+    this.trace = null;
   }
 
   public byte[] getKey() {
@@ -399,6 +410,31 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     }
   }
 
+  @org.apache.thrift.annotation.Nullable
+  public TraceMetadata getTrace() {
+    return this.trace;
+  }
+
+  public MultiSliceRequest setTrace(@org.apache.thrift.annotation.Nullable TraceMetadata trace) {
+    this.trace = trace;
+    return this;
+  }
+
+  public void unsetTrace() {
+    this.trace = null;
+  }
+
+  /** Returns true if field trace is set (has been assigned a value) and false otherwise */
+  public boolean isSetTrace() {
+    return this.trace != null;
+  }
+
+  public void setTraceIsSet(boolean value) {
+    if (!value) {
+      this.trace = null;
+    }
+  }
+
   @Override
   public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
     switch (field) {
@@ -454,6 +490,14 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       }
       break;
 
+    case TRACE:
+      if (value == null) {
+        unsetTrace();
+      } else {
+        setTrace((TraceMetadata)value);
+      }
+      break;
+
     }
   }
 
@@ -479,6 +523,9 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     case CONSISTENCY_LEVEL:
       return getConsistency_level();
 
+    case TRACE:
+      return getTrace();
+
     }
     throw new java.lang.IllegalStateException();
   }
@@ -503,6 +550,8 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       return isSetCount();
     case CONSISTENCY_LEVEL:
       return isSetConsistency_level();
+    case TRACE:
+      return isSetTrace();
     }
     throw new java.lang.IllegalStateException();
   }
@@ -574,6 +623,15 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
         return false;
     }
 
+    boolean this_present_trace = true && this.isSetTrace();
+    boolean that_present_trace = true && that.isSetTrace();
+    if (this_present_trace || that_present_trace) {
+      if (!(this_present_trace && that_present_trace))
+        return false;
+      if (!this.trace.equals(that.trace))
+        return false;
+    }
+
     return true;
   }
 
@@ -604,6 +662,10 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     hashCode = hashCode * 8191 + ((isSetConsistency_level()) ? 131071 : 524287);
     if (isSetConsistency_level())
       hashCode = hashCode * 8191 + consistency_level.getValue();
+
+    hashCode = hashCode * 8191 + ((isSetTrace()) ? 131071 : 524287);
+    if (isSetTrace())
+      hashCode = hashCode * 8191 + trace.hashCode();
 
     return hashCode;
   }
@@ -672,6 +734,16 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     }
     if (isSetConsistency_level()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.consistency_level, other.consistency_level);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
+    lastComparison = java.lang.Boolean.compare(isSetTrace(), other.isSetTrace());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetTrace()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.trace, other.trace);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -751,6 +823,16 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       }
       first = false;
     }
+    if (isSetTrace()) {
+      if (!first) sb.append(", ");
+      sb.append("trace:");
+      if (this.trace == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.trace);
+      }
+      first = false;
+    }
     sb.append(")");
     return sb.toString();
   }
@@ -760,6 +842,9 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
     // check for sub-struct validity
     if (column_parent != null) {
       column_parent.validate();
+    }
+    if (trace != null) {
+      trace.validate();
     }
   }
 
@@ -861,6 +946,15 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 7: // TRACE
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+              struct.trace = new TraceMetadata();
+              struct.trace.read(iprot);
+              struct.setTraceIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -922,6 +1016,13 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
           oprot.writeFieldEnd();
         }
       }
+      if (struct.trace != null) {
+        if (struct.isSetTrace()) {
+          oprot.writeFieldBegin(TRACE_FIELD_DESC);
+          struct.trace.write(oprot);
+          oprot.writeFieldEnd();
+        }
+      }
       oprot.writeFieldStop();
       oprot.writeStructEnd();
     }
@@ -959,7 +1060,10 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       if (struct.isSetConsistency_level()) {
         optionals.set(5);
       }
-      oprot.writeBitSet(optionals, 6);
+      if (struct.isSetTrace()) {
+        optionals.set(6);
+      }
+      oprot.writeBitSet(optionals, 7);
       if (struct.isSetKey()) {
         oprot.writeBinary(struct.key);
       }
@@ -984,12 +1088,15 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       if (struct.isSetConsistency_level()) {
         oprot.writeI32(struct.consistency_level.getValue());
       }
+      if (struct.isSetTrace()) {
+        struct.trace.write(oprot);
+      }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, MultiSliceRequest struct) throws org.apache.thrift.TException {
       org.apache.thrift.protocol.TTupleProtocol iprot = (org.apache.thrift.protocol.TTupleProtocol) prot;
-      java.util.BitSet incoming = iprot.readBitSet(6);
+      java.util.BitSet incoming = iprot.readBitSet(7);
       if (incoming.get(0)) {
         struct.key = iprot.readBinary();
         struct.setKeyIsSet(true);
@@ -1024,6 +1131,11 @@ public class MultiSliceRequest implements org.apache.thrift.TBase<MultiSliceRequ
       if (incoming.get(5)) {
         struct.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setConsistency_levelIsSet(true);
+      }
+      if (incoming.get(6)) {
+        struct.trace = new TraceMetadata();
+        struct.trace.read(iprot);
+        struct.setTraceIsSet(true);
       }
     }
   }

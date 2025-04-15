@@ -335,7 +335,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
+    @Override
+    public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -381,7 +382,8 @@ public class CassandraServer implements Cassandra.Iface
         return multigetSliceInternal(keyspace, Collections.singletonList(key), column_parent, timestamp, predicate, consistency_level, cState).get(key);
     }
 
-    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
+    @Override
+    public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -419,7 +421,7 @@ public class CassandraServer implements Cassandra.Iface
     }
 
     @Override
-    public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
+    public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
             throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -590,7 +592,7 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level)
+    public ColumnOrSuperColumn get(ByteBuffer key, ColumnPath column_path, ConsistencyLevel consistency_level, TraceMetadata trace)
     throws InvalidRequestException, NotFoundException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -659,7 +661,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public int get_count(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
+    @Override
+    public int get_count(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -735,7 +738,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public Map<ByteBuffer, Integer> multiget_count(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
+    @Override
+    public Map<ByteBuffer, Integer> multiget_count(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -827,7 +831,8 @@ public class CassandraServer implements Cassandra.Iface
         doInsert(consistency_level, Arrays.asList(mutation));
     }
 
-    public void insert(ByteBuffer key, ColumnParent column_parent, Column column, ConsistencyLevel consistency_level)
+    @Override
+    public void insert(ByteBuffer key, ColumnParent column_parent, Column column, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -857,12 +862,14 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    @Override
     public CASResult put_unless_exists(
                          ByteBuffer key,
                          String column_family,
                          List<Column> updates,
                          ConsistencyLevel serial_consistency_level,
-                         ConsistencyLevel commit_consistency_level)
+                         ConsistencyLevel commit_consistency_level,
+                         TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested()) {
@@ -945,12 +952,14 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    @Override
     public CASResult cas(ByteBuffer key,
                          String column_family,
                          List<Column> expected,
                          List<Column> updates,
                          ConsistencyLevel serial_consistency_level,
-                         ConsistencyLevel commit_consistency_level)
+                         ConsistencyLevel commit_consistency_level,
+                         TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -1188,7 +1197,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public void batch_mutate(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level)
+    @Override
+    public void batch_mutate(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -1221,7 +1231,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public void atomic_batch_mutate(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level)
+    @Override
+    public void atomic_batch_mutate(Map<ByteBuffer,Map<String,List<Mutation>>> mutation_map, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -1284,7 +1295,8 @@ public class CassandraServer implements Cassandra.Iface
             doInsert(consistency_level, Arrays.asList(mutation));
     }
 
-    public void remove(ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level)
+    @Override
+    public void remove(ByteBuffer key, ColumnPath column_path, long timestamp, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -1370,7 +1382,8 @@ public class CassandraServer implements Cassandra.Iface
         return ThriftConversion.toThrift(ksm);
     }
 
-    public List<KeySlice> get_range_slices(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level)
+    @Override
+    public List<KeySlice> get_range_slices(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TException, TimedOutException
     {
         if (startSessionIfRequested())
@@ -1456,7 +1469,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public List<KeySlice> get_paged_slice(String column_family, KeyRange range, ByteBuffer start_column, ConsistencyLevel consistency_level)
+    @Override
+    public List<KeySlice> get_paged_slice(String column_family, KeyRange range, ByteBuffer start_column, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
         if (startSessionIfRequested())
@@ -1552,7 +1566,8 @@ public class CassandraServer implements Cassandra.Iface
         return keySlices;
     }
 
-    public List<KeySlice> get_indexed_slices(ColumnParent column_parent, IndexClause index_clause, SlicePredicate column_predicate, ConsistencyLevel consistency_level)
+    @Override
+    public List<KeySlice> get_indexed_slices(ColumnParent column_parent, IndexClause index_clause, SlicePredicate column_predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
         if (startSessionIfRequested())
@@ -1928,7 +1943,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public void truncate(String cfname) throws InvalidRequestException, UnavailableException, TimedOutException, TException
+    @Override
+    public void truncate(String cfname, TraceMetadata trace_metadata) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
         ClientState cState = state();
 
@@ -1999,7 +2015,8 @@ public class CassandraServer implements Cassandra.Iface
 
     // counter methods
 
-    public void add(ByteBuffer key, ColumnParent column_parent, CounterColumn column, ConsistencyLevel consistency_level)
+    @Override
+    public void add(ByteBuffer key, ColumnParent column_parent, CounterColumn column, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
             throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
         if (startSessionIfRequested())
@@ -2056,7 +2073,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public void remove_counter(ByteBuffer key, ColumnPath path, ConsistencyLevel consistency_level)
+    @Override
+    public void remove_counter(ByteBuffer key, ColumnPath path, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
     throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
         if (startSessionIfRequested())

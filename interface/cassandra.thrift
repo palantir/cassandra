@@ -610,7 +610,8 @@ struct MultiSliceRequest {
     3: optional list<ColumnSlice> column_slices,
     4: optional bool reversed=false,
     5: optional i32 count=1000,
-    6: optional ConsistencyLevel consistency_level=ConsistencyLevel.ONE
+    6: optional ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+    7: optional TraceMetadata trace
 }
 
 /**
@@ -857,7 +858,7 @@ service Cassandra {
   /**
   * Select multiple slices of a key in a single RPC operation
   */
-  list<ColumnOrSuperColumn> get_multi_slice(1:required MultiSliceRequest request, 2:optional TraceMetadata trace)
+  list<ColumnOrSuperColumn> get_multi_slice(1:required MultiSliceRequest request)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
     
   // Meta-APIs -- APIs to get information about the node or cluster,
