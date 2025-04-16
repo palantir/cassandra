@@ -25,9 +25,6 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 
-import org.apache.cassandra.config.Schema;
-import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.compaction.CompactionInfo;
 import org.apache.cassandra.db.compaction.CompactionManager;
 
@@ -61,7 +58,7 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
             public Integer getValue()
             {
                 // add estimate number of compactions need to be done
-                int n = CompactionManager.instance.getPendingTasksByKeyspaceAndColumnFamily().values().stream()
+                int n = CompactionManager.instance.getPendingCompactionTasksByKeyspaceColumnFamily().values().stream()
                                                   .mapToInt(Integer::intValue)
                                                   .sum();
                 // add number of currently running compactions

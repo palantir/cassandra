@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import javax.management.openmbean.OpenDataException;
 import javax.management.openmbean.TabularData;
 
@@ -34,7 +35,6 @@ import com.google.common.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.palantir.cassandra.utils.SerializablePair;
 import org.apache.cassandra.cache.AutoSavingCache;
 import org.apache.cassandra.concurrent.DebuggableThreadPoolExecutor;
 import org.apache.cassandra.concurrent.JMXEnabledThreadPoolExecutor;
@@ -1866,21 +1866,23 @@ public class CompactionManager implements CompactionManagerMBean
         validationExecutor.setMaximumPoolSize(number);
     }
 
-    public Map<SerializablePair<String, String>, Integer> getPendingTasksByKeyspaceAndColumnFamily()
+    public Map<String, Integer> getPendingCompactionTasksByKeyspaceColumnFamily()
     {
-        Map<SerializablePair<String, String>, Integer> pendingCompactions = new HashMap<>();
-        for (String keyspaceName : Schema.instance.getKeyspaces())
-        {
-            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
-            {
-                int estimatedRemainingTasks = cfs.getCompactionStrategy().getEstimatedRemainingTasks();
-                if (estimatedRemainingTasks > 0)
-                {
-                    pendingCompactions.put(SerializablePair.create(keyspaceName, cfs.getColumnFamilyName()), estimatedRemainingTasks);
-                }
-            }
-        }
-        return pendingCompactions;
+        return getPendingCompactionTasks().entrySet().stream()
+                                          .collect(Collectors.toMap(
+                                              ksCfPair -> String.format("%s/%s", ksCfPair.getKey().keyspace, ksCfPair.getKey().name),
+                                              Map.Entry::getValue
+                                          ));
+    }
+
+    private Map<ColumnFamilyStore, Integer> getPendingCompactionTasks() {
+        return Schema.instance.getKeyspaces().stream()
+                              .flatMap(keyspaceName -> Keyspace.open(keyspaceName).getColumnFamilyStores().stream())
+                              .filter(cfs -> cfs.getCompactionStrategy().getEstimatedRemainingTasks() > 0)
+                              .collect(Collectors.toMap(
+                                  cfs -> cfs,
+                                  cfs -> cfs.getCompactionStrategy().getEstimatedRemainingTasks()
+                              ));
     }
 
     /**

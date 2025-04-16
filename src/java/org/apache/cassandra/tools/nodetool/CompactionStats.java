@@ -19,7 +19,6 @@ package org.apache.cassandra.tools.nodetool;
 
 import static java.lang.String.format;
 
-import com.palantir.cassandra.utils.SerializablePair;
 import io.airlift.command.Command;
 import io.airlift.command.Option;
 
@@ -27,15 +26,12 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.compaction.CompactionManagerMBean;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
-import org.apache.cassandra.utils.Pair;
 
 @Command(name = "compactionstats", description = "Print statistics on compactions")
 public class CompactionStats extends NodeToolCmd
@@ -53,18 +49,14 @@ public class CompactionStats extends NodeToolCmd
     public void execute(NodeProbe probe)
     {
         CompactionManagerMBean cm = probe.getCompactionManagerProxy();
-        Map<SerializablePair<String, String>, Integer> pendingCompactions = cm.getPendingTasksByKeyspaceAndColumnFamily();
+        Map<String, Integer> pendingCompactions = cm.getPendingCompactionTasksByKeyspaceColumnFamily();
         int runningAndPendingCompactions = pendingCompactions.values().stream()
                                                              .mapToInt(Integer::intValue)
                                                              .sum();
         probe.output().out.println("pending tasks: " + runningAndPendingCompactions);
         if (verbose)
         {
-            String pendingCompactionsSummary = pendingCompactions.entrySet().stream().map(pendingCompactionsByKsCf -> {
-                SerializablePair<String, String> ksCfPair = pendingCompactionsByKsCf.getKey();
-                return String.format("%s/%s: %d", ksCfPair.getKey(), ksCfPair.getValue(), pendingCompactionsByKsCf.getValue());
-            }).collect(Collectors.joining(", "));
-            probe.output().out.println("pending queued tasks by ks/cf: " + pendingCompactionsSummary);
+            probe.output().out.println("pending queued tasks by ks/cf: " + pendingCompactions);
         }
 
         long remainingBytes = 0;

@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Map;
 import javax.management.openmbean.TabularData;
 
-import com.palantir.cassandra.utils.SerializablePair;
-
 public interface CompactionManagerMBean
 {
     /** List of running compaction objects. */
@@ -112,5 +110,5 @@ public interface CompactionManagerMBean
      *
      * @return A map linking a KS/CF pair to pending compaction count.
      */
-    public Map<SerializablePair<String, String>, Integer> getPendingTasksByKeyspaceAndColumnFamily();
+    Map<String, Integer> getPendingCompactionTasksByKeyspaceColumnFamily();
 }
