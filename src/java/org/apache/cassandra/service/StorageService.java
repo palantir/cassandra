@@ -5551,8 +5551,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Updated read_delay_in_s to {}", SafeArg.of("value", readDelay));
     }
 
-    public void setWriteDelay(int writeDelay)
-    {
+    public void setWriteDelay(int writeDelay) {
         DatabaseDescriptor.setWriteDelay(writeDelay);
         logger.info("Updated write_delay_in_s to {}", SafeArg.of("value", writeDelay));
     }
