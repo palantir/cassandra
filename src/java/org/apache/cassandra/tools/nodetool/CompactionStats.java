@@ -18,6 +18,8 @@
 package org.apache.cassandra.tools.nodetool;
 
 import static java.lang.String.format;
+
+import com.palantir.cassandra.utils.SerializablePair;
 import io.airlift.command.Command;
 import io.airlift.command.Option;
 
@@ -33,6 +35,7 @@ import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
+import org.apache.cassandra.utils.Pair;
 
 @Command(name = "compactionstats", description = "Print statistics on compactions")
 public class CompactionStats extends NodeToolCmd
@@ -50,7 +53,7 @@ public class CompactionStats extends NodeToolCmd
     public void execute(NodeProbe probe)
     {
         CompactionManagerMBean cm = probe.getCompactionManagerProxy();
-        Map<ColumnFamilyStore, Integer> pendingCompactions = cm.getPendingTasksByKeyspaceAndColumnFamily();
+        Map<SerializablePair<String, String>, Integer> pendingCompactions = cm.getPendingTasksByKeyspaceAndColumnFamily();
         int runningAndPendingCompactions = pendingCompactions.values().stream()
                                                              .mapToInt(Integer::intValue)
                                                              .sum();
@@ -58,8 +61,8 @@ public class CompactionStats extends NodeToolCmd
         if (verbose)
         {
             String pendingCompactionsSummary = pendingCompactions.entrySet().stream().map(pendingCompactionsByKsCf -> {
-                ColumnFamilyStore cfs = pendingCompactionsByKsCf.getKey();
-                return String.format("%s/%s: %d", cfs.keyspace, cfs.name, pendingCompactionsByKsCf.getValue());
+                SerializablePair<String, String> ksCfPair = pendingCompactionsByKsCf.getKey();
+                return String.format("%s/%s: %d", ksCfPair.getKey(), ksCfPair.getValue(), pendingCompactionsByKsCf.getValue());
             }).collect(Collectors.joining(", "));
             probe.output().out.println("pending queued tasks by ks/cf: " + pendingCompactionsSummary);
         }

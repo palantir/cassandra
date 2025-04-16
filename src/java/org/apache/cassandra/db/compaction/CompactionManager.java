@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.cassandra.utils.SerializablePair;
 import org.apache.cassandra.cache.AutoSavingCache;
 import org.apache.cassandra.concurrent.DebuggableThreadPoolExecutor;
 import org.apache.cassandra.concurrent.JMXEnabledThreadPoolExecutor;
@@ -1865,9 +1866,9 @@ public class CompactionManager implements CompactionManagerMBean
         validationExecutor.setMaximumPoolSize(number);
     }
 
-    public Map<ColumnFamilyStore, Integer> getPendingTasksByKeyspaceAndColumnFamily()
+    public Map<SerializablePair<String, String>, Integer> getPendingTasksByKeyspaceAndColumnFamily()
     {
-        Map<ColumnFamilyStore, Integer> pendingCompactions = new HashMap<>();
+        Map<SerializablePair<String, String>, Integer> pendingCompactions = new HashMap<>();
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
             for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
@@ -1875,7 +1876,7 @@ public class CompactionManager implements CompactionManagerMBean
                 int estimatedRemainingTasks = cfs.getCompactionStrategy().getEstimatedRemainingTasks();
                 if (estimatedRemainingTasks > 0)
                 {
-                    pendingCompactions.put(cfs, estimatedRemainingTasks);
+                    pendingCompactions.put(SerializablePair.create(keyspaceName, cfs.getColumnFamilyName()), estimatedRemainingTasks);
                 }
             }
         }
