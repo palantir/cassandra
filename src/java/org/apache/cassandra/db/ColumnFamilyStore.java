@@ -1511,12 +1511,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             int writeDelay = DatabaseDescriptor.getWriteDelay();
             if (writeDelay > 0)
             {
-                Tracing.trace("Sleeping for delay of {} seconds before performing write", writeDelay);
+                logger.debug("Sleeping for delay of {} seconds before performing write",
+                            SafeArg.of("writeDelay", writeDelay));
                 Uninterruptibles.sleepUninterruptibly(writeDelay, TimeUnit.SECONDS);
             }
 
             Memtable mt = data.getMemtableFor(opGroup, replayPosition);
             final long timeDelta = mt.put(key, columnFamily, indexer, opGroup);
+            logger.debug("Put into memtable",
+                        SafeArg.of("columnFamily", columnFamily.metadata.cfName));
+
             maybeUpdateRowCache(key);
             metric.samplers.get(Sampler.WRITES).addSample(key.getKey(), key.hashCode(), 1);
             metric.writeLatency.addNano(System.nanoTime() - start);

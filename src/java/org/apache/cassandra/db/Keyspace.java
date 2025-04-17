@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
@@ -406,7 +407,11 @@ public class Keyspace
      */
     public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
     {
-        logger.info("Apply keyspace {} {} {}", SafeArg.of("ks", mutation.getKeyspaceName()), SafeArg.of("cf", mutation.getColumnFamilies()), SafeArg.of("writeCommitLog", writeCommitLog));
+        logger.debug("apply {} {}",
+                    SafeArg.of("ks", mutation.getKeyspaceName()),
+                    SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                             .map(cf -> cf.cfName).collect(Collectors.toSet())),
+                    SafeArg.of("writeCommitLog", writeCommitLog));
         try (CloseableTracer ignored = CloseableTracer.startSpan("Keyspace#apply"))
         {
             if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
@@ -418,8 +423,24 @@ public class Keyspace
                 ReplayPosition replayPosition = null;
                 if (writeCommitLog)
                 {
-                    Tracing.trace("Appending to commitlog");
-                    replayPosition = CommitLog.instance.add(mutation);
+                    logger.debug("Appending to commit log {} {}",
+                                SafeArg.of("ks", mutation.getKeyspaceName()),
+                                SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                         .map(cf -> cf.cfName).collect(Collectors.toSet())));
+                    try
+                    {
+                        replayPosition = CommitLog.instance.add(mutation);
+                    } catch (Exception e) {
+                        logger.error("Failed commit log write {} {}", e,
+                                    SafeArg.of("ks", mutation.getKeyspaceName()),
+                                    SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                             .map(cf -> cf.cfName).collect(Collectors.toSet())));
+                        throw e;
+                    }
+                    logger.debug("Appended to commit log {} {}",
+                                SafeArg.of("ks", mutation.getKeyspaceName()),
+                                SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                         .map(cf -> cf.cfName).collect(Collectors.toSet())));
                 }
 
                 DecoratedKey key = StorageService.getPartitioner().decorateKey(mutation.key());
@@ -432,11 +453,16 @@ public class Keyspace
                         continue;
                     }
 
-                    Tracing.trace("Adding to {} memtable", cf.metadata().cfName);
+                    logger.debug("Adding to memtable {} {}",
+                                SafeArg.of("ks", mutation.getKeyspaceName()),
+                                SafeArg.of("cf", cfs.name));
                     SecondaryIndexManager.Updater updater = updateIndexes
                                                             ? cfs.indexManager.updaterFor(key, cf, opGroup)
                                                             : SecondaryIndexManager.nullUpdater;
                     cfs.apply(key, cf, updater, opGroup, replayPosition);
+                    logger.debug("Finished adding to memtable {} {}",
+                                SafeArg.of("ks", mutation.getKeyspaceName()),
+                                SafeArg.of("cf", cfs.name));
                 }
             }
         }

@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
@@ -835,7 +836,10 @@ public class StorageProxy implements StorageProxyMBean
                                                             WriteType writeType)
     throws UnavailableException, OverloadedException
     {
-        logger.info("Mutate {} {}", SafeArg.of("ks", mutation.getKeyspaceName()), SafeArg.of("cf", mutation.getColumnFamilies()));
+        logger.debug("Attempting to performWrite {} {}",
+                    SafeArg.of("ks", mutation.getKeyspaceName()),
+                    SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                             .map(cf -> cf.cfName).collect(Collectors.toSet())));
         String keyspaceName = mutation.getKeyspaceName();
         AbstractReplicationStrategy rs = Keyspace.open(keyspaceName).getReplicationStrategy();
 
@@ -849,6 +853,10 @@ public class StorageProxy implements StorageProxyMBean
         responseHandler.assureSufficientLiveNodes();
 
         performer.apply(mutation, Iterables.concat(naturalEndpoints, pendingEndpoints), responseHandler, localDataCenter, consistency_level);
+        logger.debug("Finished performWrite {} {}",
+                    SafeArg.of("ks", mutation.getKeyspaceName()),
+                    SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                             .map(cf -> cf.cfName).collect(Collectors.toSet())));
         return responseHandler;
     }
 
@@ -926,7 +934,10 @@ public class StorageProxy implements StorageProxyMBean
                                              String localDataCenter)
     throws OverloadedException
     {
-        logger.info("Sending hints to endpoint {} {}", SafeArg.of("keyspace", mutation.getKeyspaceName()), SafeArg.of("cf", mutation.getColumnFamilies()));
+        logger.debug("Sending to hinted endpoints {} {}",
+                    SafeArg.of("ks", mutation.getKeyspaceName()),
+                    SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                             .map(cf -> cf.cfName).collect(Collectors.toSet())));
         // extra-datacenter replicas, grouped by dc
         Map<String, Collection<InetAddress>> dcGroups = null;
         // only need to create a Message for non-local writes
@@ -944,6 +955,10 @@ public class StorageProxy implements StorageProxyMBean
                 if (destination.equals(FBUtilities.getBroadcastAddress()))
                 {
                     insertLocal = true;
+                    logger.debug("Inserting locally {} {}",
+                                SafeArg.of("ks", mutation.getKeyspaceName()),
+                                SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                         .map(cf -> cf.cfName).collect(Collectors.toSet())));
                 } else
                 {
                     // belongs on a different server
@@ -970,6 +985,11 @@ public class StorageProxy implements StorageProxyMBean
                 }
             } else
             {
+                logger.debug("Destination not live {} {}",
+                            SafeArg.of("ks", mutation.getKeyspaceName()),
+                            SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                     .map(cf -> cf.cfName).collect(Collectors.toSet())),
+                             UnsafeArg.of("destination", destination));
                 if (!shouldHint(destination))
                     continue;
 
@@ -1111,7 +1131,10 @@ public class StorageProxy implements StorageProxyMBean
 
     private static void insertLocal(final Mutation mutation, final AbstractWriteResponseHandler<IMutation> responseHandler)
     {
-
+        logger.debug("Inserting mutation locally",
+                     SafeArg.of("keyspace", mutation.getKeyspaceName()),
+                     SafeArg.of("cf", mutation.getColumnFamilies().stream()
+                                              .map(ColumnFamily::metadata).map(cfMetaData -> cfMetaData.cfName).collect(Collectors.toSet())));
         StageManager.getStage(Stage.MUTATION).maybeExecuteImmediately(new LocalMutationRunnable()
         {
             public void runMayThrow()
@@ -1119,11 +1142,19 @@ public class StorageProxy implements StorageProxyMBean
                 try
                 {
                     mutation.apply();
+                    logger.debug("Finished applying mutation {} {}",
+                                SafeArg.of("ks", mutation.getKeyspaceName()),
+                                SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                         .map(cf -> cf.cfName).collect(Collectors.toSet())));
                     responseHandler.response(null);
                 }
                 catch (Exception ex)
                 {
-                    logger.error("Failed to apply mutation locally : {}", ex.getMessage());
+                    logger.debug("Failed to apply mutation locally : {}",
+                                 SafeArg.of("ks", mutation.getKeyspaceName()),
+                                 SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                          .map(cf -> cf.cfName).collect(Collectors.toSet())),
+                                 UnsafeArg.of("error", ex.getMessage()));
                     responseHandler.onFailure(FBUtilities.getBroadcastAddress());
                 }
             }
@@ -1134,6 +1165,10 @@ public class StorageProxy implements StorageProxyMBean
                 return MessagingService.Verb.MUTATION;
             }
         });
+        logger.debug("Inserted mutation locally",
+                    SafeArg.of("keyspace", mutation.getKeyspaceName()),
+                    SafeArg.of("cf", mutation.getColumnFamilies().stream()
+                                             .map(ColumnFamily::metadata).map(cfMetaData -> cfMetaData.cfName).collect(Collectors.toSet())));
     }
 
     /**

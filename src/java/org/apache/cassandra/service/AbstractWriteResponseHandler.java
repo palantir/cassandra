@@ -26,6 +26,9 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
+
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Keyspace;
@@ -98,6 +101,12 @@ public abstract class AbstractWriteResponseHandler<T> implements IAsyncCallbackW
             // avoid sending confusing info to the user (see CASSANDRA-6491).
             if (acks >= blockedFor)
                 acks = blockedFor - 1;
+            logger.error("Write timeout exception on {} with consistency {}, acks {}, blockedFor {}",
+                         SafeArg.of("writeType", writeType),
+                         SafeArg.of("consistencyLevel", consistencyLevel),
+                         SafeArg.of("acks", acks),
+                         SafeArg.of("blockedFor", blockedFor),
+                         SafeArg.of("timeoutInNanos", timeout));
             throw new WriteTimeoutException(writeType, consistencyLevel, acks, blockedFor);
         }
 
