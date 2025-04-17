@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData;
@@ -834,6 +835,7 @@ public class StorageProxy implements StorageProxyMBean
                                                             WriteType writeType)
     throws UnavailableException, OverloadedException
     {
+        logger.info("Mutate {} {}", SafeArg.of("ks", mutation.getKeyspaceName()), SafeArg.of("cf", mutation.getColumnFamilies()));
         String keyspaceName = mutation.getKeyspaceName();
         AbstractReplicationStrategy rs = Keyspace.open(keyspaceName).getReplicationStrategy();
 
@@ -924,6 +926,7 @@ public class StorageProxy implements StorageProxyMBean
                                              String localDataCenter)
     throws OverloadedException
     {
+        logger.info("Sending hints to endpoint {} {}", SafeArg.of("keyspace", mutation.getKeyspaceName()), SafeArg.of("cf", mutation.getColumnFamilies()));
         // extra-datacenter replicas, grouped by dc
         Map<String, Collection<InetAddress>> dcGroups = null;
         // only need to create a Message for non-local writes

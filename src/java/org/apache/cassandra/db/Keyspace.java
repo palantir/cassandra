@@ -26,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.base.Function;
@@ -404,6 +406,7 @@ public class Keyspace
      */
     public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
     {
+        logger.info("Apply keyspace {} {} {}", SafeArg.of("ks", mutation.getKeyspaceName()), SafeArg.of("cf", mutation.getColumnFamilies()), SafeArg.of("writeCommitLog", writeCommitLog));
         try (CloseableTracer ignored = CloseableTracer.startSpan("Keyspace#apply"))
         {
             if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
