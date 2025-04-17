@@ -20,10 +20,6 @@ package org.apache.cassandra.tracing;
 
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.Observability;
 import com.palantir.tracing.Tracer;
 import com.palantir.tracing.Tracers;
@@ -36,21 +32,13 @@ import org.apache.thrift.annotation.Nullable;
  */
 public final class PalantirTracing
 {
-    private static final Logger logger = LoggerFactory.getLogger(PalantirTracing.class);
     private PalantirTracing() {}
 
     public static void initializeTracerFromIncomingThriftMessage(String thriftOperation, @Nullable TraceMetadata tracing)
     {
-        String traceId = Optional.ofNullable(tracing)
-                                 .map(TraceMetadata::getTrace_id)
-                                 .orElseGet(Tracers::randomId);
-        Optional<String> parentSpanId = Optional.ofNullable(tracing)
-                                                .map(TraceMetadata::getSpan_id);
+        String traceId = Optional.ofNullable(tracing).map(TraceMetadata::getTrace_id).orElseGet(Tracers::randomId);
+        Optional<String> parentSpanId = Optional.ofNullable(tracing).map(TraceMetadata::getSpan_id);
 
-        logger.info("raw tracing metadata",
-                    SafeArg.of("tracing", tracing),
-                    SafeArg.of("traceId", traceId),
-                    SafeArg.of("parentSpanId", parentSpanId));
         // The typing here is awkward, since we both require a span to be set on the incoming thrift message _and_ the
         // underlying tracer calls eventually converge to handle the field being optional. But what's an extra branch
         // amongst friends...
