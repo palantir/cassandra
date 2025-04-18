@@ -465,6 +465,14 @@ public class Keyspace
                                 SafeArg.of("cf", cfs.name));
                 }
             }
+        } catch (Exception e)
+        {
+            logger.error("Error when applying mutation {} {}",
+                         e,
+                         SafeArg.of("ks", mutation.getKeyspaceName()),
+                         SafeArg.of("cf", mutation.getColumnFamilies().stream().map(ColumnFamily::metadata)
+                                                  .map(cf -> cf.cfName).collect(Collectors.toSet())));
+            throw e;
         }
     }
 

@@ -1531,6 +1531,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             // to update.
             if (timeDelta < Long.MAX_VALUE)
                 metric.colUpdateTimeDeltaHistogram.update(Math.min(18165375903306L, timeDelta));
+        } catch (Exception e) {
+            logger.error("Exception when writing to memtable for cf {}", e,
+                         SafeArg.of("cf", columnFamily.metadata.cfName));
+            throw e;
         }
     }
 
