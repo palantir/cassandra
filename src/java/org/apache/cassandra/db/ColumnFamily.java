@@ -179,7 +179,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         return cf;
     }
 
-    public abstract ColumnFamily cloneMeInternal();
+    abstract ColumnFamily cloneMeInternal();
 
     public UUID id()
     {
