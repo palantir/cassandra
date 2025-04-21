@@ -641,13 +641,13 @@ public class ThriftValidation
     }
 
     /**
-     * Resumable range scans make some assumptions that mayb not be strictly required but have not been tested without them holding true.
+     * Resumable range scans make some assumptions that may not be strictly required but have not been tested without them holding true.
      */
     public static void validateResumableRangeScan(String keyspaceName, String columnFamilyName, List<SlicePredicate> predicates)
     {
         for (SlicePredicate predicate : predicates)
         {
-            assert predicate.isSetSlice_range() : "Resumable range scans only support slice queries";
+            assert predicate.isSetSlice_range() && !predicate.isSetColumn_names() : "Resumable range scans only support slice queries";
             assert !predicate.getSlice_range().isReversed() : "Resumable range scans do not support reversed queries";
         }
 
