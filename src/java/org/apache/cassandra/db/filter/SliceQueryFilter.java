@@ -619,6 +619,12 @@ public class SliceQueryFilter implements IDiskAtomFilter
         return slices.length == 1 && slices[0].start.isEmpty() && !reversed;
     }
 
+    @Override
+    public boolean usePageToken()
+    {
+        return usePageToken;
+    }
+
     public boolean countCQL3Rows(CellNameType comparator)
     {
         // If comparator is dense a cell == a CQL3 rows so we're always counting CQL3 rows
