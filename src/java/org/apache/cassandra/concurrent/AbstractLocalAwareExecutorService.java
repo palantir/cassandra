@@ -19,8 +19,7 @@ package org.apache.cassandra.concurrent;
 
 import static org.apache.cassandra.tracing.Tracing.isTracing;
 
-import com.palantir.tracing.CloseableSpan;
-import com.palantir.tracing.DetachedSpan;
+import com.palantir.tracing.DeferredTracer;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -145,12 +144,12 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
         private boolean failure;
         private Object result = this;
         private final Callable<T> callable;
-        private final DetachedSpan detachedSpan;
+        private final DeferredTracer deferredTracer;
 
         public FutureTask(Callable<T> callable)
         {
             this.callable = callable;
-            this.detachedSpan = DetachedSpan.start("FutureTask");
+            this.deferredTracer = new DeferredTracer("FutureTask#run");
         }
         public FutureTask(Runnable runnable, T result)
         {
@@ -159,22 +158,25 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
 
         public void run()
         {
-            try (CloseableSpan ignored = detachedSpan.childSpan("FutureTask#run"))
-            {
-                result = callable.call();
-            }
-            catch (Throwable t)
-            {
-                JVMStabilityInspector.inspectThrowable(t);
-                logger.warn("Uncaught exception on thread {}: {}", Thread.currentThread(), t);
-                result = t;
-                failure = true;
-            }
-            finally
-            {
-                signalAll();
-                onCompletion();
-            }
+            deferredTracer.withTrace(() -> {
+                try
+                {
+                    result = callable.call();
+                }
+                catch (Throwable t)
+                {
+                    JVMStabilityInspector.inspectThrowable(t);
+                    logger.warn("Uncaught exception on thread {}: {}", Thread.currentThread(), t);
+                    result = t;
+                    failure = true;
+                }
+                finally
+                {
+                    signalAll();
+                    onCompletion();
+                }
+                return null;
+            });
         }
 
         public boolean cancel(boolean mayInterruptIfRunning)
