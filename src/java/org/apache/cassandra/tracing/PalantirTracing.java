@@ -18,12 +18,11 @@
 
 package org.apache.cassandra.tracing;
 
-import java.util.Optional;
-
 import com.palantir.tracing.Observability;
 import com.palantir.tracing.Tracer;
 import com.palantir.tracing.Tracers;
 import com.palantir.tracing.api.SpanType;
+import java.util.Optional;
 import org.apache.cassandra.thrift.TraceMetadata;
 import org.apache.thrift.annotation.Nullable;
 

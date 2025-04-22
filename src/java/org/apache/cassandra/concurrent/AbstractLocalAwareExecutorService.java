@@ -17,6 +17,10 @@
  */
 package org.apache.cassandra.concurrent;
 
+import static org.apache.cassandra.tracing.Tracing.isTracing;
+
+import com.palantir.tracing.CloseableSpan;
+import com.palantir.tracing.DetachedSpan;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -25,16 +29,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
+import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.apache.cassandra.utils.concurrent.SimpleCondition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.cassandra.tracing.TraceState;
-import org.apache.cassandra.tracing.Tracing;
-import org.apache.cassandra.utils.concurrent.SimpleCondition;
-import org.apache.cassandra.utils.JVMStabilityInspector;
-
-import static org.apache.cassandra.tracing.Tracing.isTracing;
 
 public abstract class AbstractLocalAwareExecutorService implements LocalAwareExecutorService
 {
@@ -147,10 +145,12 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
         private boolean failure;
         private Object result = this;
         private final Callable<T> callable;
+        private final DetachedSpan detachedSpan;
 
         public FutureTask(Callable<T> callable)
         {
             this.callable = callable;
+            this.detachedSpan = DetachedSpan.start("FutureTask");
         }
         public FutureTask(Runnable runnable, T result)
         {
@@ -159,7 +159,7 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
 
         public void run()
         {
-            try
+            try (CloseableSpan ignored = detachedSpan.childSpan("FutureTask#run"))
             {
                 result = callable.call();
             }
