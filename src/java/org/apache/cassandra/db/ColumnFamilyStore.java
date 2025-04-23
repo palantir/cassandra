@@ -803,56 +803,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     /**
-     * See #{@code StorageService.loadNewSSTables(String, String)} for more info
-     *
-     * @param ksName The keyspace name
-     * @param cfName The columnFamily name
-     */
-    public static synchronized void loadNewSSTables(String ksName, String cfName)
-    {
-        loadNewSSTables(ksName, cfName, false);
-    }
-
-    /**
-     * See #{@code StorageService.loadNewSSTables(String, String, boolean)} for more info
-     *
-     * @param ksName        The keyspace name
-     * @param cfName        The columnFamily name
-     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
-     */
-    public static synchronized void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
-    {
-        /** ks/cf existence checks will be done by open and getCFS methods for us */
-        Keyspace keyspace = Keyspace.open(ksName);
-        keyspace.getColumnFamilyStore(cfName).loadNewSSTables(assumeCfIsEmpty);
-    }
-
-    /**
-     * #{@inheritDoc}
-     */
-    public synchronized void loadNewSSTables()
-    {
-        loadNewSSTables(false);
-    }
-
-    public synchronized void loadNewSSTables(boolean assumeCfIsEmpty) {
-        loadNewSSTablesWithCount(assumeCfIsEmpty);
-    }
-
-    /**
-     * See #{@code StorageService.loadNewSSTablesWithCount(String, String)} for more info
-     *
-     * @param ksName The keyspace name
-     * @param cfName The columnFamily name
-     *
-     * @return the number of new sstables loaded
-     */
-    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName)
-    {
-        return loadNewSSTablesWithCount(ksName, cfName, false);
-    }
-
-    /**
      * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
      *
      * @param ksName        The keyspace name
@@ -861,42 +811,37 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      *
      * @return the number of new sstables loaded
      */
-    public static synchronized int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
+    public static synchronized void loadNewSSTables(String ksName, String cfName)
     {
         /** ks/cf existence checks will be done by open and getCFS methods for us */
-        Keyspace keyspace = Keyspace.open(ksName);
-        return keyspace.getColumnFamilyStore(cfName).loadNewSSTablesWithCount(assumeCfIsEmpty);
+        Keyspace.open(ksName).getColumnFamilyStore(cfName).loadNewSSTables();
     }
 
     /**
      * #{@inheritDoc}
      */
-    public synchronized int loadNewSSTablesWithCount()
+    public synchronized void loadNewSSTables()
     {
-        return loadNewSSTablesWithCount(false);
-    }
-
-    public synchronized int loadNewSSTablesWithCount(boolean assumeCfIsEmpty)
-    {
-        if (assumeCfIsEmpty)
-        {
-            throw new UnsupportedOperationException("Loading new SSTables is not supported on version 2.2.18-1.165.0+.");
-        }
         logger.info("Loading new SSTables for {}/{}...",
                 SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+        forceFlush("Flush pre-load new sstable");
 
-        Set<Descriptor> currentDescriptors = new HashSet<Descriptor>();
-        for (SSTableReader sstable : data.getView().sstables)
-            currentDescriptors.add(sstable.descriptor);
+        Set<SSTableReader> currentView = data.getView().sstables;
+        if(!currentView.isEmpty()) {
+            logger.error("Forbidden: loadNewSstable when the cf directory is not empty",
+                         SafeArg.of("keyspace", keyspace.getName()),
+                         SafeArg.of("cfName", name),
+                         SafeArg.of("existingSstables", currentView.stream().map(reader -> reader.descriptor)
+                                                                   .map(desc -> desc.generation)
+                                                                  .collect(Collectors.toSet())));
+            throw new IllegalStateException("Calling loadNewSstable on a non empty cf");
+        }
         Set<SSTableReader> newSSTables = new HashSet<>();
 
         Directories.SSTableLister lister = directories.sstableLister().skipTemporary(true);
         for (Map.Entry<Descriptor, Set<Component>> entry : lister.list().entrySet())
         {
             Descriptor descriptor = entry.getKey();
-
-            if (currentDescriptors.contains(descriptor))
-                continue; // old (initialized) SSTable found, skipping
             if (descriptor.type.isTemporary) // in the process of being written
                 continue;
 
@@ -905,40 +850,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                         descriptor.getFormat().getLatestVersion(),
                         descriptor));
 
-            // force foreign sstables to level 0
-            try
-            {
-                if (!assumeCfIsEmpty && new File(descriptor.filenameFor(Component.STATS)).exists())
-                    descriptor.getMetadataSerializer().mutateLevel(descriptor, 0);
-            }
-            catch (IOException e)
-            {
-                SSTableReader.logOpenException(entry.getKey(), e);
-                continue;
-            }
-
-            // Increment the generation until we find a filename that doesn't exist. This is needed because the new
-            // SSTables that are being loaded might already use these generation numbers.
-            Descriptor newDescriptor;
-            do
-            {
-                newDescriptor = new Descriptor(descriptor.version,
-                                               descriptor.directory,
-                                               descriptor.ksname,
-                                               descriptor.cfname,
-                                               fileIndexGenerator.incrementAndGet(),
-                                               Descriptor.Type.FINAL,
-                                               descriptor.formatType);
-            }
-            while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
-
-            logger.info("Renaming new SSTable {} to {}", SafeArg.of("descriptor", descriptor), SafeArg.of("newDescriptor", newDescriptor));
-            SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
-
             SSTableReader reader;
             try
             {
-                reader = SSTableReader.open(newDescriptor, entry.getValue(), metadata, partitioner);
+                reader = SSTableReader.open(descriptor, entry.getValue(), metadata, partitioner);
             }
             catch (IOException e)
             {
@@ -951,7 +866,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         if (newSSTables.isEmpty())
         {
             logger.info("No new SSTables were found for {}/{}", keyspace.getName(), name);
-            return 0;
         }
 
         logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}", keyspace.getName(), name, newSSTables);
@@ -963,7 +877,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         logger.info("Done loading load new SSTables for {}/{}", SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
-        return newSSTables.size();
     }
 
     public void rebuildSecondaryIndex(String idxName)
