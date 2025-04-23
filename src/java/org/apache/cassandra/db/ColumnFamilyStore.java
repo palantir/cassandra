@@ -807,21 +807,22 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      *
      * @param ksName        The keyspace name
      * @param cfName        The columnFamily name
-     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
+     * @param emptyCf   Whether or not we expect the column family is empty before and while loading the new SSTables
      *
-     * @return the number of new sstables loaded
      */
-    public static synchronized void loadNewSSTables(String ksName, String cfName)
+    public static synchronized void loadNewSSTables(String ksName, String cfName, boolean emptyCf)
     {
         /** ks/cf existence checks will be done by open and getCFS methods for us */
-        Keyspace.open(ksName).getColumnFamilyStore(cfName).loadNewSSTables();
+        Keyspace.open(ksName).getColumnFamilyStore(cfName).loadNewSSTables(emptyCf);
     }
 
-    /**
-     * #{@inheritDoc}
-     */
-    public synchronized void loadNewSSTables()
+    public synchronized void loadNewSSTables(boolean emptyCf)
     {
+        if (!emptyCf)
+        {
+            throw new UnsupportedOperationException("Loading new SSTables for a cf with existing data is not supported.");
+        }
+
         logger.info("Loading new SSTables for {}/{}...",
                 SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
         forceFlush("Flush pre-load new sstable");
@@ -834,7 +835,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                          SafeArg.of("existingSstables", currentView.stream().map(reader -> reader.descriptor)
                                                                    .map(desc -> desc.generation)
                                                                   .collect(Collectors.toSet())));
-            throw new IllegalStateException("Calling loadNewSstable on a non empty cf");
+            throw new IllegalStateException("Calling loadNewSstable on a cf with existing sstables");
         }
         Set<SSTableReader> newSSTables = new HashSet<>();
 
@@ -865,10 +866,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         if (newSSTables.isEmpty())
         {
-            logger.info("No new SSTables were found for {}/{}", keyspace.getName(), name);
+            logger.info("No new SSTables were found for {}/{}",
+                        SafeArg.of("keyspace", keyspace.getName()),
+                        SafeArg.of("cf", name));
         }
 
-        logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}", keyspace.getName(), name, newSSTables);
+        logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}",
+                    SafeArg.of("keyspace", keyspace.getName()),
+                    SafeArg.of("cf", name),
+                    SafeArg.of("generations", newSSTables.stream()
+                                                         .map(ssTableReader -> ssTableReader.descriptor.generation)
+                                                          .collect(Collectors.toSet())));
 
         try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
         {
@@ -876,7 +884,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
         }
 
-        logger.info("Done loading load new SSTables for {}/{}", SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+        logger.info("Done loading load new SSTables for {}/{}",
+                    SafeArg.of("keyspace", keyspace.getName()),
+                    SafeArg.of("cf", name),
+                    SafeArg.of("generations", newSSTables.stream()
+                                                         .map(ssTableReader -> ssTableReader.descriptor.generation)
+                                                         .collect(Collectors.toSet())));
     }
 
     public void rebuildSecondaryIndex(String idxName)

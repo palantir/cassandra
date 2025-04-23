@@ -694,8 +694,9 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      *
      * @param ksName The parent keyspace name
      * @param cfName The ColumnFamily name where SSTables belong
+     * @param emptyCf  Whether or not we expect the column family is empty before and while loading the new SSTables.
      */
-    public void loadNewSSTables(String ksName, String cfName);
+    public void loadNewSSTables(String ksName, String cfName, boolean emptyCf);
 
     /**
      * Return a List of Tokens representing a sample of keys across all ColumnFamilyStores.
