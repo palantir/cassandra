@@ -1235,6 +1235,14 @@ public class DatabaseDescriptor
         return conf.concurrent_counter_writes;
     }
 
+    public static boolean getAlwaysAsyncRead() {
+        return conf.always_async_read;
+    }
+
+    public static boolean getAlwaysAsyncWrite() {
+        return conf.always_async_write;
+    }
+
     public static int getFlushWriters()
     {
             return conf.memtable_flush_writers;
