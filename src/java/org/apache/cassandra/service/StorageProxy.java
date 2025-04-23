@@ -572,17 +572,44 @@ public class StorageProxy implements StorageProxyMBean
 
         try
         {
+            CounterMutation counterMutations = null;
+            IMutation otherMutations = null;
+
+            // Batch mutations
             for (IMutation mutation : mutations)
             {
                 if (mutation instanceof CounterMutation)
                 {
-                    responseHandlers.add(mutateCounter((CounterMutation)mutation, localDataCenter));
+                    if (counterMutations == null)
+                    {
+                        counterMutations = (CounterMutation)mutation;
+                    }
+                    else
+                    {
+                        counterMutations.addAll(mutation);
+                    }
                 }
                 else
                 {
-                    WriteType wt = mutations.size() <= 1 ? WriteType.SIMPLE : WriteType.UNLOGGED_BATCH;
-                    responseHandlers.add(performWrite(mutation, consistency_level, localDataCenter, standardWritePerformer, null, wt));
+                    if (counterMutations == null)
+                    {
+                        otherMutations = mutation;
+                    }
+                    else
+                    {
+                        otherMutations.addAll(mutation);
+                    }
                 }
+            }
+
+            // Perform writes
+            if (counterMutations != null)
+            {
+                responseHandlers.add(mutateCounter(counterMutations, localDataCenter));
+            }
+            if (otherMutations != null)
+            {
+                responseHandlers.add(performWrite(otherMutations, consistency_level, localDataCenter, standardWritePerformer, null, WriteType.SIMPLE));
             }
 
             // wait for writes.  throws TimeoutException if necessary
