@@ -573,7 +573,7 @@ public class StorageProxy implements StorageProxyMBean
         try
         {
             CounterMutation counterMutations = null;
-            IMutation otherMutations = null;
+            IMutation nonCounterMutations = null;
 
             // Batch mutations
             for (IMutation mutation : mutations)
@@ -591,13 +591,13 @@ public class StorageProxy implements StorageProxyMBean
                 }
                 else
                 {
-                    if (counterMutations == null)
+                    if (nonCounterMutations == null)
                     {
-                        otherMutations = mutation;
+                        nonCounterMutations = mutation;
                     }
                     else
                     {
-                        otherMutations.addAll(mutation);
+                        nonCounterMutations.addAll(mutation);
                     }
                 }
             }
@@ -607,9 +607,9 @@ public class StorageProxy implements StorageProxyMBean
             {
                 responseHandlers.add(mutateCounter(counterMutations, localDataCenter));
             }
-            if (otherMutations != null)
+            if (nonCounterMutations != null)
             {
-                responseHandlers.add(performWrite(otherMutations, consistency_level, localDataCenter, standardWritePerformer, null, WriteType.SIMPLE));
+                responseHandlers.add(performWrite(nonCounterMutations, consistency_level, localDataCenter, standardWritePerformer, null, WriteType.SIMPLE));
             }
 
             // wait for writes.  throws TimeoutException if necessary
