@@ -219,7 +219,7 @@ public class SSTableReaderTest
     private void clearAndLoad(ColumnFamilyStore cfs)
     {
         cfs.clearUnsafe();
-        cfs.loadNewSSTables();
+        cfs.loadNewSSTables(true);
     }
 
     @Test
