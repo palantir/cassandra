@@ -33,6 +33,7 @@ import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData.SpeculativeRetry.RetryType;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.config.ReadRepairDecision;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -127,7 +128,14 @@ public abstract class AbstractReadExecutor
             long localStart = System.nanoTime();
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
             KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
-            StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
+            Runnable localReadRunnable = new LocalReadRunnable(command, handler);
+
+            if (DatabaseDescriptor.getAlwaysAsyncRead()) {
+                StageManager.getStage(stage(command)).submit(localReadRunnable);
+            } else {
+                StageManager.getStage(stage(command)).maybeExecuteImmediately(localReadRunnable);
+            }
+
             latencies.add(System.nanoTime() - localStart);
         }
         logger.trace("measured read latencies {} ns", latencies);
