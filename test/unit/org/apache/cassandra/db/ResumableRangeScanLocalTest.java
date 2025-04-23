@@ -255,6 +255,17 @@ public class ResumableRangeScanLocalTest
     }
 
     @Test
+    public void testGetColumnFamily_returnsPageTokenWhenNoData()
+    {
+        QueryFilter queryFilterAllFarFuture = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0, ROW_KEY_2);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAllFarFuture);
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
     public void testGetColumnFamily_correctlyReconcilesDuplicateCells()
     {
         putColsStandard(cfs, ROW_KEY, column("c0", "value", WRITE_TIMESTAMP_MS + 1000), column("c1", "value", WRITE_TIMESTAMP_MS + 1000), column("c2", "value"
@@ -459,6 +470,17 @@ public class ResumableRangeScanLocalTest
     }
 
     @Test
+    public void testGetRangeSlice_returnsPageTokenWhenNoData()
+    {
+        ExtendedFilter extendedFilterAllFarFuture = createExtendedFilter(Composites.EMPTY, Composites.EMPTY, 0, ROW_KEY_2);
+        ColumnFamily cf = cfs.getRangeSlice(extendedFilterAllFarFuture).get(0).cf;
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
     public void testGetRangeSlice_correctlyReconcilesDuplicateCells()
     {
         putColsStandard(cfs, ROW_KEY, column("c0", "value", WRITE_TIMESTAMP_MS + 1000), column("c1", "value", WRITE_TIMESTAMP_MS + 1000), column("c2", "value"
@@ -562,6 +584,11 @@ public class ResumableRangeScanLocalTest
         return new QueryFilter(ROW_KEY, COLUMN_FAMILY, new SliceQueryFilter(start, finish, false, true, 100), timestamp);
     }
 
+    private QueryFilter createQueryFilter(Composite start, Composite finish, long timestamp, DecoratedKey decoratedKey)
+    {
+        return new QueryFilter(decoratedKey, COLUMN_FAMILY, new SliceQueryFilter(start, finish, false, true, 100), timestamp);
+    }
+
     private QueryFilter createQueryFilter(Composite start1, Composite finish1, Composite start2, Composite finish2, long timestamp)
     {
         return new QueryFilter(ROW_KEY, COLUMN_FAMILY, new SliceQueryFilter(new ColumnSlice[]{
@@ -573,6 +600,14 @@ public class ResumableRangeScanLocalTest
     {
         SliceQueryFilter filter = new SliceQueryFilter(start, finish, false, true, 100);
         DataRange dataRange = new DataRange(Bounds.makeRowBounds(ROW_KEY.getToken(), ROW_KEY_2.getToken()), filter);
+
+        return ExtendedFilter.create(cfs, dataRange, ImmutableList.of(), 100, false, timestamp);
+    }
+
+    private ExtendedFilter createExtendedFilter(Composite start, Composite finish, long timestamp, DecoratedKey decoratedKey)
+    {
+        SliceQueryFilter filter = new SliceQueryFilter(start, finish, false, true, 100);
+        DataRange dataRange = new DataRange(Bounds.makeRowBounds(decoratedKey.getToken(), decoratedKey.getToken()), filter);
 
         return ExtendedFilter.create(cfs, dataRange, ImmutableList.of(), 100, false, timestamp);
     }
