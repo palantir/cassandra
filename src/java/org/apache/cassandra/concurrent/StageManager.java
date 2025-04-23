@@ -21,7 +21,6 @@ import java.util.EnumMap;
 import java.util.concurrent.*;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.palantir.cassandra.metrics.SEPExecutorMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,17 +92,13 @@ public class StageManager
 
     private static LocalAwareExecutorService readStage(Stage stage, int numThreads)
     {
-        LocalAwareExecutorService executorService = SharedExecutorPool.SHARED.newKeyspaceAwareExecutor(
-                numThreads, Integer.MAX_VALUE, stage.getJmxType(), stage.getJmxName());
-        SEPExecutorMetrics.register(stage.name(), (SEPExecutor) executorService);
-        return executorService;
+        return SharedExecutorPool.SHARED.newKeyspaceAwareExecutor(
+            numThreads, Integer.MAX_VALUE, stage.getJmxType(), stage.getJmxName());
     }
 
     private static LocalAwareExecutorService multiThreadedLowSignalStage(Stage stage, int numThreads)
     {
-        LocalAwareExecutorService executorService = SharedExecutorPool.SHARED.newExecutor(numThreads, Integer.MAX_VALUE, stage.getJmxType(), stage.getJmxName());
-        SEPExecutorMetrics.register(stage.name(), (SEPExecutor) executorService);
-        return executorService;
+        return SharedExecutorPool.SHARED.newExecutor(numThreads, Integer.MAX_VALUE, stage.getJmxType(), stage.getJmxName());
     }
 
     /**
