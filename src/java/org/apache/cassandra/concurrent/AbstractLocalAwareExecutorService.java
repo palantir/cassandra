@@ -158,7 +158,7 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
 
         public void run()
         {
-            deferredTracer.withTrace(() -> {
+            deferredTracer.<Void, RuntimeException>withTrace(() -> {
                 try
                 {
                     result = callable.call();
