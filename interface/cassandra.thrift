@@ -54,7 +54,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.1"
+const string VERSION = "20.1.2"
 
 
 #
@@ -977,7 +977,7 @@ service Cassandra {
    * Executes a CQL3 (Cassandra Query Language) statement and returns a
    * CqlResult containing the results.
    */
-  CqlResult execute_cql3_query(1:required binary query, 2:required Compression compression, 3:required ConsistencyLevel consistency)
+  CqlResult execute_cql3_query(1:required binary query, 2:required Compression compression, 3:required ConsistencyLevel consistency, 4:optional TraceMetadata trace)
     throws (1:InvalidRequestException ire,
             2:UnavailableException ue,
             3:TimedOutException te,

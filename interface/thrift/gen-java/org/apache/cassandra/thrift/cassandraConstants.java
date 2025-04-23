@@ -30,6 +30,6 @@ package org.apache.cassandra.thrift;
 @SuppressWarnings({"cast", "rawtypes", "serial", "unchecked", "unused"})
 public class cassandraConstants {
 
-  public static final java.lang.String VERSION = "20.1.1";
+  public static final java.lang.String VERSION = "20.1.2";
 
 }

@@ -2200,10 +2200,12 @@ public class CassandraServer implements Cassandra.Iface
         throw new InvalidRequestException("CQL2 has been removed in Cassandra 2.2. Please use CQL3 instead");
     }
 
-    public CqlResult execute_cql3_query(ByteBuffer query, Compression compression, ConsistencyLevel cLevel) throws TException
+    @Override
+    public CqlResult execute_cql3_query(ByteBuffer query, Compression compression, ConsistencyLevel cLevel, TraceMetadata trace_metadata) throws TException
     {
         try
         {
+            PalantirTracing.initializeTracerFromIncomingThriftMessage("execute_cql3_query", trace_metadata);
             String queryString = uncompress(query, compression);
             if (startSessionIfRequested())
             {

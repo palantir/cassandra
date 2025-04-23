@@ -122,7 +122,7 @@ public class PigTestBase extends SchemaLoader
         for (String statement : statements)
         {
             System.out.println("Executing statement: " + statement);
-            client.execute_cql3_query(ByteBufferUtil.bytes(statement), Compression.NONE, ConsistencyLevel.ONE);
+            client.execute_cql3_query(ByteBufferUtil.bytes(statement), Compression.NONE, ConsistencyLevel.ONE, null);
         }
     }
 }

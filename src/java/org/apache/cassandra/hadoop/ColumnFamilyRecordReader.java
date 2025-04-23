@@ -240,7 +240,7 @@ public class ColumnFamilyRecordReader extends RecordReader<ByteBuffer, SortedMap
                                              keyspace,
                                              cfName);
 
-                CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE);
+                CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE, null);
 
                 Iterator<CqlRow> iteraRow = result.rows.iterator();
 

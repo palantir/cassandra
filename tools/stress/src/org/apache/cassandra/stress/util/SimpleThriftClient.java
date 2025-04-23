@@ -94,7 +94,7 @@ public class SimpleThriftClient implements ThriftClient
     @Override
     public CqlResult execute_cql3_query(String query, ByteBuffer key, Compression compression, ConsistencyLevel consistency) throws InvalidRequestException, UnavailableException, TimedOutException, SchemaDisagreementException, TException
     {
-        return client.execute_cql3_query(ByteBufferUtil.bytes(query), compression, consistency);
+        return client.execute_cql3_query(ByteBufferUtil.bytes(query), compression, consistency, null);
     }
 
     @Override

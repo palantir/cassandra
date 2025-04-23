@@ -68,10 +68,10 @@ public class WordCountSetup
             String query = "CREATE KEYSPACE " + WordCount.KEYSPACE +
                               " WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}"; 
 
-            client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE);
+            client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE, null);
 
             String verifyQuery = "select count(*) from system.peers";
-            CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(verifyQuery), Compression.NONE, ConsistencyLevel.ONE);
+            CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(verifyQuery), Compression.NONE, ConsistencyLevel.ONE, null);
 
             long magnitude = ByteBufferUtil.toLong(result.rows.get(0).columns.get(0).value);
             try
@@ -100,7 +100,7 @@ public class WordCountSetup
         try
         {
             logger.info("set up table " + WordCount.COLUMN_FAMILY);
-            client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE);
+            client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE, null);
         }
         catch (InvalidRequestException e)
         {
@@ -115,7 +115,7 @@ public class WordCountSetup
         try
         {
             logger.info("set up table " + WordCount.OUTPUT_COLUMN_FAMILY);
-            client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE);
+            client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE, null);
         }
         catch (InvalidRequestException e)
         {

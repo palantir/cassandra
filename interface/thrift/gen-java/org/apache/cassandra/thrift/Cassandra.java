@@ -437,8 +437,9 @@ public class Cassandra {
      * @param query
      * @param compression
      * @param consistency
+     * @param trace
      */
-    public CqlResult execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency) throws InvalidRequestException, UnavailableException, TimedOutException, SchemaDisagreementException, org.apache.thrift.TException;
+    public CqlResult execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, SchemaDisagreementException, org.apache.thrift.TException;
 
     /**
      * @deprecated Throws InvalidRequestException since 2.2. Please use the CQL3 version instead.
@@ -572,7 +573,7 @@ public class Cassandra {
 
     public void execute_cql_query(java.nio.ByteBuffer query, Compression compression, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler) throws org.apache.thrift.TException;
 
-    public void execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler) throws org.apache.thrift.TException;
+    public void execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler) throws org.apache.thrift.TException;
 
     public void prepare_cql_query(java.nio.ByteBuffer query, Compression compression, org.apache.thrift.async.AsyncMethodCallback<CqlPreparedResult> resultHandler) throws org.apache.thrift.TException;
 
@@ -1911,18 +1912,19 @@ public class Cassandra {
     }
 
     @Override
-    public CqlResult execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency) throws InvalidRequestException, UnavailableException, TimedOutException, SchemaDisagreementException, org.apache.thrift.TException
+    public CqlResult execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, SchemaDisagreementException, org.apache.thrift.TException
     {
-      send_execute_cql3_query(query, compression, consistency);
+      send_execute_cql3_query(query, compression, consistency, trace);
       return recv_execute_cql3_query();
     }
 
-    public void send_execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency) throws org.apache.thrift.TException
+    public void send_execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, TraceMetadata trace) throws org.apache.thrift.TException
     {
       execute_cql3_query_args args = new execute_cql3_query_args();
       args.setQuery(query);
       args.setCompression(compression);
       args.setConsistency(consistency);
+      args.setTrace(trace);
       sendBase("execute_cql3_query", args);
     }
 
@@ -3791,9 +3793,9 @@ public class Cassandra {
     }
 
     @Override
-    public void execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler) throws org.apache.thrift.TException {
+    public void execute_cql3_query(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      execute_cql3_query_call method_call = new execute_cql3_query_call(query, compression, consistency, resultHandler, this, ___protocolFactory, ___transport);
+      execute_cql3_query_call method_call = new execute_cql3_query_call(query, compression, consistency, trace, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -3802,11 +3804,13 @@ public class Cassandra {
       private java.nio.ByteBuffer query;
       private Compression compression;
       private ConsistencyLevel consistency;
-      public execute_cql3_query_call(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private TraceMetadata trace;
+      public execute_cql3_query_call(java.nio.ByteBuffer query, Compression compression, ConsistencyLevel consistency, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.query = query;
         this.compression = compression;
         this.consistency = consistency;
+        this.trace = trace;
       }
 
       @Override
@@ -3816,6 +3820,7 @@ public class Cassandra {
         args.setQuery(query);
         args.setCompression(compression);
         args.setConsistency(consistency);
+        args.setTrace(trace);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -5531,7 +5536,7 @@ public class Cassandra {
       public execute_cql3_query_result getResult(I iface, execute_cql3_query_args args) throws org.apache.thrift.TException {
         execute_cql3_query_result result = new execute_cql3_query_result();
         try {
-          result.success = iface.execute_cql3_query(args.query, args.compression, args.consistency);
+          result.success = iface.execute_cql3_query(args.query, args.compression, args.consistency, args.trace);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -9010,7 +9015,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, execute_cql3_query_args args, org.apache.thrift.async.AsyncMethodCallback<CqlResult> resultHandler) throws org.apache.thrift.TException {
-        iface.execute_cql3_query(args.query, args.compression, args.consistency,resultHandler);
+        iface.execute_cql3_query(args.query, args.compression, args.consistency, args.trace,resultHandler);
       }
     }
 
@@ -58054,6 +58059,7 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TField QUERY_FIELD_DESC = new org.apache.thrift.protocol.TField("query", org.apache.thrift.protocol.TType.STRING, (short)1);
     private static final org.apache.thrift.protocol.TField COMPRESSION_FIELD_DESC = new org.apache.thrift.protocol.TField("compression", org.apache.thrift.protocol.TType.I32, (short)2);
     private static final org.apache.thrift.protocol.TField CONSISTENCY_FIELD_DESC = new org.apache.thrift.protocol.TField("consistency", org.apache.thrift.protocol.TType.I32, (short)3);
+    private static final org.apache.thrift.protocol.TField TRACE_FIELD_DESC = new org.apache.thrift.protocol.TField("trace", org.apache.thrift.protocol.TType.STRUCT, (short)4);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new execute_cql3_query_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new execute_cql3_query_argsTupleSchemeFactory();
@@ -58069,6 +58075,7 @@ public class Cassandra {
      * @see ConsistencyLevel
      */
     public @org.apache.thrift.annotation.Nullable ConsistencyLevel consistency; // required
+    public @org.apache.thrift.annotation.Nullable TraceMetadata trace; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -58082,7 +58089,8 @@ public class Cassandra {
        * 
        * @see ConsistencyLevel
        */
-      CONSISTENCY((short)3, "consistency");
+      CONSISTENCY((short)3, "consistency"),
+      TRACE((short)4, "trace");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -58104,6 +58112,8 @@ public class Cassandra {
             return COMPRESSION;
           case 3: // CONSISTENCY
             return CONSISTENCY;
+          case 4: // TRACE
+            return TRACE;
           default:
             return null;
         }
@@ -58156,6 +58166,8 @@ public class Cassandra {
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, Compression.class)));
       tmpMap.put(_Fields.CONSISTENCY, new org.apache.thrift.meta_data.FieldMetaData("consistency", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.TRACE, new org.apache.thrift.meta_data.FieldMetaData("trace", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TraceMetadata.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(execute_cql3_query_args.class, metaDataMap);
     }
@@ -58166,12 +58178,14 @@ public class Cassandra {
     public execute_cql3_query_args(
       java.nio.ByteBuffer query,
       Compression compression,
-      ConsistencyLevel consistency)
+      ConsistencyLevel consistency,
+      TraceMetadata trace)
     {
       this();
       this.query = org.apache.thrift.TBaseHelper.copyBinary(query);
       this.compression = compression;
       this.consistency = consistency;
+      this.trace = trace;
     }
 
     /**
@@ -58187,6 +58201,9 @@ public class Cassandra {
       if (other.isSetConsistency()) {
         this.consistency = other.consistency;
       }
+      if (other.isSetTrace()) {
+        this.trace = new TraceMetadata(other.trace);
+      }
     }
 
     @Override
@@ -58199,6 +58216,7 @@ public class Cassandra {
       this.query = null;
       this.compression = null;
       this.consistency = null;
+      this.trace = null;
     }
 
     public byte[] getQuery() {
@@ -58301,6 +58319,31 @@ public class Cassandra {
       }
     }
 
+    @org.apache.thrift.annotation.Nullable
+    public TraceMetadata getTrace() {
+      return this.trace;
+    }
+
+    public execute_cql3_query_args setTrace(@org.apache.thrift.annotation.Nullable TraceMetadata trace) {
+      this.trace = trace;
+      return this;
+    }
+
+    public void unsetTrace() {
+      this.trace = null;
+    }
+
+    /** Returns true if field trace is set (has been assigned a value) and false otherwise */
+    public boolean isSetTrace() {
+      return this.trace != null;
+    }
+
+    public void setTraceIsSet(boolean value) {
+      if (!value) {
+        this.trace = null;
+      }
+    }
+
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -58332,6 +58375,14 @@ public class Cassandra {
         }
         break;
 
+      case TRACE:
+        if (value == null) {
+          unsetTrace();
+        } else {
+          setTrace((TraceMetadata)value);
+        }
+        break;
+
       }
     }
 
@@ -58347,6 +58398,9 @@ public class Cassandra {
 
       case CONSISTENCY:
         return getConsistency();
+
+      case TRACE:
+        return getTrace();
 
       }
       throw new java.lang.IllegalStateException();
@@ -58366,6 +58420,8 @@ public class Cassandra {
         return isSetCompression();
       case CONSISTENCY:
         return isSetConsistency();
+      case TRACE:
+        return isSetTrace();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -58410,6 +58466,15 @@ public class Cassandra {
           return false;
       }
 
+      boolean this_present_trace = true && this.isSetTrace();
+      boolean that_present_trace = true && that.isSetTrace();
+      if (this_present_trace || that_present_trace) {
+        if (!(this_present_trace && that_present_trace))
+          return false;
+        if (!this.trace.equals(that.trace))
+          return false;
+      }
+
       return true;
     }
 
@@ -58428,6 +58493,10 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetConsistency()) ? 131071 : 524287);
       if (isSetConsistency())
         hashCode = hashCode * 8191 + consistency.getValue();
+
+      hashCode = hashCode * 8191 + ((isSetTrace()) ? 131071 : 524287);
+      if (isSetTrace())
+        hashCode = hashCode * 8191 + trace.hashCode();
 
       return hashCode;
     }
@@ -58466,6 +58535,16 @@ public class Cassandra {
       }
       if (isSetConsistency()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.consistency, other.consistency);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = java.lang.Boolean.compare(isSetTrace(), other.isSetTrace());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTrace()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.trace, other.trace);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -58517,6 +58596,14 @@ public class Cassandra {
         sb.append(this.consistency);
       }
       first = false;
+      if (!first) sb.append(", ");
+      sb.append("trace:");
+      if (this.trace == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.trace);
+      }
+      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -58533,6 +58620,9 @@ public class Cassandra {
         throw new org.apache.thrift.protocol.TProtocolException("Required field 'consistency' was not present! Struct: " + toString());
       }
       // check for sub-struct validity
+      if (trace != null) {
+        trace.validate();
+      }
     }
 
     private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
@@ -58595,6 +58685,15 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 4: // TRACE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.trace = new TraceMetadata();
+                struct.trace.read(iprot);
+                struct.setTraceIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -58626,6 +58725,11 @@ public class Cassandra {
           oprot.writeI32(struct.consistency.getValue());
           oprot.writeFieldEnd();
         }
+        if (struct.trace != null) {
+          oprot.writeFieldBegin(TRACE_FIELD_DESC);
+          struct.trace.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -58647,6 +58751,14 @@ public class Cassandra {
         oprot.writeBinary(struct.query);
         oprot.writeI32(struct.compression.getValue());
         oprot.writeI32(struct.consistency.getValue());
+        java.util.BitSet optionals = new java.util.BitSet();
+        if (struct.isSetTrace()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetTrace()) {
+          struct.trace.write(oprot);
+        }
       }
 
       @Override
@@ -58658,6 +58770,12 @@ public class Cassandra {
         struct.setCompressionIsSet(true);
         struct.consistency = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setConsistencyIsSet(true);
+        java.util.BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          struct.trace = new TraceMetadata();
+          struct.trace.read(iprot);
+          struct.setTraceIsSet(true);
+        }
       }
     }
 

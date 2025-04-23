@@ -1011,7 +1011,7 @@ public class CassandraStorage extends LoadFunc implements StoreFuncInterface, Lo
                 keyspace,
                 column_family);
 
-        CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE);
+        CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE, null);
 
         List<CqlRow> rows = result.rows;
         List<ColumnDef> columnDefs = new ArrayList<ColumnDef>();
@@ -1251,7 +1251,7 @@ public class CassandraStorage extends LoadFunc implements StoreFuncInterface, Lo
                 keyspace,
                 column_family);
 
-        CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE);
+        CqlResult result = client.execute_cql3_query(ByteBufferUtil.bytes(query), Compression.NONE, ConsistencyLevel.ONE, null);
 
         if (result == null || result.rows == null || result.rows.isEmpty())
             return null;

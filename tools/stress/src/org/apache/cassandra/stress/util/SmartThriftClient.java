@@ -216,7 +216,7 @@ public class SmartThriftClient implements ThriftClient
         Client client = get(key);
         try
         {
-            return client.client.execute_cql3_query(ByteBufferUtil.bytes(query), compression, consistency);
+            return client.client.execute_cql3_query(ByteBufferUtil.bytes(query), compression, consistency, null);
         } finally
         {
             cache.get(client.server).add(client);
