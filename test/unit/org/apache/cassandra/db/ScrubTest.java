@@ -292,7 +292,7 @@ public class ScrubTest
         {
             scrubber.scrub();
         }
-        cfs.loadNewSSTables();
+        cfs.loadNewSSTables(true);
         List<Row> rows = cfs.getRangeSlice(Util.range("", ""), null, new IdentityQueryFilter(), 1000);
         assert isRowOrdered(rows) : "Scrub failed: " + rows;
         assert rows.size() == 6 : "Got " + rows.size();
@@ -330,7 +330,7 @@ public class ScrubTest
             scrubber.scrub();
         }
 
-        cfs.loadNewSSTables();
+        cfs.loadNewSSTables(true);
         assertEquals(7, countCells(cfs));
     }
 

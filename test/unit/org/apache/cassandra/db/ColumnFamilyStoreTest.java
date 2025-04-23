@@ -1165,7 +1165,7 @@ public class ColumnFamilyStoreTest
         assert statsFile.exists();
         boolean deleted = statsFile.delete();
         assert deleted : "Cannot delete " + statsFile;
-        cfs.loadNewSSTables();
+        cfs.loadNewSSTables(true);
 
         // Add another cell with a lower timestamp
         putColsStandard(cfs, key, new BufferCell(cname, ByteBufferUtil.bytes("b"), 1));
@@ -2158,7 +2158,7 @@ public class ColumnFamilyStoreTest
         {
             // avoid duplicate hardlinks to incremental backups
             DatabaseDescriptor.setIncrementalBackupsEnabled(false);
-            cfs.loadNewSSTables();
+            cfs.loadNewSSTables(true);
         }
         finally
         {

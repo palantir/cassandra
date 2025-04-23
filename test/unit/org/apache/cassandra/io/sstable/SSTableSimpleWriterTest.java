@@ -103,7 +103,7 @@ public class SSTableSimpleWriterTest
 
         // Now add that newly created files to the column family
         ColumnFamilyStore cfs = t.getColumnFamilyStore(cfname);
-        cfs.loadNewSSTables();
+        cfs.loadNewSSTables(true);
 
         // Check we get expected results
         ColumnFamily cf = Util.getColumnFamily(t, Util.dk("Key10"), cfname);
