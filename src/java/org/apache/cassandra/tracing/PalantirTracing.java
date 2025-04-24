@@ -22,7 +22,16 @@ import com.palantir.tracing.Observability;
 import com.palantir.tracing.Tracer;
 import com.palantir.tracing.Tracers;
 import com.palantir.tracing.api.SpanType;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Table;
+
+import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.thrift.TraceMetadata;
 import org.apache.thrift.annotation.Nullable;
 
@@ -31,6 +40,10 @@ import org.apache.thrift.annotation.Nullable;
  */
 public final class PalantirTracing
 {
+    private static final String PALANTIR_TRACE_ID = "PalantirTraceId";
+    private static final String PALANTIR_IS_SAMPLED = "PalantirIsSampled";
+    private static final String PALANTIR_PARENT_SPAN_ID = "PalantirParentSpanId";
+
     private PalantirTracing() {}
 
     public static void initializeTracerFromIncomingThriftMessage(String thriftOperation, @Nullable TraceMetadata tracing)
@@ -51,9 +64,35 @@ public final class PalantirTracing
         }
     }
 
+    public static void initializeTracerFromIncomingMessage(MessageIn<?> message) {
+        String traceId = Optional.ofNullable(message.parameters.get(PALANTIR_TRACE_ID)).map(bytes -> new String(bytes, StandardCharsets.UTF_8)).orElseGet(Tracers::randomId);
+        Optional<String> parentSpanId = Optional.ofNullable(message.parameters.get(PALANTIR_PARENT_SPAN_ID)).map(bytes -> new String(bytes, StandardCharsets.UTF_8));
+        boolean isSampled = Optional.ofNullable(message.parameters.get(PALANTIR_IS_SAMPLED)).map(bytes -> bytes[0] == 1).orElse(false);
+
+        if (parentSpanId.isPresent()) {
+            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, message.verb.toString(), parentSpanId.get(), SpanType.SERVER_INCOMING);
+        } else {
+            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, message.verb.toString(), SpanType.SERVER_INCOMING);
+        }
+    }
+
     public static void closeServerSpanThrift()
     {
         Tracer.fastCompleteSpan();
+    }
+
+    public static Map<String, byte[]> serializeForMessage() {
+        Optional<com.palantir.tracing.TraceMetadata> traceMetadata = Tracer.maybeGetTraceMetadata();
+        if (traceMetadata.isPresent()) {
+            return ImmutableMap.of(
+                PALANTIR_TRACE_ID, traceMetadata.get().getTraceId().getBytes(StandardCharsets.UTF_8),
+                PALANTIR_PARENT_SPAN_ID, traceMetadata.get().getSpanId().getBytes(StandardCharsets.UTF_8),
+                PALANTIR_IS_SAMPLED, new byte[] { (byte) (Tracer.isTraceObservable() ? 1 : 0) }
+            );
+        } else {
+            return Collections.emptyMap();
+        }
+
     }
 
     private static Observability getObservabilityFromTracing(@Nullable TraceMetadata tracing)

@@ -71,6 +71,7 @@ import org.apache.cassandra.security.SSLFactory;
 import org.apache.cassandra.service.*;
 import org.apache.cassandra.service.paxos.Commit;
 import org.apache.cassandra.service.paxos.PrepareResponse;
+import org.apache.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.*;
@@ -802,6 +803,8 @@ public final class MessagingService implements MessagingServiceMBean
         TraceState state = Tracing.instance.initializeFromMessage(message);
         if (state != null)
             state.trace("{} message received from {}", SafeArg.of("verb", message.verb), SafeArg.of("endpoint", message.from));
+
+        PalantirTracing.initializeTracerFromIncomingMessage(message);
 
         // message sinks are a testing hook
         for (IMessageSink ms : messageSinks)
