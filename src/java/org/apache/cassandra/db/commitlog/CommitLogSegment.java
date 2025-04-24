@@ -37,6 +37,7 @@ import com.codahale.metrics.Timer;
 import com.github.tjake.ICRC32;
 
 import com.palantir.logsafe.SafeArg;
+import com.palantir.tracing.CloseableTracer;
 import org.apache.cassandra.utils.CRC32Factory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
@@ -374,15 +375,18 @@ public abstract class CommitLogSegment
 
     void waitForSync(int position, Timer waitingOnCommit)
     {
-        while (lastSyncedOffset < position)
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLogSegment#waitForSync"))
         {
-            WaitQueue.Signal signal = waitingOnCommit != null ?
-                                      syncComplete.register(waitingOnCommit.time()) :
-                                      syncComplete.register();
-            if (lastSyncedOffset < position)
-                signal.awaitUninterruptibly();
-            else
-                signal.cancel();
+            while (lastSyncedOffset < position)
+            {
+                WaitQueue.Signal signal = waitingOnCommit != null ?
+                                          syncComplete.register(waitingOnCommit.time()) :
+                                          syncComplete.register();
+                if (lastSyncedOffset < position)
+                    signal.awaitUninterruptibly();
+                else
+                    signal.cancel();
+            }
         }
     }
 

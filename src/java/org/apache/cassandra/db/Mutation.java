@@ -24,6 +24,7 @@ import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.palantir.tracing.CloseableTracer;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
@@ -273,17 +274,20 @@ public class Mutation implements IMutation
     {
         public void serialize(Mutation mutation, DataOutputPlus out, int version) throws IOException
         {
-            if (version < MessagingService.VERSION_20)
-                out.writeUTF(mutation.getKeyspaceName());
+            try (CloseableTracer ignored = CloseableTracer.startSpan("MutationSerializer#serialize"))
+            {
+                if (version < MessagingService.VERSION_20)
+                    out.writeUTF(mutation.getKeyspaceName());
 
-            ByteBufferUtil.writeWithShortLength(mutation.key(), out);
+                ByteBufferUtil.writeWithShortLength(mutation.key(), out);
 
-            /* serialize the modifications in the mutation */
-            int size = mutation.modifications.size();
-            out.writeInt(size);
-            assert size > 0;
-            for (Map.Entry<UUID, ColumnFamily> entry : mutation.modifications.entrySet())
-                ColumnFamily.serializer.serialize(entry.getValue(), out, version);
+                /* serialize the modifications in the mutation */
+                int size = mutation.modifications.size();
+                out.writeInt(size);
+                assert size > 0;
+                for (Map.Entry<UUID, ColumnFamily> entry : mutation.modifications.entrySet())
+                    ColumnFamily.serializer.serialize(entry.getValue(), out, version);
+            }
         }
 
         public Mutation deserialize(DataInput in, int version, ColumnSerializer.Flag flag) throws IOException

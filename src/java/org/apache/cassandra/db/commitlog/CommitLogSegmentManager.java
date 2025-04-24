@@ -42,6 +42,7 @@ import com.google.common.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.tracing.CloseableTracer;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -184,17 +185,20 @@ public class CommitLogSegmentManager
      */
     public Allocation allocate(Mutation mutation, int size)
     {
-        CommitLogSegment segment = allocatingFrom();
-
-        Allocation alloc;
-        while ( null == (alloc = segment.allocate(mutation, size)) )
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLogSegmentManager#allocate"))
         {
-            // failed to allocate, so move to a new segment with enough room
-            advanceAllocatingFrom(segment);
-            segment = allocatingFrom;
-        }
+            CommitLogSegment segment = allocatingFrom();
 
-        return alloc;
+            Allocation alloc;
+            while ( null == (alloc = segment.allocate(mutation, size)) )
+            {
+                // failed to allocate, so move to a new segment with enough room
+                advanceAllocatingFrom(segment);
+                segment = allocatingFrom;
+            }
+
+            return alloc;
+        }
     }
 
     // simple wrapper to ensure non-null value for allocatingFrom; only necessary on first call
