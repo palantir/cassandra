@@ -804,14 +804,22 @@ public final class MessagingService implements MessagingServiceMBean
         if (state != null)
             state.trace("{} message received from {}", SafeArg.of("verb", message.verb), SafeArg.of("endpoint", message.from));
 
-        PalantirTracing.initializeTracerFromIncomingMessage(message);
-
         // message sinks are a testing hook
         for (IMessageSink ms : messageSinks)
             if (!ms.allowIncomingMessage(message, id))
                 return;
 
-        Runnable runnable = new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp);
+        Runnable runnable = () -> {
+            PalantirTracing.initializeTracerFromIncomingMessage(message);
+            try
+            {
+                new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp).run();
+            }
+            finally
+            {
+                PalantirTracing.closeServerSpanInterNode();
+            }
+        };
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());
         assert stage != null : "No stage for message type " + message.verb;
 

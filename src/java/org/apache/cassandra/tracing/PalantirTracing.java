@@ -81,6 +81,11 @@ public final class PalantirTracing
         Tracer.fastCompleteSpan();
     }
 
+    public static void closeServerSpanInterNode()
+    {
+        Tracer.fastCompleteSpan();
+    }
+
     public static Map<String, byte[]> serializeForMessage() {
         Optional<com.palantir.tracing.TraceMetadata> traceMetadata = Tracer.maybeGetTraceMetadata();
         if (traceMetadata.isPresent()) {
