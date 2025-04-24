@@ -1875,14 +1875,22 @@ public class CompactionManager implements CompactionManagerMBean
                                           ));
     }
 
-    private Map<ColumnFamilyStore, Integer> getPendingCompactionTasks() {
-        return Schema.instance.getKeyspaces().stream()
-                              .flatMap(keyspaceName -> Keyspace.open(keyspaceName).getColumnFamilyStores().stream())
-                              .filter(cfs -> cfs.getCompactionStrategy().getEstimatedRemainingTasks() > 0)
-                              .collect(Collectors.toMap(
-                                  cfs -> cfs,
-                                  cfs -> cfs.getCompactionStrategy().getEstimatedRemainingTasks()
-                              ));
+    private Map<ColumnFamilyStore, Integer> getPendingCompactionTasks()
+    {
+        Map<ColumnFamilyStore, Integer> pendingTasks = new HashMap<>();
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                int estimatedTasks = cfs.getCompactionStrategy().getEstimatedRemainingTasks();
+                if (estimatedTasks > 0)
+                {
+                    pendingTasks.put(cfs, estimatedTasks);
+                }
+            }
+        }
+
+        return pendingTasks;
     }
 
     /**
