@@ -848,6 +848,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                                    .map(ssTableReader -> ssTableReader.descriptor.generation)
                                                    .collect(Collectors.toList());
             Collections.sort(generations);
+
+            assert fileIndexGenerator.get() == 0;
             fileIndexGenerator.set(generations.isEmpty() ? 0 : generations.get(generations.size() - 1));
 
             if (newSSTables.isEmpty())
