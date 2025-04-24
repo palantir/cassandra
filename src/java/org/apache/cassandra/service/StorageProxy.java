@@ -456,75 +456,84 @@ public class StorageProxy implements StorageProxyMBean
     private static PrepareCallback preparePaxos(Commit toPrepare, List<InetAddress> endpoints, int requiredParticipants, ConsistencyLevel consistencyForPaxos)
     throws WriteTimeoutException
     {
-        PrepareCallback callback = new PrepareCallback(toPrepare.key, toPrepare.update.metadata(), requiredParticipants, consistencyForPaxos);
-        MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_PREPARE, toPrepare, Commit.serializer);
-        for (InetAddress target : endpoints)
-            MessagingService.instance().sendRR(message, target, callback);
-        callback.await();
-        return callback;
+        try (CloseableTracer ignored = CloseableTracer.startSpan("StorageProxy#preparePaxos"))
+        {
+            PrepareCallback callback = new PrepareCallback(toPrepare.key, toPrepare.update.metadata(), requiredParticipants, consistencyForPaxos);
+            MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_PREPARE, toPrepare, Commit.serializer);
+            for (InetAddress target : endpoints)
+                MessagingService.instance().sendRR(message, target, callback);
+            callback.await();
+            return callback;
+        }
     }
 
     private static boolean proposePaxos(Commit proposal, List<InetAddress> endpoints, int requiredParticipants, boolean timeoutIfPartial, ConsistencyLevel consistencyLevel)
     throws WriteTimeoutException
     {
-        ProposeCallback callback = new ProposeCallback(endpoints.size(), requiredParticipants, !timeoutIfPartial, consistencyLevel);
-        MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_PROPOSE, proposal, Commit.serializer);
-        for (InetAddress target : endpoints)
-            MessagingService.instance().sendRR(message, target, callback);
+        try (CloseableTracer ignored = CloseableTracer.startSpan("StorageProxy#proposePaxos"))
+        {
+            ProposeCallback callback = new ProposeCallback(endpoints.size(), requiredParticipants, !timeoutIfPartial, consistencyLevel);
+            MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_PROPOSE, proposal, Commit.serializer);
+            for (InetAddress target : endpoints)
+                MessagingService.instance().sendRR(message, target, callback);
 
-        callback.await();
+            callback.await();
 
-        if (callback.isSuccessful())
-            return true;
+            if (callback.isSuccessful())
+                return true;
 
-        if (timeoutIfPartial && !callback.isFullyRefused())
-            throw new WriteTimeoutException(WriteType.CAS, consistencyLevel, callback.getAcceptCount(), requiredParticipants);
+            if (timeoutIfPartial && !callback.isFullyRefused())
+                throw new WriteTimeoutException(WriteType.CAS, consistencyLevel, callback.getAcceptCount(), requiredParticipants);
 
-        return false;
+            return false;
+        }
     }
 
     private static void commitPaxos(Commit proposal, ConsistencyLevel consistencyLevel, boolean allowHints) throws WriteTimeoutException
     {
-        boolean shouldBlock = consistencyLevel != ConsistencyLevel.ANY;
-        Keyspace keyspace = Keyspace.open(proposal.update.metadata().ksName);
-
-        Token tk = StorageService.getPartitioner().getToken(proposal.key);
-        List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(keyspace.getName(), tk);
-        Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, keyspace.getName());
-
-        AbstractWriteResponseHandler<Commit> responseHandler = null;
-        if (shouldBlock)
+        try (CloseableTracer ignored = CloseableTracer.startSpan("StorageProxy#commitPaxos"))
         {
-            AbstractReplicationStrategy rs = keyspace.getReplicationStrategy();
-            responseHandler = rs.getWriteResponseHandler(naturalEndpoints, pendingEndpoints, consistencyLevel, null, WriteType.SIMPLE);
-        }
+            boolean shouldBlock = consistencyLevel != ConsistencyLevel.ANY;
+            Keyspace keyspace = Keyspace.open(proposal.update.metadata().ksName);
 
-        MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_COMMIT, proposal, Commit.serializer);
-        for (InetAddress destination : Iterables.concat(naturalEndpoints, pendingEndpoints))
-        {
+            Token tk = StorageService.getPartitioner().getToken(proposal.key);
+            List<InetAddress> naturalEndpoints = StorageService.instance.getNaturalEndpoints(keyspace.getName(), tk);
+            Collection<InetAddress> pendingEndpoints = StorageService.instance.getTokenMetadata().pendingEndpointsFor(tk, keyspace.getName());
 
-            if (FailureDetector.instance.isAlive(destination))
+            AbstractWriteResponseHandler<Commit> responseHandler = null;
+            if (shouldBlock)
             {
-                if (shouldBlock)
+                AbstractReplicationStrategy rs = keyspace.getReplicationStrategy();
+                responseHandler = rs.getWriteResponseHandler(naturalEndpoints, pendingEndpoints, consistencyLevel, null, WriteType.SIMPLE);
+            }
+
+            MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_COMMIT, proposal, Commit.serializer);
+            for (InetAddress destination : Iterables.concat(naturalEndpoints, pendingEndpoints))
+            {
+
+                if (FailureDetector.instance.isAlive(destination))
                 {
-                    if (destination.equals(FBUtilities.getBroadcastAddress()))
-                        commitPaxosLocal(message, responseHandler);
+                    if (shouldBlock)
+                    {
+                        if (destination.equals(FBUtilities.getBroadcastAddress()))
+                            commitPaxosLocal(message, responseHandler);
+                        else
+                            MessagingService.instance().sendRR(message, destination, responseHandler, allowHints && shouldHint(destination));
+                    }
                     else
-                        MessagingService.instance().sendRR(message, destination, responseHandler, allowHints && shouldHint(destination));
+                    {
+                        MessagingService.instance().sendOneWay(message, destination);
+                    }
                 }
-                else
+                else if (allowHints && shouldHint(destination))
                 {
-                    MessagingService.instance().sendOneWay(message, destination);
+                    submitHint(proposal.makeMutation(), destination, null);
                 }
             }
-            else if (allowHints && shouldHint(destination))
-            {
-                submitHint(proposal.makeMutation(), destination, null);
-            }
-        }
 
-        if (shouldBlock)
-            responseHandler.get();
+            if (shouldBlock)
+                responseHandler.get();
+        }
     }
 
     /**
