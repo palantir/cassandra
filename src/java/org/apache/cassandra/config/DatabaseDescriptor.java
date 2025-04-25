@@ -60,6 +60,7 @@ import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.thrift.ThriftServer;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.memory.*;
+import org.assertj.core.util.Sets;
 
 import static org.apache.cassandra.io.util.FileUtils.ONE_GB;
 import static org.apache.cassandra.io.util.FileUtils.ONE_MB;
@@ -111,6 +112,7 @@ public class DatabaseDescriptor
     private static boolean hasLoggedConfig;
 
     private static final String allHostsRaw = System.getProperty("palantir_cassandra.all_hosts", "");
+    private static final Set<String> coerceReadConsistencyIgnoredKeyspaces = Sets.newHashSet(Arrays.asList(conf.coerce_read_consistency_all_ignored_keyspaces));
 
     private static boolean daemonInitialized;
 
@@ -2105,6 +2107,14 @@ public class DatabaseDescriptor
     public static void setCoerceReadConsistencyAll(boolean value)
     {
         conf.coerce_read_consistency_all = value;
+    }
+
+    public static boolean getCoerceReadConsistencyAllForKeyspace(String keyspace) {
+        return conf.coerce_read_consistency_all && !coerceReadConsistencyIgnoredKeyspaces.contains(keyspace);
+    }
+
+    public static boolean setCoerceReadConsistencyAllForKeyspace(String keyspace) {
+        return coerceReadConsistencyIgnoredKeyspaces.add(keyspace);
     }
 
     public static boolean getDisableReadRepairMutation()

@@ -314,6 +314,7 @@ public class Config
     public int otc_coalescing_window_us = otc_coalescing_window_us_default;
     public int otc_coalescing_enough_coalesced_messages = 8;
 
+    public volatile String[] coerce_read_consistency_all_ignored_keyspaces = new String[0];
     public volatile boolean coerce_read_consistency_all = false;
     public volatile boolean disable_read_repair_mutation = false;
     public volatile boolean disable_block_on_read_repair = false;

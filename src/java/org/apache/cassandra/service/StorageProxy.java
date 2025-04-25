@@ -1276,7 +1276,6 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> read(List<ReadCommand> commands, ConsistencyLevel consistencyLevel, ClientState state)
     throws UnavailableException, IsBootstrappingException, ReadFailureException, ReadTimeoutException, InvalidRequestException
     {
-        consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel);
         if (StorageService.instance.isBootstrapMode() && !systemKeyspaceQuery(commands))
         {
             consistencyLevelReadMetrics.get(consistencyLevel).unavailables.mark();
@@ -1300,16 +1299,15 @@ public class StorageProxy implements StorageProxyMBean
         final ConsistencyLevel consistencyForCommit = consistencyLevel == ConsistencyLevel.LOCAL_SERIAL
                                                                         ? ConsistencyLevel.LOCAL_QUORUM
                                                                         : ConsistencyLevel.QUORUM;
-        final ConsistencyLevel consistencyForFetch = maybeCoerceReadConsistencyLevel(consistencyForCommit);
-        ClientRequestMetrics readMetrics = consistencyLevelReadMetrics.get(consistencyForFetch);
+        ReadCommand command = commands.get(0);
+        consistencyLevel = maybeCoerceReadConsistencyLevel(command.ksName, consistencyForCommit);
+        ClientRequestMetrics readMetrics = consistencyLevelReadMetrics.get(consistencyLevel);
 
         try
         {
             // make sure any in-progress paxos writes are done (i.e., committed to a majority of replicas), before performing a quorum read
             if (commands.size() > 1)
                 throw new InvalidRequestException("SERIAL/LOCAL_SERIAL consistency may only be requested for one row at a time");
-            ReadCommand command = commands.get(0);
-
             CFMetaData metadata = Schema.instance.getCFMetaData(command.ksName, command.cfName);
             Pair<List<InetAddress>, Integer> p = getPaxosParticipants(command.ksName, command.key, consistencyLevel);
             List<InetAddress> liveEndpoints = p.left;
@@ -1330,7 +1328,7 @@ public class StorageProxy implements StorageProxyMBean
                 throw new ReadFailureException(consistencyLevel, e.received, e.failures, e.blockFor, false);
             }
 
-            rows = fetchRows(commands, consistencyForFetch);
+            rows = fetchRows(commands, consistencyLevel);
         }
         catch (UnavailableException e)
         {
@@ -1356,8 +1354,8 @@ public class StorageProxy implements StorageProxyMBean
             readMetrics.addNano(latency);
             casReadMetrics.addNano(latency);
             // TODO avoid giving every command the same latency number.  Can fix this in CASSADRA-5329
-            for (ReadCommand command : commands)
-                Keyspace.open(command.ksName).getColumnFamilyStore(command.cfName).metric.coordinatorReadLatencyByCL.get(consistencyForFetch).addNano(latency);
+            for (ReadCommand cmd : commands)
+                Keyspace.open(cmd.ksName).getColumnFamilyStore(cmd.cfName).metric.coordinatorReadLatencyByCL.get(consistencyLevel).addNano(latency);
         }
 
         return rows;
@@ -1434,6 +1432,7 @@ public class StorageProxy implements StorageProxyMBean
                 ReadCommand command = commands.get(i);
                 assert !command.isDigestQuery();
 
+                consistencyLevel = maybeCoerceReadConsistencyLevel(command.ksName, consistencyLevel);
                 AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
                 exec.executeAsync();
                 readExecutors[i] = exec;
@@ -1749,7 +1748,7 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> getRangeSlice(AbstractRangeCommand command, ConsistencyLevel consistency_level)
     throws UnavailableException, ReadFailureException, ReadTimeoutException
     {
-        consistency_level = maybeCoerceReadConsistencyLevel(consistency_level);
+        consistency_level = maybeCoerceReadConsistencyLevel(command.keyspace, consistency_level);
         Tracing.trace("Computing ranges to query");
         long startTime = System.nanoTime();
 
@@ -2460,13 +2459,13 @@ public class StorageProxy implements StorageProxyMBean
         return ReadRepairMetrics.repairedBackground.getCount();
     }
 
-    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
+    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(String keyspace, ConsistencyLevel consistencyLevel)
     {
         if (!consistencyLevelIsSafeToCoerce(consistencyLevel))
         {
             return consistencyLevel;
         }
-        boolean shouldCoerce = DatabaseDescriptor.getCoerceReadConsistencyAll();
+        boolean shouldCoerce = DatabaseDescriptor.getCoerceReadConsistencyAllForKeyspace(keyspace);
         return shouldCoerce ? ConsistencyLevel.ALL : consistencyLevel;
     }
 
