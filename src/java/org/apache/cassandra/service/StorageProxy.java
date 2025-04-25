@@ -1440,98 +1440,104 @@ public class StorageProxy implements StorageProxyMBean
                     Tracing.trace("Retrying {} commands", commandsToRetry.size());
 
                 // send out read requests
-                for (int i = 0; i < commands.size(); i++)
-                {
-                    ReadCommand command = commands.get(i);
-                    assert !command.isDigestQuery();
+                try (CloseableTracer ignored2 = CloseableTracer.startSpan("StorageProxy#sendReadRequests", ImmutableMap.of("numCommands", Integer.toString(commands.size())))) {
+                    for (int i = 0; i < commands.size(); i++)
+                    {
+                        ReadCommand command = commands.get(i);
+                        assert !command.isDigestQuery();
 
-                    AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
-                    exec.executeAsync();
-                    readExecutors[i] = exec;
+                        AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
+                        exec.executeAsync();
+                        readExecutors[i] = exec;
+                    }
                 }
 
-                for (AbstractReadExecutor exec : readExecutors)
-                    exec.maybeTryAdditionalReplicas();
+                try (CloseableTracer ignored2 = CloseableTracer.startSpan("StorageProxy#maybeTryAdditionalReplicas", ImmutableMap.of("numCommands", Integer.toString(commands.size())))) {
+                    for (AbstractReadExecutor exec : readExecutors)
+                        exec.maybeTryAdditionalReplicas();
+                }
 
                 // read results and make a second pass for any digest mismatches
                 List<ReadCommand> repairCommands = null;
                 List<ReadCallback<ReadResponse, Row>> repairResponseHandlers = null;
-                for (AbstractReadExecutor exec : readExecutors)
-                {
-                    try
-                    {
-                        Row row = exec.get();
-                        Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
-                        if (row != null)
-                        {
-                            row = exec.command.maybeTrim(row);
-                            rows.add(row);
-                        }
-
-                        if (logger.isTraceEnabled())
-                            logger.trace("Read: {} ms.", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - exec.handler.start));
-                    }
-                    catch (ReadTimeoutException | ReadFailureException ex)
-                    {
-                        int blockFor = consistencyLevel.blockFor(Keyspace.open(exec.command.getKeyspace()));
-                        int responseCount = exec.handler.getReceivedCount();
-                        String gotData = responseCount > 0
-                                         ? exec.resolver.isDataPresent() ? " (including data)" : " (only digests)"
-                                         : "";
-
-                        boolean isTimeout = ex instanceof ReadTimeoutException;
-                        if (Tracing.isTracing())
-                        {
-                            Tracing.trace("{}; received {} of {} responses{}",
-                                          isTimeout ? "Timed out" : "Failed", responseCount, blockFor, gotData);
-                        }
-                        else if (logger.isDebugEnabled())
-                        {
-                            logger.debug("Read {}; received {} of {} responses{}", (isTimeout ? "timeout" : "failure"), responseCount, blockFor, gotData);
-                        }
-                        throw ex;
-                    }
-                    catch (DigestMismatchException ex)
-                    {
-                        blockingReadRepairStartTimes.put(exec.command, System.nanoTime());
-                        Tracing.trace("Digest mismatch: {}", ex);
-
-                        ReadRepairMetrics.repairedBlocking.mark();
-                        Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.blockingReadRepairs.mark();
-
-                        // Do a full data read to resolve the correct response (and repair node that need be)
-                        RowDataResolver resolver = new RowDataResolver(exec.command.ksName, exec.command.key, exec.command.filter(), exec.command.timestamp, exec.handler.endpoints.size());
-                        ReadCallback<ReadResponse, Row> repairHandler = new ReadCallback<>(resolver,
-                                                                                           ConsistencyLevel.ALL,
-                                                                                           exec.getContactedReplicas().size(),
-                                                                                           exec.command,
-                                                                                           Keyspace.open(exec.command.getKeyspace()),
-                                                                                           exec.handler.endpoints);
-
-                        if (repairCommands == null)
-                        {
-                            repairCommands = new ArrayList<>();
-                            repairResponseHandlers = new ArrayList<>();
-                        }
-                        repairCommands.add(exec.command);
-                        repairResponseHandlers.add(repairHandler);
-
-                        MessageOut<ReadCommand> message = exec.command.createMessage();
-                        for (InetAddress endpoint : exec.getContactedReplicas())
-                        {
-                            Tracing.trace("Enqueuing full data read to {}", endpoint);
-                            MessagingService.instance().sendRRWithFailure(message, endpoint, repairHandler);
-                        }
-                    }
-                    finally
+                try (CloseableTracer ignored2 = CloseableTracer.startSpan("StorageProxy#readResults", ImmutableMap.of("numCommands", Integer.toString(commands.size())))) {
+                    for (AbstractReadExecutor exec : readExecutors)
                     {
                         try
                         {
-                            exec.writePredictedSpeculativeRetryPerformanceMetrics();
+                            Row row = exec.get();
+                            Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
+                            if (row != null)
+                            {
+                                row = exec.command.maybeTrim(row);
+                                rows.add(row);
+                            }
+
+                            if (logger.isTraceEnabled())
+                                logger.trace("Read: {} ms.", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - exec.handler.start));
                         }
-                        catch (RuntimeException e)
+                        catch (ReadTimeoutException | ReadFailureException ex)
                         {
-                            logger.error("Failed to write predicted speculative retry performance metrics", e);
+                            int blockFor = consistencyLevel.blockFor(Keyspace.open(exec.command.getKeyspace()));
+                            int responseCount = exec.handler.getReceivedCount();
+                            String gotData = responseCount > 0
+                                             ? exec.resolver.isDataPresent() ? " (including data)" : " (only digests)"
+                                             : "";
+
+                            boolean isTimeout = ex instanceof ReadTimeoutException;
+                            if (Tracing.isTracing())
+                            {
+                                Tracing.trace("{}; received {} of {} responses{}",
+                                              isTimeout ? "Timed out" : "Failed", responseCount, blockFor, gotData);
+                            }
+                            else if (logger.isDebugEnabled())
+                            {
+                                logger.debug("Read {}; received {} of {} responses{}", (isTimeout ? "timeout" : "failure"), responseCount, blockFor, gotData);
+                            }
+                            throw ex;
+                        }
+                        catch (DigestMismatchException ex)
+                        {
+                            blockingReadRepairStartTimes.put(exec.command, System.nanoTime());
+                            Tracing.trace("Digest mismatch: {}", ex);
+
+                            ReadRepairMetrics.repairedBlocking.mark();
+                            Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.blockingReadRepairs.mark();
+
+                            // Do a full data read to resolve the correct response (and repair node that need be)
+                            RowDataResolver resolver = new RowDataResolver(exec.command.ksName, exec.command.key, exec.command.filter(), exec.command.timestamp, exec.handler.endpoints.size());
+                            ReadCallback<ReadResponse, Row> repairHandler = new ReadCallback<>(resolver,
+                                                                                               ConsistencyLevel.ALL,
+                                                                                               exec.getContactedReplicas().size(),
+                                                                                               exec.command,
+                                                                                               Keyspace.open(exec.command.getKeyspace()),
+                                                                                               exec.handler.endpoints);
+
+                            if (repairCommands == null)
+                            {
+                                repairCommands = new ArrayList<>();
+                                repairResponseHandlers = new ArrayList<>();
+                            }
+                            repairCommands.add(exec.command);
+                            repairResponseHandlers.add(repairHandler);
+
+                            MessageOut<ReadCommand> message = exec.command.createMessage();
+                            for (InetAddress endpoint : exec.getContactedReplicas())
+                            {
+                                Tracing.trace("Enqueuing full data read to {}", endpoint);
+                                MessagingService.instance().sendRRWithFailure(message, endpoint, repairHandler);
+                            }
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                exec.writePredictedSpeculativeRetryPerformanceMetrics();
+                            }
+                            catch (RuntimeException e)
+                            {
+                                logger.error("Failed to write predicted speculative retry performance metrics", e);
+                            }
                         }
                     }
                 }
