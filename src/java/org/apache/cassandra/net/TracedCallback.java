@@ -18,10 +18,16 @@
 
 package org.apache.cassandra.net;
 
+import java.net.InetAddress;
+
+import com.google.common.collect.ImmutableMap;
+
 import com.palantir.tracing.DetachedSpan;
 
-public class TracedCallback<T> implements IAsyncCallback<T>
+public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
 {
+    private static final String METADATA_STATUS = "status";
+
     private final IAsyncCallback<T> delegate;
     private final DetachedSpan span;
 
@@ -34,11 +40,18 @@ public class TracedCallback<T> implements IAsyncCallback<T>
     public void response(MessageIn<T> msg)
     {
         delegate.response(msg);
-        span.complete();
+        span.complete(ImmutableMap.of(METADATA_STATUS, "success"));
     }
 
     public boolean isLatencyForSnitch()
     {
         return delegate.isLatencyForSnitch();
+    }
+
+    public void onFailure(InetAddress from)
+    {
+        // Trust that the caller has checked this for us.
+        ((IAsyncCallbackWithFailure<?>) delegate).onFailure(from);
+        span.complete(ImmutableMap.of(METADATA_STATUS, "failure"));
     }
 }
