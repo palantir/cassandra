@@ -36,6 +36,8 @@ import org.apache.cassandra.utils.FBUtilities;
 
 public class PageToken
 {
+    private static final byte PAGE_TOKEN_DIGEST_MARKER = 'a';
+
     private final Cell cell;
     private final boolean reachedEnd;
 
@@ -55,15 +57,13 @@ public class PageToken
         return reachedEnd;
     }
 
-    public PageTokenDigest digest()
+    public void updateDigest(MessageDigest digest)
     {
-        if (reachedEnd)
-        {
-            return PageTokenDigest.createPageTokenReachedEnd();
-        }
-        MessageDigest digest = FBUtilities.threadLocalMD5Digest();
-        cell.updateDigest(digest);
-        return PageTokenDigest.createPageTokenDigest(ByteBuffer.wrap(digest.digest()));
+        digest.update(PAGE_TOKEN_DIGEST_MARKER);
+
+        if (cell != null)
+            cell.updateDigest(digest);
+        digest.update((byte) (reachedEnd ? 1 : 0));
     }
 
     public static PageToken createPageToken(Cell pageToken)

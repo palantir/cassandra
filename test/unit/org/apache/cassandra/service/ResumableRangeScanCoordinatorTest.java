@@ -28,7 +28,6 @@ import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
 import org.apache.cassandra.db.filter.ColumnSlice;
 import org.apache.cassandra.db.filter.PageToken;
-import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.db.filter.SliceQueryFilter;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.SimpleStrategy;
@@ -92,8 +91,8 @@ public class ResumableRangeScanCoordinatorTest
         testReadResponses(new RowDigestResolver(KEYSPACE, key, REPLICATION_FACTOR),
                 row,
                 makeReadResponse("127.0.0.1", row),
-                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()),
-                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()));
+                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf)),
+                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf)));
     }
 
     @Test(expected = DigestMismatchException.class)
@@ -108,8 +107,8 @@ public class ResumableRangeScanCoordinatorTest
         testReadResponses(new RowDigestResolver(KEYSPACE, key, REPLICATION_FACTOR),
                 row,
                 makeReadResponse("127.0.0.1", row),
-                makeDigestResponse("127.0.0.2", ColumnFamily.digest(null), row.cf.pageToken().digest()),
-                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()));
+                makeDigestResponse("127.0.0.2", ColumnFamily.digest(null)),
+                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf)));
     }
 
     @Test(expected = DigestMismatchException.class)
@@ -124,8 +123,8 @@ public class ResumableRangeScanCoordinatorTest
         testReadResponses(new RowDigestResolver(KEYSPACE, key, REPLICATION_FACTOR),
                 row,
                 makeReadResponse("127.0.0.1", row),
-                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()),
-                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), PageTokenDigest.createPageTokenReachedEnd()));
+                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf)),
+                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf)));
     }
 
     @Test
@@ -141,8 +140,8 @@ public class ResumableRangeScanCoordinatorTest
         testReadResponses(new RowDigestResolver(KEYSPACE, key, REPLICATION_FACTOR),
                 row,
                 makeReadResponse("127.0.0.1", row),
-                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()),
-                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()));
+                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf)),
+                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf)));
     }
 
 
@@ -753,10 +752,10 @@ public class ResumableRangeScanCoordinatorTest
         }
     }
 
-    private MessageIn<ReadResponse> makeDigestResponse(String address, ByteBuffer digest, PageTokenDigest pageTokenDigest) throws UnknownHostException
+    private MessageIn<ReadResponse> makeDigestResponse(String address, ByteBuffer digest) throws UnknownHostException
     {
         return MessageIn.create(InetAddress.getByName(address),
-                new ReadResponse(digest, pageTokenDigest),
+                new ReadResponse(digest),
                 Collections.emptyMap(),
                 MessagingService.Verb.INTERNAL_RESPONSE,
                 MessagingService.current_version);

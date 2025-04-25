@@ -18,13 +18,11 @@
 package org.apache.cassandra.service;
 
 import java.nio.ByteBuffer;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
-import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.net.MessageIn;
 
 public class RowDigestResolver extends AbstractRowResolver
@@ -45,10 +43,7 @@ public class RowDigestResolver extends AbstractRowResolver
             if (!result.isDigestQuery())
             {
                 if (result.digest() == null)
-                {
-                    result.setDigest(ColumnFamily.digest(result.row().cf), (result.row().cf == null || !result.row().cf.isPageTokenSet()) ? null :
-                            result.row().cf.pageToken().digest());
-                }
+                    result.setDigest(ColumnFamily.digest(result.row().cf));
 
                 return result.row();
             }
@@ -77,41 +72,30 @@ public class RowDigestResolver extends AbstractRowResolver
         // also extract the data reply, if any.
         ColumnFamily data = null;
         ByteBuffer digest = null;
-        PageTokenDigest pageTokenDigest = null;
 
         for (MessageIn<ReadResponse> message : replies)
         {
             ReadResponse response = message.payload;
 
             ByteBuffer newDigest;
-            PageTokenDigest newPageTokenDigest;
             if (response.isDigestQuery())
             {
                 newDigest = response.digest();
-                newPageTokenDigest = response.pageTokenDigest();
             }
             else
             {
                 // note that this allows for multiple data replies, post-CASSANDRA-5932
                 data = response.row().cf;
                 if (response.digest() == null)
-                {
-                    message.payload.setDigest(ColumnFamily.digest(data), (data == null || !data.isPageTokenSet()) ? null : data.pageToken().digest());
-                }
+                    message.payload.setDigest(ColumnFamily.digest(data));
 
                 newDigest = response.digest();
-                newPageTokenDigest = response.pageTokenDigest();
             }
 
             if (digest == null)
-            {
                 digest = newDigest;
-                pageTokenDigest = newPageTokenDigest;
-            }
-            else if (!digest.equals(newDigest) || !Objects.equals(pageTokenDigest, newPageTokenDigest))
-            {
-                throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
-            }
+            else if (!digest.equals(newDigest))
+                throw new DigestMismatchException(key, digest, newDigest);
         }
 
         if (logger.isTraceEnabled())

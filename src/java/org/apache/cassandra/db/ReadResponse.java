@@ -20,7 +20,6 @@ package org.apache.cassandra.db;
 import java.io.*;
 import java.nio.ByteBuffer;
 
-import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
@@ -37,26 +36,23 @@ public class ReadResponse
 
     private final Row row;
     private volatile ByteBuffer digest;
-    private volatile PageTokenDigest pageTokenDigest;
-    // need to add page token here or somehow incorporate into the digest
 
-    public ReadResponse(ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    public ReadResponse(ByteBuffer digest)
     {
-        this(null, digest, pageTokenDigest);
+        this(null, digest);
         assert digest != null;
     }
 
     public ReadResponse(Row row)
     {
-        this(row, null, null);
+        this(row, null);
         assert row != null;
     }
 
-    private ReadResponse(Row row, ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    private ReadResponse(Row row, ByteBuffer digest)
     {
         this.row = row;
         this.digest = digest;
-        this.pageTokenDigest = pageTokenDigest;
     }
 
     public Row row()
@@ -69,15 +65,9 @@ public class ReadResponse
         return digest;
     }
 
-    public PageTokenDigest pageTokenDigest()
-    {
-        return pageTokenDigest;
-    }
-
-    public synchronized void setDigest(ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    public void setDigest(ByteBuffer digest)
     {
         this.digest = digest;
-        this.pageTokenDigest = pageTokenDigest;
     }
 
     public boolean isDigestQuery()
@@ -94,20 +84,8 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         ByteBuffer buffer = response.isDigestQuery() ? response.digest() : ByteBufferUtil.EMPTY_BYTE_BUFFER;
         out.write(buffer);
         out.writeBoolean(response.isDigestQuery());
-        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_PLTR)
-        {
-            PageTokenDigest pageTokenDigest = response.pageTokenDigest();
-            boolean pageTokenDigestExists = pageTokenDigest != null;
-            out.writeBoolean(pageTokenDigestExists);
-            if (pageTokenDigestExists)
-            {
-                PageTokenDigest.serializer.serialize(pageTokenDigest, out, version);
-            }
-        }
         if (!response.isDigestQuery())
-        {
             Row.serializer.serialize(response.row(), out, version);
-        }
     }
 
     public ReadResponse deserialize(DataInput in, int version) throws IOException
@@ -122,24 +100,14 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         boolean isDigest = in.readBoolean();
         assert isDigest == digestSize > 0;
 
-        if (isDigest)
+        Row row = null;
+        if (!isDigest)
         {
-            if (version < MessagingService.VERSION_22_PLTR)
-            {
-                return new ReadResponse(ByteBuffer.wrap(digest), null);
-            }
-            boolean pageTokenDigestExists = in.readBoolean();
-            if (pageTokenDigestExists)
-            {
-                PageTokenDigest pageTokenDigest = PageTokenDigest.serializer.deserialize(in, version);
-                return new ReadResponse(ByteBuffer.wrap(digest), pageTokenDigest);
-            }
-            return new ReadResponse(ByteBuffer.wrap(digest), null);
+            // This is coming from a remote host
+            row = Row.serializer.deserialize(in, version, ColumnSerializer.Flag.FROM_REMOTE);
         }
 
-        // This is coming from a remote host
-        Row row = Row.serializer.deserialize(in, version, ColumnSerializer.Flag.FROM_REMOTE);
-        return new ReadResponse(row);
+        return isDigest ? new ReadResponse(ByteBuffer.wrap(digest)) : new ReadResponse(row);
     }
 
     public long serializedSize(ReadResponse response, int version)
@@ -149,19 +117,8 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         int size = typeSizes.sizeof(buffer.remaining());
         size += buffer.remaining();
         size += typeSizes.sizeof(response.isDigestQuery());
-        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_PLTR)
-        {
-            boolean pageTokenDigestExists = response.pageTokenDigest() != null;
-            size += typeSizes.sizeof(pageTokenDigestExists);
-            if (pageTokenDigestExists)
-            {
-                size += PageTokenDigest.serializer.serializedSize(response.pageTokenDigest(), version);
-            }
-        }
         if (!response.isDigestQuery())
-        {
             size += Row.serializer.serializedSize(response.row(), version);
-        }
 
         return size;
     }

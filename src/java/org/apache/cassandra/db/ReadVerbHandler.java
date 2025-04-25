@@ -68,7 +68,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
     {
         if (command.isDigestQuery())
         {
-            return new ReadResponse(ColumnFamily.digest(row.cf), (row.cf == null || !row.cf.isPageTokenSet()) ? null : row.cf.pageToken().digest());
+            return new ReadResponse(ColumnFamily.digest(row.cf));
         }
         else
         {

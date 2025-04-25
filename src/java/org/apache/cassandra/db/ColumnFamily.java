@@ -476,6 +476,9 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
             cell.updateDigest(digest);
 
         deletionInfo().updateDigest(digest);
+
+        if (pageToken != null)
+            pageToken.updateDigest(digest);
     }
 
     public static ColumnFamily diff(ColumnFamily cf1, ColumnFamily cf2)
