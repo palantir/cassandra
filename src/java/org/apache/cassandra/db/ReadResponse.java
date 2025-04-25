@@ -38,7 +38,6 @@ public class ReadResponse
     private final Row row;
     private volatile ByteBuffer digest;
     private volatile PageTokenDigest pageTokenDigest;
-    // need to add page token here or somehow incorporate into the digest
 
     public ReadResponse(ByteBuffer digest, PageTokenDigest pageTokenDigest)
     {
@@ -64,12 +63,12 @@ public class ReadResponse
         return row;
     }
 
-    public ByteBuffer digest()
+    public synchronized ByteBuffer digest()
     {
         return digest;
     }
 
-    public PageTokenDigest pageTokenDigest()
+    public synchronized PageTokenDigest pageTokenDigest()
     {
         return pageTokenDigest;
     }
@@ -80,7 +79,7 @@ public class ReadResponse
         this.pageTokenDigest = pageTokenDigest;
     }
 
-    public boolean isDigestQuery()
+    public synchronized boolean isDigestQuery()
     {
         return digest != null && row == null;
     }
