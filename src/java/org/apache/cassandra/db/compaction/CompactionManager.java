@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import javax.management.openmbean.OpenDataException;
 import javax.management.openmbean.TabularData;
 
@@ -1949,6 +1950,33 @@ public class CompactionManager implements CompactionManagerMBean
     public void setMaximumValidatorThreads(int number)
     {
         validationExecutor.setMaximumPoolSize(number);
+    }
+
+    public Map<String, Integer> getPendingCompactionTasksByKeyspaceColumnFamily()
+    {
+        return getPendingCompactionTasks().entrySet().stream()
+                                          .collect(Collectors.toMap(
+                                              ksCfPair -> String.format("%s/%s", ksCfPair.getKey().keyspace, ksCfPair.getKey().name),
+                                              Map.Entry::getValue
+                                          ));
+    }
+
+    private Map<ColumnFamilyStore, Integer> getPendingCompactionTasks()
+    {
+        Map<ColumnFamilyStore, Integer> pendingTasks = new HashMap<>();
+        for (String keyspaceName : Schema.instance.getKeyspaces())
+        {
+            for (ColumnFamilyStore cfs : Keyspace.open(keyspaceName).getColumnFamilyStores())
+            {
+                int estimatedTasks = cfs.getCompactionStrategy().getEstimatedRemainingTasks();
+                if (estimatedTasks > 0)
+                {
+                    pendingTasks.put(cfs, estimatedTasks);
+                }
+            }
+        }
+
+        return pendingTasks;
     }
 
     /**
