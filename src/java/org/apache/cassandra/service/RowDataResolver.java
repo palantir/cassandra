@@ -170,18 +170,30 @@ public class RowDataResolver extends AbstractRowResolver
 
     private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
     {
-        List<ColumnFamily> allCfsWithPageTokens = StreamSupport.stream(Iterables.concat(
-                versions,
-                Collections.singleton(resolved)
-        ).spliterator(), false).filter(Objects::nonNull).filter(ColumnFamily::isPageTokenSet).collect(Collectors.toList());
+
+        List<ColumnFamily> allCfsWithPageTokens = new ArrayList<>(Iterables.size(versions) + 1);
+        for (ColumnFamily version : versions)
+        {
+            if (version != null && version.isPageTokenSet())
+            {
+                allCfsWithPageTokens.add(version);
+            }
+        }
+        if (resolved != null && resolved.isPageTokenSet())
+        {
+            allCfsWithPageTokens.add(resolved);
+        }
 
         if (allCfsWithPageTokens.isEmpty())
         {
             return null;
         }
 
-        List<PageToken> allPageTokens =
-                allCfsWithPageTokens.stream().map(ColumnFamily::pageToken).collect(Collectors.toList());
+        List<PageToken> allPageTokens = new ArrayList<>(Iterables.size(allCfsWithPageTokens));
+        for (ColumnFamily cf : allCfsWithPageTokens)
+        {
+            allPageTokens.add(cf.pageToken());
+        }
 
         return Collections.min(allPageTokens, new PageToken.Comparator(allCfsWithPageTokens.get(0).getComparator()));
     }
