@@ -580,7 +580,7 @@ public class StorageProxy implements StorageProxyMBean
 
         ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
 
-        try
+        try (CloseableTracer ignored = CloseableTracer.startSpan("StorageProxy#mutate"))
         {
             for (IMutation mutation : mutations)
             {

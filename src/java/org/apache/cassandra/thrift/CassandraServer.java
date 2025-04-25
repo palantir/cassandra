@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
+import com.palantir.tracing.CloseableTracer;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -1236,7 +1237,7 @@ public class CassandraServer implements Cassandra.Iface
             logger.trace("batch_mutate");
         }
 
-        try
+        try (CloseableTracer ignored = CloseableTracer.startSpan("batch_mutate#doInsert"))
         {
             doInsert(consistency_level, createMutationList(consistency_level, mutation_map, true));
         }
