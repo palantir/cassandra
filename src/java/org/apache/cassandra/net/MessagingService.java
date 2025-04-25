@@ -679,7 +679,7 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public int sendRR(MessageOut message, InetAddress to, IAsyncCallback cb, long timeout, boolean failureCallback)
     {
-        int id = addCallback(cb, message, to, timeout, failureCallback);
+        int id = addCallback(new TracedCallback(cb, "OUT: " + message.verb.toString()), message, to, timeout, failureCallback);
         sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE) : message, id, to);
         return id;
     }
@@ -701,7 +701,7 @@ public final class MessagingService implements MessagingServiceMBean
                       AbstractWriteResponseHandler<?> handler,
                       boolean allowHints)
     {
-        int id = addCallback(handler, message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
+        int id = addCallback(new TracedCallback(handler, "OUT: " + message.verb.toString()), message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
         sendOneWay(message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE), id, to);
         return id;
     }
