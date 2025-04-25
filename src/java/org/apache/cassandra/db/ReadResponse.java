@@ -19,12 +19,15 @@ package org.apache.cassandra.db;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
+import org.apache.cassandra.utils.Pair;
 
 /*
  * The read response message is sent by the server when reading data
@@ -34,15 +37,16 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 public class ReadResponse
 {
     public static final IVersionedSerializer<ReadResponse> serializer = new ReadResponseSerializer();
+    private static final AtomicReferenceFieldUpdater<ReadResponse, Pair<ByteBuffer, PageTokenDigest>> digestUpdater =
+            AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, (Class<Pair<ByteBuffer, PageTokenDigest>>) (Class<?>) Pair.class, "digest");
 
     private final Row row;
-    private volatile ByteBuffer digest;
-    private volatile PageTokenDigest pageTokenDigest;
+    private volatile Pair<ByteBuffer, PageTokenDigest> digest;
 
-    public ReadResponse(ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    public ReadResponse(ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
     {
-        this(null, digest, pageTokenDigest);
-        assert digest != null;
+        this(null, dataDigest, pageTokenDigest);
+        assert dataDigest != null;
     }
 
     public ReadResponse(Row row)
@@ -51,11 +55,10 @@ public class ReadResponse
         assert row != null;
     }
 
-    private ReadResponse(Row row, ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    private ReadResponse(Row row, ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
     {
         this.row = row;
-        this.digest = digest;
-        this.pageTokenDigest = pageTokenDigest;
+        this.digest = Pair.create(dataDigest, pageTokenDigest);
     }
 
     public Row row()
@@ -63,23 +66,32 @@ public class ReadResponse
         return row;
     }
 
-    public synchronized ByteBuffer digest()
+    public ByteBuffer digest()
     {
-        return digest;
+        return digest.left;
     }
 
-    public synchronized PageTokenDigest pageTokenDigest()
+    public PageTokenDigest pageTokenDigest()
     {
-        return pageTokenDigest;
+        return digest.right;
     }
 
-    public synchronized void setDigest(ByteBuffer digest, PageTokenDigest pageTokenDigest)
+    public void setDigest(ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
     {
-        this.digest = digest;
-        this.pageTokenDigest = pageTokenDigest;
+        Pair<ByteBuffer, PageTokenDigest> curr = this.digest;
+        Pair<ByteBuffer, PageTokenDigest> newDigest = Pair.create(dataDigest, pageTokenDigest);
+        if (!digestUpdater.compareAndSet(this, curr, newDigest))
+        {
+            assert newDigest.equals(this.digest) :
+                    String.format("Digest mismatch : data(%s), pageToken(%s) vs data(%s), pageTokenDigest(%s)",
+                            Arrays.toString(dataDigest.array()),
+                            pageTokenDigest,
+                            Arrays.toString(this.digest.left.array()),
+                            this.digest.right);
+        }
     }
 
-    public synchronized boolean isDigestQuery()
+    public boolean isDigestQuery()
     {
         return digest != null && row == null;
     }
