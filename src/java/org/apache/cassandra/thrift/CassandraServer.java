@@ -279,10 +279,8 @@ public class CassandraServer implements Cassandra.Iface
 
     private PageToken thriftifyPageToken(org.apache.cassandra.db.filter.PageToken pageToken)
     {
-        if (pageToken == null)
-        {
-            return null;
-        }
+        assert pageToken != null : "Page token should never be null when using paging";
+
         if (pageToken.isReachedEnd())
         {
             return new PageToken().setEnd_of_row(true);
