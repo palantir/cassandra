@@ -24,15 +24,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
+import com.palantir.cassandra.objects.CompactionEstimationWrapper;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Directories;
@@ -61,6 +61,7 @@ public class CompactionTask extends AbstractCompactionTask
     private final boolean offline;
     protected static long totalBytesCompacted = 0;
     private CompactionExecutorStatsCollector collector;
+    private CompactionTracker tracker;
     private static final boolean CONSIDER_CONCURRENT_COMPACTIONS = Boolean.getBoolean("palantir_cassandra.consider_concurrent_compactions");
     private static final long FIVE_GIBIBYTES_IN_BYTES = 5 * 1024 * 1024 * 1024L;
 
@@ -76,9 +77,10 @@ public class CompactionTask extends AbstractCompactionTask
         return totalBytesCompacted += bytesCompacted;
     }
 
-    protected int executeInternal(CompactionExecutorStatsCollector collector)
+    protected int executeInternal(CompactionExecutorStatsCollector collector, CompactionTracker tracker)
     {
         this.collector = collector;
+        this.tracker = tracker;
         run();
         return transaction.originals().size();
     }
@@ -125,9 +127,10 @@ public class CompactionTask extends AbstractCompactionTask
         // note that we need to do a rough estimate early if we can fit the compaction on disk - this is pessimistic, but
         // since we might remove sstables from the compaction in checkAvailableDiskSpace it needs to be done here
 
-        BiFunction<Long, Long, Boolean> checkAvailableDiskSpaceFunction = CONSIDER_CONCURRENT_COMPACTIONS
-                                                                          ? cfs.directories::checkAvailableDiskSpaceConsideringConcurrentCompactions
-                                                                          : cfs.directories::checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions;
+        Function<CompactionEstimationWrapper, Boolean> checkAvailableDiskSpaceFunction = CONSIDER_CONCURRENT_COMPACTIONS
+                                                                                         ? cfs.directories::checkAvailableDiskSpaceConsideringConcurrentCompactions
+                                                                                         : cfs.directories::checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions;
+
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
 
@@ -201,8 +204,10 @@ public class CompactionTask extends AbstractCompactionTask
                 if (!controller.cfs.getCompactionStrategy().isActive)
                     throw new CompactionInterruptedException(ci.getCompactionInfo());
 
-                if (collector != null)
-                    collector.beginCompaction(ci);
+                if (tracker != null)
+                {
+                    tracker.beginCompaction(ci);
+                }
 
                 try (CompactionAwareWriter writer = getCompactionAwareWriter(cfs, transaction, actuallyCompact))
                 {
@@ -252,7 +257,10 @@ public class CompactionTask extends AbstractCompactionTask
                 SystemKeyspace.finishCompaction(taskId);
 
             if (collector != null && ci != null)
+            {
                 collector.finishCompaction(ci);
+                tracker.finishCompaction(ci);
+            }
         }
 
         try
@@ -374,7 +382,7 @@ public class CompactionTask extends AbstractCompactionTask
     Returns the new size of the compaction given the dropped sstables.
     Takes into account space that will be taken by other compactions.
      */
-    protected long checkAvailableDiskSpaceAndGetWriteSize(BiFunction<Long, Long, Boolean> getAvailableDiskSpace)
+    protected long checkAvailableDiskSpaceAndGetWriteSize(Function<CompactionEstimationWrapper, Boolean> getAvailableDiskSpace)
     {
         long expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
         if (!cfs.isCompactionDiskSpaceCheckEnabled()) {
@@ -387,9 +395,12 @@ public class CompactionTask extends AbstractCompactionTask
         while(true)
         {
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
-
-            if(getAvailableDiskSpace.apply(estimatedSSTables, expectedWriteSize))
+            if (getAvailableDiskSpace.apply(CompactionEstimationWrapper.of(estimatedSSTables,
+                                                                           expectedWriteSize,
+                                                                           tracker.getTotalCompletedBytes())))
+            {
                 break;
+            }
 
             if (!reduceScopeForLimitedSpace(expectedWriteSize))
             {

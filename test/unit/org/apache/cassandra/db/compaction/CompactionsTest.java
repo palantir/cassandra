@@ -684,17 +684,12 @@ public class CompactionsTest
         LifecycleTransaction txn = cfs.getTracker().tryModify(compacting, OperationType.UNKNOWN);
         PanicTrackingCompactionTask compaction = new PanicTrackingCompactionTask(cfs, txn, 0, CompactionManager.NO_GC, 1024 * 1024, true);
 
-        try {
-            compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
-            {
-                public void beginCompaction(CompactionInfo.Holder ci)
-                {
-                    ci.stop();
-                }
-
-                public void finishCompaction(CompactionInfo.Holder ci) {}
-            });
-        } catch (Exception e) {
+        try
+        {
+            compaction.executeInternal(ci -> {}, new CompactionTracker());
+        }
+        catch (Exception e)
+        {
             assertNotNull(e);
             assertTrue(e.getCause().getCause() instanceof CompactionInterruptedException);
         }

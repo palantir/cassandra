@@ -41,7 +41,7 @@ public class SSTableSplitter {
 
     public void split()
     {
-        task.execute(new StatsCollector());
+        task.execute(new StatsCollector(), new CompactionTracker());
     }
 
     public class StatsCollector implements CompactionManager.CompactionExecutorStatsCollector
