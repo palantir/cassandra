@@ -108,7 +108,7 @@ public class LongLeveledCompactionStrategyTest
                 {
                     public void run()
                     {
-                        nextTask.execute(null, null);
+                        nextTask.execute(null, new CompactionTracker());
                     }
                 });
             }
