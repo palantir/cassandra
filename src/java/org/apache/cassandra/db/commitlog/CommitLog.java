@@ -233,12 +233,14 @@ public class CommitLog implements CommitLogMBean
      */
     public void sync(boolean syncAllSegments)
     {
-        CommitLogSegment current = allocator.allocatingFrom();
-        for (CommitLogSegment segment : allocator.getActiveSegments())
-        {
-            if (!syncAllSegments && segment.id > current.id)
-                return;
-            segment.sync();
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLog#sync")) {
+            CommitLogSegment current = allocator.allocatingFrom();
+            for (CommitLogSegment segment : allocator.getActiveSegments())
+            {
+                if (!syncAllSegments && segment.id > current.id)
+                    return;
+                segment.sync();
+            }
         }
     }
 

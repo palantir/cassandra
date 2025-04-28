@@ -18,12 +18,20 @@
  */
 package org.apache.cassandra.utils.concurrent;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+
 import com.codahale.metrics.Timer;
+import com.palantir.tracing.DetachedSpan;
+import com.palantir.tracing.Tracer;
+
+import static com.fasterxml.jackson.databind.type.LogicalType.Map;
 
 /**
  * <p>A relatively easy to use utility for general purpose thread signalling.</p>
@@ -320,6 +328,7 @@ public final class WaitQueue
      */
     private class RegisteredSignal extends AbstractSignal
     {
+        private final DetachedSpan span = DetachedSpan.start("WaitQueue#parked");
         private volatile Thread thread = Thread.currentThread();
         volatile int state;
 
@@ -344,6 +353,11 @@ public final class WaitQueue
             {
                 Thread thread = this.thread;
                 LockSupport.unpark(thread);
+                if (Tracer.hasTraceId()) {
+                    this.span.complete(ImmutableMap.of("childTraceIds", Tracer.getTraceId()));
+                } else {
+                    this.span.complete();
+                }
                 this.thread = null;
                 return thread;
             }

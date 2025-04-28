@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import com.palantir.tracing.CloseableTracer;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.compress.BufferType;
@@ -102,7 +103,7 @@ public class CompressedSegment extends CommitLogSegment
         // The length may be 0 when the segment is being closed.
         assert length > 0 || length == 0 && !isStillAllocating();
 
-        try
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CompressedSegment#write"))
         {
             int neededBufferSize = compressor.initialCompressedBufferLength(length) + COMPRESSED_MARKER_SIZE;
             ByteBuffer compressedBuffer = compressedBufferHolder.get();
@@ -117,7 +118,11 @@ public class CompressedSegment extends CommitLogSegment
             ByteBuffer inputBuffer = buffer.duplicate();
             inputBuffer.limit(contentStart + length).position(contentStart);
             compressedBuffer.limit(compressedBuffer.capacity()).position(COMPRESSED_MARKER_SIZE);
-            compressor.compress(inputBuffer, compressedBuffer);
+
+            try (CloseableTracer ignored2 = CloseableTracer.startSpan("CompressedSegment#compress"))
+            {
+                compressor.compress(inputBuffer, compressedBuffer);
+            }
 
             compressedBuffer.flip();
             compressedBuffer.putInt(SYNC_MARKER_SIZE, length);
@@ -126,10 +131,18 @@ public class CompressedSegment extends CommitLogSegment
             // Protected by synchronization on CommitLogSegment.sync().
             writeSyncMarker(id, compressedBuffer, 0, (int) channel.position(), (int) channel.position() + compressedBuffer.remaining());
             commitLog.allocator.addSize(compressedBuffer.limit());
-            channel.write(compressedBuffer);
+
+            try (CloseableTracer ignored2 = CloseableTracer.startSpan("CompressedSegment#writeToChannel"))
+            {
+                channel.write(compressedBuffer);
+            }
             assert channel.position() - lastWrittenPos == compressedBuffer.limit();
             lastWrittenPos = channel.position();
-            SyncUtil.force(channel, true);
+
+            try (CloseableTracer ignored2 = CloseableTracer.startSpan("CompressedSegment#forceFlush"))
+            {
+                SyncUtil.force(channel, true);
+            }
         }
         catch (Exception e)
         {

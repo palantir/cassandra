@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.tracing;
 
+import com.palantir.tracing.CloseableTracer;
 import com.palantir.tracing.Observability;
 import com.palantir.tracing.Tracer;
 import com.palantir.tracing.Tracers;

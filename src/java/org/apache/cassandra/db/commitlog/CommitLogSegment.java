@@ -255,8 +255,11 @@ public abstract class CommitLogSegment
      */
     void waitForModifications()
     {
-        // issue a barrier and wait for it
-        appendOrder.awaitNewBarrier();
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLogSegment#waitForModifications"))
+        {
+            // issue a barrier and wait for it
+            appendOrder.awaitNewBarrier();
+        }
     }
 
     /**

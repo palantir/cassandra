@@ -18,6 +18,12 @@
 package org.apache.cassandra.db.commitlog;
 
 import com.palantir.logsafe.SafeArg;
+import com.palantir.tracing.CloseableTracer;
+import com.palantir.tracing.Observability;
+import com.palantir.tracing.Tracer;
+import com.palantir.tracing.Tracers;
+import com.palantir.tracing.api.SpanType;
+import org.apache.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 import org.slf4j.*;
 
@@ -84,6 +90,11 @@ public abstract class AbstractCommitLogService
                 boolean run = true;
                 while (run)
                 {
+                    Tracer.initTraceWithSpan(
+                        Observability.UNDECIDED,
+                        Tracers.randomId(),
+                        "AbstractCommitLogService#runIteration",
+                        SpanType.LOCAL);
                     try
                     {
                         // always run once after shutdown signalled
@@ -152,6 +163,10 @@ public abstract class AbstractCommitLogService
                         {
                             throw new AssertionError();
                         }
+                    }
+                    finally
+                    {
+                        Tracer.fastCompleteSpan();
                     }
                 }
             }
