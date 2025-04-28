@@ -29,6 +29,7 @@ import java.util.stream.StreamSupport;
 
 import com.google.common.collect.Iterables;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;

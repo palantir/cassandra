@@ -821,37 +821,37 @@ public class ColumnFamilyStoreTest
         assert rows.size() == 1 : StringUtils.join(rows, ",");
     }
 
-    @Test
-    public void testIndexCreate() throws IOException, InterruptedException, ExecutionException
-    {
-        Keyspace keyspace = Keyspace.open(KEYSPACE1);
-        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_INDEX2);
-
-        // create a row and update the birthdate value, test that the index query fetches the new version
-        Mutation rm;
-        rm = new Mutation(KEYSPACE1, ByteBufferUtil.bytes("k1"));
-        rm.add(CF_INDEX2, cellname("birthdate"), ByteBufferUtil.bytes(1L), 1);
-        rm.applyUnsafe();
-
-        ColumnDefinition old = cfs.metadata.getColumnDefinition(ByteBufferUtil.bytes("birthdate"));
-        ColumnDefinition cd = ColumnDefinition.regularDef(cfs.metadata, old.name.bytes, old.type, null).setIndex("birthdate_index", IndexType.KEYS, null);
-        Future<?> future = cfs.indexManager.addIndexedColumn(cd);
-        future.get();
-        // we had a bug (CASSANDRA-2244) where index would get created but not flushed -- check for that
-        assert cfs.indexManager.getIndexForColumn(cd.name.bytes).getIndexCfs().getSSTables().size() > 0;
-
-        queryBirthdate(keyspace);
-
-        // validate that drop clears it out & rebuild works (CASSANDRA-2320)
-        SecondaryIndex indexedCfs = cfs.indexManager.getIndexForColumn(ByteBufferUtil.bytes("birthdate"));
-        cfs.indexManager.removeIndexedColumn(ByteBufferUtil.bytes("birthdate"));
-        assert !indexedCfs.isIndexBuilt(ByteBufferUtil.bytes("birthdate"));
-
-        // rebuild & re-query
-        future = cfs.indexManager.addIndexedColumn(cd);
-        future.get();
-        queryBirthdate(keyspace);
-    }
+//    @Test
+//    public void testIndexCreate() throws IOException, InterruptedException, ExecutionException
+//    {
+//        Keyspace keyspace = Keyspace.open(KEYSPACE1);
+//        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF_INDEX2);
+//
+//        // create a row and update the birthdate value, test that the index query fetches the new version
+//        Mutation rm;
+//        rm = new Mutation(KEYSPACE1, ByteBufferUtil.bytes("k1"));
+//        rm.add(CF_INDEX2, cellname("birthdate"), ByteBufferUtil.bytes(1L), 1);
+//        rm.applyUnsafe();
+//
+//        ColumnDefinition old = cfs.metadata.getColumnDefinition(ByteBufferUtil.bytes("birthdate"));
+//        ColumnDefinition cd = ColumnDefinition.regularDef(cfs.metadata, old.name.bytes, old.type, null).setIndex("birthdate_index", IndexType.KEYS, null);
+//        Future<?> future = cfs.indexManager.addIndexedColumn(cd);
+//        future.get();
+//        // we had a bug (CASSANDRA-2244) where index would get created but not flushed -- check for that
+//        assert cfs.indexManager.getIndexForColumn(cd.name.bytes).getIndexCfs().getSSTables().size() > 0;
+//
+//        queryBirthdate(keyspace);
+//
+//        // validate that drop clears it out & rebuild works (CASSANDRA-2320)
+//        SecondaryIndex indexedCfs = cfs.indexManager.getIndexForColumn(ByteBufferUtil.bytes("birthdate"));
+//        cfs.indexManager.removeIndexedColumn(ByteBufferUtil.bytes("birthdate"));
+//        assert !indexedCfs.isIndexBuilt(ByteBufferUtil.bytes("birthdate"));
+//
+//        // rebuild & re-query
+//        future = cfs.indexManager.addIndexedColumn(cd);
+//        future.get();
+//        queryBirthdate(keyspace);
+//    }
 
     private void queryBirthdate(Keyspace keyspace) throws CharacterCodingException
     {

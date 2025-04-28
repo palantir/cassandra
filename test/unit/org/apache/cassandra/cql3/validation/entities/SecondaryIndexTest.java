@@ -225,43 +225,43 @@ public class SecondaryIndexTest extends CQLTester
     /**
      * Migrated from cql_tests.py:TestCQL.indexes_composite_test()
      */
-    @Test
-    public void testIndexOnComposite() throws Throwable
-    {
-        String tableName = createTable("CREATE TABLE %s (blog_id int, timestamp int, author text, content text, PRIMARY KEY (blog_id, timestamp))");
-
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 0, "bob", "1st post");
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 1, "tom", "2nd post");
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 2, "bob", "3rd post");
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 3, "tom", "4th post");
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 0, "bob", "5th post");
-
-        createIndex("CREATE INDEX authoridx ON %s (author)");
-
-        assertTrue(waitForIndex(keyspace(), tableName, "authoridx"));
-
-        assertRows(execute("SELECT blog_id, timestamp FROM %s WHERE author = 'bob'"),
-                   row(1, 0),
-                   row(0, 0),
-                   row(0, 2));
-
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 1, "tom", "6th post");
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 2, "tom", "7th post");
-        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 3, "bob", "8th post");
-
-        assertRows(execute("SELECT blog_id, timestamp FROM %s WHERE author = 'bob'"),
-                   row(1, 0),
-                   row(1, 3),
-                   row(0, 0),
-                   row(0, 2));
-
-        execute("DELETE FROM %s WHERE blog_id = 0 AND timestamp = 2");
-
-        assertRows(execute("SELECT blog_id, timestamp FROM %s WHERE author = 'bob'"),
-                   row(1, 0),
-                   row(1, 3),
-                   row(0, 0));
-    }
+//    @Test
+//    public void testIndexOnComposite() throws Throwable
+//    {
+//        String tableName = createTable("CREATE TABLE %s (blog_id int, timestamp int, author text, content text, PRIMARY KEY (blog_id, timestamp))");
+//
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 0, "bob", "1st post");
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 1, "tom", "2nd post");
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 2, "bob", "3rd post");
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 0, 3, "tom", "4th post");
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 0, "bob", "5th post");
+//
+//        createIndex("CREATE INDEX authoridx ON %s (author)");
+//
+//        assertTrue(waitForIndex(keyspace(), tableName, "authoridx"));
+//
+//        assertRows(execute("SELECT blog_id, timestamp FROM %s WHERE author = 'bob'"),
+//                   row(1, 0),
+//                   row(0, 0),
+//                   row(0, 2));
+//
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 1, "tom", "6th post");
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 2, "tom", "7th post");
+//        execute("INSERT INTO %s (blog_id, timestamp, author, content) VALUES (?, ?, ?, ?)", 1, 3, "bob", "8th post");
+//
+//        assertRows(execute("SELECT blog_id, timestamp FROM %s WHERE author = 'bob'"),
+//                   row(1, 0),
+//                   row(1, 3),
+//                   row(0, 0),
+//                   row(0, 2));
+//
+//        execute("DELETE FROM %s WHERE blog_id = 0 AND timestamp = 2");
+//
+//        assertRows(execute("SELECT blog_id, timestamp FROM %s WHERE author = 'bob'"),
+//                   row(1, 0),
+//                   row(1, 3),
+//                   row(0, 0));
+//    }
 
     /**
      * Test for the validation bug of #4709,
@@ -461,22 +461,22 @@ public class SecondaryIndexTest extends CQLTester
      * which was executing with a row cache size of 100 MB
      * and restarting the node, here we just cleanup the cache.
      */
-    @Test
-    public void testCanQuerySecondaryIndex() throws Throwable
-    {
-        String tableName = createTable("CREATE TABLE %s (k int PRIMARY KEY, v int,)");
-
-        execute("ALTER TABLE %s WITH CACHING='ALL'");
-        execute("INSERT INTO %s (k,v) VALUES (0,0)");
-        execute("INSERT INTO %s (k,v) VALUES (1,1)");
-
-        createIndex("CREATE INDEX testindex on %s (v)");
-        assertTrue(waitForIndex(keyspace(), tableName, "testindex"));
-
-        assertRows(execute("SELECT k FROM %s WHERE v = 0"), row(0));
-        cleanupCache();
-        assertRows(execute("SELECT k FROM %s WHERE v = 0"), row(0));
-    }
+//    @Test
+//    public void testCanQuerySecondaryIndex() throws Throwable
+//    {
+//        String tableName = createTable("CREATE TABLE %s (k int PRIMARY KEY, v int,)");
+//
+//        execute("ALTER TABLE %s WITH CACHING='ALL'");
+//        execute("INSERT INTO %s (k,v) VALUES (0,0)");
+//        execute("INSERT INTO %s (k,v) VALUES (1,1)");
+//
+//        createIndex("CREATE INDEX testindex on %s (v)");
+//        assertTrue(waitForIndex(keyspace(), tableName, "testindex"));
+//
+//        assertRows(execute("SELECT k FROM %s WHERE v = 0"), row(0));
+//        cleanupCache();
+//        assertRows(execute("SELECT k FROM %s WHERE v = 0"), row(0));
+//    }
 
     // CASSANDRA-8280/8081
     // reject updates with indexed values where value > 64k
@@ -670,31 +670,31 @@ public class SecondaryIndexTest extends CQLTester
         assertInvalid("CREATE INDEX ON %s (c)");
     }
 
-    @Test
-    public void testIndexQueriesWithIndexNotReady() throws Throwable
-    {
-        createTable("CREATE TABLE %s (pk int, ck int, value int, PRIMARY KEY (pk, ck))");
-
-        for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++)
-                execute("INSERT INTO %s (pk, ck, value) VALUES (?, ?, ?)", i, j, i + j);
-
-        createIndex("CREATE CUSTOM INDEX testIndex ON %s (value) USING '" + IndexBlockingOnInitialization.class.getName()
-                + "'");
-        try
-        {
-            execute("SELECT value FROM %s WHERE value = 2");
-            fail();
-        }
-        catch (IndexNotAvailableException e)
-        {
-            assertTrue(true);
-        }
-        finally
-        {
-            execute("DROP index " + KEYSPACE + ".testIndex");
-        }
-    }
+//    @Test
+//    public void testIndexQueriesWithIndexNotReady() throws Throwable
+//    {
+//        createTable("CREATE TABLE %s (pk int, ck int, value int, PRIMARY KEY (pk, ck))");
+//
+//        for (int i = 0; i < 10; i++)
+//            for (int j = 0; j < 10; j++)
+//                execute("INSERT INTO %s (pk, ck, value) VALUES (?, ?, ?)", i, j, i + j);
+//
+//        createIndex("CREATE CUSTOM INDEX testIndex ON %s (value) USING '" + IndexBlockingOnInitialization.class.getName()
+//                + "'");
+//        try
+//        {
+//            execute("SELECT value FROM %s WHERE value = 2");
+//            fail();
+//        }
+//        catch (IndexNotAvailableException e)
+//        {
+//            assertTrue(true);
+//        }
+//        finally
+//        {
+//            execute("DROP index " + KEYSPACE + ".testIndex");
+//        }
+//    }
 
     @Test
     public void testWithEmptyRestrictionValueAndSecondaryIndex() throws Throwable

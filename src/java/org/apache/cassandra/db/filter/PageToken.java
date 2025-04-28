@@ -29,6 +29,7 @@ import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnSerializer;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.db.composites.CellNameType;
+import org.apache.cassandra.db.composites.Composite;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;

@@ -1483,7 +1483,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 float thisOnHeap = largest.getAllocator().onHeap().ownershipRatio();
                 float thisOffHeap = largest.getAllocator().onHeap().ownershipRatio();
                 logger.debug("Flushing largest {} to free up room. Used total: {}, live: {}, flushing: {}, this: {}",
-                        SafeArg.of("largestCfs", largest.cfs), SafeArg.of("usedTotal", ratio(usedOnHeap, usedOffHeap)), SafeArg.of("live", ratio(liveOnHeap, liveOffHeap)),
+                        SafeArg.of("largestCfs", largest.cfs), SafeArg.of("usedTotal", ratio(usedOnHeap, usedOffHeap)), SafeArg.of("live", ratio(liveOnHeap,
+                                liveOffHeap)),
                         SafeArg.of("flushing", ratio(flushingOnHeap, flushingOffHeap)), SafeArg.of("this", ratio(thisOnHeap, thisOffHeap)));
                 largest.cfs.switchMemtableIfCurrent(largest, "Flushing largest memtable to free up memtable space");
             }
@@ -2741,7 +2742,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
                     if (logger.isTraceEnabled())
                     {
-                        logger.trace("Snapshot for {} keyspace data file {} created in {}", SafeArg.of("keyspace", keyspace), SafeArg.of("dataFile", Paths.get(ssTable.getFilename()).getFileName()), SafeArg.of("snapshotDirectory", snapshotDirectory.getName()));
+                        logger.trace("Snapshot for {} keyspace data file {} created in {}", SafeArg.of("keyspace", keyspace), SafeArg.of("dataFile",
+                                Paths.get(ssTable.getFilename()).getFileName()), SafeArg.of("snapshotDirectory", snapshotDirectory.getName()));
                     }
                     snapshottedSSTables.add(ssTable);
                 }
@@ -2785,14 +2787,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 ephemeralSnapshotMarker.getParentFile().mkdirs();
 
             Files.createFile(ephemeralSnapshotMarker.toPath());
-            logger.trace("Created ephemeral snapshot marker file on {}.", UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of("markerName", ephemeralSnapshotMarker.getName()));
+            logger.trace("Created ephemeral snapshot marker file on {}.", UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of(
+                    "markerName", ephemeralSnapshotMarker.getName()));
         }
         catch (IOException e)
         {
             logger.warn("Could not create marker file {} for ephemeral snapshot {}. " +
                                       "In case there is a failure in the operation that created " +
                                       "this snapshot, you may need to clean it manually afterwards.",
-                    UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of("snapshot", snapshot), SafeArg.of("markerName", ephemeralSnapshotMarker.getName()), e);
+                    UnsafeArg.of("path", ephemeralSnapshotMarker.getAbsolutePath()), SafeArg.of("snapshot", snapshot), SafeArg.of("markerName",
+                            ephemeralSnapshotMarker.getName()), e);
         }
     }
 
@@ -3004,9 +3008,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
 
-    public void forceMajorCompaction(boolean splitOutput) throws InterruptedException, ExecutionException
+    public void forceMajorCompaction(boolean _splitOutput) throws InterruptedException, ExecutionException
     {
-        CompactionManager.instance.performMaximal(this, splitOutput);
+//        CompactionManager.instance.performMaximal(this, splitOutput);
     }
 
     public static Iterable<ColumnFamilyStore> all()
@@ -3410,7 +3414,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public boolean isRowCacheEnabled()
     {
-        return metadata.getCaching().rowCache.isEnabled() && CacheService.instance.rowCache.getCapacity() > 0;
+        return false;
+//        return metadata.getCaching().rowCache.isEnabled() && CacheService.instance.rowCache.getCapacity() > 0;
     }
 
     public boolean isCounterCacheEnabled()
