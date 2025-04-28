@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.codahale.metrics.Timer;
+import com.palantir.tracing.CloseableTracer;
 import com.palantir.tracing.DetachedSpan;
 import com.palantir.tracing.Tracer;
 
@@ -135,31 +136,34 @@ public final class WaitQueue
         if (!hasWaiters())
             return;
 
-        // to avoid a race where the condition is not met and the woken thread managed to wait on the queue before
-        // we finish signalling it all, we pick a random thread we have woken-up and hold onto it, so that if we encounter
-        // it again we know we're looping. We reselect a random thread periodically, progressively less often.
-        // the "correct" solution to this problem is to use a queue that permits snapshot iteration, but this solution is sufficient
-        int i = 0, s = 5;
-        Thread randomThread = null;
-        Iterator<RegisteredSignal> iter = queue.iterator();
-        while (iter.hasNext())
+        try (CloseableTracer ignored = CloseableTracer.startSpan("WaitQueue#signalAll", ImmutableMap.of("numWaiters", Integer.toString(queue.size()))))
         {
-            RegisteredSignal signal = iter.next();
-            Thread signalled = signal.signal();
-
-            if (signalled != null)
+            // to avoid a race where the condition is not met and the woken thread managed to wait on the queue before
+            // we finish signalling it all, we pick a random thread we have woken-up and hold onto it, so that if we encounter
+            // it again we know we're looping. We reselect a random thread periodically, progressively less often.
+            // the "correct" solution to this problem is to use a queue that permits snapshot iteration, but this solution is sufficient
+            int i = 0, s = 5;
+            Thread randomThread = null;
+            Iterator<RegisteredSignal> iter = queue.iterator();
+            while (iter.hasNext())
             {
-                if (signalled == randomThread)
-                    break;
+                RegisteredSignal signal = iter.next();
+                Thread signalled = signal.signal();
 
-                if (++i == s)
+                if (signalled != null)
                 {
-                    randomThread = signalled;
-                    s <<= 1;
-                }
-            }
+                    if (signalled == randomThread)
+                        break;
 
-            iter.remove();
+                    if (++i == s)
+                    {
+                        randomThread = signalled;
+                        s <<= 1;
+                    }
+                }
+
+                iter.remove();
+            }
         }
     }
 
