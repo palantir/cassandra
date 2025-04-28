@@ -302,7 +302,7 @@ public class Util
     {
         int gcBefore = cfs.gcBefore(System.currentTimeMillis());
         AbstractCompactionTask task = cfs.getCompactionStrategy().getUserDefinedTask(sstables, gcBefore);
-        task.execute(null);
+        task.execute(null, null);
     }
 
     public static void expectEOF(Callable<?> callable)
