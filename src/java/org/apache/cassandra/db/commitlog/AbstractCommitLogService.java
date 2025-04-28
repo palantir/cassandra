@@ -112,6 +112,10 @@ public abstract class AbstractCommitLogService
                         long sleep = syncStarted + pollIntervalMillis - now;
                         if (sleep < 0)
                         {
+                            if (Tracer.isTraceObservable()) {
+                                logger.warn("Logging observable lagging commit log sync with duration {}", SafeArg.of("durationMillis", now - syncStarted));
+                            }
+
                             // if we have lagged noticeably, update our lag counter
                             if (firstLagAt == 0)
                             {
@@ -139,7 +143,7 @@ public abstract class AbstractCommitLogService
                         if (sleep < 0 || !run)
                             continue;
 
-                        try
+                        try (CloseableTracer ignored2 = CloseableTracer.startSpan("AbstractCommitLogService#sleep"))
                         {
                             haveWork.tryAcquire(sleep, TimeUnit.MILLISECONDS);
                             haveWork.drainPermits();
