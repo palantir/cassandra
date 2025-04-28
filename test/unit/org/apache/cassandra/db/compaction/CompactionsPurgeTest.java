@@ -307,7 +307,7 @@ public class CompactionsPurgeTest
         rm.add(cfName, cellname(String.valueOf(5)), ByteBufferUtil.EMPTY_BYTE_BUFFER, 2);
         rm.applyUnsafe();
         cfs.forceBlockingFlush();
-        cfs.getCompactionStrategy().getUserDefinedTask(sstablesIncomplete, Integer.MAX_VALUE).execute(null, null);
+        cfs.getCompactionStrategy().getUserDefinedTask(sstablesIncomplete, Integer.MAX_VALUE).execute(null, new CompactionTracker());
 
         // verify that minor compaction does GC when key is provably not
         // present in a non-compacted sstable
