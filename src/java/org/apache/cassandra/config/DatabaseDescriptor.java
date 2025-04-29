@@ -2103,6 +2103,11 @@ public class DatabaseDescriptor
         return conf.coerce_read_consistency_all;
     }
 
+    public static Set<String> getCoerceReadConsistencyAllKeyspaces()
+    {
+        return conf.coerce_read_consistency_all_keyspaces;
+    }
+
     public static void setCoerceReadConsistencyAll(boolean value)
     {
         conf.coerce_read_consistency_all = value;
@@ -2112,8 +2117,8 @@ public class DatabaseDescriptor
         return conf.coerce_read_consistency_all && conf.coerce_read_consistency_all_keyspaces.contains(keyspace);
     }
 
-    public static void setCoerceReadConsistencyAllForKeyspace(String keyspace) {
-        conf.coerce_read_consistency_all_keyspaces.add(keyspace);
+    public static void setCoerceReadConsistencyAllForKeyspace(Set<String> keyspaces) {
+        conf.coerce_read_consistency_all_keyspaces = keyspaces;
     }
 
     public static boolean getDisableReadRepairMutation()

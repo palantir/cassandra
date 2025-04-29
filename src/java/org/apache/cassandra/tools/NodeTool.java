@@ -169,7 +169,9 @@ public class NodeTool
                 GetDisableReadRepairMutation.class,
                 SetDisableReadRepairMutation.class,
                 GetDisableBlockOnReadRepair.class,
-                SetDisableBlockOnReadRepair.class
+                SetDisableBlockOnReadRepair.class,
+                GetCoerceReadConsistencyAllKeyspaces.class,
+                SetCoerceReadConsistencyAllKeyspaces.class
         );
 
         Cli.CliBuilder<NodeToolCmdRunnable> builder = Cli.builder("nodetool");
