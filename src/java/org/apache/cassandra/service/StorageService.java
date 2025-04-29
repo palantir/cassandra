@@ -5538,4 +5538,15 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         return DatabaseDescriptor.getCoerceReadConsistencyAll();
     }
+
+    public void setKeyspacesToCoerceReadConsistency(Set<String> value)
+    {
+        DatabaseDescriptor.setKeyspacesToCoerceReadConsistency(value);
+        logger.info("Updated keyspaces_to_coerce_read_consistency to {}", SafeArg.of("value", value));
+    }
+
+    public Set<String> getKeyspacesToCoerceReadConsistency()
+    {
+        return DatabaseDescriptor.getKeyspacesToCoerceReadConsistency();
+    }
 }
