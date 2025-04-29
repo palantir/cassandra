@@ -936,8 +936,4 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public boolean getCoerceReadConsistencyAll();
 
     public void setCoerceReadConsistencyAll(boolean value);
-
-    public Set<String> getKeyspacesToCoerceReadConsistency();
-
-    public void setKeyspacesToCoerceReadConsistency(Set<String> value);
 }

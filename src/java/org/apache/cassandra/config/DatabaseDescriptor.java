@@ -2106,12 +2106,4 @@ public class DatabaseDescriptor
     {
         conf.coerce_read_consistency_all = value;
     }
-
-    public static Set<String> getKeyspacesToCoerceReadConsistency() {
-        return conf.keyspaces_to_coerce_read_consistency;
-    }
-
-    public static void setKeyspacesToCoerceReadConsistency(Set<String> value) {
-        conf.keyspaces_to_coerce_read_consistency = value;
-    }
 }
