@@ -112,7 +112,6 @@ public class DatabaseDescriptor
     private static boolean hasLoggedConfig;
 
     private static final String allHostsRaw = System.getProperty("palantir_cassandra.all_hosts", "");
-    private static final Set<String> coerceReadConsistencyIgnoredKeyspaces = Sets.newHashSet(Arrays.asList(conf.coerce_read_consistency_all_ignored_keyspaces));
 
     private static boolean daemonInitialized;
 
@@ -2110,11 +2109,11 @@ public class DatabaseDescriptor
     }
 
     public static boolean getCoerceReadConsistencyAllForKeyspace(String keyspace) {
-        return conf.coerce_read_consistency_all && !coerceReadConsistencyIgnoredKeyspaces.contains(keyspace);
+        return conf.coerce_read_consistency_all && conf.coerce_read_consistency_all_keyspaces.contains(keyspace);
     }
 
-    public static boolean setCoerceReadConsistencyAllForKeyspace(String keyspace) {
-        return coerceReadConsistencyIgnoredKeyspaces.add(keyspace);
+    public static void setCoerceReadConsistencyAllForKeyspace(String keyspace) {
+        conf.coerce_read_consistency_all_keyspaces.add(keyspace);
     }
 
     public static boolean getDisableReadRepairMutation()
