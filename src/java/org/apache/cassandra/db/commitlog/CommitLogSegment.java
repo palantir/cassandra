@@ -53,6 +53,7 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.CLibrary;
 import org.apache.cassandra.utils.concurrent.OpOrder;
+import org.apache.cassandra.utils.concurrent.ProgressWaitQueue;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 
 /*
@@ -100,7 +101,7 @@ public abstract class CommitLogSegment
     private int endOfBuffer;
 
     // a signal for writers to wait on to confirm the log message they provided has been written to disk
-    private final WaitQueue syncComplete = new WaitQueue();
+    private final ProgressWaitQueue syncProgress = new ProgressWaitQueue();
 
     // a map of Cf->dirty position; this is used to permit marking Cfs clean whilst the log is still in use
     private final NonBlockingHashMap<UUID, AtomicInteger> cfDirty = new NonBlockingHashMap<>(1024);
@@ -304,7 +305,7 @@ public abstract class CommitLogSegment
         lastSyncedOffset = nextMarker;
         if (close)
             internalClose();
-        syncComplete.signalAll();
+        syncProgress.signalUntil(lastSyncedOffset);
     }
 
     protected static void writeSyncMarker(long id, ByteBuffer buffer, int offset, int filePos, int nextMarker)
@@ -363,7 +364,7 @@ public abstract class CommitLogSegment
     {
         while (true)
         {
-            WaitQueue.Signal signal = syncComplete.register();
+            WaitQueue.Signal signal = syncProgress.register(-1L);
             if (lastSyncedOffset < endOfBuffer)
             {
                 signal.awaitUninterruptibly();
@@ -383,8 +384,8 @@ public abstract class CommitLogSegment
             while (lastSyncedOffset < position)
             {
                 WaitQueue.Signal signal = waitingOnCommit != null ?
-                                          syncComplete.register(waitingOnCommit.time()) :
-                                          syncComplete.register();
+                                          syncProgress.register(position, waitingOnCommit.time()) :
+                                          syncProgress.register(position);
                 if (lastSyncedOffset < position)
                     signal.awaitUninterruptibly();
                 else
