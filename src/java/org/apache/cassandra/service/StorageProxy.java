@@ -24,7 +24,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
@@ -1277,7 +1276,7 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> read(List<ReadCommand> commands, ConsistencyLevel consistencyLevel, ClientState state)
     throws UnavailableException, IsBootstrappingException, ReadFailureException, ReadTimeoutException, InvalidRequestException
     {
-        Stream<String> keyspaces = commands.stream().map(ReadCommand::getKeyspace);
+        Set<String> keyspaces = commands.stream().map(ReadCommand::getKeyspace).collect(Collectors.toSet());
         consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel, keyspaces);
         if (StorageService.instance.isBootstrapMode() && !systemKeyspaceQuery(commands))
         {
@@ -1302,7 +1301,7 @@ public class StorageProxy implements StorageProxyMBean
         final ConsistencyLevel consistencyForCommit = consistencyLevel == ConsistencyLevel.LOCAL_SERIAL
                                                                         ? ConsistencyLevel.LOCAL_QUORUM
                                                                         : ConsistencyLevel.QUORUM;
-        Stream<String> keyspaces = commands.stream().map(ReadCommand::getKeyspace);
+        Set<String> keyspaces = commands.stream().map(ReadCommand::getKeyspace).collect(Collectors.toSet());
         final ConsistencyLevel consistencyForFetch = maybeCoerceReadConsistencyLevel(consistencyForCommit, keyspaces);
         ClientRequestMetrics readMetrics = consistencyLevelReadMetrics.get(consistencyForFetch);
 
@@ -2457,10 +2456,10 @@ public class StorageProxy implements StorageProxyMBean
     }
 
     private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel, String keyspace) {
-        return maybeCoerceReadConsistencyLevel(consistencyLevel, Stream.of(keyspace));
+        return maybeCoerceReadConsistencyLevel(consistencyLevel, Collections.singleton(keyspace));
     }
 
-    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel, Stream<String> keyspaces)
+    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel, Set<String> keyspaces)
     {
         if (!consistencyLevelIsSafeToCoerce(consistencyLevel))
         {
@@ -2478,11 +2477,11 @@ public class StorageProxy implements StorageProxyMBean
                || consistencyLevel == ConsistencyLevel.QUORUM;
     }
 
-    private static boolean anyKeyspacesShouldBeCoerced(Stream<String> keyspaces) {
+    private static boolean anyKeyspacesShouldBeCoerced(Set<String> keyspaces) {
         Set<String> keyspacesToCoerce = DatabaseDescriptor.getKeyspacesToCoerceReadConsistency();
         if (keyspacesToCoerce == null) {
             return true;
         }
-        return keyspaces.anyMatch(keyspacesToCoerce::contains);
+        return !Collections.disjoint(keyspaces, keyspacesToCoerce);
     }
 }
