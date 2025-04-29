@@ -24,6 +24,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.base.Predicate;
 import com.google.common.cache.CacheLoader;
@@ -1276,7 +1277,8 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> read(List<ReadCommand> commands, ConsistencyLevel consistencyLevel, ClientState state)
     throws UnavailableException, IsBootstrappingException, ReadFailureException, ReadTimeoutException, InvalidRequestException
     {
-        consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel);
+        Stream<String> keyspaces = commands.stream().map(ReadCommand::getKeyspace);
+        consistencyLevel = maybeCoerceReadConsistencyLevel(consistencyLevel, keyspaces);
         if (StorageService.instance.isBootstrapMode() && !systemKeyspaceQuery(commands))
         {
             consistencyLevelReadMetrics.get(consistencyLevel).unavailables.mark();
@@ -1300,7 +1302,8 @@ public class StorageProxy implements StorageProxyMBean
         final ConsistencyLevel consistencyForCommit = consistencyLevel == ConsistencyLevel.LOCAL_SERIAL
                                                                         ? ConsistencyLevel.LOCAL_QUORUM
                                                                         : ConsistencyLevel.QUORUM;
-        final ConsistencyLevel consistencyForFetch = maybeCoerceReadConsistencyLevel(consistencyForCommit);
+        Stream<String> keyspaces = commands.stream().map(ReadCommand::getKeyspace);
+        final ConsistencyLevel consistencyForFetch = maybeCoerceReadConsistencyLevel(consistencyForCommit, keyspaces);
         ClientRequestMetrics readMetrics = consistencyLevelReadMetrics.get(consistencyForFetch);
 
         try
@@ -1745,7 +1748,7 @@ public class StorageProxy implements StorageProxyMBean
     public static List<Row> getRangeSlice(AbstractRangeCommand command, ConsistencyLevel consistency_level)
     throws UnavailableException, ReadFailureException, ReadTimeoutException
     {
-        consistency_level = maybeCoerceReadConsistencyLevel(consistency_level);
+        consistency_level = maybeCoerceReadConsistencyLevel(consistency_level, command.getKeyspace());
         Tracing.trace("Computing ranges to query");
         long startTime = System.nanoTime();
 
@@ -2453,13 +2456,18 @@ public class StorageProxy implements StorageProxyMBean
         return ReadRepairMetrics.repairedBackground.getCount();
     }
 
-    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel)
+    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel, String keyspace) {
+        return maybeCoerceReadConsistencyLevel(consistencyLevel, Stream.of(keyspace));
+    }
+
+    private static ConsistencyLevel maybeCoerceReadConsistencyLevel(ConsistencyLevel consistencyLevel, Stream<String> keyspaces)
     {
         if (!consistencyLevelIsSafeToCoerce(consistencyLevel))
         {
             return consistencyLevel;
         }
-        boolean shouldCoerce = DatabaseDescriptor.getCoerceReadConsistencyAll();
+        boolean shouldCoerce = DatabaseDescriptor.getCoerceReadConsistencyAll()
+                && anyKeyspacesShouldBeCoerced(keyspaces);
         return shouldCoerce ? ConsistencyLevel.ALL : consistencyLevel;
     }
 
@@ -2468,5 +2476,13 @@ public class StorageProxy implements StorageProxyMBean
         return consistencyLevel == ConsistencyLevel.LOCAL_QUORUM
                || consistencyLevel == ConsistencyLevel.EACH_QUORUM
                || consistencyLevel == ConsistencyLevel.QUORUM;
+    }
+
+    private static boolean anyKeyspacesShouldBeCoerced(Stream<String> keyspaces) {
+        Set<String> keyspacesToCoerce = DatabaseDescriptor.getKeyspacesToCoerceReadConsistency();
+        if (keyspacesToCoerce == null) {
+            return true;
+        }
+        return keyspaces.anyMatch(keyspacesToCoerce::contains);
     }
 }

@@ -315,6 +315,7 @@ public class Config
     public int otc_coalescing_enough_coalesced_messages = 8;
 
     public volatile boolean coerce_read_consistency_all = false;
+    public Set<String> keyspaces_to_coerce_read_consistency = null;
 
     public int windows_timer_interval = 0;
 
