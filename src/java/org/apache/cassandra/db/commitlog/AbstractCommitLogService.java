@@ -102,13 +102,25 @@ public abstract class AbstractCommitLogService
 
                         // sync and signal
                         long syncStarted = System.currentTimeMillis();
-                        commitLog.sync(shutdown);
+
+                        try (CloseableTracer ignored = CloseableTracer.startSpan("AbstractCommitLogService#sync"))
+                        {
+                            commitLog.sync(shutdown);
+                        }
                         lastSyncedAt = syncStarted;
-                        syncComplete.signalAll();
+
+                        try (CloseableTracer ignored = CloseableTracer.startSpan("AbstractCommitLogService#signalAll"))
+                        {
+                            syncComplete.signalAll();
+                        }
 
 
                         // sleep any time we have left before the next one is due
-                        long now = System.currentTimeMillis();
+                        long now;
+                        try (CloseableTracer ignored = CloseableTracer.startSpan("AbstractCommitLogService#currentTimeMillis"))
+                        {
+                            now = System.currentTimeMillis();
+                        }
                         long sleep = syncStarted + pollIntervalMillis - now;
                         if (sleep < 0)
                         {

@@ -145,6 +145,7 @@ public final class WaitQueue
             int i = 0, s = 5;
             Thread randomThread = null;
             Iterator<RegisteredSignal> iter = queue.iterator();
+            DetachedSpan loopSpan = DetachedSpan.start("signal-loop");
             while (iter.hasNext())
             {
                 RegisteredSignal signal = iter.next();
@@ -164,6 +165,7 @@ public final class WaitQueue
 
                 iter.remove();
             }
+            loopSpan.complete(ImmutableMap.of("numIterations", Integer.toString(i)));
         }
     }
 
