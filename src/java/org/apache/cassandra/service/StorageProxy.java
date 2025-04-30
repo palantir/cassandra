@@ -579,10 +579,17 @@ public class StorageProxy implements StorageProxyMBean
         List<AbstractWriteResponseHandler<IMutation>> responseHandlers = new ArrayList<>(mutations.size());
 
         ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
+        Collection<IMutation> groupedMutations = groupMutationsBykey(mutations);
 
-        try (CloseableTracer ignored = CloseableTracer.startSpan("StorageProxy#mutate"))
+        try (CloseableTracer ignored = CloseableTracer.startSpan(
+            "StorageProxy#mutate",
+            ImmutableMap.of(
+                "numMutations", Integer.toString(mutations.size()),
+                "numGroupedMutations", Integer.toString(groupedMutations.size())
+            )
+        ))
         {
-            for (IMutation mutation : mutations)
+            for (IMutation mutation : groupedMutations)
             {
                 if (mutation instanceof CounterMutation)
                 {
@@ -641,6 +648,23 @@ public class StorageProxy implements StorageProxyMBean
         {
             writeMetrics.addNano(System.nanoTime() - startTime);
         }
+    }
+
+    private static Collection<IMutation> groupMutationsBykey(Collection<? extends IMutation> mutations) {
+        Map<ByteBuffer, IMutation> mutationsByKey = new HashMap<>();
+        for (IMutation mutation : mutations) {
+            mutationsByKey.compute(mutation.key(), (key, existing) -> {
+                if (existing == null)
+                {
+                    return mutation;
+                }
+
+                existing.addAll(mutation);
+                return existing;
+            });
+        }
+
+        return mutationsByKey.values();
     }
 
     /** hint all the mutations (except counters, which can't be safely retried).  This means
