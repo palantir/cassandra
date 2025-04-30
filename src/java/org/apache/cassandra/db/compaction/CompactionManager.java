@@ -1586,7 +1586,7 @@ public class CompactionManager implements CompactionManagerMBean
                 finally
                 {
                     metrics.finishCompaction(builder);
-                    concurrentCompactionTracker.beginCompaction(builder);
+                    concurrentCompactionTracker.finishCompaction(builder);
                 }
             }
         };
