@@ -39,6 +39,8 @@ import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
 
+import org.apache.cassandra.concurrent.LocalAwareExecutorService;
+import org.apache.cassandra.concurrent.SharedExecutorPool;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.ParameterizedClass;
@@ -76,6 +78,7 @@ public class CommitLog implements CommitLogMBean
     public final CommitLogArchiver archiver;
     final CommitLogMetrics metrics;
     final AbstractCommitLogService executor;
+    final LocalAwareExecutorService syncExecutor;
 
     volatile Configuration configuration;
     final public String location;
@@ -114,6 +117,7 @@ public class CommitLog implements CommitLogMBean
         }
 
         allocator = new CommitLogSegmentManager(this);
+        syncExecutor = SharedExecutorPool.SHARED.newExecutor(1, 128, "commitlog", "signal");
 
         // register metrics
         metrics.attach(executor, allocator);

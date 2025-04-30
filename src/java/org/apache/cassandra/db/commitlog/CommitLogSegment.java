@@ -38,6 +38,7 @@ import com.github.tjake.ICRC32;
 
 import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
+import org.apache.cassandra.concurrent.LocalAwareExecutorService;
 import org.apache.cassandra.utils.CRC32Factory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
@@ -305,6 +306,10 @@ public abstract class CommitLogSegment
         lastSyncedOffset = nextMarker;
         if (close)
             internalClose();
+        commitLog.syncExecutor.execute(this::signalWaiters);
+    }
+
+    private void signalWaiters() {
         syncProgress.signalUntil(lastSyncedOffset);
     }
 
