@@ -17,6 +17,8 @@
  */
 package org.apache.cassandra.db.compaction;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -394,10 +396,19 @@ public class CompactionTask extends AbstractCompactionTask
 
         while(true)
         {
+            // TODO(lt): remove after debugging.
+            if (tracker == null)
+            {
+                Throwable throwable = new Throwable();
+                StringWriter stringWriter = new StringWriter();
+                throwable.printStackTrace(new PrintWriter(stringWriter));
+                String stackTraceString = stringWriter.toString();
+                logger.warn("Null tracker encountered {}", UnsafeArg.of("e", stackTraceString));
+            }
+
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
-            if (getAvailableDiskSpace.apply(CompactionEstimationWrapper.of(estimatedSSTables,
-                                                                           expectedWriteSize,
-                                                                           tracker.getTotalCompletedBytes())))
+            long liveSpaceUsedByInProgressCompactions = tracker == null ? 0 : tracker.getTotalCompletedBytes();
+            if (getAvailableDiskSpace.apply(CompactionEstimationWrapper.of(estimatedSSTables, expectedWriteSize, liveSpaceUsedByInProgressCompactions)))
             {
                 break;
             }
