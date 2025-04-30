@@ -48,12 +48,11 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
     public final Counter bytesCompacted;
     /** Number of throttled CFs due to disk pressure */
     public final Gauge<Integer> totalThrottledTables;
-
-    private final CompactionTracker tracker;
+    /** Total completed bytes for in-flight compactions */
+    public final Gauge<Long> totalCompletedBytes;
 
     public CompactionMetrics(final CompactionTracker tracker, final ThreadPoolExecutor... collectors)
     {
-        this.tracker = tracker;
         pendingTasks = Metrics.register(factory.createMetricName("PendingTasks"), new Gauge<Integer>()
         {
             public Integer getValue()
@@ -79,6 +78,13 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
         totalCompactionsCompleted = Metrics.meter(factory.createMetricName("TotalCompactionsCompleted"));
         bytesCompacted = Metrics.counter(factory.createMetricName("BytesCompacted"));
         totalThrottledTables = Metrics.register(factory.createMetricName("TotalThrottledTables"), CompactionThroughputThrottler.instance::throttledTableCount);
+        totalCompletedBytes = Metrics.register(factory.createMetricName("TotalCompletedBytes"), new Gauge<Long>()
+        {
+            public Long getValue()
+            {
+                return tracker.getTotalCompletedBytes();
+            }
+        });
     }
 
     public void finishCompaction(CompactionInfo.Holder ci)
