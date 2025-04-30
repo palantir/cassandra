@@ -686,7 +686,7 @@ public class CompactionsTest
 
         try
         {
-            compaction.executeInternal(ci -> {}, new CompactionTracker());
+            compaction.executeInternal(ci -> {}, null);
         }
         catch (Exception e)
         {
