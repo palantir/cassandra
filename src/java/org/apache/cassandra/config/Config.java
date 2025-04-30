@@ -119,6 +119,7 @@ public class Config
     public Integer concurrent_counter_writes = 32;
     public Boolean always_async_read = false;
     public Boolean always_async_write = false;
+    public Boolean group_mutations_by_key = false;
     public Boolean commitlog_async_signaling = false;
     public Boolean commitlog_use_progress_wait_queue = false;
 

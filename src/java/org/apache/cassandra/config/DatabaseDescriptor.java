@@ -1243,6 +1243,10 @@ public class DatabaseDescriptor
         return conf.always_async_write;
     }
 
+    public static boolean getGroupMutationsBykey() {
+        return conf.group_mutations_by_key;
+    }
+
     public static boolean getCommitLogAsyncSignaling() {
         return conf.commitlog_async_signaling;
     }

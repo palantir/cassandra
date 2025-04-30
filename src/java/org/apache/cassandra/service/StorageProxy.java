@@ -579,7 +579,7 @@ public class StorageProxy implements StorageProxyMBean
         List<AbstractWriteResponseHandler<IMutation>> responseHandlers = new ArrayList<>(mutations.size());
 
         ClientRequestMetrics writeMetrics = consistencyLevelWriteMetrics.get(consistency_level);
-        Collection<IMutation> groupedMutations = groupMutationsBykey(mutations);
+        Collection<? extends IMutation> groupedMutations = DatabaseDescriptor.getGroupMutationsBykey() ? groupMutationsBykey(mutations) : mutations;
 
         try (CloseableTracer ignored = CloseableTracer.startSpan(
             "StorageProxy#mutate",
