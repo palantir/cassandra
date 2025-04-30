@@ -48,6 +48,7 @@ import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.marshal.UserType;
 import org.apache.cassandra.exceptions.AlreadyExistsException;
 import org.apache.cassandra.exceptions.ConfigurationException;
+import org.apache.cassandra.exceptions.OverloadedException;
 import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
@@ -69,6 +70,8 @@ public class MigrationManager
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
+
+    private static final int maxPendingMigrationTasks = Integer.getInteger("palantir_cassandra.max_pending_migration_tasks", 1000);
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -357,6 +360,7 @@ public class MigrationManager
 
     public static void announceNewKeyspace(KSMetaData ksm, boolean announceLocally) throws ConfigurationException
     {
+        throwIfOverloaded();
         announceNewKeyspace(ksm, FBUtilities.timestampMicros(), announceLocally);
     }
 
@@ -381,6 +385,7 @@ public class MigrationManager
 
     public static void announceNewColumnFamily(CFMetaData cfm, boolean announceLocally) throws ConfigurationException
     {
+        throwIfOverloaded();
         announceNewColumnFamily(cfm, announceLocally, true);
     }
 
@@ -675,6 +680,19 @@ public class MigrationManager
         }
 
         logger.info("Local schema reset is complete.");
+    }
+
+    private static void throwIfOverloaded()
+    {
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) StageManager.getStage(Stage.MIGRATION);
+        long pendingTasks = executor.getTaskCount() - executor.getCompletedTaskCount();
+        if (pendingTasks > maxPendingMigrationTasks)
+        {
+            logger.warn("Too many pending migration tasks. {} is greater than maximum threshold of {}",
+                        SafeArg.of("pendingTasks", pendingTasks),
+                        SafeArg.of("maxPendingMigrationTasks", maxPendingMigrationTasks));
+            throw new OverloadedException("Too many pending migration tasks");
+        }
     }
 
     public static class MigrationsSerializer implements IVersionedSerializer<Collection<Mutation>>
