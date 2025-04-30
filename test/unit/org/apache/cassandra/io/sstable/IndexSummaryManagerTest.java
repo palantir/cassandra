@@ -39,7 +39,6 @@ import org.apache.cassandra.Util;
 import org.apache.cassandra.cache.CachingOptions;
 import org.apache.cassandra.config.KSMetaData;
 import org.apache.cassandra.db.*;
-import org.apache.cassandra.db.compaction.CompactionInfo;
 import org.apache.cassandra.db.compaction.CompactionInterruptedException;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.compaction.OperationType;
@@ -48,7 +47,6 @@ import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.locator.SimpleStrategy;
-import org.apache.cassandra.metrics.CompactionMetrics;
 import org.apache.cassandra.metrics.RestorableMeter;
 
 import static com.google.common.collect.ImmutableMap.of;
@@ -107,12 +105,6 @@ public class IndexSummaryManagerTest
     @After
     public void afterTest()
     {
-        // TODO(lt) - this makes no sense, why are we using the metrics to mark a holder as stopped?
-        // for (CompactionInfo.Holder holder : CompactionMetrics.getCompactions())
-        // {
-        //     holder.stop();
-        // }
-
         String ksname = KEYSPACE1;
         String cfname = CF_STANDARDLOWiINTERVAL; // index interval of 8, no key caching
         Keyspace keyspace = Keyspace.open(ksname);
@@ -677,8 +669,6 @@ public class IndexSummaryManagerTest
         t.join();
 
         assertNotNull("Expected compaction interrupted exception", exception.get());
-        // TODO(lt) using metrics to test is odd, especially given that IndexSummaryManager doesn't use CompactionMetrics
-        // assertTrue("Expected no active compactions", CompactionMetrics.getCompactions().isEmpty());
 
         Set<SSTableReader> beforeRedistributionSSTables = new HashSet<>(sstables);
         Set<SSTableReader> afterCancelSSTables = new HashSet<>(cfs.getSSTables());
