@@ -38,7 +38,6 @@ import com.github.tjake.ICRC32;
 
 import com.palantir.logsafe.SafeArg;
 import com.palantir.tracing.CloseableTracer;
-import org.apache.cassandra.concurrent.LocalAwareExecutorService;
 import org.apache.cassandra.utils.CRC32Factory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
@@ -102,6 +101,7 @@ public abstract class CommitLogSegment
     private int endOfBuffer;
 
     // a signal for writers to wait on to confirm the log message they provided has been written to disk
+    private final WaitQueue syncQueue = new WaitQueue();
     private final ProgressWaitQueue syncProgress = new ProgressWaitQueue();
 
     // a map of Cf->dirty position; this is used to permit marking Cfs clean whilst the log is still in use
@@ -306,11 +306,22 @@ public abstract class CommitLogSegment
         lastSyncedOffset = nextMarker;
         if (close)
             internalClose();
-        commitLog.syncExecutor.execute(this::signalWaiters);
+
+        if (DatabaseDescriptor.getCommitLogAsyncSignaling()) {
+            commitLog.syncExecutor.execute(this::signalWaiters);
+        } else {
+            signalWaiters();
+        }
     }
 
     private void signalWaiters() {
-        syncProgress.signalUntil(lastSyncedOffset);
+        if (DatabaseDescriptor.getCommitLogUseProgressWaitQueue())
+        {
+            syncProgress.signalUntil(lastSyncedOffset);
+        } else
+        {
+            syncQueue.signalAll();
+        }
     }
 
     protected static void writeSyncMarker(long id, ByteBuffer buffer, int offset, int filePos, int nextMarker)
@@ -369,7 +380,7 @@ public abstract class CommitLogSegment
     {
         while (true)
         {
-            WaitQueue.Signal signal = syncProgress.register(-1L);
+            WaitQueue.Signal signal = registerWaiter(endOfBuffer);
             if (lastSyncedOffset < endOfBuffer)
             {
                 signal.awaitUninterruptibly();
@@ -389,13 +400,29 @@ public abstract class CommitLogSegment
             while (lastSyncedOffset < position)
             {
                 WaitQueue.Signal signal = waitingOnCommit != null ?
-                                          syncProgress.register(position, waitingOnCommit.time()) :
-                                          syncProgress.register(position);
+                                          registerWaiter(position, waitingOnCommit.time()) :
+                                          registerWaiter(position);
                 if (lastSyncedOffset < position)
                     signal.awaitUninterruptibly();
                 else
                     signal.cancel();
             }
+        }
+    }
+
+    private WaitQueue.Signal registerWaiter(int waitUntil, Timer.Context timer) {
+        if (DatabaseDescriptor.getCommitLogUseProgressWaitQueue()) {
+            return syncProgress.register(waitUntil, timer);
+        } else {
+            return syncQueue.register(timer);
+        }
+    }
+
+    private WaitQueue.Signal registerWaiter(int waitUntil) {
+        if (DatabaseDescriptor.getCommitLogUseProgressWaitQueue()) {
+            return syncProgress.register(waitUntil);
+        } else {
+            return syncQueue.register();
         }
     }
 

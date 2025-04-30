@@ -1243,6 +1243,14 @@ public class DatabaseDescriptor
         return conf.always_async_write;
     }
 
+    public static boolean getCommitLogAsyncSignaling() {
+        return conf.commitlog_async_signaling;
+    }
+
+    public static boolean getCommitLogUseProgressWaitQueue() {
+        return conf.commitlog_use_progress_wait_queue;
+    }
+
     public static int getFlushWriters()
     {
             return conf.memtable_flush_writers;
