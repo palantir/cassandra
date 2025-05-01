@@ -46,6 +46,7 @@ public class CommitLogMetrics
     public final Timer waitingOnSegmentAllocation;
     /** The time spent waiting on CL sync; for Periodic this is only occurs when the sync is lagging its sync interval */
     public final Timer waitingOnCommit;
+    public final Timer totalWaitingOnCommit;
     public final Counter laggedSyncs;
     public final Timer syncDuration;
     
@@ -53,6 +54,7 @@ public class CommitLogMetrics
     {
         waitingOnSegmentAllocation = Metrics.timer(factory.createMetricName("WaitingOnSegmentAllocation"));
         waitingOnCommit = Metrics.timer(factory.createMetricName("WaitingOnCommit"));
+        totalWaitingOnCommit = Metrics.timer(factory.createMetricName("TotalWaitingOnCommit"));
         laggedSyncs = Metrics.counter(factory.createMetricName("LaggedSyncs"));
         syncDuration = Metrics.timer(factory.createMetricName("SyncDuration"));
     }

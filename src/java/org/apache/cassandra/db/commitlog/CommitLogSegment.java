@@ -374,7 +374,7 @@ public abstract class CommitLogSegment
 
     void waitForSync(int position, Timer waitingOnCommit)
     {
-        while (lastSyncedOffset < position)
+        try (Timer.Context ignored2 = commitLog.metrics.totalWaitingOnCommit.time())
         {
             WaitQueue.Signal signal = waitingOnCommit != null ?
                                       syncComplete.register(waitingOnCommit.time()) :
