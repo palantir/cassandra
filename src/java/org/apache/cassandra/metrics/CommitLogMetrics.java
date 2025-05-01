@@ -18,6 +18,7 @@
 package org.apache.cassandra.metrics;
 
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Timer;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -45,11 +46,17 @@ public class CommitLogMetrics
     public final Timer waitingOnSegmentAllocation;
     /** The time spent waiting on CL sync; for Periodic this is only occurs when the sync is lagging its sync interval */
     public final Timer waitingOnCommit;
+    public final Counter completedSyncs;
+    public final Counter laggedSyncs;
+    public final Timer syncDuration;
     
     public CommitLogMetrics()
     {
         waitingOnSegmentAllocation = Metrics.timer(factory.createMetricName("WaitingOnSegmentAllocation"));
         waitingOnCommit = Metrics.timer(factory.createMetricName("WaitingOnCommit"));
+        completedSyncs = Metrics.counter(factory.createMetricName("CompletedSyncs"));
+        laggedSyncs = Metrics.counter(factory.createMetricName("LaggedSyncs"));
+        syncDuration = Metrics.timer(factory.createMetricName("SyncDuration"));
     }
 
     public void attach(final AbstractCommitLogService service, final CommitLogSegmentManager allocator)

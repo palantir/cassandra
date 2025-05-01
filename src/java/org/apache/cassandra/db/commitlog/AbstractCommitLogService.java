@@ -114,13 +114,16 @@ public abstract class AbstractCommitLogService
                             syncComplete.signalAll();
                         }
 
-
                         // sleep any time we have left before the next one is due
                         long now;
                         try (CloseableTracer ignored = CloseableTracer.startSpan("AbstractCommitLogService#currentTimeMillis"))
                         {
                             now = System.currentTimeMillis();
                         }
+
+                        commitLog.metrics.completedSyncs.inc();
+                        commitLog.metrics.syncDuration.update(now - syncStarted, TimeUnit.MILLISECONDS);
+
                         long sleep = syncStarted + pollIntervalMillis - now;
                         if (sleep < 0)
                         {
@@ -136,6 +139,7 @@ public abstract class AbstractCommitLogService
                             }
                             syncExceededIntervalBy -= sleep;
                             lagCount++;
+                            commitLog.metrics.laggedSyncs.inc();
                         }
                         syncCount++;
                         totalSyncDuration += now - syncStarted;
