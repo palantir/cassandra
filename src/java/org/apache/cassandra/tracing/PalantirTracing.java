@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 
 import org.apache.cassandra.net.MessageIn;
+import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.thrift.TraceMetadata;
 import org.apache.thrift.annotation.Nullable;
 
@@ -71,9 +72,9 @@ public final class PalantirTracing
         boolean isSampled = Optional.ofNullable(message.parameters.get(PALANTIR_IS_SAMPLED)).map(bytes -> bytes[0] == 1).orElse(false);
 
         if (parentSpanId.isPresent()) {
-            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, message.verb.toString(), parentSpanId.get(), SpanType.SERVER_INCOMING);
+            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, "IN: " + message.verb.toString(), parentSpanId.get(), SpanType.SERVER_INCOMING);
         } else {
-            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, message.verb.toString(), SpanType.SERVER_INCOMING);
+            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, "IN: " + message.verb.toString(), SpanType.SERVER_INCOMING);
         }
     }
 
@@ -98,7 +99,6 @@ public final class PalantirTracing
         } else {
             return Collections.emptyMap();
         }
-
     }
 
     private static Observability getObservabilityFromTracing(@Nullable TraceMetadata tracing)

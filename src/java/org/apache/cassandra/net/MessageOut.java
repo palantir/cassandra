@@ -89,6 +89,13 @@ public class MessageOut<T>
         return new MessageOut<T>(verb, payload, serializer, builder.build());
     }
 
+    public MessageOut<T> withParameters(Map<String, byte[]> extraParameters)
+    {
+        ImmutableMap.Builder<String, byte[]> builder = ImmutableMap.builder();
+        builder.putAll(parameters).putAll(extraParameters);
+        return new MessageOut<T>(verb, payload, serializer, builder.build());
+    }
+
     public Stage getStage()
     {
         return MessagingService.verbStages.get(verb);

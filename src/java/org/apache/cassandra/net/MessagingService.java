@@ -44,6 +44,9 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
+import com.palantir.tracing.CloseableSpan;
+import com.palantir.tracing.CloseableTracer;
+import com.palantir.tracing.DetachedSpan;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -679,8 +682,12 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public int sendRR(MessageOut message, InetAddress to, IAsyncCallback cb, long timeout, boolean failureCallback)
     {
-        int id = addCallback(new TracedCallback(cb, "OUT: " + message.verb.toString()), message, to, timeout, failureCallback);
-        sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE) : message, id, to);
+        DetachedSpan span = DetachedSpan.start("OUT: " + message.verb.toString());
+        int id = addCallback(new TracedCallback(cb, span), message, to, timeout, failureCallback);
+        try (CloseableSpan ignored = span.childSpan("sendOneWay"))
+        {
+            sendOneWay(failureCallback ? message.withParameters(PalantirTracing.serializeForMessage()).withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE) : message, id, to);
+        }
         return id;
     }
 
@@ -701,8 +708,11 @@ public final class MessagingService implements MessagingServiceMBean
                       AbstractWriteResponseHandler<?> handler,
                       boolean allowHints)
     {
-        int id = addCallback(new TracedCallback(handler, "OUT: " + message.verb.toString()), message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
-        sendOneWay(message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE), id, to);
+        DetachedSpan span = DetachedSpan.start("OUT: " + message.verb.toString());
+        int id = addCallback(new TracedCallback(handler, span), message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
+        try (CloseableSpan ignored = span.childSpan("sendOneWay")) {
+            sendOneWay(message.withParameters(PalantirTracing.serializeForMessage()).withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE), id, to);
+        }
         return id;
     }
 

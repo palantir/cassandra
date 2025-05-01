@@ -31,23 +31,26 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
     private final IAsyncCallback<T> delegate;
     private final DetachedSpan span;
 
-    public TracedCallback(IAsyncCallback<T> delegate, String operation)
+    public TracedCallback(IAsyncCallback<T> delegate, DetachedSpan span)
     {
         this.delegate = delegate;
-        this.span = DetachedSpan.start(operation);
+        this.span = span;
     }
 
+    @Override
     public void response(MessageIn<T> msg)
     {
         delegate.response(msg);
         span.complete(ImmutableMap.of(METADATA_STATUS, "success"));
     }
 
+    @Override
     public boolean isLatencyForSnitch()
     {
         return delegate.isLatencyForSnitch();
     }
 
+    @Override
     public void onFailure(InetAddress from)
     {
         // Trust that the caller has checked this for us.
