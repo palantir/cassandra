@@ -395,7 +395,8 @@ public abstract class CommitLogSegment
 
     void waitForSync(int position, Timer waitingOnCommit)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLogSegment#waitForSync"))
+        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLogSegment#waitForSync");
+             Timer.Context ignored2 = commitLog.metrics.totalWaitingOnCommit.time())
         {
             while (lastSyncedOffset < position)
             {
