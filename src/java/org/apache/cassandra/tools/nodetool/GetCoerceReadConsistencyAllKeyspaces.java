@@ -18,12 +18,14 @@
 
 package org.apache.cassandra.tools.nodetool;
 
+import java.util.Set;
+
 import io.airlift.command.Command;
 import io.airlift.command.Option;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
-@Command(name = "getcoercereadconsistencyallkeyspaces", description = "Get all the keyspace coercion read consistency levels, or a single keyspace level if using the 'keyspace' option")
+@Command(name = "getcoercereadconsistencyallkeyspaces", description = "Get list of keyspaces for which read consistency level is coerced to ALL, or if, a keyspace is provided, whether that keyspace is coerced or not")
 public class GetCoerceReadConsistencyAllKeyspaces extends NodeTool.NodeToolCmd
 {
 
@@ -34,9 +36,14 @@ public class GetCoerceReadConsistencyAllKeyspaces extends NodeTool.NodeToolCmd
     public void execute(NodeProbe probe)
     {
         if (keyspace.isEmpty()) {
-            probe.output().out.println(probe.getCoerceReadConsistencyAllKeyspaces());
-            return;
+            Set<String> coercedKeyspaces = probe.getCoerceReadConsistencyAllKeyspaces();
+            if (coercedKeyspaces.isEmpty()) {
+                probe.output().out.println("All keyspaces coerced QUORUM read consistency to ALL");
+            } else {
+                probe.output().out.println(probe.getCoerceReadConsistencyAllKeyspaces());
+            }
+        } else {
+            probe.output().out.println(probe.getCoerceReadConsistencyAllForKeyspace(keyspace));
         }
-        probe.output().out.println(probe.getCoerceReadConsistencyAllKeyspaces().contains(keyspace));
     }
 }

@@ -1194,6 +1194,10 @@ public class NodeProbe implements AutoCloseable
         ssProxy.setCoerceReadConsistencyAll(value);
     }
 
+    public boolean getCoerceReadConsistencyAllForKeyspace(String keyspace) {
+        return ssProxy.getCoerceReadConsistencyAllForKeyspace(keyspace);
+    }
+
     public Set<String> getCoerceReadConsistencyAllKeyspaces()
     {
         return ssProxy.getCoerceReadConsistencyAllKeyspaces();

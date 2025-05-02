@@ -5539,6 +5539,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Updated coerce_read_consistency_level to {}", SafeArg.of("value", value));
     }
 
+    public boolean getCoerceReadConsistencyAllForKeyspace(String keyspace)
+    {
+        return DatabaseDescriptor.getCoerceReadConsistencyAllForKeyspace(keyspace);
+    }
+
     public Set<String> getCoerceReadConsistencyAllKeyspaces()
     {
         return DatabaseDescriptor.getCoerceReadConsistencyAllKeyspaces();
