@@ -26,10 +26,10 @@ import io.airlift.command.Command;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
-@Command(name = "setcoercereadconsistencyallkeyspaces", description = "Upgrade the consistency level used by all QUORUM requests to ALL, regardless of what is set by the client, for the provided keyspace")
+@Command(name = "setcoercereadconsistencyallkeyspaces", description = "Upgrade the consistency level used by all QUORUM requests to ALL, regardless of what is set by the client, for the provided keyspaces")
 public class SetCoerceReadConsistencyAllKeyspaces extends NodeTool.NodeToolCmd
 {
-    @Arguments(title = "keyspaces", usage = "", description = "true to enable, false to disable (default)", required = true)
+    @Arguments(title = "keyspaces", usage = "<keyspace> <keyspace> <keyspace>", description = "A space-delimited list of keyspaces to set coercion for", required = true)
     private List<String> keyspaces;
 
     @Override

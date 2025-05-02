@@ -19,15 +19,24 @@
 package org.apache.cassandra.tools.nodetool;
 
 import io.airlift.command.Command;
+import io.airlift.command.Option;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool;
 
-@Command(name = "getcoercereadconsistencyallkeyspaces", description = "Get the coerce read consistency level, if present")
+@Command(name = "getcoercereadconsistencyallkeyspaces", description = "Get all the keyspace coercion read consistency levels, or a single keyspace level if using the 'keyspace' option")
 public class GetCoerceReadConsistencyAllKeyspaces extends NodeTool.NodeToolCmd
 {
+
+    @Option(name = {"-k", "--keyspace"}, description = "The keyspace to check for read consistency level coercion")
+    private String keyspace;
+
     @Override
     public void execute(NodeProbe probe)
     {
-        probe.output().out.println(probe.getCoerceReadConsistencyAllKeyspaces());
+        if (keyspace.isEmpty()) {
+            probe.output().out.println(probe.getCoerceReadConsistencyAllKeyspaces());
+            return;
+        }
+        probe.output().out.println(probe.getCoerceReadConsistencyAllKeyspaces().contains(keyspace));
     }
 }

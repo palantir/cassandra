@@ -2114,7 +2114,9 @@ public class DatabaseDescriptor
     }
 
     public static boolean getCoerceReadConsistencyAllForKeyspace(String keyspace) {
-        return conf.coerce_read_consistency_all && conf.coerce_read_consistency_all_keyspaces.contains(keyspace);
+        return conf.coerce_read_consistency_all &&
+               (conf.coerce_read_consistency_all_keyspaces.isEmpty() ||
+                conf.coerce_read_consistency_all_keyspaces.contains(keyspace));
     }
 
     public static void setCoerceReadConsistencyAllForKeyspace(Set<String> keyspaces) {
