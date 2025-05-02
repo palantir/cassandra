@@ -35,7 +35,7 @@ public class GetCoerceReadConsistencyAllKeyspaces extends NodeTool.NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
-        if (keyspace.isEmpty()) {
+        if (keyspace == null || keyspace.isEmpty()) {
             Set<String> coercedKeyspaces = probe.getCoerceReadConsistencyAllKeyspaces();
             if (coercedKeyspaces.isEmpty()) {
                 probe.output().out.println("All keyspaces coerced QUORUM read consistency to ALL");
