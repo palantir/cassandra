@@ -364,6 +364,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid get_slice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent.toString()),
+                         UnsafeArg.of("predicate", predicate.toString()),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -413,6 +419,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid multiget_slice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent.toString()),
+                         UnsafeArg.of("predicate", predicate.toString()),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -452,6 +464,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid multiget_multislice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent.toString()),
+                         UnsafeArg.of("keysPredicate", request),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -654,6 +672,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid get request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_path.column_family),
+                         UnsafeArg.of("key", key),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -730,6 +754,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid get_count request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent),
+                         UnsafeArg.of("slicePredicate", predicate),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -781,6 +811,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid multiget_count request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent),
+                         UnsafeArg.of("slicePredicate", predicate),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -852,6 +888,11 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid insert request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -936,6 +977,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid put_unless_exist request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_family),
+                         SafeArg.of("serialConsistencyLevel", serial_consistency_level),
+                         SafeArg.of("commitConsistencyLevel", commit_consistency_level),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         catch (RequestExecutionException e)
@@ -1037,6 +1084,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid cas request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_family),
+                         SafeArg.of("serialConsistencyLevel", serial_consistency_level),
+                         SafeArg.of("commitConsistencyLevel", commit_consistency_level),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         catch (RequestExecutionException e)
@@ -1216,6 +1269,11 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid batch_mutate request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("mutation_map", mutation_map),
+                         SafeArg.of("consistencyLevel", consistency_level),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -1249,6 +1307,11 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid atomic_batch_mutate request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("mutation_map", mutation_map),
+                         SafeArg.of("consistencyLevel", consistency_level),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -1309,6 +1372,11 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid remove request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_path.column_family),
+                         SafeArg.of("consistencyLevel", consistency_level),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -1447,12 +1515,13 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
-            logger.warn("Invalid get_range_slice request", e,
-                        SafeArg.of("column_parent", column_parent.toString()),
-                        UnsafeArg.of("predicate", predicate.toString()),
-                        UnsafeArg.of("range", range.toString()),
-                        SafeArg.of("consistency_level", consistency_level.name()),
-                        UnsafeArg.of("error", e.getMessage()));
+            logger.debug("Invalid get_range_slice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent.toString()),
+                         UnsafeArg.of("predicate", predicate.toString()),
+                         UnsafeArg.of("range", range.toString()),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         catch (RequestExecutionException e)
@@ -1536,6 +1605,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid get_paged_slice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_family),
+                         UnsafeArg.of("range", range.toString()),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         catch (RequestExecutionException e)
@@ -1609,6 +1684,13 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid get_indexed_slice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", column_parent.toString()),
+                         UnsafeArg.of("indexClause", index_clause.toString()),
+                         UnsafeArg.of("slicePredicate", column_predicate.toString()),
+                         SafeArg.of("consistencyLevel", consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         catch (RequestExecutionException e)
@@ -2185,6 +2267,10 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid execute_cql3_query request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("consistencyLevel", cLevel.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -2214,6 +2300,10 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid prepare_cql3_query request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         UnsafeArg.of("query", queryString),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
     }
@@ -2258,6 +2348,10 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid execute_prepared_cql3_query request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("consistencyLevel", cLevel.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         finally
@@ -2320,6 +2414,13 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.debug("Invalid get_multi_slice request", e,
+                         SafeArg.of("keyspace", state().getKeyspace()),
+                         SafeArg.of("cf", request.column_parent.toString()),
+                         SafeArg.of("count", String.valueOf(request.count)),
+                         UnsafeArg.of("columnSlices", request.column_slices.toString()),
+                         SafeArg.of("consistencyLevel", request.consistency_level.name()),
+                         UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         } 
         finally 
