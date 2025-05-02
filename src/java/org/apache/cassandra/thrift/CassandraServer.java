@@ -39,6 +39,9 @@ import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
+
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
@@ -1444,6 +1447,12 @@ public class CassandraServer implements Cassandra.Iface
         }
         catch (RequestValidationException e)
         {
+            logger.warn("Invalid get_range_slice request", e,
+                        SafeArg.of("column_parent", column_parent.toString()),
+                        UnsafeArg.of("predicate", predicate.toString()),
+                        UnsafeArg.of("range", range.toString()),
+                        SafeArg.of("consistency_level", consistency_level.name()),
+                        UnsafeArg.of("error", e.getMessage()));
             throw ThriftConversion.toThrift(e);
         }
         catch (RequestExecutionException e)
