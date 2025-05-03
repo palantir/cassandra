@@ -121,19 +121,14 @@ public class StageManager
         }
     }
 
-    public final static Runnable NO_OP_TASK = new Runnable()
-    {
-        public void run()
-        {
-
-        }
-    };
-
     @VisibleForTesting
+    // TODO(tpetracca): can this be deleted?
     public static void shutdownAndWait(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException
     {
         ExecutorUtils.shutdownNowAndWait(timeout, unit, StageManager.stages.values());
     }
+
+    public final static Runnable NO_OP_TASK = () -> {};
 
     /**
      * A TPE that disallows submit so that we don't need to worry about unwrapping exceptions on the
