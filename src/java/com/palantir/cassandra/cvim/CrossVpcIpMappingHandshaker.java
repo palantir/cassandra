@@ -36,6 +36,7 @@ import com.palantir.logsafe.SafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.concurrent.DebuggableScheduledThreadPoolExecutor;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessageOut;
@@ -80,10 +81,10 @@ public class CrossVpcIpMappingHandshaker
         {
             this.privateIpToHostname.put(internalIp, host);
             logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}",
-                        SafeArg.of("internalIp", internalIp),
-                        SafeArg.of("hostOld", old),
-                        SafeArg.of("internalIp", internalIp),
-                        SafeArg.of("host", host));
+                        UnsafeArg.of("internalAddress", internalIp),
+                        UnsafeArg.of("hostnameOld", old),
+                        UnsafeArg.of("internalAddress", internalIp),
+                        UnsafeArg.of("hostnameNew", host));
         }
     }
 
@@ -108,7 +109,7 @@ public class CrossVpcIpMappingHandshaker
     private InetAddress maybeInsertHostname(InetAddress endpoint)
     {
         InetAddressHostname hostname = privateIpToHostname.get(new InetAddressIp(endpoint.getHostAddress()));
-        logger.trace("Performing DNS lookup for host {}", SafeArg.of("hostname", hostname));
+        logger.trace("Performing DNS lookup for host {}", UnsafeArg.of("hostname", hostname));
         Set<InetAddress> resolved;
         try
         {
@@ -117,19 +118,19 @@ public class CrossVpcIpMappingHandshaker
         catch (UnknownHostException e)
         {
             logger.error("Cross VPC mapping contains unresolvable hostname for endpoint {} (unresolved: {})",
-                         SafeArg.of("endpoint", endpoint), SafeArg.of("hostname", hostname));
+                         UnsafeArg.of("endpoint", endpoint), UnsafeArg.of("hostname", hostname));
             return endpoint;
         }
         if (!resolved.contains(endpoint))
         {
             logger.debug("DNS-resolved address different than provided endpoint. This should mean that the endpoint " +
                         "includes a VPC-internal IP. Swapping. provided: {} resolved: {}",
-                         SafeArg.of("endpoint", endpoint), SafeArg.of("address", resolved));
+                         UnsafeArg.of("endpoint", endpoint), UnsafeArg.of("resolved", resolved));
             return resolved.stream().findFirst().get();
         } else
         {
             logger.trace("Endpoint matches resolved addresses. Not taking any action. provided: {} resolved: {}",
-                         SafeArg.of("endpoint", endpoint), SafeArg.of("address", resolved));
+                         UnsafeArg.of("endpoint", endpoint), UnsafeArg.of("resolved", resolved));
         }
         return endpoint;
     }
@@ -191,9 +192,10 @@ public class CrossVpcIpMappingHandshaker
             catch (Exception e)
             {
                 logger.error("Caught exception trying to trigger handshake from {}/{} to {}",
-                             SafeArg.of("hostname", selfName),
-                             SafeArg.of("address", selfIp),
-                             SafeArg.of("addressTarget", target));
+                             UnsafeArg.of("sourceHostname", selfName),
+                             SafeArg.of("sourceInternalAddress", selfIp),
+                             UnsafeArg.of("targetHostname", target.getHostName()),
+                             UnsafeArg.of("targetExternalAddress", target.getHostAddress()));
             }
         });
     }
@@ -206,9 +208,11 @@ public class CrossVpcIpMappingHandshaker
             return;
         }
         logger.trace("Triggering cross VPC IP swapping handshake from {}/{} to {}",
-                     SafeArg.of("hostname",sourceName),
-                     SafeArg.of("addressIp", sourceIp),
-                     SafeArg.of("addressTarget", target));
+                     UnsafeArg.of("sourceHostname", sourceName),
+                     SafeArg.of("sourceInternalAddress", sourceIp),
+                     UnsafeArg.of("targetHostname", target.getHostName()),
+                     UnsafeArg.of("targetExternalAddress", target.getHostAddress()));
+
         CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName,
                                                             sourceIp,
                                                             new InetAddressHostname(target.getHostName()),
