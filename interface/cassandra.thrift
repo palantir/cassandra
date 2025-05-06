@@ -582,6 +582,20 @@ struct ColumnSlice {
 }
 
 /**
+ * Ids necessary to propagate tracing information across network requests.
+ *
+ * Only support the OTEL/W3C propagation information, as we don't support B3-style client/server span sharing. For more
+ * information on why this is unncessary, see the following discussions:
+ *  - https://github.com/open-telemetry/opentelemetry-specification/issues/1004
+ *  - https://github.com/open-telemetry/opentelemetry-python/issues/236
+ */
+struct TraceMetadata {
+    1: required string trace_id,
+    3: required string span_id,
+    4: optional bool is_sampled,
+}
+
+/**
  * Used to perform multiple slices on a single row key in one rpc operation
  * @param key. The row key to be multi sliced
  * @param column_parent. The column family (super columns are unsupported)
@@ -614,6 +628,9 @@ service Cassandra {
  
   # set keyspace
   void set_keyspace(1: required string keyspace) throws (1:InvalidRequestException ire),
+
+  void setTrace(1: required TraceMetadata trace),
+  void unsetTrace(),
   
   # retrieval methods
 
