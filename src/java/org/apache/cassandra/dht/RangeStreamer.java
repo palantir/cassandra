@@ -157,22 +157,19 @@ public class RangeStreamer
      */
     public void addRanges(String keyspaceName, Collection<Range<Token>> ranges)
     {
-        Multimap<Range<Token>, InetAddress> rangesForKeyspace = useStrictSourcesForRanges(keyspaceName)
+        boolean useStrictSources = useStrictSourcesForRanges(keyspaceName);
+        logger.info(String.format("Using strict source for ranges: %s", useStrictSources));
+
+        Multimap<Range<Token>, InetAddress> rangesForKeyspace = useStrictSources
                 ? getAllRangesWithStrictSourcesFor(keyspaceName, ranges) : getAllRangesWithSourcesFor(keyspaceName, ranges);
 
-        if (logger.isTraceEnabled())
-        {
-            for (Map.Entry<Range<Token>, InetAddress> entry : rangesForKeyspace.entries())
-                logger.trace(String.format("%s: range %s exists on %s", description, entry.getKey(), entry.getValue()));
-        }
+        for (Map.Entry<Range<Token>, InetAddress> entry : rangesForKeyspace.entries())
+            logger.info(String.format("%s: range %s exists on %s", description, entry.getKey(), entry.getValue()));
 
         for (Map.Entry<InetAddress, Collection<Range<Token>>> entry : getRangeFetchMap(rangesForKeyspace, sourceFilters, keyspaceName, useStrictConsistency).asMap().entrySet())
         {
-            if (logger.isTraceEnabled())
-            {
-                for (Range<Token> r : entry.getValue())
-                    logger.trace(String.format("%s: range %s from source %s for keyspace %s", description, r, entry.getKey(), keyspaceName));
-            }
+            for (Range<Token> r : entry.getValue())
+                logger.info(String.format("%s: range %s from source %s for keyspace %s", description, r, entry.getKey(), keyspaceName));
             toFetch.put(keyspaceName, entry);
         }
     }
@@ -361,8 +358,7 @@ public class RangeStreamer
             InetAddress preferred = SystemKeyspace.getPreferredIP(source);
             Collection<Range<Token>> ranges = removeAvailableRanges(entry, true);
 
-            if (logger.isTraceEnabled())
-                logger.trace("{}ing from {} ranges {}", description, source, StringUtils.join(ranges, ", "));
+            logger.info("{}ing from {} ranges {}", description, source, StringUtils.join(ranges, ", "));
             /* Send messages to respective folks to stream data over to me */
             streamPlan.requestRanges(source, preferred, keyspace, ranges);
         }
