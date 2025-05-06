@@ -338,6 +338,7 @@ public class CassandraServer implements Cassandra.Iface
     public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
+        PalantirTracing.initializeTracerFromIncomingThriftMessage("get_slice", state().getTraceMetadata());
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of("key", ByteBufferUtil.bytesToHex(key),
@@ -366,6 +367,7 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
+            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1989,6 +1991,16 @@ public class CassandraServer implements Cassandra.Iface
         {
             throw ThriftConversion.toThrift(e);
         }
+    }
+
+    @Override
+    public void setTrace(TraceMetadata trace) throws TException {
+        state().setTraceMetadata(trace);
+    }
+
+    @Override
+    public void unsetTrace() throws TException {
+        state().setTraceMetadata();
     }
 
     public Map<String, List<String>> describe_schema_versions() throws TException, InvalidRequestException

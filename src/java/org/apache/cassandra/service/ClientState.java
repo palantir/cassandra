@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.Iterables;
+import org.apache.cassandra.thrift.TraceMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +87,7 @@ public class ClientState
     // Current user for the session
     private volatile AuthenticatedUser user;
     private volatile String keyspace;
+    private volatile TraceMetadata traceMetadata;
 
     private static final QueryHandler cqlQueryHandler;
     static
@@ -257,6 +259,18 @@ public class ClientState
         if (user != null && Schema.instance.getKSMetaData(ks) == null)
             throw new InvalidRequestException("Keyspace '" + ks + "' does not exist");
         keyspace = ks;
+    }
+
+    public void setTraceMetadata(TraceMetadata traceMetadata) {
+        this.traceMetadata = traceMetadata;
+    }
+
+    public TraceMetadata getTraceMetadata() {
+        return this.traceMetadata;
+    }
+
+    public void clearTraceMetadata() {
+        this.traceMetadata = null;
     }
 
     /**
