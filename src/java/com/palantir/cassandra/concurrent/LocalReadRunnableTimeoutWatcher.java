@@ -25,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ReadCommand;
 import org.apache.cassandra.net.MessagingService;
@@ -39,7 +41,12 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
     private LocalReadRunnableTimeoutWatcher() { }
 
     public void watch(ReadCommand readCommand) {
-        logger.trace("Watching read command {} for timeout {}", readCommand, getTimeout());
+        logger.trace("Watching read command {} {} {} {} for timeout {}",
+                     SafeArg.of("columnFamily", readCommand.getColumnFamilyName()),
+                     UnsafeArg.of("key", readCommand.key),
+                     SafeArg.of("keyspace", readCommand.getKeyspace()),
+                     SafeArg.of("timestamp", readCommand.timestamp),
+                     SafeArg.of("timeout", getTimeout()));
         readCommandStartTimes.put(readCommand, System.currentTimeMillis());
     }
 
@@ -57,9 +64,19 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 
     public void run()
     {
-        logger.trace("Checking read commands {} to see if they've timed out", readCommandStartTimes);
+        logger.trace("Checking read commands count {} to see if they've timed out {}",
+                     SafeArg.of("numReadCommandStartTimes", readCommandStartTimes.size()),
+                     SafeArg.of("timeout", getTimeout()));
+
         ArrayList<ReadCommand> timedOutCommands = new ArrayList<>(readCommandStartTimes.size());
         for(Map.Entry<ReadCommand, Long> entry : readCommandStartTimes.entrySet()) {
+            logger.trace("Checking whether read command timed out: {} {} {} {}, started at {}",
+                         SafeArg.of("columnFamily", entry.getKey().getColumnFamilyName()),
+                         UnsafeArg.of("key", entry.getKey().key),
+                         SafeArg.of("keyspace", entry.getKey().getKeyspace()),
+                         SafeArg.of("timestamp", entry.getKey().timestamp),
+                         SafeArg.of("startTime", entry.getValue()));
+
             if (entry.getValue() + getTimeout() <= System.currentTimeMillis()) {
                 timedOutCommands.add(entry.getKey());
             }
@@ -67,7 +84,12 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 
         for (ReadCommand command : timedOutCommands) {
             unwatch(command);
-            logger.debug("Un-watching read command {} for timeout {} ", command, getTimeout());
+            logger.debug("Un-watching read command {} for timeout {} ",
+                         SafeArg.of("columnFamily", command.getColumnFamilyName()),
+                         UnsafeArg.of("key", command.key),
+                         SafeArg.of("keyspace", command.getKeyspace()),
+                         SafeArg.of("timestamp", command.timestamp),
+                         SafeArg.of("timeout", getTimeout()));
         }
     }
 }
