@@ -50,7 +50,14 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
                      .collect(Collectors.toList());
     }
 
-    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, Collection<Long> latencies, InetAddress extraReplica) {
+    public boolean maybeWriteMetrics(ColumnFamilyStore cfs, Collection<Long> latencies, Optional<Snapshot> extraReplicaSnapshot) {
+        long extraReplicaP99Latency;
+        if (extraReplicaSnapshot.isPresent()) {
+            extraReplicaP99Latency = (long) extraReplicaSnapshot.get().get99thPercentile();
+        } else {
+            return false;
+        }
+
         long thresholdTime;
         TimeUnit unit;
         switch (threshold) {
@@ -83,13 +90,6 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
         }
         if (thresholdTime < 1) {
             // Don't want uninitialized percentile latencies to skew the metrics
-            return false;
-        }
-        long extraReplicaP99Latency;
-        Optional<Snapshot> extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
-        if (extraReplicaSnapshot.isPresent()) {
-            extraReplicaP99Latency = (long) extraReplicaSnapshot.get().get99thPercentile();
-        } else {
             return false;
         }
 

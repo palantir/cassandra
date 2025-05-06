@@ -254,7 +254,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
     public Optional<Snapshot> getSnapshot(InetAddress endpoint) {
         ExponentiallyDecayingReservoir endpointSamples = samples.get(endpoint);
         if (endpointSamples != null) {
-            return Optional.ofNullable(samples.get(endpoint).getSnapshot());
+            return Optional.ofNullable(endpointSamples.getSnapshot());
         } else {
             return Optional.empty();
         }
