@@ -63,16 +63,6 @@ public class ColumnFamilyStoreManager implements IColumnFamilyStoreValidator, IC
     }
 
     @Override
-    public boolean shouldRemoveUnusedSstablesBasedOnAncestorMetadata() {
-        return validator.shouldRemoveUnusedSstablesBasedOnAncestorMetadata();
-    }
-
-    @Override
-    public boolean shouldSkipAncestorCleanupBasedOnAncestorMetadata() {
-        return validator.shouldSkipAncestorCleanupBasedOnAncestorMetadata();
-    }
-
-    @Override
     public void markForDeletion(CFMetaData cfMetaData, Set<Descriptor> descriptors)
     {
         writeAheadLogger.markForDeletion(cfMetaData, descriptors);
