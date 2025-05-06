@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.palantir.cassandra.settings.LockKeyspaceCreationSetting;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -106,6 +107,7 @@ public class CassandraServer implements Cassandra.Iface
                                     });
     }
 
+    @WithSpan
     private ListMultimap<DecoratedKey, ColumnFamily> readColumnFamilies(List<ReadCommand> commands, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
