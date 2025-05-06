@@ -77,7 +77,9 @@ public class BootStrapper extends ProgressEventNotifierSupport
                                                    "Bootstrap",
                                                    useStrictConsistency,
                                                    DatabaseDescriptor.getEndpointSnitch(),
-                                                   stateStore);
+                                                   stateStore,
+                                                   true,
+                                                   DatabaseDescriptor.getStreamingConnectionsPerHost());
         streamer.addSourceFilter(new RangeStreamer.FailureDetectorSourceFilter(FailureDetector.instance));
         streamer.addSourceFilter(new RangeStreamer.ExcludeLocalNodeFilter());
 
