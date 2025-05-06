@@ -24,7 +24,7 @@ import com.google.common.collect.AbstractIterator;
 
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.*;
-import org.apache.cassandra.db.columniterator.OnDiskAtomIterator;
+import org.apache.cassandra.db.columniterator.SSTableAwareOnDiskAtomIterator;
 import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
@@ -35,7 +35,7 @@ import org.apache.cassandra.io.util.FileMark;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
-class SSTableNamesIterator extends AbstractIterator<OnDiskAtom> implements OnDiskAtomIterator
+public class SSTableNamesIterator extends AbstractIterator<OnDiskAtom> implements SSTableAwareOnDiskAtomIterator
 {
     private ColumnFamily cf;
     private final SSTableReader sstable;
@@ -241,6 +241,10 @@ class SSTableNamesIterator extends AbstractIterator<OnDiskAtom> implements OnDis
                     nextToFetch = toFetch.hasNext() ? toFetch.next() : null;
             }
         }
+    }
+
+    public SSTableReader getSSTableReader() {
+        return this.sstable;
     }
 
     public DecoratedKey getKey()

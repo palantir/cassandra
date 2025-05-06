@@ -22,13 +22,13 @@ import java.util.Set;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
+import com.palantir.cassandra.utils.TombstoneCountingIterator;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.palantir.cassandra.utils.CountingCellIterator;
-import org.apache.cassandra.db.Mutation;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
@@ -91,9 +91,9 @@ public class KeyspaceMetrics
     /** Tombstones scanned in queries on this CF per {@link CountingCellIterator} */
     public final Histogram tombstonesReadHistogram;
 
-    /** Ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    /** Ranged Tombstones scanned in queries on this CF per {@link TombstoneCountingIterator} */
     public final Histogram rangeTombstonesReadHistogram;
-    /** Droppable ranged Tombstones scanned in queries on this CF per {@link com.palantir.cassandra.utils.RangeTombstoneCountingIterator} */
+    /** Droppable ranged Tombstones scanned in queries on this CF per {@link TombstoneCountingIterator} */
     public final Histogram droppableRangeTombstonesReadHistogram;
     /** Range tombstones held in memory when performing a read on this CF */
     public final Histogram rangeTombstonesHistogram;
