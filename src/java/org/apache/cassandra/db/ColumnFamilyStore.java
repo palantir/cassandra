@@ -2423,7 +2423,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         assert !(range.keyRange() instanceof Range) || !((Range<?>)range.keyRange()).isWrapAround() || range.keyRange().right.isMinimum() : range.keyRange();
 
         final ViewFragment view = select(viewFilter(range.keyRange()));
-        Tracing.trace("Executing seq scan across {} sstables for {}", view.sstables.size(), range.keyRange().getString(metadata.getKeyValidator()));
+        Tracing.trace("Executing seq scan across {} sstables", view.sstables.size());
 
         final CloseableIterator<Row> iterator = RowIteratorFactory.getIterator(view.memtables, view.sstables, range, this, now);
 
