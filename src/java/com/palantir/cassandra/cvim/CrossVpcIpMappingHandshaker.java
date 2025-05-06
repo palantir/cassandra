@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.palantir.logsafe.SafeArg;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +79,11 @@ public class CrossVpcIpMappingHandshaker
         if (!host.equals(old))
         {
             this.privateIpToHostname.put(internalIp, host);
-            logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}", internalIp, old, internalIp, host);
+            logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}",
+                        SafeArg.of("internalIp", internalIp),
+                        SafeArg.of("hostOld", old),
+                        SafeArg.of("internalIp", internalIp),
+                        SafeArg.of("host", host));
         }
     }
 
@@ -103,7 +108,7 @@ public class CrossVpcIpMappingHandshaker
     private InetAddress maybeInsertHostname(InetAddress endpoint)
     {
         InetAddressHostname hostname = privateIpToHostname.get(new InetAddressIp(endpoint.getHostAddress()));
-        logger.trace("Performing DNS lookup for host {}", hostname);
+        logger.trace("Performing DNS lookup for host {}", SafeArg.of("hostname", hostname));
         Set<InetAddress> resolved;
         try
         {
@@ -112,19 +117,19 @@ public class CrossVpcIpMappingHandshaker
         catch (UnknownHostException e)
         {
             logger.error("Cross VPC mapping contains unresolvable hostname for endpoint {} (unresolved: {})",
-                         endpoint, hostname);
+                         SafeArg.of("endpoint", endpoint), SafeArg.of("hostname", hostname));
             return endpoint;
         }
         if (!resolved.contains(endpoint))
         {
             logger.debug("DNS-resolved address different than provided endpoint. This should mean that the endpoint " +
                         "includes a VPC-internal IP. Swapping. provided: {} resolved: {}",
-                         endpoint, resolved);
+                         SafeArg.of("endpoint", endpoint), SafeArg.of("address", resolved));
             return resolved.stream().findFirst().get();
         } else
         {
             logger.trace("Endpoint matches resolved addresses. Not taking any action. provided: {} resolved: {}",
-                         endpoint, resolved);
+                         SafeArg.of("endpoint", endpoint), SafeArg.of("address", resolved));
         }
         return endpoint;
     }
@@ -185,7 +190,10 @@ public class CrossVpcIpMappingHandshaker
             }
             catch (Exception e)
             {
-                logger.error("Caught exception trying to trigger handshake from {}/{} to {}", selfName, selfIp, target);
+                logger.error("Caught exception trying to trigger handshake from {}/{} to {}",
+                             SafeArg.of("hostname", selfName),
+                             SafeArg.of("address", selfIp),
+                             SafeArg.of("addressTarget", target));
             }
         });
     }
@@ -197,7 +205,10 @@ public class CrossVpcIpMappingHandshaker
         {
             return;
         }
-        logger.trace("Triggering cross VPC IP swapping handshake from {}/{} to {}", sourceName, sourceIp, target);
+        logger.trace("Triggering cross VPC IP swapping handshake from {}/{} to {}",
+                     SafeArg.of("hostname",sourceName),
+                     SafeArg.of("addressIp", sourceIp),
+                     SafeArg.of("addressTarget", target));
         CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName,
                                                             sourceIp,
                                                             new InetAddressHostname(target.getHostName()),
@@ -223,7 +234,7 @@ public class CrossVpcIpMappingHandshaker
             return;
         }
         logger.info("Started running CrossVpcIpMappingTask at interval of {}",
-                    CrossVpcIpMappingHandshaker.scheduledInterval);
+                    SafeArg.of("interval", CrossVpcIpMappingHandshaker.scheduledInterval));
         scheduledCVIMTask = executor.scheduleWithFixedDelay(() -> {
             try
             {

@@ -23,6 +23,7 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DeletionInfo;
@@ -58,9 +59,10 @@ public class RangeTombstoneCountingIterator implements Iterator<OnDiskAtom>
 
         DeletionInfo deletionInfo = returnCF.deletionInfo();
 
-        logger.trace("Maybe counting cell as range tombstone", onDiskAtom instanceof RangeTombstone,
-                     deletionInfo.getRangeTombstoneCounter().getNonDroppableCount(),
-                     deletionInfo.getRangeTombstoneCounter().getDroppableCount());
+        logger.trace("Maybe counting cell as range tombstone",
+                     SafeArg.of("isRangeTombstone", onDiskAtom instanceof RangeTombstone),
+                     SafeArg.of("nonDroppable", deletionInfo.getRangeTombstoneCounter().getNonDroppableCount()),
+                     SafeArg.of("droppable", deletionInfo.getRangeTombstoneCounter().getDroppableCount()));
 
         if (onDiskAtom instanceof RangeTombstone) {
 

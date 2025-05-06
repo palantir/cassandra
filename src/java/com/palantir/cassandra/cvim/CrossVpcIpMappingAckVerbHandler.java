@@ -21,6 +21,8 @@ package com.palantir.cassandra.cvim;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
 
@@ -35,10 +37,10 @@ public class CrossVpcIpMappingAckVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressIp targetInternal = ackMessage.getTargetInternalAddress();
         InetAddressIp targetExternal = ackMessage.getTargetExternalAddress();
         logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}. {}/{} -> {}",
-                     message.from,
-                     targetName,
-                     targetInternal,
-                     targetExternal);
+                     UnsafeArg.of("fromAddress", message.from),
+                     UnsafeArg.of("targetHostname", targetName),
+                     SafeArg.of("targetInternalAddress", targetInternal),
+                     UnsafeArg.of("targetExternalAddress", targetExternal));
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(targetName, targetInternal);
     }
 }
