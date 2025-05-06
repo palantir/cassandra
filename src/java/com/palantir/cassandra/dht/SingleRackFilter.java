@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.collect.SetMultimap;
+import com.palantir.logsafe.SafeArg;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,11 +82,11 @@ public class SingleRackFilter implements RangeStreamer.ISourceFilter
                                                                      .collect(Collectors.toMap(_i -> localRacksIterator.next(), _i -> sourceRacksIterator.next()));
                     maybeRack = Optional.of(localToSourceRack.get(localRack));
                     log.info("Mapped current rack {} from current datacenter {} to source rack {} from source datacenter {}.",
-                             localRack, localDatacenter, maybeRack, sourceDatacenter);
+                             SafeArg.of("localRack", localRack), SafeArg.of("localDatacenter", localDatacenter), SafeArg.of("sourceRack", maybeRack), SafeArg.of("sourceDatacenter", sourceDatacenter));
                 }
             }
         } else {
-            log.info("Creating empty rack filter as replication strategy is not network, but rather {}", replicationStrategy.getClass().getSimpleName());
+            log.info("Creating empty rack filter as replication strategy is not network, but rather {}", SafeArg.of("replicationStrategy", replicationStrategy.getClass().getSimpleName()));
         }
 
         return new SingleRackFilter(maybeRack);
