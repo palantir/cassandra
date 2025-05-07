@@ -24,6 +24,8 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 
 public class PersistentSetting
@@ -45,7 +47,7 @@ public class PersistentSetting
         }
         catch (IOException e)
         {
-            log.warn("Cannot create persistent settings file.", lockFile.getAbsolutePath(), e);
+            log.warn("Cannot create persistent settings file.", SafeArg.of("lockFile", lockFile.getName()), UnsafeArg.of("lockFilePath", lockFile.getAbsolutePath()), e);
             throw e;
         }
     }

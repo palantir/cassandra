@@ -27,6 +27,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
@@ -57,14 +59,15 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
 
         if (!DatabaseDescriptor.isCrossVpcInternodeCommunicationEnabled())
         {
-            logger.trace("Ignoring new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {} -> {} " +
+            logger.trace("Ignoring new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {}/{} -> {} " +
                          "because cross_vpc_internode_communication_enabled=false",
-                         message.from,
-                         synMessage.getSourceHostname(),
-                         sourceInternalIp,
-                         sourceExternalIp,
-                         targetInternalIp,
-                         proposedTargetExternalIp);
+                         SafeArg.of("fromAddress", message.from),
+                         UnsafeArg.of("sourceHostname", sourceName),
+                         SafeArg.of("sourceInternalAddress", sourceInternalIp),
+                         SafeArg.of("sourceExternalAddress", sourceExternalIp),
+                         UnsafeArg.of("targetHostname", proposedTargetName),
+                         SafeArg.of("targetInternalAddress", targetInternalIp),
+                         SafeArg.of("targetExternalAddress", proposedTargetExternalIp));
             return;
         }
 
@@ -75,13 +78,14 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
             return;
         }
 
-        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {} -> {}",
-                     message.from,
-                     synMessage.getSourceHostname(),
-                     sourceInternalIp,
-                     sourceExternalIp,
-                     targetInternalIp,
-                     proposedTargetExternalIp);
+        logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {}/{} -> {}",
+                     SafeArg.of("fromAddress", message.from),
+                     UnsafeArg.of("sourceHostname", sourceName),
+                     SafeArg.of("sourceInternalAddress", sourceInternalIp),
+                     SafeArg.of("sourceExternalAddress", sourceExternalIp),
+                     UnsafeArg.of("targetHostname", proposedTargetName),
+                     SafeArg.of("targetInternalAddress", targetInternalIp),
+                     SafeArg.of("targetExternalAddress", proposedTargetExternalIp));
 
 
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(sourceName, sourceInternalIp);
@@ -91,7 +95,9 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
                                                                        ack,
                                                                        CrossVpcIpMappingAck.serializer);
 
-        logger.trace("Sending CrossVpcIpMappingAck to {}/{}", sourceInternalIp, sourceName);
+        logger.trace("Sending CrossVpcIpMappingAck to {}/{}",
+                     UnsafeArg.of("sourceHostname", sourceName),
+                     SafeArg.of("sourceInternalAddress", sourceInternalIp));
         reply(ackMessage, sourceInternalIp);
     }
 
