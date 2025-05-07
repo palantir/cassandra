@@ -81,9 +81,9 @@ public class CrossVpcIpMappingHandshaker
         {
             this.privateIpToHostname.put(internalIp, host);
             logger.warn("Updated private IP to hostname mapping from {}->{} to {}->{}",
-                        UnsafeArg.of("internalAddress", internalIp),
+                        SafeArg.of("internalAddress", internalIp),
                         UnsafeArg.of("hostnameOld", old),
-                        UnsafeArg.of("internalAddress", internalIp),
+                        SafeArg.of("internalAddress", internalIp),
                         UnsafeArg.of("hostnameNew", host));
         }
     }
@@ -195,7 +195,7 @@ public class CrossVpcIpMappingHandshaker
                              UnsafeArg.of("sourceHostname", selfName),
                              SafeArg.of("sourceInternalAddress", selfIp),
                              UnsafeArg.of("targetHostname", target.getHostName()),
-                             UnsafeArg.of("targetExternalAddress", target.getHostAddress()));
+                             SafeArg.of("targetExternalAddress", target.getHostAddress()));
             }
         });
     }
@@ -211,7 +211,7 @@ public class CrossVpcIpMappingHandshaker
                      UnsafeArg.of("sourceHostname", sourceName),
                      SafeArg.of("sourceInternalAddress", sourceIp),
                      UnsafeArg.of("targetHostname", target.getHostName()),
-                     UnsafeArg.of("targetExternalAddress", target.getHostAddress()));
+                     SafeArg.of("targetExternalAddress", target.getHostAddress()));
 
         CrossVpcIpMappingSyn syn = new CrossVpcIpMappingSyn(sourceName,
                                                             sourceIp,

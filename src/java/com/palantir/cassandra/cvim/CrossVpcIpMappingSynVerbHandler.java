@@ -61,13 +61,13 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         {
             logger.trace("Ignoring new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {}/{} -> {} " +
                          "because cross_vpc_internode_communication_enabled=false",
-                         UnsafeArg.of("fromAddress", message.from),
+                         SafeArg.of("fromAddress", message.from),
                          UnsafeArg.of("sourceHostname", sourceName),
                          SafeArg.of("sourceInternalAddress", sourceInternalIp),
-                         UnsafeArg.of("sourceExternalAddress", sourceExternalIp),
+                         SafeArg.of("sourceExternalAddress", sourceExternalIp),
                          UnsafeArg.of("targetHostname", proposedTargetName),
                          SafeArg.of("targetInternalAddress", targetInternalIp),
-                         UnsafeArg.of("targetExternalAddress", proposedTargetExternalIp));
+                         SafeArg.of("targetExternalAddress", proposedTargetExternalIp));
             return;
         }
 
@@ -79,13 +79,13 @@ public class CrossVpcIpMappingSynVerbHandler implements IVerbHandler<CrossVpcIpM
         }
 
         logger.trace("Handling new Cross-VPC-IP-Mapping Syn message from {}. source: {}/{} -> {}; target: {}/{} -> {}",
-                     UnsafeArg.of("fromAddress", message.from),
+                     SafeArg.of("fromAddress", message.from),
                      UnsafeArg.of("sourceHostname", sourceName),
                      SafeArg.of("sourceInternalAddress", sourceInternalIp),
-                     UnsafeArg.of("sourceExternalAddress", sourceExternalIp),
+                     SafeArg.of("sourceExternalAddress", sourceExternalIp),
                      UnsafeArg.of("targetHostname", proposedTargetName),
                      SafeArg.of("targetInternalAddress", targetInternalIp),
-                     UnsafeArg.of("targetExternalAddress", proposedTargetExternalIp));
+                     SafeArg.of("targetExternalAddress", proposedTargetExternalIp));
 
 
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(sourceName, sourceInternalIp);

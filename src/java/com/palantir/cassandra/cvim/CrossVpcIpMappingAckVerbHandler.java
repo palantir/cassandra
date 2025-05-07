@@ -37,10 +37,10 @@ public class CrossVpcIpMappingAckVerbHandler implements IVerbHandler<CrossVpcIpM
         InetAddressIp targetInternal = ackMessage.getTargetInternalAddress();
         InetAddressIp targetExternal = ackMessage.getTargetExternalAddress();
         logger.trace("Handling new Cross-VPC-IP-Mapping Ack message from {}. {}/{} -> {}",
-                     UnsafeArg.of("fromAddress", message.from),
+                     SafeArg.of("fromAddress", message.from),
                      UnsafeArg.of("targetHostname", targetName),
                      SafeArg.of("targetInternalAddress", targetInternal),
-                     UnsafeArg.of("targetExternalAddress", targetExternal));
+                     SafeArg.of("targetExternalAddress", targetExternal));
         CrossVpcIpMappingHandshaker.instance.updateCrossVpcMappings(targetName, targetInternal);
     }
 }
