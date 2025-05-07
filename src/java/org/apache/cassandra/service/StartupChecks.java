@@ -147,7 +147,7 @@ public class StartupChecks
             }
             catch (AssertionError | LinkageError e)
             {
-                logger.warn("lz4-java was unable to load native libraries; this will lower the performance of lz4 (network/sstables/etc.): {}", e.getMessage());
+                logger.warn("lz4-java was unable to load native libraries; this will lower the performance of lz4 (network/sstables/etc.)", e);
             }
         }
     };
