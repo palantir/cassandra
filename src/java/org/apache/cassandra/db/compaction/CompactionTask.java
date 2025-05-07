@@ -131,8 +131,9 @@ public class CompactionTask extends AbstractCompactionTask
 
         final long expectedWriteSize = checkAvailableDiskSpaceAndGetWriteSize(checkAvailableDiskSpaceFunction);
 
-        if (expectedWriteSize > FIVE_GIBIBYTES_IN_BYTES)
+        if (expectedWriteSize > 0)
         {
+            cfs.metric.ongoingLargeCompactionTasks.inc();
             logger.info("Compaction for ks/cf {}/{} exceeds 5GiB with total size of {}",
                     SafeArg.of("keyspace", cfs.keyspace.getName()),
                     SafeArg.of("columnFamily", cfs.name),
@@ -315,6 +316,10 @@ public class CompactionTask extends AbstractCompactionTask
             // update the metrics
             cfs.metric.compactionBytesWritten.inc(endsize);
             cfs.metric.compactionsCompleted.inc();
+            if (expectedWriteSize > 0)
+            {
+                cfs.metric.ongoingLargeCompactionTasks.dec();
+            }
             CompactionThroughputThrottler.instance.maybeRemoveThrottledCompaction(cfs.metadata);
         }
     }

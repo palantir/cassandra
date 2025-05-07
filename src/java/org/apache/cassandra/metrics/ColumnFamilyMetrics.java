@@ -180,6 +180,9 @@ public class ColumnFamilyMetrics
     /** Bytes read on reads **/
     public final Meter readBytesRead;
 
+    /** Number of ongoing compactions over 5GiB */
+    public final Counter ongoingLargeCompactionTasks;
+
     public final LatencyMetrics coordinatorReadLatency;
     public final LatencyMetrics coordinatorReadScanLatency;
     public final LatencyMetrics coordinatorScanLatency;
@@ -431,6 +434,7 @@ public class ColumnFamilyMetrics
         pendingFlushes = createColumnFamilyCounter("PendingFlushes");
         bytesFlushed = createColumnFamilyCounter("BytesFlushed");
         compactionBytesWritten = createColumnFamilyCounter("CompactionBytesWritten");
+        ongoingLargeCompactionTasks = createColumnFamilyCounter("OngoingLargeCompactionTasks");
         compactionsCompleted = createColumnFamilyCounter("CompactionsCompleted");
         pendingCompactions = createColumnFamilyGauge("PendingCompactions", new Gauge<Integer>()
         {
