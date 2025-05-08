@@ -2109,6 +2109,7 @@ public class ColumnFamilyStoreTest
         writer.newRow(key);
         writer.addColumn(bytes("col"), bytes("val"), 1);
         writer.close();
+        cfs.loadNewSSTables();
 
         writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
                                          cfmeta, StorageService.getPartitioner());
@@ -2116,14 +2117,13 @@ public class ColumnFamilyStoreTest
         writer.addColumn(bytes("col"), bytes("val"), 1);
         writer.close();
 
-        Set<Integer> generations = new HashSet<>();
-        for (Descriptor descriptor : dir.sstableLister().list().keySet())
-            generations.add(descriptor.generation);
+        assertEquals(1, cfs.getSSTables().size());
 
-        // we should have two generations: [1, 2]
-        assertEquals(2, generations.size());
-        assertTrue(generations.contains(1));
-        assertTrue(generations.contains(2));
+        Set<Integer> sstablesOnDisk = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            sstablesOnDisk.add(descriptor.generation);
+
+        assertEquals(2, sstablesOnDisk.size());
 
         assertThatThrownBy(cfs::loadNewSSTables)
             .hasMessageContaining("Calling loadNewSstable on a cf with existing sstables");
@@ -2137,6 +2137,8 @@ public class ColumnFamilyStoreTest
         ColumnFamilyStore cfs = Keyspace.open(ks).getColumnFamilyStore(cf);
         final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
         Directories dir = new Directories(cfs.metadata);
+        cfs.truncateBlocking();
+        SSTableDeletingTask.waitForDeletions();
 
         // clear old SSTables (probably left by CFS.clearUnsafe() calls in other tests)
         for (Map.Entry<Descriptor, Set<Component>> entry : dir.sstableLister().list().entrySet())
@@ -2188,6 +2190,18 @@ public class ColumnFamilyStoreTest
         // start the generation counter at 1 again (other tests have incremented it already)
         cfs.resetFileIndexGenerator();
 
+        boolean incrementalBackupsEnabled = DatabaseDescriptor.isIncrementalBackupsEnabled();
+        try
+        {
+            // avoid duplicate hardlinks to incremental backups
+            DatabaseDescriptor.setIncrementalBackupsEnabled(false);
+            cfs.loadNewSSTables();
+        }
+        finally
+        {
+            DatabaseDescriptor.setIncrementalBackupsEnabled(incrementalBackupsEnabled);
+        }
+
         assertEquals(2, cfs.getSSTables().size());
         generations = new HashSet<>();
         for (Descriptor descriptor : dir.sstableLister().list().keySet())
@@ -2197,6 +2211,7 @@ public class ColumnFamilyStoreTest
         assertTrue(generations.contains(8));
         assertTrue(generations.contains(9));
         assertEquals(2, cfs.getSSTables().size());
+        cfs.clearUnsafe();
     }
 
     @Test
