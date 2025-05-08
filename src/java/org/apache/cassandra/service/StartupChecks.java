@@ -31,6 +31,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.jpountz.lz4.LZ4Factory;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
@@ -72,6 +73,7 @@ public class StartupChecks
     // keyspace. All other checks should not require any schema initialization.
     private final List<Map.Entry<String, StartupCheck>> DEFAULT_TESTS = ImmutableList.of(
         new AbstractMap.SimpleEntry<>("checkJemalloc", checkJemalloc),
+        new AbstractMap.SimpleEntry<>("checkLz4Native", checkLz4Native),
         new AbstractMap.SimpleEntry<>("checkValidLaunchDate", checkValidLaunchDate),
         new AbstractMap.SimpleEntry<>("checkJMXPorts", checkJMXPorts),
         new AbstractMap.SimpleEntry<>("inspectJvmOptions", inspectJvmOptions),
@@ -131,6 +133,22 @@ public class StartupChecks
                 logger.info("jemalloc preload explicitly disabled");
             else
                 logger.info("jemalloc seems to be preloaded from {}", jemalloc);
+        }
+    };
+
+    public static final StartupCheck checkLz4Native = new StartupCheck()
+    {
+        @Override
+        public void execute()
+        {
+            try
+            {
+                LZ4Factory.nativeInstance(); // make sure native loads
+            }
+            catch (AssertionError | LinkageError e)
+            {
+                logger.warn("lz4-java was unable to load native libraries; this will lower the performance of lz4 (network/sstables/etc.): {}", e.getMessage());
+            }
         }
     };
 
