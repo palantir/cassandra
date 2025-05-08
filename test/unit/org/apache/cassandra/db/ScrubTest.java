@@ -330,6 +330,7 @@ public class ScrubTest
             scrubber.scrub();
         }
 
+        cfs.resetFileIndexGenerator();
         cfs.loadNewSSTables();
         assertEquals(7, countCells(cfs));
     }
