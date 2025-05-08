@@ -888,8 +888,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public synchronized int unsafeLoadNewSSTablesWithRewrite()
     {
-        logger.info("Loading new SSTables for {}/{}...",
-                    SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+        logger.info("Unsafe loading new SSTables with rewrite for {}/{}...",
+                    SafeArg.of("keyspace", keyspace.getName()),
+                    SafeArg.of("cfName", name));
 
         Set<Descriptor> currentDescriptors = new HashSet<Descriptor>();
         for (SSTableReader sstable : data.getView().sstables)
@@ -937,8 +938,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                                                descriptor.formatType);
             }
             while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
-
-            logger.info("Renaming new SSTable {} to {}", SafeArg.of("descriptor", descriptor), SafeArg.of("newDescriptor", newDescriptor));
             SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
 
             SSTableReader reader;
@@ -956,19 +955,14 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         if (newSSTables.isEmpty())
         {
-            logger.info("No new SSTables were found for {}/{}", keyspace.getName(), name);
             return 0;
         }
-
-        logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}", keyspace.getName(), name, newSSTables);
 
         try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
         {
             data.addSSTables(newSSTables);
             indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
         }
-
-        logger.info("Done loading load new SSTables for {}/{}", SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
         return newSSTables.size();
     }
 
