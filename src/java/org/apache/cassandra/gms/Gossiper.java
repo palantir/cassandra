@@ -156,7 +156,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                 /* Update the local heartbeat counter. */
                 endpointStateMap.get(FBUtilities.getBroadcastAddress()).getHeartBeatState().updateHeartBeat();
                 if (logger.isTraceEnabled())
-                    logger.trace("My heartbeat is now {}", endpointStateMap.get(FBUtilities.getBroadcastAddress()).getHeartBeatState().getHeartBeatVersion());
+                    logger.trace("My heartbeat is now {}", SafeArg.of("heartbeat", endpointStateMap.get(FBUtilities.getBroadcastAddress()).getHeartBeatState().getHeartBeatVersion()));
                 final List<GossipDigest> gDigests = new ArrayList<>();
                 Gossiper.instance.makeGossipDigest(gDigests);
 
