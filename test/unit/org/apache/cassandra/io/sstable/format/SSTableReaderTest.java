@@ -219,7 +219,6 @@ public class SSTableReaderTest
     private void clearAndLoad(ColumnFamilyStore cfs)
     {
         cfs.clearUnsafe();
-        cfs.resetFileIndexGenerator();
         cfs.unsafeLoadNewSSTablesWithRewrite();
     }
 
