@@ -220,7 +220,7 @@ public class SSTableReaderTest
     {
         cfs.clearUnsafe();
         cfs.resetFileIndexGenerator();
-        cfs.loadNewSSTables();
+        cfs.unsafeLoadNewSSTablesWithRewrite();
     }
 
     @Test
