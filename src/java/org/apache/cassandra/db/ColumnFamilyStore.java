@@ -812,28 +812,38 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public static synchronized void loadNewSSTables(String ksName, String cfName, boolean emptyCf)
     {
+        if (!emptyCf)
+        {
+            throw new UnsupportedOperationException("Loading new SSTables for a cf with existing data is not supported.");
+        }
         /** ks/cf existence checks will be done by open and getCFS methods for us */
-        Keyspace.open(ksName).getColumnFamilyStore(cfName).loadNewSSTables(emptyCf);
+        Keyspace.open(ksName).getColumnFamilyStore(cfName).loadNewSSTables();
     }
 
-    public synchronized void loadNewSSTables(boolean emptyCf)
+    public void loadNewSSTables(boolean emptyCf)
     {
         if (!emptyCf)
         {
             throw new UnsupportedOperationException("Loading new SSTables for a cf with existing data is not supported.");
         }
+        /** ks/cf existence checks will be done by open and getCFS methods for us */
+        loadNewSSTables();
+    }
 
+    public synchronized void loadNewSSTables()
+    {
         // Prevents exterior flush or memtable from changing underneath us.
         synchronized (data)
         {
             logger.info("Loading new SSTables for {}/{}...",
-                        SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+                        SafeArg.of("keyspace", keyspace.getName()),
+                        SafeArg.of("cfName", name));
             forceFlush("Flush pre-load new sstable");
 
             Set<SSTableReader> currentView = data.getView().sstables;
             if (!currentView.isEmpty())
             {
-                logger.error("Forbidden: loadNewSstable when the cf has existing sstables",
+                logger.error("Forbidden: loadNewSstable when this cf {}/{} has existing sstables {}",
                              SafeArg.of("keyspace", keyspace.getName()),
                              SafeArg.of("cfName", name),
                              SafeArg.of("existingSstables", currentView.stream().map(reader -> reader.descriptor)
@@ -845,9 +855,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Collection<SSTableReader> newSSTables = SSTableReader.openAll(sstableFiles.list().entrySet(), metadata, partitioner);
 
             List<Integer> generations = newSSTables.stream()
-                                                   .map(ssTableReader -> ssTableReader.descriptor.generation)
+                                                   .map(ssTableReader -> ssTableReader.descriptor.generation).sorted()
                                                    .collect(Collectors.toList());
-            Collections.sort(generations);
 
             assert fileIndexGenerator.get() == 0;
             fileIndexGenerator.set(generations.isEmpty() ? 0 : generations.get(generations.size() - 1));
@@ -859,7 +868,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                             SafeArg.of("cf", name));
             }
 
-            logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}",
+            logger.info("Loading new SSTables {} and building secondary indexes for {}/{}",
                         SafeArg.of("keyspace", keyspace.getName()),
                         SafeArg.of("cf", name),
                         SafeArg.of("generations", generations));
@@ -870,11 +879,97 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
             }
 
-            logger.info("Done loading load new SSTables for {}/{}",
+            logger.info("Done loading load new SSTables {} for {}/{}",
                         SafeArg.of("keyspace", keyspace.getName()),
                         SafeArg.of("cf", name),
                         SafeArg.of("generations", generations));
         }
+    }
+
+    public synchronized int unsafeLoadNewSSTablesWithRewrite()
+    {
+        logger.info("Loading new SSTables for {}/{}...",
+                    SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+
+        Set<Descriptor> currentDescriptors = new HashSet<Descriptor>();
+        for (SSTableReader sstable : data.getView().sstables)
+            currentDescriptors.add(sstable.descriptor);
+        Set<SSTableReader> newSSTables = new HashSet<>();
+
+        Directories.SSTableLister lister = directories.sstableLister().skipTemporary(true);
+        for (Map.Entry<Descriptor, Set<Component>> entry : lister.list().entrySet())
+        {
+            Descriptor descriptor = entry.getKey();
+
+            if (currentDescriptors.contains(descriptor))
+                continue; // old (initialized) SSTable found, skipping
+            if (descriptor.type.isTemporary) // in the process of being written
+                continue;
+
+            if (!descriptor.isCompatible())
+                throw new RuntimeException(String.format("Can't open incompatible SSTable! Current version %s, found file: %s",
+                                                         descriptor.getFormat().getLatestVersion(),
+                                                         descriptor));
+
+            // force foreign sstables to level 0
+            try
+            {
+                if (new File(descriptor.filenameFor(Component.STATS)).exists())
+                    descriptor.getMetadataSerializer().mutateLevel(descriptor, 0);
+            }
+            catch (IOException e)
+            {
+                SSTableReader.logOpenException(entry.getKey(), e);
+                continue;
+            }
+
+            // Increment the generation until we find a filename that doesn't exist. This is needed because the new
+            // SSTables that are being loaded might already use these generation numbers.
+            Descriptor newDescriptor;
+            do
+            {
+                newDescriptor = new Descriptor(descriptor.version,
+                                               descriptor.directory,
+                                               descriptor.ksname,
+                                               descriptor.cfname,
+                                               fileIndexGenerator.incrementAndGet(),
+                                               Descriptor.Type.FINAL,
+                                               descriptor.formatType);
+            }
+            while (new File(newDescriptor.filenameFor(Component.DATA)).exists());
+
+            logger.info("Renaming new SSTable {} to {}", SafeArg.of("descriptor", descriptor), SafeArg.of("newDescriptor", newDescriptor));
+            SSTableWriter.rename(descriptor, newDescriptor, entry.getValue());
+
+            SSTableReader reader;
+            try
+            {
+                reader = SSTableReader.open(newDescriptor, entry.getValue(), metadata, partitioner);
+            }
+            catch (IOException e)
+            {
+                SSTableReader.logOpenException(entry.getKey(), e);
+                continue;
+            }
+            newSSTables.add(reader);
+        }
+
+        if (newSSTables.isEmpty())
+        {
+            logger.info("No new SSTables were found for {}/{}", keyspace.getName(), name);
+            return 0;
+        }
+
+        logger.info("Loading new SSTables and building secondary indexes for {}/{}: {}", keyspace.getName(), name, newSSTables);
+
+        try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
+        {
+            data.addSSTables(newSSTables);
+            indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
+        }
+
+        logger.info("Done loading load new SSTables for {}/{}", SafeArg.of("keyspace", keyspace.getName()), SafeArg.of("cfName", name));
+        return newSSTables.size();
     }
 
     public void rebuildSecondaryIndex(String idxName)

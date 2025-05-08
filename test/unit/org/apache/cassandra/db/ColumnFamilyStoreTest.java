@@ -1165,7 +1165,7 @@ public class ColumnFamilyStoreTest
         assert statsFile.exists();
         boolean deleted = statsFile.delete();
         assert deleted : "Cannot delete " + statsFile;
-        cfs.loadNewSSTables(true);
+        cfs.unsafeLoadNewSSTablesWithRewrite();
 
         // Add another cell with a lower timestamp
         putColsStandard(cfs, key, new BufferCell(cname, ByteBufferUtil.bytes("b"), 1));
@@ -2092,7 +2092,7 @@ public class ColumnFamilyStoreTest
     }
 
     @Test
-    public void testLoadNewSSTablesAvoidsOverwrites() throws Throwable
+    public void testUnsafeLoadNewSSTablesWithRewrite() throws Throwable
     {
         String ks = KEYSPACE1;
         String cf = CF_STANDARD5;
@@ -2158,7 +2158,7 @@ public class ColumnFamilyStoreTest
         {
             // avoid duplicate hardlinks to incremental backups
             DatabaseDescriptor.setIncrementalBackupsEnabled(false);
-            cfs.loadNewSSTables(true);
+            cfs.unsafeLoadNewSSTablesWithRewrite();
         }
         finally
         {
