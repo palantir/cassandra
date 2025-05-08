@@ -99,6 +99,8 @@ import static org.apache.cassandra.Util.column;
 import static org.apache.cassandra.Util.dk;
 import static org.apache.cassandra.Util.rp;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -2089,6 +2091,112 @@ public class ColumnFamilyStoreTest
             sstable3Desc.withGeneration(gen2),
             sstable3Desc.withGeneration(gen4));
         assertTrue(sstables.keySet().containsAll(ancestors));
+    }
+
+    @Test
+    public void testloadNewSSTablesThrowsWhenExistingSstable() throws Throwable
+    {
+        String ks = KEYSPACE1;
+        String cf = CF_STANDARD5;
+        ColumnFamilyStore cfs = Keyspace.open(ks).getColumnFamilyStore(cf);
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Directories dir = new Directories(cfs.metadata);
+
+        ByteBuffer key = bytes("key");
+
+        SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                                             cfmeta, StorageService.getPartitioner());
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                         cfmeta, StorageService.getPartitioner());
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        Set<Integer> generations = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            generations.add(descriptor.generation);
+
+        // we should have two generations: [1, 2]
+        assertEquals(2, generations.size());
+        assertTrue(generations.contains(1));
+        assertTrue(generations.contains(2));
+
+        assertThatThrownBy(cfs::loadNewSSTables)
+            .hasMessageContaining("Calling loadNewSstable on a cf with existing sstables");
+    }
+
+    @Test
+    public void testloadNewSSTablesDoesNotRewriteGenerations() throws Throwable
+    {
+        String ks = KEYSPACE1;
+        String cf = CF_STANDARD5;
+        ColumnFamilyStore cfs = Keyspace.open(ks).getColumnFamilyStore(cf);
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Directories dir = new Directories(cfs.metadata);
+
+        // clear old SSTables (probably left by CFS.clearUnsafe() calls in other tests)
+        for (Map.Entry<Descriptor, Set<Component>> entry : dir.sstableLister().list().entrySet())
+        {
+            for (Component component : entry.getValue())
+            {
+                FileUtils.delete(entry.getKey().filenameFor(component));
+            }
+        }
+
+        // sanity check
+        int existingSSTables = dir.sstableLister().list().keySet().size();
+        assert existingSSTables == 0 : String.format("%d SSTables unexpectedly exist", existingSSTables);
+
+        ByteBuffer key = bytes("key");
+
+        SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                                             cfmeta, StorageService.getPartitioner())
+        {
+            @Override
+            protected SSTableWriter getWriter()
+            {
+                // hack for reset generation
+                generation.set(7);
+                return super.getWriter();
+            }
+        };
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                         cfmeta, StorageService.getPartitioner());
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        Set<Integer> generations = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            generations.add(descriptor.generation);
+
+        // we should have two generations: [8, 9]
+        assertEquals(2, generations.size());
+        assertTrue(generations.contains(8));
+        assertTrue(generations.contains(9));
+
+        assertEquals(0, cfs.getSSTables().size());
+
+        // start the generation counter at 1 again (other tests have incremented it already)
+        cfs.resetFileIndexGenerator();
+
+        assertEquals(2, cfs.getSSTables().size());
+        generations = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            generations.add(descriptor.generation);
+
+        assertEquals(2, generations.size());
+        assertTrue(generations.contains(8));
+        assertTrue(generations.contains(9));
+        assertEquals(2, cfs.getSSTables().size());
     }
 
     @Test
