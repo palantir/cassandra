@@ -835,54 +835,57 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         // Prevents exterior flush or memtable from changing underneath us.
         synchronized (data)
         {
-            logger.info("Loading new SSTables for {}/{}...",
-                        SafeArg.of("keyspace", keyspace.getName()),
-                        SafeArg.of("cfName", name));
-            forceFlush("Flush pre-load new sstable");
-
-            Set<SSTableReader> currentView = data.getView().sstables;
-            if (!currentView.isEmpty())
+            synchronized (fileIndexGenerator)
             {
-                logger.error("Forbidden: loadNewSstable when this cf {}/{} has existing sstables {}",
-                             SafeArg.of("keyspace", keyspace.getName()),
-                             SafeArg.of("cfName", name),
-                             SafeArg.of("existingSstables", currentView.stream().map(reader -> reader.descriptor)
-                                                                       .map(desc -> desc.generation)
-                                                                       .collect(Collectors.toSet())));
-                throw new IllegalStateException("Calling loadNewSstable on a cf with existing sstables");
-            }
-            Directories.SSTableLister sstableFiles = directories.sstableLister().skipTemporary(true);
-            Collection<SSTableReader> newSSTables = SSTableReader.openAll(sstableFiles.list().entrySet(), metadata, partitioner);
-
-            List<Integer> generations = newSSTables.stream()
-                                                   .map(ssTableReader -> ssTableReader.descriptor.generation).sorted()
-                                                   .collect(Collectors.toList());
-
-            assert fileIndexGenerator.get() == 0;
-            fileIndexGenerator.set(generations.isEmpty() ? 0 : generations.get(generations.size() - 1));
-
-            if (newSSTables.isEmpty())
-            {
-                logger.info("No new SSTables were found for {}/{}",
+                logger.info("Loading new SSTables for {}/{}...",
                             SafeArg.of("keyspace", keyspace.getName()),
-                            SafeArg.of("cf", name));
+                            SafeArg.of("cfName", name));
+                forceFlush("Flush pre-load new sstable");
+
+                Set<SSTableReader> currentView = data.getView().sstables;
+                if (!currentView.isEmpty() || fileIndexGenerator.get() != 0)
+                {
+                    logger.error("Forbidden: loadNewSstable when this cf {}/{} has existing sstables {} in this runtime",
+                                 SafeArg.of("keyspace", keyspace.getName()),
+                                 SafeArg.of("cfName", name),
+                                 SafeArg.of("fileIndexGenerator", fileIndexGenerator.get()),
+                                 SafeArg.of("existingSstables", currentView.stream().map(reader -> reader.descriptor)
+                                                                           .map(desc -> desc.generation)
+                                                                           .collect(Collectors.toSet())));
+                    throw new IllegalStateException("Calling loadNewSstable on a cf with existing sstables");
+                }
+                Directories.SSTableLister sstableFiles = directories.sstableLister().skipTemporary(true);
+                Collection<SSTableReader> newSSTables = SSTableReader.openAll(sstableFiles.list().entrySet(), metadata, partitioner);
+
+                List<Integer> generations = newSSTables.stream()
+                                                       .map(ssTableReader -> ssTableReader.descriptor.generation).sorted()
+                                                       .collect(Collectors.toList());
+
+                fileIndexGenerator.set(generations.isEmpty() ? 0 : generations.get(generations.size() - 1));
+
+                if (newSSTables.isEmpty())
+                {
+                    logger.info("No new SSTables were found for {}/{}",
+                                SafeArg.of("keyspace", keyspace.getName()),
+                                SafeArg.of("cf", name));
+                }
+
+                logger.info("Loading new SSTables {} and building secondary indexes for {}/{}",
+                            SafeArg.of("keyspace", keyspace.getName()),
+                            SafeArg.of("cf", name),
+                            SafeArg.of("generations", generations));
+
+                try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
+                {
+                    data.addSSTables(newSSTables);
+                    indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
+                }
+
+                logger.info("Done loading load new SSTables {} for {}/{}",
+                            SafeArg.of("keyspace", keyspace.getName()),
+                            SafeArg.of("cf", name),
+                            SafeArg.of("generations", generations));
             }
-
-            logger.info("Loading new SSTables {} and building secondary indexes for {}/{}",
-                        SafeArg.of("keyspace", keyspace.getName()),
-                        SafeArg.of("cf", name),
-                        SafeArg.of("generations", generations));
-
-            try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
-            {
-                data.addSSTables(newSSTables);
-                indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
-            }
-
-            logger.info("Done loading load new SSTables {} for {}/{}",
-                        SafeArg.of("keyspace", keyspace.getName()),
-                        SafeArg.of("cf", name),
-                        SafeArg.of("generations", generations));
         }
     }
 
