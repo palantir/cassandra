@@ -134,7 +134,7 @@ public class CompactionTask extends AbstractCompactionTask
         if (expectedWriteSize > FIVE_GIBIBYTES_IN_BYTES)
         {
             cfs.metric.incrementOngoingLargeCompactionTasks();
-            logger.info("Started compaction for ks/cf {}/{} that is expected to exceed 5GiB with size of {}",
+            logger.info("Starting compaction for ks/cf {}/{} that is expected to exceed 5GiB with size of {}",
                     SafeArg.of("keyspace", cfs.keyspace.getName()),
                     SafeArg.of("columnFamily", cfs.name),
                     SafeArg.of("size", expectedWriteSize));
