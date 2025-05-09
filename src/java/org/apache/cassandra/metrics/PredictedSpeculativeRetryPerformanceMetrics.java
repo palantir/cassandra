@@ -19,13 +19,18 @@
 package org.apache.cassandra.metrics;
 
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,8 +40,16 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.service.AbstractReadExecutor;
 
 public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics {
-    private static final Logger logger = LoggerFactory.getLogger(PredictedSpeculativeRetryPerformanceMetrics.class);
     public static final String type = "PredictedSpeculativeRetryPerformance";
+
+    private static final Duration SNAPSHOT_CACHE_EXPIRY = Duration.ofSeconds(1);
+
+    private static final LoadingCache<InetAddress, Optional<Snapshot>> snitchSnapshotCache =
+            initCache(SNAPSHOT_CACHE_EXPIRY, addr -> DatabaseDescriptor.getEndpointSnitch().getSnapshot(addr));
+
+    private static final LoadingCache<LatencyMetrics, Snapshot> latencySnapshotCache =
+            initCache(SNAPSHOT_CACHE_EXPIRY, LatencyMetrics::getSnapshot);
+
     public final Threshold threshold;
 
     public <T extends AbstractReadExecutor> PredictedSpeculativeRetryPerformanceMetrics(Threshold threshold, Class<T> readExecutorClass) {
@@ -67,15 +80,15 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
                 unit = TimeUnit.MILLISECONDS;
                 break;
             case P50:
-                thresholdTime = (long) (cfs.metric.coordinatorReadLatency.getSnapshot().getMedian());
+                thresholdTime = (long) (latencySnapshotCache.getUnchecked(cfs.metric.coordinatorReadLatency).getMedian());
                 unit = TimeUnit.NANOSECONDS;
                 break;
             case P95:
-                thresholdTime = (long) (cfs.metric.coordinatorReadLatency.getSnapshot().get95thPercentile());
+                thresholdTime = (long) (latencySnapshotCache.getUnchecked(cfs.metric.coordinatorReadLatency).get95thPercentile());
                 unit = TimeUnit.NANOSECONDS;
                 break;
             case P99:
-                thresholdTime = (long) (cfs.metric.coordinatorReadLatency.getSnapshot().get99thPercentile());
+                thresholdTime = (long) (latencySnapshotCache.getUnchecked(cfs.metric.coordinatorReadLatency).get99thPercentile());
                 unit = TimeUnit.NANOSECONDS;
                 break;
             default:
@@ -86,7 +99,7 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
             return false;
         }
         long extraReplicaP99Latency;
-        Optional<Snapshot> extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
+        Optional<Snapshot> extraReplicaSnapshot = snitchSnapshotCache.getUnchecked(extraReplica);
         if (extraReplicaSnapshot.isPresent()) {
             extraReplicaP99Latency = (long) extraReplicaSnapshot.get().get99thPercentile();
         } else {
@@ -145,5 +158,16 @@ public class PredictedSpeculativeRetryPerformanceMetrics extends LatencyMetrics 
 
             return new CassandraMetricsRegistry.MetricName(groupName, type, metricName, readExecutorClassName + "." + thresholdName, mbeanName.toString());
         }
+    }
+
+    private static <K, V> LoadingCache<K, V> initCache(Duration expiryDuration, Function<K, V> loader) {
+        return CacheBuilder.newBuilder()
+                    .expireAfterWrite(expiryDuration)
+                    .build(new CacheLoader<K, V>() {
+                        public V load(K key)
+                        {
+                            return loader.apply(key);
+                        }
+                    });
     }
 }
