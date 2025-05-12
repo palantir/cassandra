@@ -20,6 +20,7 @@ package org.apache.cassandra.metrics;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -42,7 +43,7 @@ import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
  */
 public class ColumnFamilyMetrics
 {
-
+    private final AtomicInteger ongoingLargeCompactionTaskCount = new AtomicInteger(0);
     /** Total amount of data stored in the memtable that resides on-heap, including column related overhead and overwritten rows. */
     public final Gauge<Long> memtableOnHeapSize;
     /** Total amount of data stored in the memtable that resides off-heap, including column related overhead and overwritten rows. */
@@ -174,6 +175,8 @@ public class ColumnFamilyMetrics
     public final Gauge<Double> liveTombstoneCount;
     /** Estimated count of tombstones and number of cells in this table */
     public final Gauge<Double> tombstoneCount;
+    /** Number of ongoing compactions over 5GiB */
+    public final Gauge<Integer> ongoingLargeCompactionTasks;
 
     /** Bytes read on range scans **/
     public final Meter rangeScanBytesRead;
@@ -509,6 +512,23 @@ public class ColumnFamilyMetrics
                 return max;
             }
         });
+        ongoingLargeCompactionTasks = createColumnFamilyGauge(
+                "OngoingLargeCompactionTasks",
+                new Gauge<Integer>() {
+                    public Integer getValue() {
+                        return ongoingLargeCompactionTaskCount.get();
+                    }
+                },
+                new Gauge<Integer>() {
+                    public Integer getValue() {
+                        int total = 0;
+                        for (Metric cfGauge : allColumnFamilyMetrics.get("OngoingLargeCompactionTasks")) {
+                            total += ((Gauge<? extends Number>) cfGauge).getValue().intValue();
+                        }
+                        return total;
+                    }
+                }
+        );
         meanRowSize = createColumnFamilyGauge("MeanRowSize", new Gauge<Long>()
         {
             public Long getValue()
@@ -739,6 +759,14 @@ public class ColumnFamilyMetrics
         rangeScanBytesRead = Metrics.meter(factory.createMetricName("RangeScanBytesRead"));
         readBytesRead = Metrics.meter(factory.createMetricName("ReadBytesRead"));
         droppableTombstones = Metrics.meter(factory.createMetricName("DroppableTombstonesRead"));
+    }
+
+    public void incrementOngoingLargeCompactionTasks() {
+        ongoingLargeCompactionTaskCount.incrementAndGet();
+    }
+
+    public void decrementOngoingLargeCompactionTasks() {
+        ongoingLargeCompactionTaskCount.decrementAndGet();
     }
 
     public void updateSSTableIterated(int count)
