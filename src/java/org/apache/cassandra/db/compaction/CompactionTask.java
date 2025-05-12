@@ -137,7 +137,7 @@ public class CompactionTask extends AbstractCompactionTask
             logger.info("Starting compaction for ks/cf {}/{} that is expected to exceed 5GiB with size of {}",
                     SafeArg.of("keyspace", cfs.keyspace.getName()),
                     SafeArg.of("columnFamily", cfs.name),
-                    SafeArg.of("size", expectedWriteSize));
+                    SafeArg.of("sizeBytes", expectedWriteSize));
         }
 
         // sanity check: all sstables must belong to the same cfs
@@ -322,7 +322,7 @@ public class CompactionTask extends AbstractCompactionTask
                 logger.info("Finished compaction for ks/cf {}/{} that was expected to exceed 5GiB with an actual size of {}",
                         SafeArg.of("keyspace", cfs.keyspace.getName()),
                         SafeArg.of("columnFamily", cfs.name),
-                        SafeArg.of("size", endsize));
+                        SafeArg.of("sizeBytes", endsize));
             }
             CompactionThroughputThrottler.instance.maybeRemoveThrottledCompaction(cfs.metadata);
         }
