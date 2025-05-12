@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.Optional;
@@ -44,7 +43,6 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
-import com.palantir.logsafe.Safe;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
@@ -889,7 +887,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
     }
 
-    public synchronized int unsafeLoadNewSSTablesWithRewrite()
+    public synchronized void unsafeLoadNewSSTablesWithRewrite()
     {
         logger.info("Unsafe loading new SSTables with rewrite for {}/{}...",
                     SafeArg.of("keyspace", keyspace.getName()),
@@ -958,7 +956,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         if (newSSTables.isEmpty())
         {
-            return 0;
+            return;
         }
 
         try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
@@ -966,7 +964,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             data.addSSTables(newSSTables);
             indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
         }
-        return newSSTables.size();
     }
 
     public void rebuildSecondaryIndex(String idxName)
