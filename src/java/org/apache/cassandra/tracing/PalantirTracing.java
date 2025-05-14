@@ -27,9 +27,6 @@ import com.palantir.tracing.api.SpanType;
 import org.apache.cassandra.thrift.TraceMetadata;
 import org.apache.thrift.annotation.Nullable;
 
-/**
- * Ported over from UndertowTracing.
- */
 public final class PalantirTracing
 {
     private PalantirTracing() {}
