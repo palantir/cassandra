@@ -65,13 +65,13 @@ public class Row
         public void serialize(Row row, DataOutputPlus out, int version) throws IOException
         {
             ByteBufferUtil.writeWithShortLength(row.key.getKey(), out);
-            ColumnFamily.serializer.serialize(row.cf, out, version);
+            ColumnFamily.pageTokenAwareSerializer.serialize(row.cf, out, version);
         }
 
         public Row deserialize(DataInput in, int version, ColumnSerializer.Flag flag) throws IOException
         {
             return new Row(StorageService.getPartitioner().decorateKey(ByteBufferUtil.readWithShortLength(in)),
-                           ColumnFamily.serializer.deserialize(in, flag, version));
+                           ColumnFamily.pageTokenAwareSerializer.deserialize(in, flag, version));
         }
 
         public Row deserialize(DataInput in, int version) throws IOException
@@ -82,7 +82,7 @@ public class Row
         public long serializedSize(Row row, int version)
         {
             int keySize = row.key.getKey().remaining();
-            return TypeSizes.NATIVE.sizeof((short) keySize) + keySize + ColumnFamily.serializer.serializedSize(row.cf, TypeSizes.NATIVE, version);
+            return TypeSizes.NATIVE.sizeof((short) keySize) + keySize + ColumnFamily.pageTokenAwareSerializer.serializedSize(row.cf, TypeSizes.NATIVE, version);
         }
     }
 }

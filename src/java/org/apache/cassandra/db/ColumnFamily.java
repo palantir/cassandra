@@ -59,6 +59,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 {
     /* The column serializer for this Column Family. Create based on config. */
     public static final ColumnFamilySerializer serializer = new ColumnFamilySerializer();
+    public static final ColumnFamilySerializer pageTokenAwareSerializer = new PageTokenAwareColumnFamilySerializaer();
 
     protected final CFMetaData metadata;
 
