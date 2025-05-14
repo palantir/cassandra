@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.Snapshot;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ import org.apache.cassandra.concurrent.KeyspaceAwareSepQueue;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.CFMetaData.SpeculativeRetry.RetryType;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.config.ReadRepairDecision;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -174,8 +176,18 @@ public abstract class AbstractReadExecutor
      */
     public void writePredictedSpeculativeRetryPerformanceMetrics() {
         InetAddress extraReplica = Iterables.getLast(targetReplicas);
-        for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
-            metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
+        List<PredictedSpeculativeRetryPerformanceMetrics> retryMetrics = getPredSpecRetryMetrics();
+        int size = retryMetrics.size();
+        if (size > 0)
+        {
+            Optional<Snapshot> extraReplicaSnapshot = DatabaseDescriptor.getEndpointSnitch().getSnapshot(extraReplica);
+            if (extraReplicaSnapshot.isPresent())
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    retryMetrics.get(i).maybeWriteMetrics(cfs, this.latencies, extraReplicaSnapshot);
+                }
+            }
         }
     }
 
