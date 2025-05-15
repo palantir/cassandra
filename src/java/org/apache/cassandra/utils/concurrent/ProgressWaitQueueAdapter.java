@@ -20,11 +20,27 @@ package org.apache.cassandra.utils.concurrent;
 
 import com.codahale.metrics.Timer;
 
-public interface ProgressWaitQueue
+public final class ProgressWaitQueueAdapter implements ProgressWaitQueue
 {
-    WaitQueue.Signal register(long waitUntil);
+    private final WaitQueue waitQueue;
 
-    WaitQueue.Signal register(long waitUntil, Timer.Context context);
+    public ProgressWaitQueueAdapter(WaitQueue waitQueue)
+    {
+        this.waitQueue = waitQueue;
+    }
 
-    void signalUntil(long until);
+    public WaitQueue.Signal register(long _waitUntil)
+    {
+        return waitQueue.register();
+    }
+
+    public WaitQueue.Signal register(long _waitUntil, Timer.Context context)
+    {
+        return waitQueue.register(context);
+    }
+
+    public void signalUntil(long _until)
+    {
+        waitQueue.signalAll();
+    }
 }

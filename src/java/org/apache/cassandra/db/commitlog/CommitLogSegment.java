@@ -53,6 +53,8 @@ import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.CLibrary;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.utils.concurrent.ProgressWaitQueue;
+import org.apache.cassandra.utils.concurrent.ProgressWaitQueueAdapter;
+import org.apache.cassandra.utils.concurrent.SkipListProgressWaitQueue;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 
 /*
@@ -100,8 +102,7 @@ public abstract class CommitLogSegment
     private int endOfBuffer;
 
     // a signal for writers to wait on to confirm the log message they provided has been written to disk
-    private final WaitQueue syncQueue = new WaitQueue();
-    private final ProgressWaitQueue syncProgress = new ProgressWaitQueue();
+    private final ProgressWaitQueue syncComplete;
 
     // a map of Cf->dirty position; this is used to permit marking Cfs clean whilst the log is still in use
     private final NonBlockingHashMap<UUID, AtomicInteger> cfDirty = new NonBlockingHashMap<>(1024);
@@ -159,6 +160,10 @@ public abstract class CommitLogSegment
         endOfBuffer = buffer.capacity();
         lastSyncedOffset = buffer.position();
         allocatePosition.set(lastSyncedOffset + SYNC_MARKER_SIZE);
+
+        syncComplete = DatabaseDescriptor.getCommitLogUseProgressWaitQueue()
+                ? new SkipListProgressWaitQueue()
+                : new ProgressWaitQueueAdapter(new WaitQueue());
     }
 
     abstract ByteBuffer createBuffer(CommitLog commitLog);
@@ -303,18 +308,7 @@ public abstract class CommitLogSegment
         if (close)
             internalClose();
 
-        signalWaiters();
-    }
-
-    private void signalWaiters()
-    {
-        if (DatabaseDescriptor.getCommitLogUseProgressWaitQueue())
-        {
-            syncProgress.signalUntil(lastSyncedOffset);
-        } else
-        {
-            syncQueue.signalAll();
-        }
+        syncComplete.signalUntil(lastSyncedOffset);
     }
 
     protected static void writeSyncMarker(long id, ByteBuffer buffer, int offset, int filePos, int nextMarker)
@@ -373,7 +367,7 @@ public abstract class CommitLogSegment
     {
         while (true)
         {
-            WaitQueue.Signal signal = registerWaiter(endOfBuffer);
+            WaitQueue.Signal signal = syncComplete.register(endOfBuffer);
             if (lastSyncedOffset < endOfBuffer)
             {
                 signal.awaitUninterruptibly();
@@ -391,28 +385,12 @@ public abstract class CommitLogSegment
         while (lastSyncedOffset < position)
         {
             WaitQueue.Signal signal = waitingOnCommit != null ?
-                                      registerWaiter(position, waitingOnCommit.time()) :
-                                      registerWaiter(position);
+                                      syncComplete.register(position, waitingOnCommit.time()) :
+                                      syncComplete.register(position);
             if (lastSyncedOffset < position)
                 signal.awaitUninterruptibly();
             else
                 signal.cancel();
-        }
-    }
-
-    private WaitQueue.Signal registerWaiter(int waitUntil, Timer.Context timer) {
-        if (DatabaseDescriptor.getCommitLogUseProgressWaitQueue()) {
-            return syncProgress.register(waitUntil, timer);
-        } else {
-            return syncQueue.register(timer);
-        }
-    }
-
-    private WaitQueue.Signal registerWaiter(int waitUntil) {
-        if (DatabaseDescriptor.getCommitLogUseProgressWaitQueue()) {
-            return syncProgress.register(waitUntil);
-        } else {
-            return syncQueue.register();
         }
     }
 
