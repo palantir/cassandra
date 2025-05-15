@@ -48,8 +48,6 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
      * <client-provided deletion time>
      * <column count>
      * <columns, serialized individually>
-     * <page token set boolean>
-     * <page token if set, serialized using the same serializer as the columns>
      */
     public void serialize(ColumnFamily cf, DataOutputPlus out, int version)
     {
@@ -74,14 +72,6 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
                 written++;
             }
             assert count == written: "Table had " + count + " columns, but " + written + " written";
-            if (version >= MessagingService.VERSION_22_PLTR)
-            {
-                out.writeBoolean(cf.isPageTokenSet());
-                if (cf.isPageTokenSet())
-                {
-                    new PageToken.Serializer(columnSerializer).serialize(cf.pageToken(), out, version);
-                }
-            }
         }
         catch (IOException e)
         {
@@ -105,7 +95,6 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
             return null;
 
         ColumnFamily cf = factory.create(Schema.instance.getCFMetaData(deserializeCfId(in, version)));
-        ColumnSerializer columnSerializer = cf.getComparator().columnSerializer();
 
         if (cf.metadata().isSuper() && version < MessagingService.VERSION_20)
         {
@@ -114,25 +103,11 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         else
         {
             cf.delete(cf.getComparator().deletionInfoSerializer().deserialize(in, version));
+
+            ColumnSerializer columnSerializer = cf.getComparator().columnSerializer();
             int size = in.readInt();
             for (int i = 0; i < size; ++i)
                 cf.addColumn(columnSerializer.deserialize(in, flag));
-        }
-        if (version >= MessagingService.VERSION_22_PLTR)
-        {
-            boolean isPageTokenSet = in.readBoolean();
-            if (isPageTokenSet)
-            {
-                PageToken pageToken = new PageToken.Serializer(columnSerializer).deserialize(in, flag, version);
-                if (pageToken.isReachedEnd())
-                {
-                    cf.setPageTokenEndOfRow();
-                }
-                else
-                {
-                    cf.setPageToken(pageToken.getCell());
-                }
-            }
         }
         return cf;
     }
@@ -147,21 +122,6 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         return size;
     }
 
-    public long pageTokenSerializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
-    {
-        if (version < MessagingService.VERSION_22_PLTR)
-        {
-            return 0;
-        }
-
-        long size = typeSizes.sizeof(cf.isPageTokenSet());
-        if (cf.isPageTokenSet())
-        {
-            size += new PageToken.Serializer(cf.getComparator().columnSerializer()).serializedSize(cf.pageToken(), typeSizes, version);
-        }
-        return size;
-    }
-
     public long serializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
     {
         if (cf == null)
@@ -171,9 +131,8 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         else
         {
             return typeSizes.sizeof(true)  /* nullness bool */
-                    + cfIdSerializedSize(cf.id(), typeSizes, version)  /* id */
-                    + contentSerializedSize(cf, typeSizes, version)
-                    + pageTokenSerializedSize(cf, typeSizes, version);
+                   + cfIdSerializedSize(cf.id(), typeSizes, version)  /* id */
+                   + contentSerializedSize(cf, typeSizes, version);
         }
     }
 

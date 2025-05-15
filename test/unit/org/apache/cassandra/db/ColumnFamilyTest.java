@@ -116,11 +116,11 @@ public class ColumnFamilyTest
         DataOutputBuffer bufOut = new DataOutputBuffer();
         Cell pageToken = column("1", "Daniel Guo is a good man: 1", 314);
         cf.setPageToken(pageToken);
-        ColumnFamily.serializer.serialize(cf, bufOut, version);
+        ColumnFamily.serializerPageTokenAware.serialize(cf, bufOut, version);
 
         // verify
         ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
-        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        ColumnFamily cfDeserialized = ColumnFamily.serializerPageTokenAware.deserialize(new DataInputStream(bufIn), version);
         assert Iterables.size(cfDeserialized.getColumnNames()) == 0;
         assert cfDeserialized.pageToken().equals(cf.pageToken());
     }
@@ -131,11 +131,11 @@ public class ColumnFamilyTest
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
         DataOutputBuffer bufOut = new DataOutputBuffer();
         cf.setPageTokenEndOfRow();
-        ColumnFamily.serializer.serialize(cf, bufOut, version);
+        ColumnFamily.serializerPageTokenAware.serialize(cf, bufOut, version);
 
         // verify
         ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
-        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        ColumnFamily cfDeserialized = ColumnFamily.serializerPageTokenAware.deserialize(new DataInputStream(bufIn), version);
         assert Iterables.size(cfDeserialized.getColumnNames()) == 0;
         assert cfDeserialized.pageToken().equals(cf.pageToken());
     }
@@ -157,11 +157,11 @@ public class ColumnFamilyTest
         }
         Cell pageToken = column("1", "Daniel Guo is a good man: 1", 314);
         cf.setPageToken(pageToken);
-        ColumnFamily.serializer.serialize(cf, bufOut, version);
+        ColumnFamily.serializerPageTokenAware.serialize(cf, bufOut, version);
 
         // verify
         ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
-        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        ColumnFamily cfDeserialized = ColumnFamily.serializerPageTokenAware.deserialize(new DataInputStream(bufIn), version);
         for (String cName : map.navigableKeySet())
         {
             ByteBuffer val = cf.getColumn(cellname(cName)).value();
@@ -187,11 +187,11 @@ public class ColumnFamilyTest
             cf.addColumn(column(cName, map.get(cName), 314));
         }
         cf.setPageTokenEndOfRow();
-        ColumnFamily.serializer.serialize(cf, bufOut, version);
+        ColumnFamily.serializerPageTokenAware.serialize(cf, bufOut, version);
 
         // verify
         ByteArrayInputStream bufIn = new ByteArrayInputStream(bufOut.getData(), 0, bufOut.getLength());
-        ColumnFamily cfDeserialized = ColumnFamily.serializer.deserialize(new DataInputStream(bufIn), version);
+        ColumnFamily cfDeserialized = ColumnFamily.serializerPageTokenAware.deserialize(new DataInputStream(bufIn), version);
         for (String cName : map.navigableKeySet())
         {
             ByteBuffer val = cf.getColumn(cellname(cName)).value();

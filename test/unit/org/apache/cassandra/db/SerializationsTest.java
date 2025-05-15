@@ -198,12 +198,14 @@ public class SerializationsTest extends AbstractSerializationsTester
         Row.serializer.serialize(statics.StandardRow, out, getVersion());
         Row.serializer.serialize(statics.SuperRow, out, getVersion());
         Row.serializer.serialize(statics.NullRow, out, getVersion());
+        Row.serializer.serialize(statics.PageTokenRow, out, getVersion());
         out.close();
 
         // test serializedSize
         testSerializedSize(statics.StandardRow, Row.serializer);
         testSerializedSize(statics.SuperRow, Row.serializer);
         testSerializedSize(statics.NullRow, Row.serializer);
+        testSerializedSize(statics.PageTokenRow, Row.serializer);
     }
 
     @Test
@@ -217,6 +219,9 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert Row.serializer.deserialize(in, getVersion()) != null;
         assert Row.serializer.deserialize(in, getVersion()) != null;
         assert Row.serializer.deserialize(in, getVersion()) != null;
+        Row deserializedPageTokenRow = Row.serializer.deserialize(in, getVersion());
+        assert deserializedPageTokenRow != null;
+        assert deserializedPageTokenRow.cf.isPageTokenSet();
         in.close();
     }
 
@@ -374,28 +379,30 @@ public class SerializationsTest extends AbstractSerializationsTester
     @Test
     public void testReadResponseSerializeAndDeserialize() throws IOException
     {
-        PageTokenDigest pageTokenDigest = PageTokenDigest.createPageTokenDigest(statics.digest);
-
         ReadResponse response1 = new ReadResponse(statics.digest, null);
-        ReadResponse response2 = new ReadResponse(statics.digest, pageTokenDigest);
+        ReadResponse response2 = new ReadResponse(statics.digest, PageTokenDigest.createPageTokenDigest(statics.digest));
         ReadResponse response3 = new ReadResponse(statics.StandardRow);
+        ReadResponse response4 = new ReadResponse(statics.PageTokenRow);
 
         DataOutputStreamPlus out = getOutput("db.ReadResponse.bin");
 
         ReadResponse.serializer.serialize(response1, out, getVersion());
         ReadResponse.serializer.serialize(response2, out, getVersion());
         ReadResponse.serializer.serialize(response3, out, getVersion());
+        ReadResponse.serializer.serialize(response4, out, getVersion());
 
         out.close();
 
         testSerializedSize(response1, ReadResponse.serializer);
         testSerializedSize(response2, ReadResponse.serializer);
         testSerializedSize(response3, ReadResponse.serializer);
+        testSerializedSize(response4, ReadResponse.serializer);
 
         DataInputStream in = getInput("db.ReadResponse.bin");
         ReadResponse deserializedResponse1 = ReadResponse.serializer.deserialize(in, getVersion());
         ReadResponse deserializedResponse2 = ReadResponse.serializer.deserialize(in, getVersion());
         ReadResponse deserializedResponse3 = ReadResponse.serializer.deserialize(in, getVersion());
+        ReadResponse deserializedResponse4 = ReadResponse.serializer.deserialize(in, getVersion());
 
         assert deserializedResponse1.digest().equals(response1.digest());
         assert deserializedResponse1.pageTokenDigest() == null;
@@ -408,6 +415,13 @@ public class SerializationsTest extends AbstractSerializationsTester
         assert deserializedResponse3.digest() == null;
         assert deserializedResponse3.pageTokenDigest() == null;
         assert deserializedResponse3.row().key.equals(response3.row().key);
+        assert !deserializedResponse3.row().cf.isPageTokenSet();
+
+        assert deserializedResponse4.digest() == null;
+        assert deserializedResponse4.pageTokenDigest() == null;
+        assert deserializedResponse4.row().key.equals(response3.row().key);
+        assert deserializedResponse4.row().cf.isPageTokenSet();
+        assert deserializedResponse4.row().cf.pageToken().equals(response4.row().cf.pageToken());
     }
 
     private void testWriteResponseWrite() throws IOException
@@ -469,12 +483,14 @@ public class SerializationsTest extends AbstractSerializationsTester
         private final long readTs = 1369935512292L;
 
         private final ColumnFamily StandardCf = ArrayBackedSortedColumns.factory.create(KS, StandardCF);
+        private final ColumnFamily PageTokenCf = ArrayBackedSortedColumns.factory.create(KS, StandardCF);
         private final ColumnFamily SuperCf = ArrayBackedSortedColumns.factory.create(KS, SuperCF);
 
         private final Cell cell = new BufferCell(CellNames.simpleDense(StandardCharsets.UTF_8.encode("dummy")));
         private final ByteBuffer digest = ByteBufferUtil.bytes("dummy");
 
         private final Row StandardRow = new Row(Util.dk("key0"), StandardCf);
+        private final Row PageTokenRow = new Row(Util.dk("key0"), PageTokenCf);
         private final Row SuperRow = new Row(Util.dk("key1"), SuperCf);
         private final Row NullRow = new Row(Util.dk("key2"), null);
 
@@ -487,6 +503,15 @@ public class SerializationsTest extends AbstractSerializationsTester
             StandardCf.addColumn(new BufferDeletedCell(cn("eeee"), bb("eeee-value"), 1001));
             StandardCf.addColumn(new BufferExpiringCell(cn("ffff"), bb("ffff-value"), 2000, 1000));
             StandardCf.addColumn(new BufferExpiringCell(cn("gggg"), bb("gggg-value"), 2001, 1000, 2002));
+
+            PageTokenCf.addColumn(new BufferCell(cn("aaaa")));
+            PageTokenCf.addColumn(new BufferCell(cn("bbbb"), bb("bbbbb-value")));
+            PageTokenCf.addColumn(new BufferCell(cn("cccc"), bb("ccccc-value"), 1000L));
+            PageTokenCf.addColumn(new BufferDeletedCell(cn("dddd"), 500, 1000));
+            PageTokenCf.addColumn(new BufferDeletedCell(cn("eeee"), bb("eeee-value"), 1001));
+            PageTokenCf.addColumn(new BufferExpiringCell(cn("ffff"), bb("ffff-value"), 2000, 1000));
+            PageTokenCf.addColumn(new BufferExpiringCell(cn("gggg"), bb("gggg-value"), 2001, 1000, 2002));
+            PageTokenCf.setPageToken(new BufferCell(cn("zzz")));
 
             SuperCf.addColumn(new BufferCell(CellNames.compositeDense(SC, bb("aaaa"))));
             SuperCf.addColumn(new BufferCell(CellNames.compositeDense(SC, bb("bbbb")), bb("bbbbb-value")));

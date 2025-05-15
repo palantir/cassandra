@@ -97,6 +97,22 @@ public class ResumableRangeScanCoordinatorTest
     }
 
     @Test(expected = DigestMismatchException.class)
+    public void testMultipleMessagesWithAndWithoutPageToken_RowDigestResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE, COLUMN_FAMILY);
+        cf.addColumn(column("c1", "v1", 0));
+        cf.setPageToken(PageToken.createPageToken(column("c2", "v1", 0)));
+        Row row = new Row(key, cf);
+
+        testReadResponses(new RowDigestResolver(KEYSPACE, key, REPLICATION_FACTOR),
+                          row,
+                          makeReadResponse("127.0.0.1", row),
+                          makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()),
+                          makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), null));
+    }
+
+    @Test(expected = DigestMismatchException.class)
     public void testMultipleMessagesWithDifferentColumnsSamePageTokens_RowDigestResolver() throws DigestMismatchException, UnknownHostException
     {
         ByteBuffer key = bytes("key");
@@ -182,6 +198,31 @@ public class ResumableRangeScanCoordinatorTest
                 makeReadResponse("127.0.0.1", row),
                 makeReadResponse("127.0.0.2", row),
                 makeReadResponse("127.0.0.3", row));
+    }
+
+    @Test
+    public void testMultipleMessagesWithAndWithoutPageToken_RowDataResolver() throws DigestMismatchException, UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, COLUMN_FAMILY);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, COLUMN_FAMILY);
+        cf2.addColumn(column("c1", "v1", 0));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+
+        testReadResponses(new RowDataResolver(KEYSPACE,
+                                              key,
+                                              new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                                              System.currentTimeMillis(),
+                                              REPLICATION_FACTOR),
+                          row1,
+                          makeReadResponse("127.0.0.1", row1),
+                          makeReadResponse("127.0.0.2", row2));
     }
 
     @Test
@@ -438,6 +479,37 @@ public class ResumableRangeScanCoordinatorTest
                 makeRangeSlice("127.0.0.1", expected),
                 makeRangeSlice("127.0.0.2", expected),
                 makeRangeSlice("127.0.0.3", expected));
+    }
+
+    @Test
+    public void testMultipleMessagesWithAndWithoutPageToken_RangeSliceResolver() throws UnknownHostException
+    {
+        ByteBuffer key = bytes("key");
+
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE, COLUMN_FAMILY);
+        cf1.addColumn(column("c1", "v1", 0));
+        cf1.setPageToken(PageToken.createPageToken(column("c2", "v2", 0)));
+
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE, COLUMN_FAMILY);
+        cf2.addColumn(column("c1", "v1", 0));
+
+        Row row1 = new Row(key, cf1);
+        Row row2 = new Row(key, cf2);
+
+        Row[] expected = new Row[]{ row1 };
+
+        List<InetAddress> sources = ImmutableList.of(
+        InetAddress.getByName("127.0.0.1"),
+        InetAddress.getByName("127.0.0.2")
+        );
+
+        RangeSliceResponseResolver resolver = new RangeSliceResponseResolver(KEYSPACE, System.currentTimeMillis());
+        resolver.setSources(sources);
+
+        testRangeSlices(resolver,
+                        expected,
+                        makeRangeSlice("127.0.0.1", row1),
+                        makeRangeSlice("127.0.0.2", row2));
     }
 
     @Test

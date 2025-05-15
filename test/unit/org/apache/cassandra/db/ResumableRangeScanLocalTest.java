@@ -255,6 +255,17 @@ public class ResumableRangeScanLocalTest
     }
 
     @Test
+    public void testGetColumnFamily_returnsPageTokenWhenNoData()
+    {
+        QueryFilter queryFilterAllFarFuture = createQueryFilter(Composites.EMPTY, Composites.EMPTY, 0, ROW_KEY_2);
+        ColumnFamily cf = cfs.getColumnFamily(queryFilterAllFarFuture);
+
+        assertNotNull(cf);
+        assertFalse(cf.hasColumns());
+        assertCellsAndPageToken(cf, Collections.emptyList(), PageToken.createPageTokenReachedEnd());
+    }
+
+    @Test
     public void testGetColumnFamily_correctlyReconcilesDuplicateCells()
     {
         putColsStandard(cfs, ROW_KEY, column("c0", "value", WRITE_TIMESTAMP_MS + 1000), column("c1", "value", WRITE_TIMESTAMP_MS + 1000), column("c2", "value"
@@ -560,6 +571,11 @@ public class ResumableRangeScanLocalTest
     private QueryFilter createQueryFilter(Composite start, Composite finish, long timestamp)
     {
         return new QueryFilter(ROW_KEY, COLUMN_FAMILY, new SliceQueryFilter(start, finish, false, true, 100), timestamp);
+    }
+
+    private QueryFilter createQueryFilter(Composite start, Composite finish, long timestamp, DecoratedKey decoratedKey)
+    {
+        return new QueryFilter(decoratedKey, COLUMN_FAMILY, new SliceQueryFilter(start, finish, false, true, 100), timestamp);
     }
 
     private QueryFilter createQueryFilter(Composite start1, Composite finish1, Composite start2, Composite finish2, long timestamp)
