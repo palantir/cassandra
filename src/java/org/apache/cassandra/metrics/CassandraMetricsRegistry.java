@@ -521,7 +521,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
         private final String name;
         private final String scope;
         private final String mBeanName;
-        private final Map<String, String> tags;
+        private ObjectName parsedMBeanName = null;
 
         /**
          * Creates a new {@link MetricName} without a scope.
@@ -571,7 +571,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
          */
         public MetricName(String group, String type, String name, String scope)
         {
-            this(group, type, name, scope, createMBeanName(group, type, name, scope), createTags(type, scope));
+            this(group, type, name, scope, createMBeanName(group, type, name, scope));
         }
 
         /**
@@ -586,22 +586,6 @@ public class CassandraMetricsRegistry extends MetricRegistry
          */
         public MetricName(String group, String type, String name, String scope, String mBeanName)
         {
-            this(group, type, name, scope, mBeanName, createTags(type, scope));
-        }
-
-        /**
-         * Creates a new {@link MetricName} without a scope.
-         *
-         * @param group     the group to which the {@link Metric} belongs
-         * @param type      the type to which the {@link Metric} belongs
-         * @param name      the name of the {@link Metric}
-         * @param scope     the scope of the {@link Metric}
-         * @param mBeanName the 'ObjectName', represented as a string, to use when registering the
-         *                  MBean.
-         * @param tags      arbitrary tags to associate with this metric
-         */
-        public MetricName(String group, String type, String name, String scope, String mBeanName, Map<String, String> tags)
-        {
             if (group == null || type == null)
             {
                 throw new IllegalArgumentException("Both group and type need to be specified");
@@ -615,7 +599,6 @@ public class CassandraMetricsRegistry extends MetricRegistry
             this.name = name;
             this.scope = scope;
             this.mBeanName = mBeanName;
-            this.tags = tags;
         }
 
         /**
@@ -682,7 +665,15 @@ public class CassandraMetricsRegistry extends MetricRegistry
          */
         public ObjectName getMBeanName()
         {
+            if (parsedMBeanName == null)
+            {
+                parsedMBeanName = parseMBeanName();
+            }
+            return parsedMBeanName;
+        }
 
+        private ObjectName parseMBeanName()
+        {
             String mname = mBeanName;
 
             if (mname == null)
@@ -703,11 +694,6 @@ public class CassandraMetricsRegistry extends MetricRegistry
                 }
             }
         }
-
-        /**
-         * Returns a set of tags for the metric which can be used for filtering in observability workflows.
-         */
-        public Map<String, String> getTags() { return this.tags; }
 
         @Override
         public boolean equals(Object o)
