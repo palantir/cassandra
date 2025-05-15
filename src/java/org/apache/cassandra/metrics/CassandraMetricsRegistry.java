@@ -18,7 +18,6 @@
 package org.apache.cassandra.metrics;
 
 import java.lang.reflect.Method;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,8 +26,6 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.*;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-
-import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.utils.MBeanWrapper;
 
@@ -666,9 +663,8 @@ public class CassandraMetricsRegistry extends MetricRegistry
         public ObjectName getMBeanName()
         {
             if (parsedMBeanName == null)
-            {
                 parsedMBeanName = parseMBeanName();
-            }
+
             return parsedMBeanName;
         }
 
@@ -745,16 +741,6 @@ public class CassandraMetricsRegistry extends MetricRegistry
                 nameBuilder.append(ObjectName.quote(name));
             }
             return nameBuilder.toString();
-        }
-
-        private static Map<String, String> createTags(String type, String scope) {
-            ImmutableMap.Builder<String, String> tagsBuilder = ImmutableMap.builder();
-            tagsBuilder.put("type", type);
-            if (scope != null)
-            {
-                tagsBuilder.put("scope", scope);
-            }
-            return tagsBuilder.build();
         }
 
         /**
