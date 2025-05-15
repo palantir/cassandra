@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.cassandra.metrics.SEPMetrics;
+import org.apache.cassandra.utils.concurrent.Signal;
 import org.apache.cassandra.utils.concurrent.SimpleCondition;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 
@@ -113,7 +114,7 @@ public class SEPExecutor extends AbstractLocalAwareExecutorService
         else if (taskPermits >= maxTasksQueued)
         {
             // register to receive a signal once a task is processed bringing the queue below its threshold
-            WaitQueue.Signal s = hasRoom.register();
+            Signal s = hasRoom.register();
 
             // we will only be signalled once the queue drops below full, so this creates equivalent external behaviour
             // however the advantage is that we never wake-up spuriously;

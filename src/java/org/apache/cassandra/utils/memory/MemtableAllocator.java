@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.utils.concurrent.OpOrder;
-import org.apache.cassandra.utils.concurrent.WaitQueue;
+import org.apache.cassandra.utils.concurrent.Signal;
 
 public abstract class MemtableAllocator
 {
@@ -185,7 +185,7 @@ public abstract class MemtableAllocator
                     acquired(size);
                     return;
                 }
-                WaitQueue.Signal signal = opGroup.isBlockingSignal(parent.hasRoom().register());
+                Signal signal = opGroup.isBlockingSignal(parent.hasRoom().register());
                 boolean allocated = parent.tryAllocate(size);
                 if (allocated || opGroup.isBlocking())
                 {

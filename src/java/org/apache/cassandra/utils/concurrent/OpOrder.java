@@ -291,7 +291,7 @@ public class OpOrder
          * register to be signalled when a barrier waiting on us is, or maybe, blocking general progress,
          * so we should try more aggressively to progress
          */
-        public WaitQueue.Signal isBlockingSignal()
+        public Signal isBlockingSignal()
         {
             return isBlockingSignal.register();
         }
@@ -299,7 +299,7 @@ public class OpOrder
         /**
          * wrap the provided signal to also be signalled if the operation gets marked blocking
          */
-        public WaitQueue.Signal isBlockingSignal(WaitQueue.Signal signal)
+        public Signal isBlockingSignal(Signal signal)
         {
             return WaitQueue.any(signal, isBlockingSignal());
         }
@@ -384,7 +384,7 @@ public class OpOrder
         /**
          * Register to be signalled once allPriorOpsAreFinished() or allPriorOpsAreFinishedOrSafe() may return true
          */
-        public WaitQueue.Signal register()
+        public Signal register()
         {
             return orderOnOrBefore.waiting.register();
         }
@@ -409,7 +409,7 @@ public class OpOrder
         {
             while (!allPriorOpsAreFinished())
             {
-                WaitQueue.Signal signal = register();
+                Signal signal = register();
                 if (allPriorOpsAreFinished())
                 {
                     signal.cancel();

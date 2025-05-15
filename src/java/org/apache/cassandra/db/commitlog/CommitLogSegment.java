@@ -52,6 +52,7 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.CLibrary;
 import org.apache.cassandra.utils.concurrent.OpOrder;
+import org.apache.cassandra.utils.concurrent.Signal;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 
 /*
@@ -359,7 +360,7 @@ public abstract class CommitLogSegment
     {
         while (true)
         {
-            WaitQueue.Signal signal = syncComplete.register();
+            Signal signal = syncComplete.register();
             if (lastSyncedOffset < endOfBuffer)
             {
                 signal.awaitUninterruptibly();
@@ -376,9 +377,9 @@ public abstract class CommitLogSegment
     {
         while (lastSyncedOffset < position)
         {
-            WaitQueue.Signal signal = waitingOnCommit != null ?
-                                      syncComplete.register(waitingOnCommit.time()) :
-                                      syncComplete.register();
+            Signal signal = waitingOnCommit != null ?
+                            syncComplete.register(waitingOnCommit.time()) :
+                            syncComplete.register();
             if (lastSyncedOffset < position)
                 signal.awaitUninterruptibly();
             else

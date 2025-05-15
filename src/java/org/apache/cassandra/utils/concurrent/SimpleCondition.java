@@ -46,7 +46,7 @@ public class SimpleCondition implements Condition
             return;
         if (waiting == null)
             waitingUpdater.compareAndSet(this, null, new WaitQueue());
-        WaitQueue.Signal s = waiting.register();
+        Signal s = waiting.register();
         if (isSignaled())
             s.cancel();
         else
@@ -62,7 +62,7 @@ public class SimpleCondition implements Condition
         long until = start + unit.toNanos(time);
         if (waiting == null)
             waitingUpdater.compareAndSet(this, null, new WaitQueue());
-        WaitQueue.Signal s = waiting.register();
+        Signal s = waiting.register();
         if (isSignaled())
         {
             s.cancel();

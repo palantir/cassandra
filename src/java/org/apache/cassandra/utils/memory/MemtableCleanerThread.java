@@ -19,6 +19,7 @@
 package org.apache.cassandra.utils.memory;
 
 import org.apache.cassandra.concurrent.InfiniteLoopExecutor;
+import org.apache.cassandra.utils.concurrent.Signal;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 
 /**
@@ -58,7 +59,7 @@ public class MemtableCleanerThread<P extends MemtablePool> extends InfiniteLoopE
             }
             else
             {
-                final WaitQueue.Signal signal = wait.register();
+                final Signal signal = wait.register();
                 if (!needsCleaning())
                     signal.await();
                 else

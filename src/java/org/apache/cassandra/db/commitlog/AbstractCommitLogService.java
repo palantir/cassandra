@@ -18,6 +18,7 @@
 package org.apache.cassandra.db.commitlog;
 
 import com.palantir.logsafe.SafeArg;
+import org.apache.cassandra.utils.concurrent.Signal;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 import org.slf4j.*;
 
@@ -175,9 +176,9 @@ public abstract class AbstractCommitLogService
     /**
      * Sync immediately, but don't block for the sync to cmplete
      */
-    public WaitQueue.Signal requestExtraSync()
+    public Signal requestExtraSync()
     {
-        WaitQueue.Signal signal = syncComplete.register();
+        Signal signal = syncComplete.register();
         haveWork.release(1);
         return signal;
     }

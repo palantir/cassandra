@@ -22,6 +22,7 @@ package org.apache.cassandra.concurrent;
 
 
 import org.apache.cassandra.Util;
+import org.apache.cassandra.utils.concurrent.Signal;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 import org.junit.*;
 
@@ -49,7 +50,7 @@ public class WaitQueueTest
             @Override
             public void run()
             {
-                WaitQueue.Signal wait = queue.register();
+                Signal wait = queue.register();
                 ready.incrementAndGet();
                 try
                 {
@@ -89,7 +90,7 @@ public class WaitQueueTest
             @Override
             public void run()
             {
-                WaitQueue.Signal wait = queue.register();
+                Signal wait = queue.register();
                 if (condition.get())
                 {
                     System.err.println("");
