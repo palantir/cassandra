@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.concurrent;
 
+import com.palantir.tracing.DeferredTracer;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -29,8 +30,6 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.tracing.TraceState;
-import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.concurrent.SimpleCondition;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 
@@ -147,10 +146,12 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
         private boolean failure;
         private Object result = this;
         private final Callable<T> callable;
+        private final DeferredTracer deferredTracer;
 
         public FutureTask(Callable<T> callable)
         {
             this.callable = callable;
+            this.deferredTracer = new DeferredTracer("FutureTask#run");
         }
         public FutureTask(Runnable runnable, T result)
         {
@@ -159,22 +160,25 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
 
         public void run()
         {
-            try
-            {
-                result = callable.call();
-            }
-            catch (Throwable t)
-            {
-                JVMStabilityInspector.inspectThrowable(t);
-                logger.warn("Uncaught exception on thread {}: {}", Thread.currentThread(), t);
-                result = t;
-                failure = true;
-            }
-            finally
-            {
-                signalAll();
-                onCompletion();
-            }
+            deferredTracer.withTrace(() -> {
+                try
+                {
+                    result = callable.call();
+                }
+                catch (Throwable t)
+                {
+                    JVMStabilityInspector.inspectThrowable(t);
+                    logger.warn("Uncaught exception on thread {}: {}", Thread.currentThread(), t);
+                    result = t;
+                    failure = true;
+                }
+                finally
+                {
+                    signalAll();
+                    onCompletion();
+                }
+                return null;
+            });
         }
 
         public boolean cancel(boolean mayInterruptIfRunning)
