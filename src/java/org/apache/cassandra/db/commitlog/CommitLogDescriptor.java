@@ -57,14 +57,15 @@ public class CommitLogDescriptor
     public static final int VERSION_20 = 3;
     public static final int VERSION_21 = 4;
     public static final int VERSION_22 = 5;
-    // skipping to 50 in attempt to avoid conflicts with oss versions
-    public static final int VERSION_22_PLTR = 50;
     /**
      * Increment this number if there is a changes in the commit log disc layout or MessagingVersion changes.
      * Note: make sure to handle {@link #getMessagingVersion()}
+     * Palantir note: As part of resumable range scans, we bump the messaging version for ColumnFamily serialization.
+     * However, that change is not relevant for the commitlog since a mutation will never have a page token, so we do
+     * not increment the version here.
      */
     @VisibleForTesting
-    public static final int current_version = VERSION_22_PLTR;
+    public static final int current_version = VERSION_22;
 
     final int version;
     public final long id;
@@ -197,8 +198,6 @@ public class CommitLogDescriptor
                 return MessagingService.VERSION_21;
             case VERSION_22:
                 return MessagingService.VERSION_22;
-            case VERSION_22_PLTR:
-                return MessagingService.VERSION_22_PLTR;
             default:
                 throw new IllegalStateException("Unknown commitlog version " + version);
         }
