@@ -51,8 +51,10 @@ import org.apache.cassandra.utils.*;
  */
 public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 {
-    /* The column serializer for this Column Family. Create based on config. */
+    /* The column serializer for this Column Family. Create based on config. Used for everything except Row */
     public static final ColumnFamilySerializer serializer = new ColumnFamilySerializer();
+    /* The same serializer as above but aware of page tokens. Only used for Row */
+    public static final ColumnFamilySerializer serializerPageTokenAware = new ColumnFamilyPageTokenAwareSerializer();
 
     protected final CFMetaData metadata;
 
