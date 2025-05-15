@@ -127,7 +127,8 @@ public class TriggersTest
         client.insert(bytes(2),
                       new ColumnParent(cfName),
                       getColumnForInsert("v1", 2),
-                      org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                      org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                      null);
 
         assertUpdateIsAugmented(2);
     }
@@ -148,7 +149,8 @@ public class TriggersTest
             Collections.singletonMap(bytes(3),
                                      Collections.singletonMap(cfName,
                                                               Collections.singletonList(mutation))),
-            org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+            org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+            null);
 
         assertUpdateIsAugmented(3);
     }
@@ -186,7 +188,8 @@ public class TriggersTest
                    Collections.<Column>emptyList(),
                    Collections.singletonList(getColumnForInsert("v1", 6)),
                    org.apache.cassandra.thrift.ConsistencyLevel.LOCAL_SERIAL,
-                   org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                   org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                   null);
 
         assertUpdateIsAugmented(6);
     }
@@ -244,7 +247,8 @@ public class TriggersTest
                        Collections.<Column>emptyList(),
                        Collections.singletonList(getColumnForInsert("v1", 9)),
                        org.apache.cassandra.thrift.ConsistencyLevel.LOCAL_SERIAL,
-                       org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                       org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                       null);
         }
         finally
         {
@@ -269,7 +273,8 @@ public class TriggersTest
                        Collections.<Column>emptyList(),
                        Collections.singletonList(getColumnForInsert("v1", 10)),
                        org.apache.cassandra.thrift.ConsistencyLevel.LOCAL_SERIAL,
-                       org.apache.cassandra.thrift.ConsistencyLevel.ONE);
+                       org.apache.cassandra.thrift.ConsistencyLevel.ONE,
+                       null);
         }
         finally
         {

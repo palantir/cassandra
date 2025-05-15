@@ -361,7 +361,7 @@ public class ColumnFamilyRecordReader extends RecordReader<ByteBuffer, SortedMap
                                 .setRow_filter(filter);
             try
             {
-                rows = client.get_range_slices(new ColumnParent(cfName), predicate, keyRange, consistencyLevel);
+                rows = client.get_range_slices(new ColumnParent(cfName), predicate, keyRange, consistencyLevel, null);
 
                 // nothing new? reached the end
                 if (rows.isEmpty())
@@ -455,7 +455,7 @@ public class ColumnFamilyRecordReader extends RecordReader<ByteBuffer, SortedMap
 
             try
             {
-                rows = client.get_paged_slice(cfName, keyRange, lastColumn, consistencyLevel);
+                rows = client.get_paged_slice(cfName, keyRange, lastColumn, consistencyLevel, null);
                 int n = 0;
                 for (KeySlice row : rows)
                     n += row.columns.size();
