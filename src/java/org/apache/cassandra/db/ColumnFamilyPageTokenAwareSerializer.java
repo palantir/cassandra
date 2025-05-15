@@ -52,6 +52,11 @@ public class ColumnFamilyPageTokenAwareSerializer extends ColumnFamilySerializer
     public void serialize(ColumnFamily cf, DataOutputPlus out, int version)
     {
         super.serialize(cf, out, version);
+        if (cf == null)
+        {
+            return;
+        }
+
         try
         {
             if (version >= MessagingService.VERSION_22_PLTR)
@@ -74,6 +79,10 @@ public class ColumnFamilyPageTokenAwareSerializer extends ColumnFamilySerializer
     public ColumnFamily deserialize(DataInput in, ColumnFamily.Factory factory, ColumnSerializer.Flag flag, int version) throws IOException
     {
         ColumnFamily cf = super.deserialize(in, factory, flag, version);
+        if (cf == null)
+        {
+            return cf;
+        }
         if (version >= MessagingService.VERSION_22_PLTR)
         {
             boolean isPageTokenSet = in.readBoolean();
@@ -97,12 +106,12 @@ public class ColumnFamilyPageTokenAwareSerializer extends ColumnFamilySerializer
     @Override
     public long serializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
     {
-        return super.serializedSize(cf, typeSizes, version) + +pageTokenSerializedSize(cf, typeSizes, version);
+        return super.serializedSize(cf, typeSizes, version) + pageTokenSerializedSize(cf, typeSizes, version);
     }
 
     private long pageTokenSerializedSize(ColumnFamily cf, TypeSizes typeSizes, int version)
     {
-        if (version < MessagingService.VERSION_22_PLTR)
+        if (version < MessagingService.VERSION_22_PLTR || cf == null)
         {
             return 0;
         }
