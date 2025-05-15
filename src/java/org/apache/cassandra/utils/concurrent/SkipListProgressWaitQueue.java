@@ -58,7 +58,11 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
 
     public void signalUntil(long until) {
         ConcurrentNavigableMap<Long, RegisteredSignal> dueWaiters = waiters.headMap(until, true);
-        try (CloseableTracer ignored = CloseableTracer.startSpan("ProgressWaitQueue#signalAll", ImmutableMap.of("numWaiters", Integer.toString(waiters.size()), "numDueWaiters", Integer.toString(dueWaiters.size()))))
+        try (CloseableTracer ignored = CloseableTracer.startSpan(
+            "SkipListProgressWaitQueue#signalAll",
+                ImmutableMap.of(
+                    "numWaiters", Integer.toString(waiters.size()),
+                    "numDueWaiters", Integer.toString(dueWaiters.size()))))
         {
             Iterator<RegisteredSignal> iter = dueWaiters.values().iterator();
             while (iter.hasNext())
@@ -80,7 +84,7 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
      */
     private class RegisteredSignal extends WaitQueue.AbstractSignal
     {
-        private final DetachedSpan span = DetachedSpan.start("ProgressWaitQueue#parked");
+        private final DetachedSpan span = DetachedSpan.start("SkipListProgressWaitQueue#parked");
         private volatile Thread thread = Thread.currentThread();
         volatile int state;
 
