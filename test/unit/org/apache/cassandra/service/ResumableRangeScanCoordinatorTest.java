@@ -106,10 +106,10 @@ public class ResumableRangeScanCoordinatorTest
         Row row = new Row(key, cf);
 
         testReadResponses(new RowDigestResolver(KEYSPACE, key, REPLICATION_FACTOR),
-                          row,
-                          makeReadResponse("127.0.0.1", row),
-                          makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()),
-                          makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), null));
+                row,
+                makeReadResponse("127.0.0.1", row),
+                makeDigestResponse("127.0.0.2", ColumnFamily.digest(row.cf), row.cf.pageToken().digest()),
+                makeDigestResponse("127.0.0.3", ColumnFamily.digest(row.cf), null));
     }
 
     @Test(expected = DigestMismatchException.class)
@@ -216,13 +216,13 @@ public class ResumableRangeScanCoordinatorTest
         Row row2 = new Row(key, cf2);
 
         testReadResponses(new RowDataResolver(KEYSPACE,
-                                              key,
-                                              new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
-                                              System.currentTimeMillis(),
-                                              REPLICATION_FACTOR),
-                          row1,
-                          makeReadResponse("127.0.0.1", row1),
-                          makeReadResponse("127.0.0.2", row2));
+                        key,
+                        new SliceQueryFilter(ColumnSlice.ALL_COLUMNS_ARRAY, false, 10),
+                        System.currentTimeMillis(),
+                        REPLICATION_FACTOR),
+                row1,
+                makeReadResponse("127.0.0.1", row1),
+                makeReadResponse("127.0.0.2", row2));
     }
 
     @Test
@@ -496,20 +496,20 @@ public class ResumableRangeScanCoordinatorTest
         Row row1 = new Row(key, cf1);
         Row row2 = new Row(key, cf2);
 
-        Row[] expected = new Row[]{ row1 };
+        Row[] expected = new Row[]{row1};
 
         List<InetAddress> sources = ImmutableList.of(
-        InetAddress.getByName("127.0.0.1"),
-        InetAddress.getByName("127.0.0.2")
+                InetAddress.getByName("127.0.0.1"),
+                InetAddress.getByName("127.0.0.2")
         );
 
         RangeSliceResponseResolver resolver = new RangeSliceResponseResolver(KEYSPACE, System.currentTimeMillis());
         resolver.setSources(sources);
 
         testRangeSlices(resolver,
-                        expected,
-                        makeRangeSlice("127.0.0.1", row1),
-                        makeRangeSlice("127.0.0.2", row2));
+                expected,
+                makeRangeSlice("127.0.0.1", row1),
+                makeRangeSlice("127.0.0.2", row2));
     }
 
     @Test

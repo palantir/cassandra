@@ -38,7 +38,7 @@ public class ReadResponse
 {
     public static final IVersionedSerializer<ReadResponse> serializer = new ReadResponseSerializer();
     private static final AtomicReferenceFieldUpdater<ReadResponse, Pair<ByteBuffer, PageTokenDigest>> digestUpdater =
-    AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, (Class<Pair<ByteBuffer, PageTokenDigest>>) (Class<?>) Pair.class, "digest");
+            AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, (Class<Pair<ByteBuffer, PageTokenDigest>>) (Class<?>) Pair.class, "digest");
 
     private final Row row;
     private volatile Pair<ByteBuffer, PageTokenDigest> digest;
@@ -83,11 +83,11 @@ public class ReadResponse
         if (!digestUpdater.compareAndSet(this, curr, newDigest))
         {
             assert newDigest.equals(this.digest) :
-            String.format("Digest mismatch : data(%s), pageToken(%s) vs data(%s), pageTokenDigest(%s)",
-                          Arrays.toString(dataDigest.array()),
-                          pageTokenDigest,
-                          Arrays.toString(this.digest.left.array()),
-                          this.digest.right);
+                    String.format("Digest mismatch : data(%s), pageToken(%s) vs data(%s), pageTokenDigest(%s)",
+                            Arrays.toString(dataDigest.array()),
+                            pageTokenDigest,
+                            Arrays.toString(this.digest.left.array()),
+                            this.digest.right);
         }
     }
 
