@@ -117,7 +117,6 @@ public class Config
     public Integer concurrent_reads = 32;
     public Integer concurrent_writes = 32;
     public Integer concurrent_counter_writes = 32;
-    public Boolean always_async_read = false;
     public Boolean always_async_write = false;
 
     @Deprecated
@@ -213,7 +212,7 @@ public class Config
     public int commitlog_segment_size_in_mb = 32;
     public ParameterizedClass commitlog_compression;
     public int commitlog_max_compression_buffers_in_pool = 3;
- 
+
     @Deprecated
     public int commitlog_periodic_queue_size = -1;
 
