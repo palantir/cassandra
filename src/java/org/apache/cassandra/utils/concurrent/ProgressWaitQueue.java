@@ -20,6 +20,13 @@ package org.apache.cassandra.utils.concurrent;
 
 import com.codahale.metrics.Timer;
 
+/**
+ * Similar in concept to a {@link WaitQueue} but additionally tracks an (assumed) monotonically increasing "progress"
+ * quantity.
+ * The queue will attempt to only wake threads when the signaled "until" progress quantity reaches or exceeds their
+ * requested "waitUntil" value.
+ * Note that this is not a strong guarantee, and threads should still wait in a loop to ensure the condition is met.
+ */
 public interface ProgressWaitQueue
 {
     WaitQueue.Signal register(long waitUntil);
