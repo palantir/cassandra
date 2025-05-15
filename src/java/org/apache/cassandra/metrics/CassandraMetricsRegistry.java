@@ -39,12 +39,17 @@ public class CassandraMetricsRegistry extends MetricRegistry
 {
     public static final CassandraMetricsRegistry Metrics = new CassandraMetricsRegistry();
 
-    public final Map<MetricName, Metric> namedMetrics = new ConcurrentHashMap<>();
+    private final Map<MetricName, Metric> namedMetrics = new ConcurrentHashMap<>();
     private final MBeanWrapper mBeanServer = MBeanWrapper.instance;
 
     private CassandraMetricsRegistry()
     {
         super();
+    }
+
+    public Map<MetricName, Metric> allMetrics()
+    {
+        return namedMetrics;
     }
 
     public Counter counter(MetricName name)
