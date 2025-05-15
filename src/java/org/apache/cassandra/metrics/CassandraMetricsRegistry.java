@@ -18,12 +18,17 @@
 package org.apache.cassandra.metrics;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.*;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
+
+import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.utils.MBeanWrapper;
 
@@ -37,6 +42,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
 {
     public static final CassandraMetricsRegistry Metrics = new CassandraMetricsRegistry();
 
+    public final Map<MetricName, Metric> namedMetrics = new ConcurrentHashMap<>();
     private final MBeanWrapper mBeanServer = MBeanWrapper.instance;
 
     private CassandraMetricsRegistry()
@@ -48,6 +54,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Counter counter = counter(name.getMetricName());
         registerMBean(counter, name.getMBeanName());
+        namedMetrics.put(name, counter);
 
         return counter;
     }
@@ -56,6 +63,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Meter meter = meter(name.getMetricName());
         registerMBean(meter, name.getMBeanName());
+        namedMetrics.put(name, meter);
 
         return meter;
     }
@@ -64,6 +72,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Histogram histogram = register(name, new ClearableHistogram(new DecayingEstimatedHistogramReservoir(considerZeroes)));
         registerMBean(histogram, name.getMBeanName());
+        namedMetrics.put(name, histogram);
 
         return histogram;
     }
@@ -72,6 +81,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Timer timer = register(name, new Timer(new DecayingEstimatedHistogramReservoir()));
         registerMBean(timer, name.getMBeanName());
+        namedMetrics.put(name, timer);
 
         return timer;
     }
@@ -82,6 +92,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
         {
             register(name.getMetricName(), metric);
             registerMBean(metric, name.getMBeanName());
+            namedMetrics.put(name, metric);
             return metric;
         }
         catch (IllegalArgumentException e)
@@ -94,6 +105,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     public boolean remove(MetricName name)
     {
         boolean removed = remove(name.getMetricName());
+        namedMetrics.remove(name);
 
         try
         {
@@ -509,6 +521,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
         private final String name;
         private final String scope;
         private final String mBeanName;
+        private final Map<String, String> tags;
 
         /**
          * Creates a new {@link MetricName} without a scope.
@@ -558,7 +571,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
          */
         public MetricName(String group, String type, String name, String scope)
         {
-            this(group, type, name, scope, createMBeanName(group, type, name, scope));
+            this(group, type, name, scope, createMBeanName(group, type, name, scope), createTags(type, scope));
         }
 
         /**
@@ -573,6 +586,22 @@ public class CassandraMetricsRegistry extends MetricRegistry
          */
         public MetricName(String group, String type, String name, String scope, String mBeanName)
         {
+            this(group, type, name, scope, mBeanName, createTags(type, scope));
+        }
+
+        /**
+         * Creates a new {@link MetricName} without a scope.
+         *
+         * @param group     the group to which the {@link Metric} belongs
+         * @param type      the type to which the {@link Metric} belongs
+         * @param name      the name of the {@link Metric}
+         * @param scope     the scope of the {@link Metric}
+         * @param mBeanName the 'ObjectName', represented as a string, to use when registering the
+         *                  MBean.
+         * @param tags      arbitrary tags to associate with this metric
+         */
+        public MetricName(String group, String type, String name, String scope, String mBeanName, Map<String, String> tags)
+        {
             if (group == null || type == null)
             {
                 throw new IllegalArgumentException("Both group and type need to be specified");
@@ -586,6 +615,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
             this.name = name;
             this.scope = scope;
             this.mBeanName = mBeanName;
+            this.tags = tags;
         }
 
         /**
@@ -674,6 +704,11 @@ public class CassandraMetricsRegistry extends MetricRegistry
             }
         }
 
+        /**
+         * Returns a set of tags for the metric which can be used for filtering in observability workflows.
+         */
+        public Map<String, String> getTags() { return this.tags; }
+
         @Override
         public boolean equals(Object o)
         {
@@ -724,6 +759,16 @@ public class CassandraMetricsRegistry extends MetricRegistry
                 nameBuilder.append(ObjectName.quote(name));
             }
             return nameBuilder.toString();
+        }
+
+        private static Map<String, String> createTags(String type, String scope) {
+            ImmutableMap.Builder<String, String> tagsBuilder = ImmutableMap.builder();
+            tagsBuilder.put("type", type);
+            if (scope != null)
+            {
+                tagsBuilder.put("scope", scope);
+            }
+            return tagsBuilder.build();
         }
 
         /**
