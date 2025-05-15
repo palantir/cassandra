@@ -322,6 +322,8 @@ public class Config
 
     public boolean enable_user_defined_functions = false;
 
+    public double filter_experiment_probability = 0.01;
+
     public static boolean getOutboundBindAny()
     {
         return outboundBindAny;

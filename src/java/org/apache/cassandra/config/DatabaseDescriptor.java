@@ -2111,4 +2111,8 @@ public class DatabaseDescriptor
     {
         return Boolean.getBoolean("palantir_cassandra.is_new_cluster");
     }
+
+    public static double getFilterExperimentProbability() {
+        return conf.filter_experiment_probability;
+    }
 }
