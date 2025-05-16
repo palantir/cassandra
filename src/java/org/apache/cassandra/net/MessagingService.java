@@ -44,9 +44,6 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
-import com.palantir.tracing.CloseableSpan;
-import com.palantir.tracing.CloseableTracer;
-import com.palantir.tracing.Detached;
 import com.palantir.tracing.DetachedSpan;
 import com.palantir.tracing.Tracers;
 import com.palantir.tracing.api.SpanType;
@@ -686,8 +683,8 @@ public final class MessagingService implements MessagingServiceMBean
     public int sendRR(MessageOut message, InetAddress to, IAsyncCallback cb, long timeout, boolean failureCallback)
     {
         // n.b. this will be closed on the traced callback
-        CloseableTracer ignored = CloseableTracer.startSpan("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
-        cb = new TracedCallback<>(cb, DetachedSpan.detach());
+        DetachedSpan span = DetachedSpan.start("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
+        cb = new TracedCallback<>(cb, span);
         int id = addCallback(cb, message, to, timeout, failureCallback);
         sendOneWay(failureCallback ?
                    message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE).withParameters(PalantirTracing.serializeForMessage()) :
@@ -714,8 +711,8 @@ public final class MessagingService implements MessagingServiceMBean
                       boolean allowHints)
     {
         // n.b. this will be closed on the traced callback
-        CloseableTracer ignored = CloseableTracer.startSpan("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
-        IAsyncCallbackWithFailure<?> cb = new TracedCallback<>(handler, DetachedSpan.detach());
+        DetachedSpan span = DetachedSpan.start("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
+        IAsyncCallbackWithFailure<?> cb = new TracedCallback<>(handler, span);
         int id = addCallback(cb, message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
         sendOneWay(message
                    .withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE)
