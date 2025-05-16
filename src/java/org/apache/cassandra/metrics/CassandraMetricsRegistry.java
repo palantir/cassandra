@@ -19,6 +19,8 @@ package org.apache.cassandra.metrics;
 
 import java.lang.reflect.Method;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.*;
@@ -37,6 +39,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
 {
     public static final CassandraMetricsRegistry Metrics = new CassandraMetricsRegistry();
 
+    private final Map<MetricName, Metric> namedMetrics = new ConcurrentHashMap<>();
     private final MBeanWrapper mBeanServer = MBeanWrapper.instance;
 
     private CassandraMetricsRegistry()
@@ -44,10 +47,16 @@ public class CassandraMetricsRegistry extends MetricRegistry
         super();
     }
 
+    public Map<MetricName, Metric> allMetrics()
+    {
+        return namedMetrics;
+    }
+
     public Counter counter(MetricName name)
     {
         Counter counter = counter(name.getMetricName());
         registerMBean(counter, name.getMBeanName());
+        namedMetrics.put(name, counter);
 
         return counter;
     }
@@ -56,6 +65,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Meter meter = meter(name.getMetricName());
         registerMBean(meter, name.getMBeanName());
+        namedMetrics.put(name, meter);
 
         return meter;
     }
@@ -64,6 +74,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Histogram histogram = register(name, new ClearableHistogram(new DecayingEstimatedHistogramReservoir(considerZeroes)));
         registerMBean(histogram, name.getMBeanName());
+        namedMetrics.put(name, histogram);
 
         return histogram;
     }
@@ -72,6 +83,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     {
         Timer timer = register(name, new Timer(new DecayingEstimatedHistogramReservoir()));
         registerMBean(timer, name.getMBeanName());
+        namedMetrics.put(name, timer);
 
         return timer;
     }
@@ -82,6 +94,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
         {
             register(name.getMetricName(), metric);
             registerMBean(metric, name.getMBeanName());
+            namedMetrics.put(name, metric);
             return metric;
         }
         catch (IllegalArgumentException e)
@@ -94,6 +107,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
     public boolean remove(MetricName name)
     {
         boolean removed = remove(name.getMetricName());
+        namedMetrics.remove(name);
 
         try
         {
@@ -509,6 +523,7 @@ public class CassandraMetricsRegistry extends MetricRegistry
         private final String name;
         private final String scope;
         private final String mBeanName;
+        private ObjectName parsedMBeanName = null;
 
         /**
          * Creates a new {@link MetricName} without a scope.
@@ -652,7 +667,14 @@ public class CassandraMetricsRegistry extends MetricRegistry
          */
         public ObjectName getMBeanName()
         {
+            if (parsedMBeanName == null)
+                parsedMBeanName = parseMBeanName();
 
+            return parsedMBeanName;
+        }
+
+        private ObjectName parseMBeanName()
+        {
             String mname = mBeanName;
 
             if (mname == null)
