@@ -39,21 +39,24 @@ public class SortedBiMultiValMapTest
     private static final SortedBiMultiValMap<String, Integer> MAP = SortedBiMultiValMap.create();
 
     @BeforeClass
-    public static void beforeClass() {
+    public static void beforeClass()
+    {
         MAP.put(KEY_1, VALUE_1);
         MAP.put(KEY_2, VALUE_1);
         MAP.put(KEY_3, VALUE_1);
     }
 
     @Test
-    public void create_copyFromExistingMap() {
+    public void create_copyFromExistingMap()
+    {
         SortedBiMultiValMap<String, Integer> copied = SortedBiMultiValMap.create(MAP);
         assertThat(MAP.forwardMap).isEqualTo(copied.forwardMap);
         assertThat(MAP.reverseMap).isEqualTo(copied.reverseMap);
     }
 
     @Test
-    public void create_copyWithCustomCompareOperator() {
+    public void create_copyWithCustomCompareOperator()
+    {
         SortedBiMultiValMap<String, Integer> copied = SortedBiMultiValMap.create(MAP, Comparator.reverseOrder(), Comparator.reverseOrder());
         String[] expectedOrder = new String[] { KEY_3, KEY_2, KEY_1 };
         assertThat(new ArrayList<>(copied.forwardMap.keySet())).containsExactly(expectedOrder);
