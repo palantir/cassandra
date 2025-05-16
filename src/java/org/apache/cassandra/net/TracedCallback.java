@@ -21,16 +21,14 @@ package org.apache.cassandra.net;
 import java.net.InetAddress;
 
 import com.palantir.tracing.CloseableSpan;
-import com.palantir.tracing.Detached;
+import com.palantir.tracing.DetachedSpan;
 
 public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
 {
-    private static final String METADATA_STATUS = "status";
-
     private final IAsyncCallback<T> delegate;
-    private final Detached span;
+    private final DetachedSpan span;
 
-    public TracedCallback(IAsyncCallback<T> delegate, Detached span)
+    public TracedCallback(IAsyncCallback<T> delegate, DetachedSpan span)
     {
         this.delegate = delegate;
         this.span = span;
@@ -39,7 +37,7 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
     @Override
     public void response(MessageIn<T> msg)
     {
-        try (CloseableSpan ignored = span.attach()) {
+        try (CloseableSpan ignored = span.completeAndStartChild("TracedCallback#response")) {
             delegate.response(msg);
         }
     }
@@ -54,7 +52,7 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
     public void onFailure(InetAddress from)
     {
         // Trust that the caller has checked this for us.
-        try (CloseableSpan ignored = span.attach()) {
+        try (CloseableSpan ignored = span.completeAndStartChild("TracedCallback#onFailure")) {
             ((IAsyncCallbackWithFailure<?>) delegate).onFailure(from);
         }
     }
