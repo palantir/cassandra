@@ -54,7 +54,7 @@ namespace rb CassandraThrift
 # An effort should be made not to break forward-client-compatibility either
 # (e.g. one should avoid removing obsolete fields from the IDL), but no
 # guarantees in this respect are made by the Cassandra project.
-const string VERSION = "20.1.0-pt2"
+const string VERSION = "20.1.1"
 
 
 #
@@ -582,6 +582,20 @@ struct ColumnSlice {
 }
 
 /**
+ * Ids necessary to propagate tracing information across network requests.
+ * 
+ * Only support the OTEL/W3C propagation information, as we don't support B3-style client/server span sharing. For more
+ * information on why this is unncessary, see the following discussions:
+ *  - https://github.com/open-telemetry/opentelemetry-specification/issues/1004
+ *  - https://github.com/open-telemetry/opentelemetry-python/issues/236
+ */
+struct TraceMetadata {
+    1: required string trace_id,
+    3: required string span_id,
+    4: optional bool is_sampled,
+}
+
+/**
  * Used to perform multiple slices on a single row key in one rpc operation
  * @param key. The row key to be multi sliced
  * @param column_parent. The column family (super columns are unsupported)
@@ -596,7 +610,8 @@ struct MultiSliceRequest {
     3: optional list<ColumnSlice> column_slices,
     4: optional bool reversed=false,
     5: optional i32 count=1000,
-    6: optional ConsistencyLevel consistency_level=ConsistencyLevel.ONE
+    6: optional ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+    7: optional TraceMetadata trace
 }
 
 /**
@@ -623,7 +638,8 @@ service Cassandra {
    */
   ColumnOrSuperColumn get(1:required binary key,
                           2:required ColumnPath column_path,
-                          3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                          3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                          4:optional TraceMetadata trace)
                       throws (1:InvalidRequestException ire, 2:NotFoundException nfe, 3:UnavailableException ue, 4:TimedOutException te),
 
   /**
@@ -633,7 +649,8 @@ service Cassandra {
   list<ColumnOrSuperColumn> get_slice(1:required binary key, 
                                       2:required ColumnParent column_parent, 
                                       3:required SlicePredicate predicate, 
-                                      4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                      4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                      5:optional TraceMetadata trace)
                             throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -643,7 +660,8 @@ service Cassandra {
   i32 get_count(1:required binary key, 
                 2:required ColumnParent column_parent, 
                 3:required SlicePredicate predicate,
-                4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                5:optional TraceMetadata trace)
       throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -652,7 +670,8 @@ service Cassandra {
   map<binary,list<ColumnOrSuperColumn>> multiget_slice(1:required list<binary> keys, 
                                                        2:required ColumnParent column_parent, 
                                                        3:required SlicePredicate predicate, 
-                                                       4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                                       4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                                       5:optional TraceMetadata trace)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -671,7 +690,8 @@ service Cassandra {
   */
   map<binary,list<list<ColumnOrSuperColumn>>> multiget_multislice(1:required list<KeyPredicate> request,
                                                                   2:required ColumnParent column_parent,
-                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                                                  4:optional TraceMetadata trace)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -680,7 +700,8 @@ service Cassandra {
   map<binary, i32> multiget_count(1:required list<binary> keys,
                 2:required ColumnParent column_parent,
                 3:required SlicePredicate predicate,
-                4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                5:optional TraceMetadata trace)
       throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -689,7 +710,8 @@ service Cassandra {
   list<KeySlice> get_range_slices(1:required ColumnParent column_parent, 
                                   2:required SlicePredicate predicate,
                                   3:required KeyRange range,
-                                  4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                  4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                  5:optional TraceMetadata trace)
                  throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -698,7 +720,8 @@ service Cassandra {
   list<KeySlice> get_paged_slice(1:required string column_family,
                                  2:required KeyRange range,
                                  3:required binary start_column,
-                                 4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                 4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                 5:optional TraceMetadata trace)
                  throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -708,7 +731,8 @@ service Cassandra {
   list<KeySlice> get_indexed_slices(1:required ColumnParent column_parent,
                                     2:required IndexClause index_clause,
                                     3:required SlicePredicate column_predicate,
-                                    4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                    4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                    5:optional TraceMetadata trace)
                  throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   # modification methods
@@ -719,7 +743,8 @@ service Cassandra {
   void insert(1:required binary key, 
               2:required ColumnParent column_parent,
               3:required Column column,
-              4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+              4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+              5:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -728,7 +753,8 @@ service Cassandra {
   void add(1:required binary key,
            2:required ColumnParent column_parent,
            3:required CounterColumn column,
-           4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+           4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+           5:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -752,7 +778,8 @@ service Cassandra {
                 3:list<Column> expected,
                 4:list<Column> updates,
                 5:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
-                6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+                6:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM,
+                7:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -770,7 +797,8 @@ service Cassandra {
                               2:required string column_family,
                               3:list<Column> updates,
                               4:required ConsistencyLevel serial_consistency_level=ConsistencyLevel.SERIAL,
-                              5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM)
+                              5:required ConsistencyLevel commit_consistency_level=ConsistencyLevel.QUORUM,
+                              6:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -781,7 +809,8 @@ service Cassandra {
   void remove(1:required binary key,
               2:required ColumnPath column_path,
               3:required i64 timestamp,
-              4:ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+              4:ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+              5:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -791,7 +820,8 @@ service Cassandra {
    */
   void remove_counter(1:required binary key,
                       2:required ColumnPath path,
-                      3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                      3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                      4:optional TraceMetadata trace)
       throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -800,7 +830,8 @@ service Cassandra {
     mutation_map maps key to column family to a list of Mutation objects to take place at that scope.
   **/
   void batch_mutate(1:required map<binary, map<string, list<Mutation>>> mutation_map,
-                    2:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                    2:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                    3:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -809,7 +840,8 @@ service Cassandra {
     mutation_map maps key to column family to a list of Mutation objects to take place at that scope.
   **/
   void atomic_batch_mutate(1:required map<binary, map<string, list<Mutation>>> mutation_map,
-                           2:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                           2:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                           3:optional TraceMetadata trace)
        throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -820,7 +852,7 @@ service Cassandra {
    The operation succeeds only if all hosts in the cluster at available and will throw an UnavailableException if 
    some hosts are down.
   */
-  void truncate(1:required string cfname)
+  void truncate(1:required string cfname, 2:optional TraceMetadata trace)
        throws (1: InvalidRequestException ire, 2: UnavailableException ue, 3: TimedOutException te),
 
   /**

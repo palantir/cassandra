@@ -40,37 +40,37 @@ public class SimpleThriftClient implements ThriftClient
 
     public void batch_mutate(Map<ByteBuffer, Map<String, List<Mutation>>> record, ConsistencyLevel consistencyLevel) throws TException
     {
-        client.batch_mutate(record, consistencyLevel);
+        client.batch_mutate(record, consistencyLevel, null);
     }
 
     @Override
     public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        return client.get_slice(key, column_parent, predicate, consistency_level);
+        return client.get_slice(key, column_parent, predicate, consistency_level, null);
     }
 
     @Override
     public List<KeySlice> get_indexed_slices(ColumnParent column_parent, IndexClause index_clause, SlicePredicate column_predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        return client.get_indexed_slices(column_parent, index_clause, column_predicate, consistency_level);
+        return client.get_indexed_slices(column_parent, index_clause, column_predicate, consistency_level, null);
     }
 
     @Override
     public List<KeySlice> get_range_slices(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        return client.get_range_slices(column_parent, predicate, range, consistency_level);
+        return client.get_range_slices(column_parent, predicate, range, consistency_level, null);
     }
 
     @Override
     public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        return client.multiget_slice(keys, column_parent, predicate, consistency_level);
+        return client.multiget_slice(keys, column_parent, predicate, consistency_level, null);
     }
 
     @Override
     public void insert(ByteBuffer key, ColumnParent column_parent, Column column, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        client.insert(key, column_parent, column, consistency_level);
+        client.insert(key, column_parent, column, consistency_level, null);
     }
 
     @Override

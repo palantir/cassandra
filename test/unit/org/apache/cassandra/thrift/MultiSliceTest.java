@@ -162,7 +162,7 @@ public class MultiSliceTest
             c1.setName(ByteBufferUtil.bytes(String.valueOf(a)));
             c1.setValue(new byte [0]);
             c1.setTimestamp(System.nanoTime());
-            server.insert(key, parent, c1, ConsistencyLevel.ONE); 
+            server.insert(key, parent, c1, ConsistencyLevel.ONE, null);
          }
     }
     

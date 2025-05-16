@@ -96,7 +96,7 @@ public class MultiGetMultiSliceTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMN_A, PARTITION_2_COLUMNS_BC);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
         assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_A), Iterables.getOnlyElement(result.get(PARTITION_1)));
         assertColumnNamesMatchPrecisely(ImmutableList.of(COLUMN_B, COLUMN_C), Iterables.getOnlyElement(result.get(PARTITION_2)));
         assertThat(result.size()).isEqualTo(2);
@@ -110,7 +110,7 @@ public class MultiGetMultiSliceTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMN_A, PARTITION_1_COLUMN_B);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
 
         assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_A),
                                                                         ImmutableList.of(COLUMN_B)),
@@ -128,7 +128,7 @@ public class MultiGetMultiSliceTest
         KeyPredicate partition1RangeCD = keyPredicateForRange(PARTITION_1, COLUMN_C, COLUMN_D, 100);
         List<KeyPredicate> request = ImmutableList.of(partition1RangeAB, partition1RangeCD);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
         assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_A, COLUMN_B),
                                                                         ImmutableList.of(COLUMN_C, COLUMN_D)),
                                      result.get(PARTITION_1));
@@ -143,7 +143,7 @@ public class MultiGetMultiSliceTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMNS_AB, PARTITION_1_COLUMNS_BC);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
         assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_A, COLUMN_B),
                                                                         ImmutableList.of(COLUMN_B, COLUMN_C)),
                                      result.get(PARTITION_1));
@@ -162,7 +162,7 @@ public class MultiGetMultiSliceTest
         {
             public void call() throws Throwable
             {
-                server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+                server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
             }
         }).isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Conflicting thriftify details found between commands");
@@ -177,7 +177,7 @@ public class MultiGetMultiSliceTest
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_RANGE_THREE_FROM_A_TO_Z,
                                                       PARTITION_1_RANGE_THREE_FROM_B_TO_Z);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
         assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_B, COLUMN_C, COLUMN_D),
                                                                         ImmutableList.of(COLUMN_A, COLUMN_B, COLUMN_C)),
                                      result.get(PARTITION_1));
@@ -205,7 +205,7 @@ public class MultiGetMultiSliceTest
         {
             public void call() throws Throwable
             {
-                server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+                server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
             }
         }).isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Conflicting thriftify details found between commands");
@@ -222,7 +222,7 @@ public class MultiGetMultiSliceTest
             request.add(keyPredicateForColumns(PARTITION_1, ByteBufferUtil.bytes(String.valueOf(ch))));
         }
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
         List<List<ByteBuffer>> expected = Lists.newArrayList();
         for (char ch = 'a'; ch <= 'z'; ch++) {
             List<ByteBuffer> expectedBuffer = Lists.newArrayList(ByteBufferUtil.bytes(String.valueOf(ch)));
@@ -240,7 +240,7 @@ public class MultiGetMultiSliceTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_COLUMNS_AB, PARTITION_1_COLUMNS_AB);
 
-        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE);
+        Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> result = server.multiget_multislice(request, cp, ConsistencyLevel.ONE, null);
         assertColumnNameBatchesMatch(ImmutableList.<List<ByteBuffer>>of(ImmutableList.of(COLUMN_A, COLUMN_B),
                                                                         ImmutableList.of(COLUMN_A, COLUMN_B)),
                                      result.get(PARTITION_1));
@@ -283,7 +283,7 @@ public class MultiGetMultiSliceTest
                             .setName(ByteBufferUtil.bytes(String.valueOf(ch)))
                             .setValue(new byte [0])
                             .setTimestamp(System.nanoTime());
-            server.insert(key, parent, column, ConsistencyLevel.ONE);
+            server.insert(key, parent, column, ConsistencyLevel.ONE, null);
         }
     }
 

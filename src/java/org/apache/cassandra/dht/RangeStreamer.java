@@ -27,11 +27,11 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.palantir.logsafe.SafeArg;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.antlr.analysis.SemanticContext;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.gms.EndpointState;
@@ -163,7 +163,9 @@ public class RangeStreamer
         if (logger.isTraceEnabled())
         {
             for (Map.Entry<Range<Token>, InetAddress> entry : rangesForKeyspace.entries())
-                logger.trace(String.format("%s: range %s exists on %s", description, entry.getKey(), entry.getValue()));
+            {
+                logger.trace("{}: range {} exists on {}", SafeArg.of("description", description), SafeArg.of("range", entry.getKey()), SafeArg.of("endpoint", entry.getValue()));
+            }
         }
 
         for (Map.Entry<InetAddress, Collection<Range<Token>>> entry : getRangeFetchMap(rangesForKeyspace, sourceFilters, keyspaceName, useStrictConsistency).asMap().entrySet())
@@ -171,7 +173,9 @@ public class RangeStreamer
             if (logger.isTraceEnabled())
             {
                 for (Range<Token> r : entry.getValue())
-                    logger.trace(String.format("%s: range %s from source %s for keyspace %s", description, r, entry.getKey(), keyspaceName));
+                {
+                    logger.trace("{}: range {} from source {} for keyspace {}", SafeArg.of("description", description), SafeArg.of("range", r), SafeArg.of("source", entry.getKey()), SafeArg.of("keyspace", keyspaceName));
+                }
             }
             toFetch.put(keyspaceName, entry);
         }
@@ -326,10 +330,12 @@ public class RangeStreamer
                 {
                     if (useStrictConsistency)
                         throw new IllegalStateException("Unable to find sufficient sources for streaming range " + range + " in keyspace " + keyspace + " with RF=1." +
-                                                        "If you want to ignore this, consider using system property -Dcassandra.consistent.rangemovement=false.");
+                                "If you want to ignore this, consider using system property -Dcassandra.consistent.rangemovement=false.");
                     else
-                        logger.warn("Unable to find sufficient sources for streaming range " + range + " in keyspace " + keyspace + " with RF=1. " +
-                                    "Keyspace might be missing data.");
+                    {
+                        logger.warn("Unable to find sufficient sources for streaming range {} in keyspace {} with RF=1. " +
+                                "Keyspace might be missing data.", SafeArg.of("range", range), SafeArg.of("keyspace", keyspace));
+                    }
                 }
                 else
                     throw new IllegalStateException("Unable to find sufficient sources for streaming range " + range + " in keyspace " + keyspace);
@@ -362,7 +368,9 @@ public class RangeStreamer
             Collection<Range<Token>> ranges = removeAvailableRanges(entry, true);
 
             if (logger.isTraceEnabled())
-                logger.trace("{}ing from {} ranges {}", description, source, StringUtils.join(ranges, ", "));
+            {
+                logger.trace("{}ing from {} ranges {}", SafeArg.of("description", description), SafeArg.of("source", source), SafeArg.of("ranges", StringUtils.join(ranges, ", ")));
+            }
             /* Send messages to respective folks to stream data over to me */
             streamPlan.requestRanges(source, preferred, keyspace, ranges);
         }
@@ -395,7 +403,7 @@ public class RangeStreamer
         entry.getValue().getValue().removeAll(availableRanges);
         if (!availableRanges.equals(unavailableRanges) && log)
         {
-            logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", availableRanges);
+            logger.info("Some ranges of {} are already available. Skipping streaming those ranges.", SafeArg.of("availableRanges", availableRanges));
         }
         return unavailableRanges;
     }

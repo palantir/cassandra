@@ -41,7 +41,8 @@ public class ThriftClientTest extends TestBaseImpl
 
                 thrift.batch_mutate(Collections.singletonMap(ByteBufferUtil.bytes(0),
                                                              Collections.singletonMap("tbl", Arrays.asList(mutation))),
-                                    org.apache.cassandra.thrift.ConsistencyLevel.ALL);
+                                    org.apache.cassandra.thrift.ConsistencyLevel.ALL,
+                                    null);
             });
 
             SimpleQueryResult qr = cluster.coordinator(1).executeWithResult("SELECT * FROM " + KEYSPACE + ".tbl", ConsistencyLevel.ALL);

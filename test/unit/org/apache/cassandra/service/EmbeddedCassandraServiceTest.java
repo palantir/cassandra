@@ -98,10 +98,11 @@ public class EmbeddedCassandraServiceTest
         client.insert(key_user_id,
                       par,
                       new Column(ByteBufferUtil.bytes("name")).setValue(ByteBufferUtil.bytes("Ran")).setTimestamp(timestamp),
-                      ConsistencyLevel.ONE);
+                      ConsistencyLevel.ONE,
+                      null);
 
         // read
-        ColumnOrSuperColumn got = client.get(key_user_id, cp, ConsistencyLevel.ONE);
+        ColumnOrSuperColumn got = client.get(key_user_id, cp, ConsistencyLevel.ONE, null);
 
         // assert
         assertNotNull("Got a null ColumnOrSuperColumn", got);

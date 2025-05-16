@@ -220,13 +220,13 @@ public class PerRowSecondaryIndexTest
 
         // test we can insert if the index validates the expression:
         ByteBuffer key = ByteBufferUtil.bytes("valid");
-        server.insert(key, par, new Column(key).setValue(ByteBufferUtil.bytes("valid")).setTimestamp(timestamp), ConsistencyLevel.ONE);
+        server.insert(key, par, new Column(key).setValue(ByteBufferUtil.bytes("valid")).setTimestamp(timestamp), ConsistencyLevel.ONE, null);
 
         // test we can't insert if the index doesn't validate the key:
         try
         {
             key = ByteBufferUtil.bytes("invalid");
-            server.insert(key, par, new Column(key).setValue(ByteBufferUtil.bytes("valid")).setTimestamp(timestamp), ConsistencyLevel.ONE);
+            server.insert(key, par, new Column(key).setValue(ByteBufferUtil.bytes("valid")).setTimestamp(timestamp), ConsistencyLevel.ONE, null);
             fail("Query should have been invalid!");
         }
         catch (Exception e)
@@ -238,7 +238,7 @@ public class PerRowSecondaryIndexTest
         try
         {
             key = ByteBufferUtil.bytes("valid");
-            server.insert(key, par, new Column(key).setValue(ByteBufferUtil.bytes("invalid")).setTimestamp(timestamp), ConsistencyLevel.ONE);
+            server.insert(key, par, new Column(key).setValue(ByteBufferUtil.bytes("invalid")).setTimestamp(timestamp), ConsistencyLevel.ONE, null);
             fail("Query should have been invalid!");
         }
         catch (Exception e)
@@ -253,13 +253,13 @@ public class PerRowSecondaryIndexTest
         // test we can insert if the index validates the expression:
         ByteBuffer key = ByteBufferUtil.bytes("valid");
         Column column = new Column(key).setValue(ByteBufferUtil.bytes("valid")).setTimestamp(System.currentTimeMillis());
-        server.cas(key, CF_INDEXED, Collections.<Column>emptyList(), Collections.singletonList(column), ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE);
+        server.cas(key, CF_INDEXED, Collections.<Column>emptyList(), Collections.singletonList(column), ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE, null);
 
         // test we can't insert if the index doesn't validate the key:
         try
         {
             key = ByteBufferUtil.bytes("invalid");
-            server.cas(key, CF_INDEXED, Collections.<Column>emptyList(), Collections.singletonList(column), ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE);
+            server.cas(key, CF_INDEXED, Collections.<Column>emptyList(), Collections.singletonList(column), ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE, null);
             fail("Query should have been invalid!");
         }
         catch (Exception e)
@@ -272,7 +272,7 @@ public class PerRowSecondaryIndexTest
         {
             key = ByteBufferUtil.bytes("valid");
             column.setValue(ByteBufferUtil.bytes("invalid"));
-            server.cas(key, CF_INDEXED, Collections.<Column>emptyList(), Collections.singletonList(column), ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE);
+            server.cas(key, CF_INDEXED, Collections.<Column>emptyList(), Collections.singletonList(column), ConsistencyLevel.LOCAL_SERIAL, ConsistencyLevel.ONE, null);
             fail("Query should have been invalid!");
         }
         catch (Exception e)
@@ -293,13 +293,13 @@ public class PerRowSecondaryIndexTest
         cosc.setColumn(column);
         mutation.setColumn_or_supercolumn(cosc);
 
-        server.batch_mutate(Collections.singletonMap(key, Collections.singletonMap(CF_INDEXED, Collections.singletonList(mutation))), ConsistencyLevel.ONE);
+        server.batch_mutate(Collections.singletonMap(key, Collections.singletonMap(CF_INDEXED, Collections.singletonList(mutation))), ConsistencyLevel.ONE, null);
 
         // test we can't insert if the index doesn't validate the key:
         try
         {
             key = ByteBufferUtil.bytes("invalid");
-            server.batch_mutate(Collections.singletonMap(key, Collections.singletonMap(CF_INDEXED, Collections.singletonList(mutation))), ConsistencyLevel.ONE);
+            server.batch_mutate(Collections.singletonMap(key, Collections.singletonMap(CF_INDEXED, Collections.singletonList(mutation))), ConsistencyLevel.ONE, null);
             fail("Query should have been invalid!");
         }
         catch (Exception e)
@@ -312,7 +312,7 @@ public class PerRowSecondaryIndexTest
         {
             key = ByteBufferUtil.bytes("valid");
             cosc.setColumn(new Column(key).setValue(ByteBufferUtil.bytes("invalid")).setTimestamp(timestamp));
-            server.batch_mutate(Collections.singletonMap(key, Collections.singletonMap(CF_INDEXED, Collections.singletonList(mutation))), ConsistencyLevel.ONE);
+            server.batch_mutate(Collections.singletonMap(key, Collections.singletonMap(CF_INDEXED, Collections.singletonList(mutation))), ConsistencyLevel.ONE, null);
             fail("Query should have been invalid!");
         }
         catch (Exception e)

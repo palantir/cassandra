@@ -133,10 +133,11 @@ public class CompactionTask extends AbstractCompactionTask
 
         if (expectedWriteSize > FIVE_GIBIBYTES_IN_BYTES)
         {
-            logger.info("Compaction for ks/cf {}/{} exceeds 5GiB with total size of {}",
+            cfs.metric.incrementOngoingLargeCompactionTasks();
+            logger.info("Starting compaction for ks/cf {}/{} that is expected to exceed 5GiB with size of {}",
                     SafeArg.of("keyspace", cfs.keyspace.getName()),
                     SafeArg.of("columnFamily", cfs.name),
-                    SafeArg.of("size", expectedWriteSize));
+                    SafeArg.of("sizeBytes", expectedWriteSize));
         }
 
         // sanity check: all sstables must belong to the same cfs
@@ -315,6 +316,14 @@ public class CompactionTask extends AbstractCompactionTask
             // update the metrics
             cfs.metric.compactionBytesWritten.inc(endsize);
             cfs.metric.compactionsCompleted.inc();
+            if (expectedWriteSize > FIVE_GIBIBYTES_IN_BYTES)
+            {
+                cfs.metric.decrementOngoingLargeCompactionTasks();
+                logger.info("Finished compaction for ks/cf {}/{} that was expected to exceed 5GiB with an actual size of {}",
+                        SafeArg.of("keyspace", cfs.keyspace.getName()),
+                        SafeArg.of("columnFamily", cfs.name),
+                        SafeArg.of("sizeBytes", endsize));
+            }
             CompactionThroughputThrottler.instance.maybeRemoveThrottledCompaction(cfs.metadata);
         }
     }

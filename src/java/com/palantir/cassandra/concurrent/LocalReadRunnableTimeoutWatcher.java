@@ -42,12 +42,14 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
     private LocalReadRunnableTimeoutWatcher() { }
 
     public void watch(ReadCommand readCommand) {
-        logger.trace("Watching read command {} {} {} {} for timeout {}",
-                     SafeArg.of("columnFamily", readCommand.getColumnFamilyName()),
-                     UnsafeArg.of("key", Hex.bytesToHex(readCommand.key.array())),
-                     SafeArg.of("keyspace", readCommand.getKeyspace()),
-                     SafeArg.of("timestamp", readCommand.timestamp),
-                     SafeArg.of("timeout", getTimeout()));
+        if (logger.isTraceEnabled()) {
+            logger.trace("Watching read command {} {} {} {} for timeout {}",
+                         SafeArg.of("columnFamily", readCommand.getColumnFamilyName()),
+                         UnsafeArg.of("key", Hex.bytesToHex(readCommand.key.array())),
+                         SafeArg.of("keyspace", readCommand.getKeyspace()),
+                         SafeArg.of("timestamp", readCommand.timestamp),
+                         SafeArg.of("timeout", getTimeout()));
+        }
         readCommandStartTimes.put(readCommand, System.currentTimeMillis());
     }
 
@@ -65,18 +67,22 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 
     public void run()
     {
-        logger.trace("Checking read commands count {} to see if they've timed out {}",
-                     SafeArg.of("numReadCommandStartTimes", readCommandStartTimes.size()),
-                     SafeArg.of("timeout", getTimeout()));
+        if (logger.isTraceEnabled()) {
+            logger.trace("Checking read commands count {} to see if they've timed out {}",
+                         SafeArg.of("numReadCommandStartTimes", readCommandStartTimes.size()),
+                         SafeArg.of("timeout", getTimeout()));
+        }
 
         ArrayList<ReadCommand> timedOutCommands = new ArrayList<>(readCommandStartTimes.size());
         for(Map.Entry<ReadCommand, Long> entry : readCommandStartTimes.entrySet()) {
-            logger.trace("Checking whether read command timed out: {} {} {} {}, started at {}",
-                         SafeArg.of("columnFamily", entry.getKey().getColumnFamilyName()),
-                         UnsafeArg.of("key", Hex.bytesToHex(entry.getKey().key.array())),
-                         SafeArg.of("keyspace", entry.getKey().getKeyspace()),
-                         SafeArg.of("timestamp", entry.getKey().timestamp),
-                         SafeArg.of("startTime", entry.getValue()));
+            if (logger.isTraceEnabled()) {
+                logger.trace("Checking whether read command timed out: {} {} {} {}, started at {}",
+                             SafeArg.of("columnFamily", entry.getKey().getColumnFamilyName()),
+                             UnsafeArg.of("key", Hex.bytesToHex(entry.getKey().key.array())),
+                             SafeArg.of("keyspace", entry.getKey().getKeyspace()),
+                             SafeArg.of("timestamp", entry.getKey().timestamp),
+                             SafeArg.of("startTime", entry.getValue()));
+            }
 
             if (entry.getValue() + getTimeout() <= System.currentTimeMillis()) {
                 timedOutCommands.add(entry.getKey());
@@ -85,12 +91,14 @@ public class LocalReadRunnableTimeoutWatcher implements Runnable
 
         for (ReadCommand command : timedOutCommands) {
             unwatch(command);
-            logger.debug("Un-watching read command {} for timeout {} ",
-                         SafeArg.of("columnFamily", command.getColumnFamilyName()),
-                         UnsafeArg.of("key", Hex.bytesToHex(command.key.array())),
-                         SafeArg.of("keyspace", command.getKeyspace()),
-                         SafeArg.of("timestamp", command.timestamp),
-                         SafeArg.of("timeout", getTimeout()));
+            if (logger.isDebugEnabled()) {
+                logger.debug("Un-watching read command {} for timeout {} ",
+                             SafeArg.of("columnFamily", command.getColumnFamilyName()),
+                             UnsafeArg.of("key", Hex.bytesToHex(command.key.array())),
+                             SafeArg.of("keyspace", command.getKeyspace()),
+                             SafeArg.of("timestamp", command.timestamp),
+                             SafeArg.of("timeout", getTimeout()));
+            }
         }
     }
 }

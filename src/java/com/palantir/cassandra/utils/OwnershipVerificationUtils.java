@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
@@ -63,7 +64,7 @@ public class OwnershipVerificationUtils
             mutation,
             Keyspace.open(mutation.getKeyspaceName()),
             StorageService.getPartitioner().getToken(mutation.key()),
-            Hex.bytesToHex(mutation.key().array()),
+            OwnershipVerificationUtils::getKeyToLog,
             MutationVerificationHandler.INSTANCE);
     }
 
@@ -77,7 +78,7 @@ public class OwnershipVerificationUtils
             command,
             Keyspace.open(command.getKeyspace()),
             StorageService.getPartitioner().getToken(command.key),
-            Hex.bytesToHex(command.key.array()),
+            OwnershipVerificationUtils::getKeyToLog,
             ReadVerificationHandler.INSTANCE);
     }
 
@@ -91,11 +92,11 @@ public class OwnershipVerificationUtils
             command,
             Keyspace.open(command.keyspace),
             command.keyRange.right.getToken(),
-            command.keyRange.right.toString(),
+            OwnershipVerificationUtils::getKeyToLog,
             RangeSliceVerificationHandler.INSTANCE);
     }
 
-    private static <T> void verifyOperation(T payload, Keyspace keyspace, Token tk, String keyToLog, OwnershipVerificationHandler<T> handler)
+    private static <T> void verifyOperation(T payload, Keyspace keyspace, Token tk, Function<T, String> keyToLog, OwnershipVerificationHandler<T> handler)
     {
         if (!(keyspace.getReplicationStrategy() instanceof NetworkTopologyStrategy))
         {
@@ -127,7 +128,7 @@ public class OwnershipVerificationUtils
             {
                 logger.warn("Ignoring InvalidOwnership error detected using stale token ring cache. Error was originally detected for key {} in keyspace {}."
                                 + " Cached owners {}. Actual owners {}. Pending owners (non-cached) {}.",
-                            UnsafeArg.of("key", keyToLog),
+                            UnsafeArg.of("key", keyToLog.apply(payload)),
                             SafeArg.of("keyspace", keyspaceName),
                             SafeArg.of("cachedNaturalEndpoints", cachedNaturalEndpoints),
                             SafeArg.of("refreshedNaturalEndpoints", refreshedNaturalEndpoints),
@@ -135,6 +136,18 @@ public class OwnershipVerificationUtils
             }
         }
         handler.onValid(keyspace);
+    }
+
+    private static String getKeyToLog(Mutation mutation) {
+        return Hex.bytesToHex(mutation.key().array());
+    }
+
+    private static String getKeyToLog(ReadCommand command) {
+        return Hex.bytesToHex(command.key.array());
+    }
+
+    private static String getKeyToLog(AbstractRangeCommand command) {
+        return command.keyRange.right.toString();
     }
 
     private static void refreshCache()

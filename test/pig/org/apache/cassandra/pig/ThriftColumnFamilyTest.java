@@ -721,7 +721,7 @@ public class ThriftColumnFamilyTest extends PigTestBase
         cp.column = ByteBufferUtil.bytes(colName);
 
         // read
-        ColumnOrSuperColumn got = client.get(key_user_id, cp, ConsistencyLevel.ONE);
+        ColumnOrSuperColumn got = client.get(key_user_id, cp, ConsistencyLevel.ONE, null);
         return parseType(validator).getString(got.getColumn().value);
     }
 }
