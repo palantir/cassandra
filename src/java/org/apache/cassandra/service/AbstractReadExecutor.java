@@ -44,7 +44,6 @@ import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.exceptions.ReadFailureException;
 import org.apache.cassandra.exceptions.ReadTimeoutException;
 import org.apache.cassandra.exceptions.UnavailableException;
-import org.apache.cassandra.metrics.PredictedSpeculativeRetryPerformanceMetrics;
 import org.apache.cassandra.metrics.ReadRepairMetrics;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
