@@ -57,7 +57,7 @@ public final class PalantirTracing
         }
         else
         {
-            Tracer.initTraceWithSpan(getObservabilityFromTracing(tracing), traceId, Optional.empty(), thriftOperation, parentSpanId.get(), SpanType.SERVER_INCOMING);
+            Tracer.initTraceWithSpan(getObservabilityFromTracing(tracing), traceId, thriftOperation, parentSpanId.get(), SpanType.SERVER_INCOMING);
         }
     }
 
@@ -67,7 +67,7 @@ public final class PalantirTracing
         boolean isSampled = Optional.ofNullable(message.parameters.get(PALANTIR_IS_SAMPLED)).map(bytes -> bytes[0] == 1).orElse(false);
 
         if (parentSpanId.isPresent()) {
-            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, Optional.empty(), operation, parentSpanId.get(), SpanType.SERVER_INCOMING);
+            Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, operation, parentSpanId.get(), SpanType.SERVER_INCOMING);
         } else {
             Tracer.initTraceWithSpan(isSampled ? Observability.SAMPLE : Observability.DO_NOT_SAMPLE, traceId, operation, SpanType.SERVER_INCOMING);
         }
