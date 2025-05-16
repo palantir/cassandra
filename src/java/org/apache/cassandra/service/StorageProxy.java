@@ -1511,13 +1511,6 @@ public class StorageProxy implements StorageProxyMBean
                         MessagingService.instance().sendRRWithFailure(message, endpoint, repairHandler);
                     }
                 }
-                finally {
-                    try {
-                        exec.writePredictedSpeculativeRetryPerformanceMetrics();
-                    } catch (RuntimeException e) {
-                        logger.error("Failed to write predicted speculative retry performance metrics", e);
-                    }
-                }
             }
 
             commandsToRetry.clear();

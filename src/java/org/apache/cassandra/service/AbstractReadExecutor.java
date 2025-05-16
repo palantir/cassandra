@@ -169,19 +169,6 @@ public abstract class AbstractReadExecutor
     }
 
     /**
-     * Compare difference between passed timestamp and start field against Threshold cutoffs. If the threshold is
-     * exceeded, the current p99 latency of the retry endpoint is added to the threshold as the "predicted performance"
-     */
-    public void writePredictedSpeculativeRetryPerformanceMetrics() {
-        InetAddress extraReplica = Iterables.getLast(targetReplicas);
-        for (PredictedSpeculativeRetryPerformanceMetrics metrics : getPredSpecRetryMetrics()) {
-            metrics.maybeWriteMetrics(cfs, this.latencies, extraReplica);
-        }
-    }
-
-    protected abstract List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics();
-
-    /**
      * @return an executor appropriate for the configured speculative read policy
      */
     public static AbstractReadExecutor getReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel) throws UnavailableException
@@ -242,9 +229,6 @@ public abstract class AbstractReadExecutor
     @VisibleForTesting
     static class NeverSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
-                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(NeverSpeculatingReadExecutor.class);
-
         public NeverSpeculatingReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
         {
             super(command, consistencyLevel, targetReplicas, cfs);
@@ -266,18 +250,11 @@ public abstract class AbstractReadExecutor
         {
             return targetReplicas;
         }
-
-        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
-            return specRetryPerformanceMetrics;
-        }
     }
 
     @VisibleForTesting
     static class SpeculatingReadExecutor extends AbstractReadExecutor
     {
-        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
-                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(SpeculatingReadExecutor.class);
-
         private volatile boolean speculated = false;
 
         public SpeculatingReadExecutor(ColumnFamilyStore cfs,
@@ -343,18 +320,11 @@ public abstract class AbstractReadExecutor
                  ? targetReplicas
                  : targetReplicas.subList(0, targetReplicas.size() - 1);
         }
-
-        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
-            return specRetryPerformanceMetrics;
-        }
     }
 
     @VisibleForTesting
     static class AlwaysSpeculatingReadExecutor extends AbstractReadExecutor
     {
-        protected static final List<PredictedSpeculativeRetryPerformanceMetrics> specRetryPerformanceMetrics =
-                PredictedSpeculativeRetryPerformanceMetrics.createMetricsByThresholds(AlwaysSpeculatingReadExecutor.class);
-
         public AlwaysSpeculatingReadExecutor(ColumnFamilyStore cfs,
                                              ReadCommand command,
                                              ConsistencyLevel consistencyLevel,
@@ -380,10 +350,6 @@ public abstract class AbstractReadExecutor
             if (targetReplicas.size() > 2)
                 makeDigestRequests(targetReplicas.subList(2, targetReplicas.size()));
             cfs.metric.speculativeRetries.inc();
-        }
-
-        protected List<PredictedSpeculativeRetryPerformanceMetrics> getPredSpecRetryMetrics() {
-            return specRetryPerformanceMetrics;
         }
     }
 }
