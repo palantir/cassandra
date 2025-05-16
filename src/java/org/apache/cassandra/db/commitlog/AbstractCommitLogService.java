@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.db.commitlog;
 
+import com.codahale.metrics.Timer;
 import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 import org.slf4j.*;
@@ -91,13 +92,17 @@ public abstract class AbstractCommitLogService
 
                         // sync and signal
                         long syncStarted = System.currentTimeMillis();
-                        commitLog.sync(shutdown);
+
+                        try (Timer.Context ignored = commitLog.metrics.syncDuration.time()) {
+                            commitLog.sync(shutdown);
+                        }
+
                         lastSyncedAt = syncStarted;
                         syncComplete.signalAll();
 
-
                         // sleep any time we have left before the next one is due
                         long now = System.currentTimeMillis();
+
                         long sleep = syncStarted + pollIntervalMillis - now;
                         if (sleep < 0)
                         {
@@ -109,6 +114,7 @@ public abstract class AbstractCommitLogService
                             }
                             syncExceededIntervalBy -= sleep;
                             lagCount++;
+                            commitLog.metrics.laggedSyncs.inc();
                         }
                         syncCount++;
                         totalSyncDuration += now - syncStarted;
