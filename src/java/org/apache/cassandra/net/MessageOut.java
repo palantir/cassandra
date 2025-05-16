@@ -31,6 +31,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.UUIDGen;
@@ -60,10 +61,10 @@ public class MessageOut<T>
         this(verb,
              payload,
              serializer,
-             isTracing()
-                 ? ImmutableMap.of(TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
-                                   TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) })
-                 : Collections.<String, byte[]>emptyMap());
+             ImmutableMap.<String, byte[]>builder()
+                         .putAll(Tracing.serializeForMessage())
+                         .putAll(PalantirTracing.serializeForMessage())
+                         .build());
     }
 
     private MessageOut(MessagingService.Verb verb, T payload, IVersionedSerializer<T> serializer, Map<String, byte[]> parameters)
@@ -85,7 +86,14 @@ public class MessageOut<T>
     {
         ImmutableMap.Builder<String, byte[]> builder = ImmutableMap.builder();
         builder.putAll(parameters).put(key, value);
-        return new MessageOut<T>(verb, payload, serializer, builder.build());
+        return new MessageOut<T>(verb, payload, serializer, builder.buildKeepingLast());
+    }
+
+    public MessageOut<T> withParameters(Map<String, byte[]> values)
+    {
+        ImmutableMap.Builder<String, byte[]> builder = ImmutableMap.builder();
+        builder.putAll(parameters).putAll(values);
+        return new MessageOut<T>(verb, payload, serializer, builder.buildKeepingLast());
     }
 
     public Stage getStage()

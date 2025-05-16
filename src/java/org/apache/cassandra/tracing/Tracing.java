@@ -21,11 +21,13 @@ package org.apache.cassandra.tracing;
 
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -237,6 +239,16 @@ public class Tracing implements ExecutorLocal<TraceState>
             ts = new TraceState(message.from, sessionId, traceType);
             sessions.put(sessionId, ts);
             return ts;
+        }
+    }
+
+    public static Map<String, byte[]> serializeForMessage() {
+        if (isTracing()) {
+            return ImmutableMap.of(
+            TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
+            TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) });
+        } else {
+            return Collections.emptyMap();
         }
     }
 
