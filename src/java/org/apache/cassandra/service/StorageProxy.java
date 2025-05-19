@@ -1109,7 +1109,7 @@ public class StorageProxy implements StorageProxyMBean
     private static void insertLocal(final Mutation mutation, final AbstractWriteResponseHandler<IMutation> responseHandler)
     {
 
-        StageManager.getStage(Stage.MUTATION).maybeExecuteImmediately(new LocalMutationRunnable()
+        Runnable localMutationRunnable = new LocalMutationRunnable()
         {
             public void runMayThrow()
             {
@@ -1130,7 +1130,13 @@ public class StorageProxy implements StorageProxyMBean
             {
                 return MessagingService.Verb.MUTATION;
             }
-        });
+        };
+
+        if (DatabaseDescriptor.getAlwaysAsyncWrite()) {
+            StageManager.getStage(Stage.MUTATION).submit(localMutationRunnable);
+        } else {
+            StageManager.getStage(Stage.MUTATION).maybeExecuteImmediately(localMutationRunnable);
+        }
     }
 
     /**
