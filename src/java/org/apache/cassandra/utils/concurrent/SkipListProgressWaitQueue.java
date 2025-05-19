@@ -19,11 +19,13 @@
 package org.apache.cassandra.utils.concurrent;
 
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import com.codahale.metrics.Timer;
@@ -84,6 +86,9 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
      */
     private class RegisteredSignal extends WaitQueue.AbstractSignal
     {
+        private static final Map<String, String> METADATA_COMPLETE = ImmutableMap.of("status", "complete");
+        private static final Map<String, String> METADATA_CANCELED = ImmutableMap.of("status", "canceled");
+
         private final DetachedSpan span = DetachedSpan.start("SkipListProgressWaitQueue#parked");
         private volatile Thread thread = Thread.currentThread();
         volatile int state;
@@ -109,11 +114,17 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
             {
                 Thread thread = this.thread;
                 LockSupport.unpark(thread);
-                if (Tracer.hasTraceId()) {
-                    this.span.complete(ImmutableMap.of("childTraceIds", Tracer.getTraceId()));
+
+                if (Tracer.hasTraceId() && Tracer.isTraceObservable()) {
+                    // Only allocate a custom metadata map if trace is observable.
+                    this.span.complete(ImmutableMap.<String, String>builder()
+                                                   .putAll(METADATA_COMPLETE)
+                                                   .put("childTraceIds", Tracer.getTraceId())
+                                                   .build());
                 } else {
-                    this.span.complete();
+                    this.span.complete(METADATA_COMPLETE);
                 }
+
                 this.thread = null;
                 return thread;
             }
@@ -124,6 +135,7 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
         {
             if (!isSet() && signalledUpdater.compareAndSet(this, NOT_SET, CANCELLED))
             {
+                this.span.complete(METADATA_CANCELED);
                 thread = null;
                 cleanUpCancelled();
                 return false;
@@ -144,6 +156,7 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
                 // must already be signalled - switch to cancelled
                 state = CANCELLED;
             }
+            this.span.complete(METADATA_CANCELED);
             thread = null;
             cleanUpCancelled();
         }
