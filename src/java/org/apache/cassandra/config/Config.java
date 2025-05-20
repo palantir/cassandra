@@ -117,6 +117,7 @@ public class Config
     public Integer concurrent_reads = 32;
     public Integer concurrent_writes = 32;
     public Integer concurrent_counter_writes = 32;
+    public Boolean commitlog_use_progress_wait_queue = false;
     public Boolean always_async_write = false;
 
     @Deprecated

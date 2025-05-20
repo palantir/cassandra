@@ -1235,7 +1235,13 @@ public class DatabaseDescriptor
         return conf.concurrent_counter_writes;
     }
 
-    public static boolean getAlwaysAsyncWrite() {
+    public static boolean getCommitLogUseProgressWaitQueue()
+    {
+        return conf.commitlog_use_progress_wait_queue;
+    }
+
+    public static boolean getAlwaysAsyncWrite()
+    {
         return conf.always_async_write;
     }
 

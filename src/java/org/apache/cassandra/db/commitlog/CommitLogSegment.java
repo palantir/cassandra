@@ -52,6 +52,9 @@ import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.utils.CLibrary;
 import org.apache.cassandra.utils.concurrent.OpOrder;
+import org.apache.cassandra.utils.concurrent.ProgressWaitQueue;
+import org.apache.cassandra.utils.concurrent.ProgressWaitQueueAdapter;
+import org.apache.cassandra.utils.concurrent.SkipListProgressWaitQueue;
 import org.apache.cassandra.utils.concurrent.WaitQueue;
 
 /*
@@ -99,7 +102,7 @@ public abstract class CommitLogSegment
     private int endOfBuffer;
 
     // a signal for writers to wait on to confirm the log message they provided has been written to disk
-    private final WaitQueue syncComplete = new WaitQueue();
+    private final ProgressWaitQueue syncComplete;
 
     // a map of Cf->dirty position; this is used to permit marking Cfs clean whilst the log is still in use
     private final NonBlockingHashMap<UUID, AtomicInteger> cfDirty = new NonBlockingHashMap<>(1024);
@@ -150,13 +153,17 @@ public abstract class CommitLogSegment
         {
             throw new FSWriteError(e, logFile);
         }
-        
+
         buffer = createBuffer(commitLog);
         // write the header
         CommitLogDescriptor.writeHeader(buffer, descriptor);
         endOfBuffer = buffer.capacity();
         lastSyncedOffset = buffer.position();
         allocatePosition.set(lastSyncedOffset + SYNC_MARKER_SIZE);
+
+        syncComplete = DatabaseDescriptor.getCommitLogUseProgressWaitQueue()
+                ? new SkipListProgressWaitQueue()
+                : new ProgressWaitQueueAdapter(new WaitQueue());
     }
 
     abstract ByteBuffer createBuffer(CommitLog commitLog);
@@ -270,7 +277,7 @@ public abstract class CommitLogSegment
         // Note: Even if the very first allocation of this sync section failed, we still want to enter this
         // to ensure the segment is closed. As allocatePosition is set to 1 beyond the capacity of the buffer,
         // this will always be entered when a mutation allocation has been attempted after the marker allocation
-        // succeeded in the previous sync. 
+        // succeeded in the previous sync.
         assert buffer != null;  // Only close once.
 
         int startMarker = lastSyncedOffset;
@@ -300,7 +307,8 @@ public abstract class CommitLogSegment
         lastSyncedOffset = nextMarker;
         if (close)
             internalClose();
-        syncComplete.signalAll();
+
+        syncComplete.signalUntil(lastSyncedOffset);
     }
 
     protected static void writeSyncMarker(long id, ByteBuffer buffer, int offset, int filePos, int nextMarker)
@@ -359,7 +367,7 @@ public abstract class CommitLogSegment
     {
         while (true)
         {
-            WaitQueue.Signal signal = syncComplete.register();
+            WaitQueue.Signal signal = syncComplete.register(endOfBuffer);
             if (lastSyncedOffset < endOfBuffer)
             {
                 signal.awaitUninterruptibly();
@@ -377,8 +385,8 @@ public abstract class CommitLogSegment
         try (Timer.Context ignored2 = commitLog.metrics.totalWaitingOnCommit.time())
         {
             WaitQueue.Signal signal = waitingOnCommit != null ?
-                                      syncComplete.register(waitingOnCommit.time()) :
-                                      syncComplete.register();
+                                      syncComplete.register(position, waitingOnCommit.time()) :
+                                      syncComplete.register(position);
             if (lastSyncedOffset < position)
                 signal.awaitUninterruptibly();
             else
