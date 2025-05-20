@@ -5206,6 +5206,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
     {
+        if (!isInitialized())
+            throw new RuntimeException("StorageService not yet initialized, can't load new sstables");
+        if(!operationMode.equals(Mode.ZOMBIE))
+            throw new RuntimeException("Node is not in ZOMBIE mode, will not load new sstables");
         ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
     }
 
