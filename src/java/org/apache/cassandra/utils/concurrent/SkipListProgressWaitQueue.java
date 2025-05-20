@@ -35,6 +35,9 @@ import com.palantir.tracing.Tracer;
 
 public final class SkipListProgressWaitQueue implements ProgressWaitQueue
 {
+    private static final Map<String, String> METADATA_COMPLETE = ImmutableMap.of("status", "complete");
+    private static final Map<String, String> METADATA_CANCELED = ImmutableMap.of("status", "canceled");
+
     private static final int CANCELLED = -1;
     private static final int SIGNALLED = 1;
     private static final int NOT_SET = 0;
@@ -86,9 +89,6 @@ public final class SkipListProgressWaitQueue implements ProgressWaitQueue
      */
     private class RegisteredSignal extends WaitQueue.AbstractSignal
     {
-        private static final Map<String, String> METADATA_COMPLETE = ImmutableMap.of("status", "complete");
-        private static final Map<String, String> METADATA_CANCELED = ImmutableMap.of("status", "canceled");
-
         private final DetachedSpan span = DetachedSpan.start("SkipListProgressWaitQueue#parked");
         private volatile Thread thread = Thread.currentThread();
         volatile int state;
