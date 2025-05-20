@@ -697,23 +697,23 @@ public class DatabaseDescriptor
             if (conf.data_file_directories.length == 0)
                 throw new ConfigurationException("At least one DataFileDirectory must be specified", false);
 
-            try
-            {
-                Path systemDirectoryPath = Paths.get(conf.data_file_directories[0] + "/system");
-                Instant fourDaysAgo = Instant.now().minus(4, ChronoUnit.DAYS);
-
-                if (Files.exists(systemDirectoryPath)
-                    && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo)
-                    && StorageService.joinRing)
-                {
-                    throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
-                        + " You must remove this flag from configuration as it could cause SEVERE DATA CORRUPTION.", false);
-                }
-            }
-            catch (IOException e)
-            {
-                logger.info("Unable to verify validity of palantir_cassandra.is_new_cluster flag. Will retry at next restart.");
-            }
+//            try
+//            {
+//                Path systemDirectoryPath = Paths.get(conf.data_file_directories[0] + "/system");
+//                Instant fourDaysAgo = Instant.now().minus(4, ChronoUnit.DAYS);
+//
+//                if (Files.exists(systemDirectoryPath)
+//                    && Files.getLastModifiedTime(systemDirectoryPath).toInstant().isBefore(fourDaysAgo)
+//                    && StorageService.joinRing)
+//                {
+//                    throw new ConfigurationException("is_new_cluster flag is still set to true at least 4 days after cluster creation."
+//                        + " You must remove this flag from configuration as it could cause SEVERE DATA CORRUPTION.", false);
+//                }
+//            }
+//            catch (IOException e)
+//            {
+//                logger.info("Unable to verify validity of palantir_cassandra.is_new_cluster flag. Will retry at next restart.");
+//            }
         }
 
         // load the seeds for node contact points
