@@ -28,7 +28,10 @@ import java.util.List;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
-@Command(name = "loadnewsstables", description = "Load newly placed SSTables to the system without restart")
+@Command(name = "loadnewsstables", description = "Load the SSTables placed into the keyspace directory into view without restart. "
+                                                 + "The targeted keyspace/cf has to be fully empty, with no existing or prior data otherwise the command will throw. "
+                                                 + "This command should only be used to load a consistent set of sstables from a unique snapshot, "
+                                                 + "otherwise it might lead to unexpected results.")
 public class LoadNewSstables extends NodeToolCmd
 {
     @Arguments(usage = "<keyspace> <table>", description = "The keyspace and table name")
