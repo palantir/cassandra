@@ -118,6 +118,7 @@ public class Config
     public Integer concurrent_writes = 32;
     public Integer concurrent_counter_writes = 32;
     public Boolean commitlog_use_progress_wait_queue = false;
+    public Boolean always_async_write = false;
 
     @Deprecated
     public Integer concurrent_replicates = null;
@@ -322,6 +323,8 @@ public class Config
     public int windows_timer_interval = 0;
 
     public boolean enable_user_defined_functions = false;
+
+    public double filter_experiment_probability = 0.01;
 
     public static boolean getOutboundBindAny()
     {

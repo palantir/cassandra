@@ -1240,6 +1240,11 @@ public class DatabaseDescriptor
         return conf.commitlog_use_progress_wait_queue;
     }
 
+    public static boolean getAlwaysAsyncWrite()
+    {
+        return conf.always_async_write;
+    }
+
     public static int getFlushWriters()
     {
             return conf.memtable_flush_writers;
@@ -2115,5 +2120,9 @@ public class DatabaseDescriptor
     public static boolean getIsNewCluster()
     {
         return Boolean.getBoolean("palantir_cassandra.is_new_cluster");
+    }
+
+    public static double getFilterExperimentProbability() {
+        return conf.filter_experiment_probability;
     }
 }

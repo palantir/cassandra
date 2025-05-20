@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.DeletionInfo;
@@ -86,7 +87,7 @@ public enum FilterExperiment
     }
 
     public static boolean shouldRunExperiment() {
-        return ThreadLocalRandom.current().nextDouble() <= 0.01;
+        return ThreadLocalRandom.current().nextDouble() <= DatabaseDescriptor.getFilterExperimentProbability();
     }
 
     private static <T> T time(Supplier<T> delegate, Timer timer) {
