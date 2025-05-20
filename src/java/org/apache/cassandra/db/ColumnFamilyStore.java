@@ -684,6 +684,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      */
     public static void removeUnusedSstables(CFMetaData metadata, Map<Integer, UUID> unfinishedCompactions)
     {
+        logger.debug("Running removeUnfinishedCompactionLeftovers for keyspace {} and table {}", metadata.ksName,
+                     metadata.cfName);
         Directories directories = new Directories(metadata);
         Set<Integer> allGenerations = new HashSet<>();
         for (Descriptor desc : directories.sstableLister().list().keySet())
@@ -717,10 +719,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Set<Integer> ancestors;
             try
             {
+                logger.debug("Deserializing metadata component of sstable {}", desc.baseFilename());
                 CompactionMetadata compactionMetadata = (CompactionMetadata) desc.getMetadataSerializer().deserialize(desc, MetadataType.COMPACTION);
                 ancestors = compactionMetadata.ancestors;
             }
-            catch (IOException e)
+            catch (IOException | ArrayIndexOutOfBoundsException e)
             {
                 throw new FSReadError(e, desc.filenameFor(Component.STATS));
             }
@@ -800,6 +803,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 }
             }
         }
+        logger.debug("Finished running removeUnfinishedCompactionLeftovers for keyspace {} and table {}",
+                     metadata.ksName, metadata.cfName);
     }
 
     /**
