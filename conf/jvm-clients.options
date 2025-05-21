@@ -52,3 +52,5 @@
 --add-exports java.base/java.nio=ALL-UNNAMED
 --add-exports java.base/java.lang=ALL-UNNAMED
 
+# JFR
+--add-exports=jdk.jfr/jdk.jfr.internal=ALL-UNNAMED
