@@ -29,11 +29,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
+import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
@@ -74,7 +76,7 @@ public enum FilterExperiment
             } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))) {
                 indeterminate.inc();
                 log.warn("Query result changed while running experiments, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, legacyResult.metadata(), optimizedResult.metadata());
+                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata(legacyResult.metadata()), safeLoggableColumnFamilyMetadata(optimizedResult.metadata()));
             } else if ((legacyResult.metadata().getGcGraceSeconds() == 0
                            && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
                 indeterminate.inc();
@@ -82,11 +84,11 @@ public enum FilterExperiment
                 //  The indeterminate codepath seems to have never been hit so it's probably fine to defer for now as
                 //  long as we still have signal if we do hit it.
                 log.warn("Query result changed under immediate compaction but results from 60 seconds ago are identical, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, legacyResult.metadata(), optimizedResult.metadata());
+                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata(legacyResult.metadata()), safeLoggableColumnFamilyMetadata(optimizedResult.metadata()));
             } else {
                 failures.inc();
                 log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, legacyResult.metadata(), optimizedResult.metadata());
+                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata(legacyResult.metadata()), safeLoggableColumnFamilyMetadata(optimizedResult.metadata()));
             }
         } catch (RuntimeException e) {
             failures.inc();
@@ -134,11 +136,11 @@ public enum FilterExperiment
         }
         if (legacy == null) {
             boolean areEqual = !iterator(modern).hasNext();
-            log.warn("The legacy column family was null when comparing results but the modern column family was not; Modern: {}, Modern metadata: {}", modern, modern.metadata());
+            log.warn("The legacy column family was null when comparing results but the modern column family was not; Modern: {}, Modern metadata: {}", modern, safeLoggableColumnFamilyMetadata(modern.metadata()));
             return areEqual;
         } else if (modern == null) {
             boolean areEqual =  !iterator(legacy).hasNext();
-            log.warn("The modern column family was null when comparing results but the legacy column family was not; Legacy: {}, Legacy metadata: {}", legacy, legacy.metadata());
+            log.warn("The modern column family was null when comparing results but the legacy column family was not; Legacy: {}, Legacy metadata: {}", legacy, safeLoggableColumnFamilyMetadata(legacy.metadata()));
             return areEqual;
         }
         return compareAndLogMetadataIfFalse(legacy, modern, "iterator", FilterExperiment::compareUsingIterator);
@@ -163,8 +165,31 @@ public enum FilterExperiment
         boolean equal = comparator.apply(legacy, modern);
         if (!equal) {
             log.warn("Comparison failure while experimenting; Comparison type: {}, Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                     legacy, modern, comparisonType, legacy.metadata(), modern.metadata());
+                     legacy, modern, comparisonType, safeLoggableColumnFamilyMetadata(legacy.metadata()), safeLoggableColumnFamilyMetadata(modern.metadata()));
         }
         return equal;
+    }
+
+    private static String safeLoggableColumnFamilyMetadata(CFMetaData metaData) {
+        return new ToStringBuilder(metaData)
+        .append("cfId", metaData.cfId) // UUID
+        .append("ksName", metaData.ksName) // Is a metric label
+        .append("cfName", metaData.cfName) // Is a metric label
+        .append("cfType", metaData.cfType) // Enum
+        .append("readRepairChance", metaData.getReadRepairChance()) // visible in config
+        .append("dcLocalReadRepairChance", metaData.getDcLocalReadRepairChance()) // visible in config
+        .append("gcGraceSeconds", metaData.getGcGraceSeconds()) // visible in config
+        .append("minCompactionThreshold", metaData.getMinCompactionThreshold()) // visible in config
+        .append("maxCompactionThreshold", metaData.getMaxCompactionThreshold()) // visible in config
+        .append("compactionStrategyClass", metaData.compactionStrategyClass) // Class name
+        .append("bloomFilterFpChance", metaData.getBloomFilterFpChance()) // visible in config
+        .append("memtableFlushPeriod", metaData.getMemtableFlushPeriod()) // visible in config
+        .append("caching", metaData.getCaching()) // Enums
+        .append("defaultTimeToLive", metaData.getDefaultTimeToLive()) // visible in config
+        .append("minIndexInterval", metaData.getMinIndexInterval()) // visible in config
+        .append("maxIndexInterval", metaData.getMaxIndexInterval()) // visible in config
+        .append("speculativeRetry", metaData.getSpeculativeRetry()) // Enum and percentage
+        .append("isDense", metaData.getIsDense()) // boolean
+        .toString();
     }
 }
