@@ -34,6 +34,7 @@ import com.google.common.collect.Sets;
 import com.palantir.cassandra.db.ColumnFamilyStoreManager;
 import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.compaction.writers.CompactionAwareWriter;
 import org.apache.cassandra.db.compaction.writers.DefaultCompactionWriter;
@@ -88,8 +89,8 @@ public class CompactionTask extends AbstractCompactionTask
         {
             // Try again w/o the largest one.
             logger.warn("insufficient space to compact all requested files. {}MB required, {}",
-                        (float) expectedSize / 1024 / 1024,
-                        StringUtils.join(transaction.originals(), ", "));
+                        SafeArg.of("expectedSize", (float) expectedSize / 1024 / 1024),
+                        UnsafeArg.of("transactionInputs", StringUtils.join(transaction.originals(), ", ")));
             // Note that we have removed files that are still marked as compacting.
             // This suboptimal but ok since the caller will unmark all the sstables at the end.
             SSTableReader removedSSTable = cfs.getMaxSizeFile(transaction.originals());
@@ -188,7 +189,9 @@ public class CompactionTask extends AbstractCompactionTask
         {
             taskId = offline ? null : SystemKeyspace.startCompaction(cfs, transaction.originals());
             taskIdLoggerMsg = taskId == null ? UUIDGen.getTimeUUID().toString() : taskId.toString();
-            logger.debug("Compacting ({}) {}", taskIdLoggerMsg, ssTableLoggerMsg);
+            logger.debug("Compacting ({}) {}",
+                         SafeArg.of("taskId", taskIdLoggerMsg),
+                         UnsafeArg.of("sstables", ssTableLoggerMsg));
             ci = new CompactionIterable(compactionType, scanners.scanners, controller, sstableFormat, taskId);
             try (CloseableIterator<AbstractCompactedRow> iter = ci.iterator())
             {
@@ -287,10 +290,27 @@ public class CompactionTask extends AbstractCompactionTask
             double mbps = dTime > 0 ? (double) endsize / (1024 * 1024) / ((double) dTime / 1000) : 0;
             long totalSourceRows = 0;
             String mergeSummary = updateCompactionHistory(cfs.keyspace.getName(), cfs.getColumnFamilyName(), ci, startsize, endsize);
-            logger.debug(String.format("Compacted (%s) %d sstables to [%s] to level=%d.  %,d bytes to %,d (~%d%% of original) in %,dms = %fMB/s.  %,d total partitions merged to %,d.  Partition merge counts were {%s}",
-                                       taskIdLoggerMsg, transaction.originals().size(), newSSTableNames.toString(), getLevel(), startsize, endsize, (int) (ratio * 100), dTime, mbps, totalSourceRows, totalKeysWritten, mergeSummary));
-            logger.trace(String.format("CF Total Bytes Compacted: %,d", CompactionTask.addToTotalBytesCompacted(endsize)));
-            logger.trace("Actual #keys: {}, Estimated #keys:{}, Err%: {}", totalKeysWritten, estimatedKeys, ((double) (totalKeysWritten - estimatedKeys) / totalKeysWritten));
+            logger.debug("Compacted ({}) {} sstables to [{}] to level={}.  {} bytes to {} ({} of original) in {},dms = {}MB/s.  {} total partitions merged to {}d.  Partition merge counts were {{}}",
+                         SafeArg.of("taskId", taskIdLoggerMsg),
+                         SafeArg.of("sstableCount", transaction.originals().size()),
+                         UnsafeArg.of("newSstableNames", newSSTableNames.toString()),
+                         SafeArg.of("level", getLevel()),
+                         SafeArg.of("startsize", startsize),
+                         SafeArg.of("endsize", endsize),
+                         SafeArg.of("percent", (int) (ratio * 100)),
+                         SafeArg.of("time", dTime),
+                         SafeArg.of("mbps", mbps),
+                         SafeArg.of("totalSourceRows", totalSourceRows),
+                         SafeArg.of("totalKeysWritten", totalKeysWritten),
+                         SafeArg.of("mergeSummary", mergeSummary));
+
+            logger.trace("CF Total Bytes Compacted: {}",
+                         SafeArg.of("bytesCompacted", CompactionTask.addToTotalBytesCompacted(endsize)));
+
+            logger.trace("Actual #keys: {}, Estimated #keys:{}, Err%: {}",
+                         SafeArg.of("totalKeysWritten", totalKeysWritten),
+                         SafeArg.of("estimatedKeys", estimatedKeys),
+                         SafeArg.of("error", ((double) (totalKeysWritten - estimatedKeys) / totalKeysWritten)));
 
             // update the metrics
             cfs.metric.compactionBytesWritten.inc(endsize);
@@ -371,7 +391,7 @@ public class CompactionTask extends AbstractCompactionTask
                 throw new RuntimeException(msg);
             }
             logger.warn("Not enough space for compaction, {}MB estimated.  Reducing scope.",
-                            (float) expectedWriteSize / 1024 / 1024);
+                            SafeArg.of("sizeEstimated", (float) expectedWriteSize / 1024 / 1024));
             expectedWriteSize = cfs.getExpectedCompactedFileSize(transaction.originals(), compactionType);
         }
 

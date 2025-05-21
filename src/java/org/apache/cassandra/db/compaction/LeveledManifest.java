@@ -31,6 +31,9 @@ import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.FileUtils;
+
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,7 +140,11 @@ public class LeveledManifest
         if (canAddSSTable(reader))
         {
             // adding the sstable does not cause overlap in the level
-            logger.trace("Adding {} to L{}", reader, level);
+            logger.trace("Adding {} to L{}",
+                         SafeArg.of("keyspace", reader.getKeyspaceName()),
+                         SafeArg.of("cf", reader.getColumnFamilyName()),
+                         SafeArg.of("generation", reader.descriptor.generation),
+                         SafeArg.of("level", level));
             generations[level].add(reader);
         }
         else
@@ -167,7 +174,8 @@ public class LeveledManifest
         assert !removed.isEmpty(); // use add() instead of promote when adding new sstables
         logDistribution();
         if (logger.isTraceEnabled())
-            logger.trace("Replacing [{}]", toString(removed));
+            logger.trace("Replacing [{}]",
+                         UnsafeArg.of("removed", toString(removed)));
 
         // the level for the added sstables is the max of the removed ones,
         // plus one if the removed were all on the same level
@@ -184,7 +192,8 @@ public class LeveledManifest
             return;
 
         if (logger.isTraceEnabled())
-            logger.trace("Adding [{}]", toString(added));
+            logger.trace("Adding [{}]",
+                         UnsafeArg.of("added", toString(added)));
 
         for (SSTableReader ssTableReader : added)
             add(ssTableReader);
@@ -200,9 +209,19 @@ public class LeveledManifest
         {
             if (previous != null && current.first.compareTo(previous.last) <= 0)
             {
-                logger.warn(String.format("At level %d, %s [%s, %s] overlaps %s [%s, %s].  This could be caused by a bug in Cassandra 1.1.0 .. 1.1.3 or due to the fact that you have dropped sstables from another node into the data directory. " +
+                logger.warn("At level {}, previous sstable {} [{}, {}] overlaps current sstable {} [{}, {}].  This could be caused by a bug in Cassandra 1.1.0 .. 1.1.3 or due to the fact that you have dropped sstables from another node into the data directory. " +
                                           "Sending back to L0.  If you didn't drop in sstables, and have not yet run scrub, you should do so since you may also have rows out-of-order within an sstable",
-                                          level, previous, previous.first, previous.last, current, current.first, current.last));
+                                          SafeArg.of("level", level),
+                                          SafeArg.of("previous-keyspace", previous.getKeyspaceName()),
+                                          SafeArg.of("previous-cf", previous.getColumnFamilyName()),
+                                          SafeArg.of("previous-generation", previous.descriptor.generation),
+                                          UnsafeArg.of("previous-firstKey", previous.first),
+                                          UnsafeArg.of("previous-lastKey", previous.last),
+                                          SafeArg.of("current-keyspace", current.getKeyspaceName()),
+                                          SafeArg.of("current-cf", current.getColumnFamilyName()),
+                                          SafeArg.of("current-generation", current.descriptor.generation),
+                                          UnsafeArg.of("current-firstKey", current.first),
+                                          UnsafeArg.of("current-lastKey", current.last));
                 outOfOrderSSTables.add(current);
             }
             else
@@ -337,7 +356,9 @@ public class LeveledManifest
             Set<SSTableReader> sstablesInLevel = Sets.newHashSet(sstables);
             Set<SSTableReader> remaining = Sets.difference(sstablesInLevel, cfs.getTracker().getCompacting());
             double score = (double) SSTableReader.getTotalBytes(remaining) / (double)maxBytesForLevel(i, maxSSTableSizeInBytes);
-            logger.trace("Compaction score for level {} is {}", i, score);
+            logger.trace("Compaction score for level {} is {}",
+                         SafeArg.of("level", i),
+                         SafeArg.of("score", score));
 
             if (score > 1.001)
             {
@@ -353,12 +374,15 @@ public class LeveledManifest
                     int nextLevel = getNextLevel(candidates);
                     candidates = getOverlappingStarvedSSTables(nextLevel, candidates);
                     if (logger.isTraceEnabled())
-                        logger.trace("Compaction candidates for L{} are {}", i, toString(candidates));
+                        logger.trace("Compaction candidates for L{} are {}",
+                                     SafeArg.of("level", i),
+                                     UnsafeArg.of("candidates", toString(candidates)));
                     return new CompactionCandidate(candidates, nextLevel, cfs.getCompactionStrategy().getMaxSSTableBytes());
                 }
                 else
                 {
-                    logger.trace("No compaction candidates for L{}", i);
+                    logger.trace("No compaction candidates for L{}",
+                                 SafeArg.of("level", i));
                 }
             }
         }
@@ -368,7 +392,7 @@ public class LeveledManifest
             return null;
         Collection<SSTableReader> candidates = getCandidatesFor(0);
         logger.trace("Triggering non-STCS compaction in L0 of size {}.",
-                     FileUtils.stringifyFileSize(candidates.stream().mapToLong(SSTableReader::onDiskLength).sum()));
+                     SafeArg.of("size", FileUtils.stringifyFileSize(candidates.stream().mapToLong(SSTableReader::onDiskLength).sum())));
 
         if (candidates.isEmpty())
         {
@@ -388,7 +412,7 @@ public class LeveledManifest
             if (!mostInteresting.isEmpty())
             {
                 logger.debug("L0 is too far behind, performing size-tiering compaction of size {} there first",
-                             FileUtils.stringifyFileSize((mostInteresting.stream().mapToLong(SSTableReader::onDiskLength).sum())));
+                             SafeArg.of("size", FileUtils.stringifyFileSize((mostInteresting.stream().mapToLong(SSTableReader::onDiskLength).sum()))));
                 return new CompactionCandidate(mostInteresting, 0, Long.MAX_VALUE);
             }
         }
@@ -406,7 +430,10 @@ public class LeveledManifest
                                                                .peek(pair -> {
                                                                    if (pair.right > MAX_SSTABLE_SIZE_IN_L0) {
                                                                        logger.trace("Excluding sstable {} because size {} is greater than max allowed in L0",
-                                                                                    pair.left.getFilename(), pair.right);
+                                                                                    SafeArg.of("keyspace", pair.left.getKeyspaceName()),
+                                                                                    SafeArg.of("cf", pair.left.getColumnFamilyName()),
+                                                                                    SafeArg.of("generation", pair.left.descriptor.generation),
+                                                                                    SafeArg.of("size", pair.right));
                                                                    }
                                                                })
                                                                .filter(p -> p.right <= MAX_SSTABLE_SIZE_IN_L0)
@@ -446,7 +473,9 @@ public class LeveledManifest
         if (logger.isTraceEnabled())
         {
             for (int j = 0; j < compactionCounter.length; j++)
-                logger.trace("CompactionCounter: {}: {}", j, compactionCounter[j]);
+                logger.trace("CompactionCounter: {}: {}",
+                             SafeArg.of("ordinal", j),
+                             SafeArg.of("compactionCounter", compactionCounter[j]));
         }
 
         for (int i = generations.length - 1; i > 0; i--)
@@ -477,7 +506,11 @@ public class LeveledManifest
                         Range<RowPosition> r = new Range<RowPosition>(sstable.first, sstable.last);
                         if (boundaries.contains(r) && !compacting.contains(sstable))
                         {
-                            logger.info("Adding high-level (L{}) {} to candidates", sstable.getSSTableLevel(), sstable);
+                            logger.info("Adding high-level (L{}) {} to candidates",
+                                        SafeArg.of("sstableLevel", sstable.getSSTableLevel()),
+                                        SafeArg.of("keyspace", sstable.getKeyspaceName()),
+                                        SafeArg.of("cf", sstable.getColumnFamilyName()),
+                                        SafeArg.of("generation", sstable.descriptor.generation));
                             withStarvedCandidate.add(sstable);
                             return withStarvedCandidate;
                         }
@@ -514,7 +547,10 @@ public class LeveledManifest
                 if (!getLevel(i).isEmpty())
                 {
                     logger.trace("L{} contains {} SSTables ({} bytes) in {}",
-                                 i, getLevel(i).size(), SSTableReader.getTotalBytes(getLevel(i)), this);
+                                 SafeArg.of("level", i),
+                                 SafeArg.of("levelSize", getLevel(i).size()),
+                                 SafeArg.of("bytes", SSTableReader.getTotalBytes(getLevel(i))),
+                                 UnsafeArg.of("leveledManifest", this));
                 }
             }
         }
@@ -595,7 +631,8 @@ public class LeveledManifest
     private Collection<SSTableReader> getCandidatesFor(int level)
     {
         assert !getLevel(level).isEmpty();
-        logger.trace("Choosing candidates for L{}", level);
+        logger.trace("Choosing candidates for L{}",
+                     SafeArg.of("level", level));
 
         final Set<SSTableReader> compacting = cfs.getTracker().getCompacting();
 
@@ -642,10 +679,12 @@ public class LeveledManifest
                     // skip this sstable if it will push the current compaction over the expected limit.
                     if (LIMIT_TOTAL_COMPACTING_SIZE_IN_L0 && (candidatesTotalSize + newCandidate.onDiskLength()) > MAX_COMPACTING_SIZE_IN_L0) {
                         logger.trace("Skipping sstable {} with size {} as it's {} bytes over max allowed of {}.",
-                                     newCandidate.getFilename(),
-                                     FileUtils.stringifyFileSize(newCandidate.onDiskLength()),
-                                     FileUtils.stringifyFileSize((candidatesTotalSize + newCandidate.onDiskLength()) - MAX_COMPACTING_SIZE_IN_L0),
-                                     FileUtils.stringifyFileSize(MAX_COMPACTING_SIZE_IN_L0));
+                                     SafeArg.of("keyspace", newCandidate.getKeyspaceName()),
+                                     SafeArg.of("cf", newCandidate.getColumnFamilyName()),
+                                     SafeArg.of("generation", newCandidate.descriptor.generation),
+                                     SafeArg.of("size", FileUtils.stringifyFileSize(newCandidate.onDiskLength())),
+                                     SafeArg.of("bytesOver", FileUtils.stringifyFileSize((candidatesTotalSize + newCandidate.onDiskLength()) - MAX_COMPACTING_SIZE_IN_L0)),
+                                     SafeArg.of("max", FileUtils.stringifyFileSize(MAX_COMPACTING_SIZE_IN_L0)));
                         continue;
                     }
                     if (firstCompactingKey == null || lastCompactingKey == null || overlapping(firstCompactingKey.getToken(), lastCompactingKey.getToken(), Arrays.asList(newCandidate)).size() == 0)
@@ -782,7 +821,9 @@ public class LeveledManifest
         }
 
         logger.trace("Estimating {} compactions to do for {}.{}",
-                     Arrays.toString(estimated), cfs.keyspace.getName(), cfs.name);
+                     SafeArg.of("estimated", Arrays.toString(estimated)),
+                     SafeArg.of("keyspace", cfs.keyspace.getName()),
+                     SafeArg.of("cf", cfs.name));
         return Ints.checkedCast(tasks);
     }
 

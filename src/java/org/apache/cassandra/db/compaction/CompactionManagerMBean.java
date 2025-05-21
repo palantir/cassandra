@@ -104,4 +104,11 @@ public interface CompactionManagerMBean
      * @param number New maximum of validator threads
      */
     public void setMaximumValidatorThreads(int number);
+
+    /**
+     * Returns a map of pending compactions with associated keyspaces and column families.
+     *
+     * @return A map linking a KS/CF pair to pending compaction count.
+     */
+    Map<String, Integer> getPendingCompactionTasksByKeyspaceColumnFamily();
 }

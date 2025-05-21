@@ -18,6 +18,7 @@
 package org.apache.cassandra.tools.nodetool;
 
 import static java.lang.String.format;
+
 import io.airlift.command.Command;
 import io.airlift.command.Option;
 
@@ -39,12 +40,25 @@ public class CompactionStats extends NodeToolCmd
             name = {"-H", "--human-readable"},
             description = "Display bytes in human readable form, i.e. KB, MB, GB, TB")
     private boolean humanReadable = false;
+    @Option(title = "verbose",
+            name = {"-v", "--verbose"},
+            description = "Display number of non-executing pending compactions mapped by keyspace/column family")
+    private boolean verbose = false;
 
     @Override
     public void execute(NodeProbe probe)
     {
         CompactionManagerMBean cm = probe.getCompactionManagerProxy();
-        probe.output().out.println("pending tasks: " + probe.getCompactionMetric("PendingTasks"));
+        Map<String, Integer> pendingCompactions = cm.getPendingCompactionTasksByKeyspaceColumnFamily();
+        int runningAndPendingCompactions = pendingCompactions.values().stream()
+                                                             .mapToInt(Integer::intValue)
+                                                             .sum();
+        probe.output().out.println("pending tasks: " + runningAndPendingCompactions);
+        if (verbose)
+        {
+            probe.output().out.println("pending queued tasks by ks/cf: " + pendingCompactions);
+        }
+
         long remainingBytes = 0;
         List<Map<String, String>> compactions = cm.getCompactions();
         if (!compactions.isEmpty())

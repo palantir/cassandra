@@ -122,7 +122,7 @@ public class CommitLogSegmentManager
                                 // TODO : some error handling in case we fail to create a new segment
                                 CommitLogSegment newSegment = CommitLogSegment.createSegment(commitLog);
                                 availableSegments.add(newSegment);
-                                logger.info("No segments in reserve; created a fresh one",
+                                logger.debug("No segments in reserve; created a fresh one",
                                             SafeArg.of("segment", newSegment.id));
                                 hasAvailableSegments.signalAll();
                             }
@@ -228,6 +228,9 @@ public class CommitLogSegmentManager
                 {
                     allocatingFrom = next;
                     activeSegments.add(next);
+                    logger.debug("Advanced allocating segment from {} to {}",
+                                 SafeArg.of("old", old == null ? "null" : old.id),
+                                 SafeArg.of("new", next.id));
                 }
             }
 
@@ -353,7 +356,8 @@ public class CommitLogSegmentManager
         }
         else
         {
-            logger.warn("segment {} not found in activeSegments queue", segment);
+            logger.warn("Segment {} not found in activeSegments queue",
+                        SafeArg.of("segment", segment.id));
         }
     }
 
@@ -411,7 +415,10 @@ public class CommitLogSegmentManager
     {
         long total = DatabaseDescriptor.getTotalCommitlogSpaceInMB() * 1024 * 1024;
         long currentSize = size.get();
-        logger.trace("Total active commitlog segment space used is {} out of {}", currentSize, total);
+        if (logger.isTraceEnabled())
+            logger.trace("Total active commitlog segment space used is {} out of {}",
+                         SafeArg.of("currentSize", currentSize),
+                         SafeArg.of("total", total));
         return total - currentSize;
     }
 
@@ -462,7 +469,8 @@ public class CommitLogSegmentManager
                 {
                     // even though we remove the schema entry before a final flush when dropping a CF,
                     // it's still possible for a writer to race and finish his append after the flush.
-                    logger.trace("Marking clean CF {} that doesn't exist anymore", dirtyCFId);
+                    if (logger.isTraceEnabled())
+                        logger.trace("Marking clean CF {} that doesn't exist anymore", SafeArg.of("dirtyCFId", dirtyCFId));
                     segment.markClean(dirtyCFId, segment.getContext());
                 }
                 else if (!flushes.containsKey(dirtyCFId))

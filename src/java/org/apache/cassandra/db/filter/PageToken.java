@@ -22,10 +22,8 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.util.Comparator;
 
 import org.apache.cassandra.db.Cell;
-import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnSerializer;
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.db.composites.CellNameType;
