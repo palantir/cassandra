@@ -80,6 +80,11 @@ public class CountingCellIterator implements Iterator<Cell> {
         throw new UnsupportedOperationException();
     }
 
+    public int deadAndLiveCells()
+    {
+        return boundedAdd(dead(), live());
+    }
+
     public int dead() {
         return boundedAdd(boundedAdd(droppableTombstones, droppableTtls), tombstones);
     }
