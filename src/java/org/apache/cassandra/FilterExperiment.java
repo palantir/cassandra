@@ -21,6 +21,7 @@ package org.apache.cassandra;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -70,14 +71,22 @@ public enum FilterExperiment
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
             if (areEqual(legacyResult, optimizedResult)) {
                 successes.inc();
-            } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))
-                       || (legacyResult.metadata().getGcGraceSeconds() == 0
+            } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))) {
+                indeterminate.inc();
+                log.warn("Query result changed while running experiments, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
+                         legacyResult, optimizedResult, legacyResult.metadata(), optimizedResult.metadata());
+            } else if ((legacyResult.metadata().getGcGraceSeconds() == 0
                            && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
                 indeterminate.inc();
+                // TODO(lkjaerozhang): Give a better log message when I actually understand what this means.
+                //  The indeterminate codepath seems to have never been hit so it's probably fine to defer for now as
+                //  long as we still have signal if we do hit it.
+                log.warn("Query result changed under immediate compaction but results from 60 seconds ago are identical, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
+                         legacyResult, optimizedResult, legacyResult.metadata(), optimizedResult.metadata());
             } else {
                 failures.inc();
-                log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}",
-                         legacyResult, optimizedResult);
+                log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
+                         legacyResult, optimizedResult, legacyResult.metadata(), optimizedResult.metadata());
             }
         } catch (RuntimeException e) {
             failures.inc();
@@ -120,14 +129,23 @@ public enum FilterExperiment
      */
     @VisibleForTesting
     static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
-        if (areTrulyEqual(legacy, modern)) {
+        if (compareAndLogMetadataIfFalse(legacy, modern, "md5", FilterExperiment::areTrulyEqual)) {
             return true;
         }
         if (legacy == null) {
-            return !iterator(modern).hasNext();
+            boolean areEqual = !iterator(modern).hasNext();
+            log.warn("The legacy column family was null when comparing results but the modern column family was not; Modern: {}, Modern metadata: {}", modern, modern.metadata());
+            return areEqual;
         } else if (modern == null) {
-            return !iterator(legacy).hasNext();
+            boolean areEqual =  !iterator(legacy).hasNext();
+            log.warn("The modern column family was null when comparing results but the legacy column family was not; Legacy: {}, Legacy metadata: {}", legacy, legacy.metadata());
+            return areEqual;
         }
+        return compareAndLogMetadataIfFalse(legacy, modern, "iterator", FilterExperiment::compareUsingIterator);
+    }
+
+    private static boolean compareUsingIterator(ColumnFamily legacy, ColumnFamily modern)
+    {
         return Iterators.elementsEqual(iterator(legacy), iterator(modern));
     }
 
@@ -138,5 +156,15 @@ public enum FilterExperiment
 
     static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
+    }
+
+    private static boolean compareAndLogMetadataIfFalse(ColumnFamily legacy, ColumnFamily modern, String comparisonType, BiFunction<ColumnFamily, ColumnFamily, Boolean> comparator)
+    {
+        boolean equal = comparator.apply(legacy, modern);
+        if (!equal) {
+            log.warn("Comparison failure while experimenting; Comparison type: {}, Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
+                     legacy, modern, comparisonType, legacy.metadata(), modern.metadata());
+        }
+        return equal;
     }
 }
