@@ -29,7 +29,6 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.palantir.tracing.Tracers;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.concurrent.SimpleCondition;
@@ -151,7 +150,7 @@ public abstract class AbstractLocalAwareExecutorService implements LocalAwareExe
 
         public FutureTask(Callable<T> callable)
         {
-            this.callable = Tracers.wrap(callable);
+            this.callable = callable;
         }
         public FutureTask(Runnable runnable, T result)
         {
