@@ -50,9 +50,9 @@ public class CommitLogDescriptorTest
 
         assertEquals(1340512736956320000L, CommitLogDescriptor.fromFileName("CommitLog-2-1340512736956320000.log").id);
 
-        assertEquals(MessagingService.current_version, new CommitLogDescriptor(1340512736956320000L, null).getMessagingVersion());
+        assertEquals(MessagingService.VERSION_22, new CommitLogDescriptor(1340512736956320000L, null).getMessagingVersion());
         String newCLName = "CommitLog-" + CommitLogDescriptor.current_version + "-1340512736956320000.log";
-        assertEquals(MessagingService.current_version, CommitLogDescriptor.fromFileName(newCLName).getMessagingVersion());
+        assertEquals(MessagingService.VERSION_22, CommitLogDescriptor.fromFileName(newCLName).getMessagingVersion());
     }
 
     private void testDescriptorPersistence(CommitLogDescriptor desc) throws IOException

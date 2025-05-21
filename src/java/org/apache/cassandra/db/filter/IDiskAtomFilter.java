@@ -88,6 +88,11 @@ public interface IDiskAtomFilter
 
     public boolean isHeadFilter();
 
+    default boolean usePageToken()
+    {
+        return false;
+    }
+
     /**
      * Whether the provided cf, that is assumed to contain the head of the
      * partition, contains enough data to cover this filter.
