@@ -63,6 +63,11 @@ public class PageTokenDigest
         return new PageTokenDigest(null, true);
     }
 
+    public static PageTokenDigest of(ColumnFamily cf)
+    {
+        return (cf == null || !cf.isPageTokenSet()) ? null : cf.pageToken().digest();
+    }
+
     @Override
     public boolean equals(Object o)
     {

@@ -170,32 +170,29 @@ public class RowDataResolver extends AbstractRowResolver
 
     private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
     {
+        PageToken resolvedPageToken = resolved.pageToken();
+        PageToken.Comparator comparator = null;
 
-        List<ColumnFamily> allCfsWithPageTokens = new ArrayList<>(Iterables.size(versions) + 1);
         for (ColumnFamily version : versions)
         {
             if (version != null && version.isPageTokenSet())
             {
-                allCfsWithPageTokens.add(version);
+                if (comparator == null)
+                {
+                    comparator = new PageToken.Comparator(version.getComparator());
+                }
+                if (resolvedPageToken == null)
+                {
+                    resolvedPageToken = version.pageToken();
+                }
+                else if (comparator.compare(version.pageToken(), resolvedPageToken) < 0)
+                {
+                    resolvedPageToken = version.pageToken();
+                }
             }
         }
-        if (resolved != null && resolved.isPageTokenSet())
-        {
-            allCfsWithPageTokens.add(resolved);
-        }
 
-        if (allCfsWithPageTokens.isEmpty())
-        {
-            return null;
-        }
-
-        List<PageToken> allPageTokens = new ArrayList<>(Iterables.size(allCfsWithPageTokens));
-        for (ColumnFamily cf : allCfsWithPageTokens)
-        {
-            allPageTokens.add(cf.pageToken());
-        }
-
-        return Collections.min(allPageTokens, new PageToken.Comparator(allCfsWithPageTokens.get(0).getComparator()));
+        return resolvedPageToken;
     }
 
     public Row getData()

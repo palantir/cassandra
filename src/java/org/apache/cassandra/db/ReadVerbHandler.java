@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.exceptions.IsBootstrappingException;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.MessageIn;
@@ -68,7 +69,7 @@ public class ReadVerbHandler implements IVerbHandler<ReadCommand>
     {
         if (command.isDigestQuery())
         {
-            return new ReadResponse(ColumnFamily.digest(row.cf), (row.cf == null || !row.cf.isPageTokenSet()) ? null : row.cf.pageToken().digest());
+            return new ReadResponse(ColumnFamily.digest(row.cf), PageTokenDigest.of(row.cf));
         }
         else
         {

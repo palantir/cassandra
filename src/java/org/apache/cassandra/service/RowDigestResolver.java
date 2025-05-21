@@ -21,11 +21,14 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
 import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.net.MessageIn;
+import org.apache.cassandra.utils.ByteBufferUtil;
 
 public class RowDigestResolver extends AbstractRowResolver
 {
@@ -46,8 +49,7 @@ public class RowDigestResolver extends AbstractRowResolver
             {
                 if (result.digest() == null)
                 {
-                    result.setDigest(ColumnFamily.digest(result.row().cf), (result.row().cf == null || !result.row().cf.isPageTokenSet()) ? null :
-                            result.row().cf.pageToken().digest());
+                    result.setDigest(ColumnFamily.digest(result.row().cf), PageTokenDigest.of(result.row().cf));
                 }
 
                 return result.row();
@@ -96,7 +98,7 @@ public class RowDigestResolver extends AbstractRowResolver
                 data = response.row().cf;
                 if (response.digest() == null)
                 {
-                    message.payload.setDigest(ColumnFamily.digest(data), (data == null || !data.isPageTokenSet()) ? null : data.pageToken().digest());
+                    message.payload.setDigest(ColumnFamily.digest(data), PageTokenDigest.of(data));
                 }
 
                 newDigest = response.digest();
@@ -110,6 +112,12 @@ public class RowDigestResolver extends AbstractRowResolver
             }
             else if (!digest.equals(newDigest) || !Objects.equals(pageTokenDigest, newPageTokenDigest))
             {
+                logger.error("Mismatch for key {} ({},{} vs {},{})",
+                             UnsafeArg.of("key", key),
+                             SafeArg.of("digest1", ByteBufferUtil.bytesToHex(digest)),
+                             SafeArg.of("pageTokenDigest1", pageTokenDigest),
+                             SafeArg.of("digest2", ByteBufferUtil.bytesToHex(newDigest)),
+                             SafeArg.of("pageTokenDigest2", newPageTokenDigest));
                 throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
             }
         }
