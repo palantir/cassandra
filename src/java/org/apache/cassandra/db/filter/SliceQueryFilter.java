@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.*;
 
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterators;
 import com.palantir.cassandra.utils.CountingCellIterator;
 
 import com.palantir.cassandra.utils.RangeTombstoneCounter;
@@ -33,6 +32,7 @@ import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.metrics.ColumnFamilyMetrics;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +64,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public final boolean reversed;
     public volatile int count;
     public final int compositesToGroup;
+    public final boolean usePageToken;
 
     private boolean hitTombstoneFailureThreshold = false;
     private boolean hitTombstoneWarnThreshold = false;
@@ -82,6 +83,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this(new ColumnSlice(start, finish), reversed, count);
     }
 
+    public SliceQueryFilter(Composite start, Composite finish, boolean reversed, boolean usePageToken, int count)
+    {
+        this(new ColumnSlice(start, finish), reversed, usePageToken, count);
+    }
+
     public SliceQueryFilter(Composite start, Composite finish, boolean reversed, int count, int compositesToGroup)
     {
         this(new ColumnSlice(start, finish), reversed, count, compositesToGroup);
@@ -90,6 +96,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
     public SliceQueryFilter(ColumnSlice slice, boolean reversed, int count)
     {
         this(new ColumnSlice[]{ slice }, reversed, count);
+    }
+
+    public SliceQueryFilter(ColumnSlice slice, boolean reversed, boolean usePageToken, int count)
+    {
+        this(new ColumnSlice[]{slice}, reversed, usePageToken, count);
     }
 
     public SliceQueryFilter(ColumnSlice slice, boolean reversed, int count, int compositesToGroup)
@@ -106,10 +117,21 @@ public class SliceQueryFilter implements IDiskAtomFilter
         this(slices, reversed, count, -1);
     }
 
+    public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, boolean usePageToken, int count)
+    {
+        this(slices, reversed, usePageToken, count, -1);
+    }
+
     public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, int count, int compositesToGroup)
+    {
+        this(slices, reversed, false, count, compositesToGroup);
+    }
+
+    public SliceQueryFilter(ColumnSlice[] slices, boolean reversed, boolean usePageToken, int count, int compositesToGroup)
     {
         this.slices = slices;
         this.reversed = reversed;
+        this.usePageToken = usePageToken;
         this.count = count;
         this.compositesToGroup = compositesToGroup;
         this.highMemoryCollectionThreshold = LOG_HIGH_MEMORY_COLLECTION
@@ -305,9 +327,33 @@ public class SliceQueryFilter implements IDiskAtomFilter
         long dataSizeCollected = 0;
         long metadataSizeCollected = 0;
 
+        // only set page token if usePageToken is true
+        // if the range scan completes, set the pageToken to "end of row" value
+        // otherwise set it to a cell name if we hit one of the defensive guards
+
+        CellName firstCell = null;
+        CellName lastSeenCellInContainer = null;
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
+            assert cell != null;
+
+            if (firstCell == null)
+            {
+                firstCell = cell.name();
+            }
+
+            if (usePageToken && hitRangeScanThreshold(reducedCells.deadAndLiveCells()))
+            {
+                assert cell.name() != firstCell :
+                        "Hit the range scan threshold on the first cell. Either the configured threshold is too low or there are unexpected duplicate cells.";
+                assert lastSeenCellInContainer == null || cell.name() != lastSeenCellInContainer :
+                        "Hit the range scan threshold on a cell that is included in the results set. This should never happen.";
+
+                container.setPageToken(cell);
+                break;
+            }
+
 
             if (logger.isTraceEnabled())
                 logger.trace("collecting {} of {}: {}", SafeArg.of("liveCells", columnCounter.live()), SafeArg.of("readCells", count),
@@ -343,6 +389,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
             }
 
             container.appendColumn(cell);
+            lastSeenCellInContainer = cell.name();
 
             if (LOG_HIGH_MEMORY_COLLECTION)
             {
@@ -362,6 +409,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
                     }
                 }
             }
+        }
+
+        if (usePageToken && !container.isPageTokenSet())
+        {
+            container.setPageTokenEndOfRow();
         }
 
         boolean warnTombstones = logger.isWarnEnabled() && respectTombstoneThresholds() && reducedCells.dead() > DatabaseDescriptor.getTombstoneWarnThreshold();
@@ -395,6 +447,11 @@ public class SliceQueryFilter implements IDiskAtomFilter
                       reducedCells.tombstones(),
                       reducedCells.droppableTombstones() + reducedCells.droppableTtls(),
                       warnTombstones ? " (see tombstone_warn_threshold)" : "");
+    }
+
+    private boolean hitRangeScanThreshold(long cellsRead)
+    {
+        return cellsRead >= DatabaseDescriptor.getRangeScanCellsReadThreshold();
     }
 
     private String getSlicesInfo(ColumnFamily container)
@@ -583,6 +640,12 @@ public class SliceQueryFilter implements IDiskAtomFilter
         return slices.length == 1 && slices[0].start.isEmpty() && !reversed;
     }
 
+    @Override
+    public boolean usePageToken()
+    {
+        return usePageToken;
+    }
+
     public boolean countCQL3Rows(CellNameType comparator)
     {
         // If comparator is dense a cell == a CQL3 rows so we're always counting CQL3 rows
@@ -632,6 +695,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
             out.writeInt(count);
 
             out.writeInt(f.compositesToGroup);
+            if (version >= MessagingService.VERSION_22_PLTR)
+            {
+                out.writeBoolean(f.usePageToken);
+            }
         }
 
         public SliceQueryFilter deserialize(DataInput in, int version) throws IOException
@@ -642,9 +709,15 @@ public class SliceQueryFilter implements IDiskAtomFilter
                 slices[i] = type.sliceSerializer().deserialize(in, version);
             boolean reversed = in.readBoolean();
             int count = in.readInt();
-            int compositesToGroup = in.readInt();
 
-            return new SliceQueryFilter(slices, reversed, count, compositesToGroup);
+            int compositesToGroup = in.readInt();
+            boolean usePageToken = false;
+            if (version >= MessagingService.VERSION_22_PLTR)
+            {
+                usePageToken = in.readBoolean();
+            }
+
+            return new SliceQueryFilter(slices, reversed, usePageToken, count, compositesToGroup);
         }
 
         public long serializedSize(SliceQueryFilter f, int version)
@@ -659,6 +732,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
             size += sizes.sizeof(f.count);
 
             size += sizes.sizeof(f.compositesToGroup);
+            if (version >= MessagingService.VERSION_22_PLTR)
+            {
+                size += sizes.sizeof(f.usePageToken);
+            }
             return size;
         }
     }

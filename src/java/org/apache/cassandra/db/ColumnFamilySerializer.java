@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 import org.apache.cassandra.config.Schema;
+import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.io.ISSTableSerializer;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.sstable.format.Version;
@@ -47,7 +48,7 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
      * <client-provided deletion time>
      * <column count>
      * <columns, serialized individually>
-    */
+     */
     public void serialize(ColumnFamily cf, DataOutputPlus out, int version)
     {
         try
@@ -130,8 +131,8 @@ public class ColumnFamilySerializer implements IVersionedSerializer<ColumnFamily
         else
         {
             return typeSizes.sizeof(true)  /* nullness bool */
-                 + cfIdSerializedSize(cf.id(), typeSizes, version)  /* id */
-                 + contentSerializedSize(cf, typeSizes, version);
+                   + cfIdSerializedSize(cf.id(), typeSizes, version)  /* id */
+                   + contentSerializedSize(cf, typeSizes, version);
         }
     }
 
