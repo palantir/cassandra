@@ -18,12 +18,17 @@
 package org.apache.cassandra.service;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import com.palantir.logsafe.SafeArg;
+import com.palantir.logsafe.UnsafeArg;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ReadResponse;
 import org.apache.cassandra.db.Row;
+import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.net.MessageIn;
+import org.apache.cassandra.utils.ByteBufferUtil;
 
 public class RowDigestResolver extends AbstractRowResolver
 {
@@ -43,7 +48,9 @@ public class RowDigestResolver extends AbstractRowResolver
             if (!result.isDigestQuery())
             {
                 if (result.digest() == null)
-                    result.setDigest(ColumnFamily.digest(result.row().cf));
+                {
+                    result.setDigest(ColumnFamily.digest(result.row().cf), PageTokenDigest.of(result.row().cf));
+                }
 
                 return result.row();
             }
@@ -72,30 +79,47 @@ public class RowDigestResolver extends AbstractRowResolver
         // also extract the data reply, if any.
         ColumnFamily data = null;
         ByteBuffer digest = null;
+        PageTokenDigest pageTokenDigest = null;
 
         for (MessageIn<ReadResponse> message : replies)
         {
             ReadResponse response = message.payload;
 
             ByteBuffer newDigest;
+            PageTokenDigest newPageTokenDigest;
             if (response.isDigestQuery())
             {
                 newDigest = response.digest();
+                newPageTokenDigest = response.pageTokenDigest();
             }
             else
             {
                 // note that this allows for multiple data replies, post-CASSANDRA-5932
                 data = response.row().cf;
                 if (response.digest() == null)
-                    message.payload.setDigest(ColumnFamily.digest(data));
+                {
+                    message.payload.setDigest(ColumnFamily.digest(data), PageTokenDigest.of(data));
+                }
 
                 newDigest = response.digest();
+                newPageTokenDigest = response.pageTokenDigest();
             }
 
             if (digest == null)
+            {
                 digest = newDigest;
-            else if (!digest.equals(newDigest))
-                throw new DigestMismatchException(key, digest, newDigest);
+                pageTokenDigest = newPageTokenDigest;
+            }
+            else if (!digest.equals(newDigest) || !Objects.equals(pageTokenDigest, newPageTokenDigest))
+            {
+                logger.error("Mismatch for key {} ({},{} vs {},{})",
+                             UnsafeArg.of("key", key),
+                             SafeArg.of("digest1", ByteBufferUtil.bytesToHex(digest)),
+                             SafeArg.of("pageTokenDigest1", pageTokenDigest),
+                             SafeArg.of("digest2", ByteBufferUtil.bytesToHex(newDigest)),
+                             SafeArg.of("pageTokenDigest2", newPageTokenDigest));
+                throw new DigestMismatchException(key, digest, pageTokenDigest, newDigest, newPageTokenDigest);
+            }
         }
 
         if (logger.isTraceEnabled())
