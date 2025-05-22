@@ -382,15 +382,17 @@ public abstract class CommitLogSegment
 
     void waitForSync(int position, Timer waitingOnCommit)
     {
-        try (Timer.Context ignored2 = commitLog.metrics.totalWaitingOnCommit.time())
+        try (Timer.Context ignored = commitLog.metrics.totalWaitingOnCommit.time())
         {
-            WaitQueue.Signal signal = waitingOnCommit != null ?
-                                      syncComplete.register(position, waitingOnCommit.time()) :
-                                      syncComplete.register(position);
-            if (lastSyncedOffset < position)
-                signal.awaitUninterruptibly();
-            else
-                signal.cancel();
+            while (lastSyncedOffset < position) {
+                WaitQueue.Signal signal = waitingOnCommit != null ?
+                                          syncComplete.register(position, waitingOnCommit.time()) :
+                                          syncComplete.register(position);
+                if (lastSyncedOffset < position)
+                    signal.awaitUninterruptibly();
+                else
+                    signal.cancel();
+            }
         }
     }
 
