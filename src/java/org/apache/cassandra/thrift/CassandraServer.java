@@ -440,6 +440,8 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    // implement multiget_multislice_paging
+
     @Override
     public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
             throws InvalidRequestException, UnavailableException, TimedOutException
