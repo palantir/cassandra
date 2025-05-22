@@ -103,6 +103,7 @@ public class CommitLogReplayer
     {
         // compute per-CF and global replay positions
         Map<UUID, ReplayPosition.ReplayFilter> cfPersisted = new HashMap<>();
+        Set<UUID> cfWithoutFilter = new HashSet<>();
         ReplayFilter replayFilter = ReplayFilter.create();
         ReplayPosition globalPosition = null;
         for (ColumnFamilyStore cfs : ColumnFamilyStore.all())
@@ -121,8 +122,8 @@ public class CommitLogReplayer
                     if (replayFilter.includes(cfs.metadata))
                     {
                         logger.info("Restore point in time is before latest truncation of table {}.{}. Clearing truncation record.",
-                                    cfs.metadata.ksName,
-                                    cfs.metadata.cfName);
+                                    SafeArg.of("ksName", cfs.metadata.ksName),
+                                    SafeArg.of("cfName", cfs.metadata.cfName));
                         SystemKeyspace.removeTruncationRecord(cfs.metadata.cfId);
                         truncatedAt = null;
                     }
@@ -133,13 +134,18 @@ public class CommitLogReplayer
             if (!filter.isEmpty())
                 cfPersisted.put(cfs.metadata.cfId, filter);
             else
+            {
                 globalPosition = ReplayPosition.NONE; // if we have no ranges for this CF, we must replay everything and filter
+                cfWithoutFilter.add(cfs.metadata.cfId);
+            }
         }
         if (globalPosition == null)
             globalPosition = ReplayPosition.firstNotCovered(cfPersisted.values());
-        logger.debug("Global replay position {} is from columnfamilies {}",
+
+        logger.debug("Global replay position {} is from columnfamilies filtered: {}; unfiltered: {}",
                      SafeArg.of("globalPosition", globalPosition),
-                     SafeArg.of("columnFamilies", FBUtilities.toString(cfPersisted)));
+                     SafeArg.of("columnFamiliesWithReplayFilters", cfPersisted.keySet()),
+                     SafeArg.of("columnFamiliesWithoutReplayFilters", cfWithoutFilter));
         return new CommitLogReplayer(commitLog, globalPosition, cfPersisted, replayFilter);
     }
 
@@ -169,7 +175,7 @@ public class CommitLogReplayer
             {
                 if (shouldSkip(file))
                 {
-                    logger.info("Skipping playback of empty log: {}", file.getName());
+                    logger.info("Skipping playback of empty log: {}", SafeArg.of("fileName", file.getName()));
                 }
                 else
                 {
@@ -201,7 +207,9 @@ public class CommitLogReplayer
     public int blockForWrites()
     {
         for (Map.Entry<UUID, AtomicInteger> entry : invalidMutations.entrySet())
-            logger.warn(String.format("Skipped %d mutations from unknown (probably removed) CF with id %s", entry.getValue().intValue(), entry.getKey()));
+            logger.warn("Skipped {} mutations from unknown (probably removed) CF with id {}",
+                        SafeArg.of("count", entry.getValue().intValue()),
+                        SafeArg.of("cfId", entry.getKey()));
 
         // wait for all the writes to finish on the mutation stage
         FBUtilities.waitOnFutures(futures);
@@ -464,17 +472,18 @@ public class CommitLogReplayer
         finally
         {
             FileUtils.closeQuietly(reader);
-            logger.debug("Finished reading {}", file);
+            logger.debug("Finished reading {}",
+                         SafeArg.of("file", file.getName()));
         }
     }
 
     public boolean logAndCheckIfShouldSkip(File file, CommitLogDescriptor desc)
     {
         logger.debug("Replaying {} (CL version {}, messaging version {}, compression {})",
-                    file.getPath(),
-                    desc.version,
-                    desc.getMessagingVersion(),
-                    desc.compression);
+                     SafeArg.of("file", file.getName()),
+                     SafeArg.of("version", desc.version),
+                     SafeArg.of("messagingVersion", desc.getMessagingVersion()),
+                     SafeArg.of("compression", desc.compression));
 
         if (globalPosition.segment > desc.id)
         {

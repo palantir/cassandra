@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.codahale.metrics.Timer;
 import com.github.tjake.ICRC32;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.utils.CRC32Factory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
@@ -418,7 +419,8 @@ public abstract class CommitLogSegment
             // check for deleted CFS
             CFMetaData cfm = columnFamily.metadata();
             if (cfm.isPurged())
-                logger.error("Attempted to write commit log entry for unrecognized table: {}", columnFamily.id());
+                logger.error("Attempted to write commit log entry for unrecognized table: {}",
+                             SafeArg.of("cfId", columnFamily.id()));
             else
                 ensureAtleast(cfDirty, cfm.cfId, allocatedPosition);
         }

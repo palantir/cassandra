@@ -107,6 +107,11 @@ public class MetadataCollector
     protected ICardinality cardinality = new HyperLogLogPlus(13, 25);
     private final CellNameType columnNameComparator;
 
+    /**
+     * Warning: this constructor does not propagate replay metadata.
+     * If the targeted sstable is derived from existing ones, use
+     * MetadataCollector(sstables, columnNameComparator, level, skipAncestors) instead.
+     */
     public MetadataCollector(CellNameType columnNameComparator)
     {
         this.columnNameComparator = columnNameComparator;
