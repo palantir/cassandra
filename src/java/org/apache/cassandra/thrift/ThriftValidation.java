@@ -640,7 +640,32 @@ public class ThriftValidation
             throw new org.apache.cassandra.exceptions.InvalidRequestException("system keyspace is not user-modifiable");
     }
 
+    /**
+     * Resumable range scans make some assumptions that may not be strictly required but have not been tested without them holding true.
+     */
+    public static void validateResumableRangeScan(String keyspaceName, String columnFamilyName, List<SlicePredicate> predicates)
+    {
+        for (SlicePredicate predicate : predicates)
+        {
+            assert predicate.isSetSlice_range() && !predicate.isSetColumn_names() : "Resumable range scans only support slice queries";
+            assert !predicate.getSlice_range().isReversed() : "Resumable range scans do not support reversed queries";
+        }
+
+        Keyspace keyspace = Keyspace.open(keyspaceName);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(columnFamilyName);
+
+        assert !cfs.isRowCacheEnabled() : "Resumable range scans require the row cache to be disabled";
+        assert !cfs.metadata.isSuper() : "Resumable range scans do not support super columns";
+        assert !cfs.metadata.hasStaticColumns() : "Resumable range scans do not support static columns";
+        assert cfs.indexManager == null || !cfs.indexManager.hasIndexes() : "Resumable range scans do not support secondary indexes";
+    }
+
     public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn)
+    {
+        return asIFilter(sp, metadata, superColumn, false);
+    }
+
+    public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn, boolean usePageToken)
     {
         SliceRange sr = sp.slice_range;
         IDiskAtomFilter filter;
@@ -658,10 +683,13 @@ public class ThriftValidation
         }
         else
         {
-            filter = new SliceQueryFilter(comparator.fromByteBuffer(sr.start),
-                                          comparator.fromByteBuffer(sr.finish),
-                                          sr.reversed,
-                                          sr.count);
+            filter = new SliceQueryFilter(
+                    comparator.fromByteBuffer(sr.start),
+                    comparator.fromByteBuffer(sr.finish),
+                    sr.reversed,
+                    usePageToken,
+                    sr.count
+            );
         }
 
         if (metadata.isSuper())
