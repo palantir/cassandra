@@ -155,6 +155,12 @@ public class CassandraServer implements Cassandra.Iface
         return thriftColumns;
     }
 
+    public PageResult thriftifyColumnsPaging(Collection<Cell> cells, long now, org.apache.cassandra.db.filter.PageToken pageToken)
+    {
+        List<ColumnOrSuperColumn> thriftColumns = thriftifyColumns(cells, false, now);
+        return new PageResult().setColumns(thriftColumns).setPage_token(thriftifyPageToken(pageToken));
+    }
+
     private ColumnOrSuperColumn thriftifyColumnWithName(Cell cell, ByteBuffer newName)
     {
         if (cell instanceof CounterCell)
@@ -271,6 +277,17 @@ public class CassandraServer implements Cassandra.Iface
         return thriftSuperColumns;
     }
 
+    private PageToken thriftifyPageToken(org.apache.cassandra.db.filter.PageToken pageToken)
+    {
+        assert pageToken != null : "Page token should never be null when using paging";
+
+        if (pageToken.isReachedEnd())
+        {
+            return new PageToken().setEnd_of_row(true);
+        }
+        return new PageToken().setColumn_name(pageToken.getCell().name().toByteBuffer()).setEnd_of_row(false);
+    }
+
     private Map<ByteBuffer, List<ColumnOrSuperColumn>> getSlice(List<ReadCommand> commands, boolean subColumnsOnly, org.apache.cassandra.db.ConsistencyLevel consistency_level, ClientState cState)
     throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
     {
@@ -281,6 +298,23 @@ public class CassandraServer implements Cassandra.Iface
             ColumnFamily cf = columnFamilies.get(StorageService.getPartitioner().decorateKey(command.key));
             boolean reverseOrder = command instanceof SliceFromReadCommand && ((SliceFromReadCommand)command).filter.reversed;
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(cf, subColumnsOnly, reverseOrder, command.timestamp);
+            columnFamiliesMap.put(command.key, thriftifiedColumns);
+        }
+
+        return columnFamiliesMap;
+    }
+
+    private Map<ByteBuffer, PageResult> getSlicePaging(List<ReadCommand> commands,
+                                                       org.apache.cassandra.db.ConsistencyLevel consistency_level,
+                                                       ClientState cState)
+            throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        Map<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamily(commands, consistency_level, cState);
+        Map<ByteBuffer, PageResult> columnFamiliesMap = new HashMap<ByteBuffer, PageResult>();
+        for (ReadCommand command : commands)
+        {
+            ColumnFamily cf = columnFamilies.get(StorageService.getPartitioner().decorateKey(command.key));
+            PageResult thriftifiedColumns = thriftifyColumnFamilyPaging(cf, command.timestamp);
             columnFamiliesMap.put(command.key, thriftifiedColumns);
         }
 
@@ -310,6 +344,32 @@ public class CassandraServer implements Cassandra.Iface
         return Multimaps.asMap(columnFamiliesMap);
     }
 
+    private Map<ByteBuffer, List<PageResult>> getSlicesPaging(List<ReadCommand> commands,
+                                                              org.apache.cassandra.db.ConsistencyLevel consistency_level,
+                                                              ClientState cState)
+            throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        Multimap<DecoratedKey, ReadCommand> commandsByKey = partitionCommandsByKey(commands);
+        Map<DecoratedKey, ThriftifyColumnFamilyDetails> detailsByKey = new HashMap<>();
+        for (Map.Entry<DecoratedKey, Collection<ReadCommand>> entry : commandsByKey.asMap().entrySet())
+        {
+            ThriftifyColumnFamilyDetails details = ThriftifyColumnFamilyDetails.forReadCommands(entry.getValue());
+            detailsByKey.put(entry.getKey(), details);
+        }
+
+        Multimap<DecoratedKey, ColumnFamily> columnFamilies = readColumnFamilies(commands, consistency_level, cState);
+        ListMultimap<ByteBuffer, PageResult> columnFamiliesMap = ArrayListMultimap.create();
+        for (Map.Entry<DecoratedKey, ColumnFamily> entry : columnFamilies.entries())
+        {
+            ThriftifyColumnFamilyDetails details = detailsByKey.get(entry.getKey());
+            PageResult thriftifiedColumns = thriftifyColumnFamilyPaging(
+                    entry.getValue(), details.timestamp);
+            columnFamiliesMap.put(entry.getKey().getKey(), thriftifiedColumns);
+        }
+
+        return Multimaps.asMap(columnFamiliesMap);
+    }
+
     private Multimap<DecoratedKey, ReadCommand> partitionCommandsByKey(List<ReadCommand> commands)
     {
         Multimap<DecoratedKey, ReadCommand> result = ArrayListMultimap.create();
@@ -333,6 +393,19 @@ public class CassandraServer implements Cassandra.Iface
         {
             return thriftifyColumns(cf.getSortedColumns(), reverseOrder, now);
         }
+    }
+
+    private PageResult thriftifyColumnFamilyPaging(ColumnFamily cf, long now)
+    {
+        assert cf != null : "Resolved column family should never be null when using paging, since it includes a page token";
+
+        if (!cf.hasColumns())
+        {
+            return new PageResult().setColumns(EMPTY_COLUMNS).setPage_token(thriftifyPageToken(cf.pageToken()));
+        }
+
+        assert !cf.metadata().isSuper();
+        return thriftifyColumnsPaging(cf.getSortedColumns(), now, cf.pageToken());
     }
 
     public List<ColumnOrSuperColumn> get_slice(ByteBuffer key, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
@@ -381,8 +454,6 @@ public class CassandraServer implements Cassandra.Iface
         return multigetSliceInternal(keyspace, Collections.singletonList(key), column_parent, timestamp, predicate, consistency_level, cState).get(key);
     }
 
-    // implement multiget_slice_paging
-
     public Map<ByteBuffer, List<ColumnOrSuperColumn>> multiget_slice(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level)
     throws InvalidRequestException, UnavailableException, TimedOutException
     {
@@ -420,7 +491,45 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    // implement multiget_multislice_paging
+    @Override
+    public Map<ByteBuffer, PageResult> multiget_slice_paging(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
+    {
+        if (startSessionIfRequested())
+        {
+            List<String> keysList = Lists.newArrayList();
+            for (ByteBuffer key : keys)
+            {
+                keysList.add(ByteBufferUtil.bytesToHex(key));
+            }
+            Map<String, String> traceParameters = ImmutableMap.of("keys", keysList.toString(),
+                    "column_parent", column_parent.toString(),
+                    "predicate", predicate.toString(),
+                    "consistency_level", consistency_level.name());
+            Tracing.instance.begin("multiget_slice_paging", traceParameters);
+        }
+        else
+        {
+            logger.trace("multiget_slice_paging");
+        }
+
+        try
+        {
+            ClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
+            cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            ThriftValidation.validateResumableRangeScan(keyspace, column_parent.column_family, Collections.singletonList(predicate));
+            return multigetSlicePagingInternal(keyspace, keys, column_parent, System.currentTimeMillis(), predicate, consistency_level, cState);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
 
     @Override
     public Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multiget_multislice(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level)
@@ -461,7 +570,52 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
+    @Override
+    public Map<ByteBuffer, List<PageResult>> multiget_multislice_paging(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
+    {
+        if (startSessionIfRequested())
+        {
+            List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
+            for (KeyPredicate keyPredicate : request)
+            {
+                keyPredicates.add(Pair.create(ByteBufferUtil.bytesToHex(keyPredicate.key), keyPredicate.predicate));
+            }
+            Map<String, String> traceParameters = ImmutableMap.of("key_predicates", keyPredicates.toString(),
+                    "column_parent", column_parent.toString(),
+                    "consistency_level", consistency_level.name());
+            Tracing.instance.begin("multiget_multislice_paging", traceParameters);
+        }
+        else
+        {
+            logger.trace("multiget_multislice_paging");
+        }
+
+        try
+        {
+            ClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
+            cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+            ThriftValidation.validateResumableRangeScan(keyspace, column_parent.column_family,
+                    request.stream().map(KeyPredicate::getPredicate).collect(Collectors.toList()));
+            return multigetMultislicePagingInternal(keyspace, request, column_parent, System.currentTimeMillis(), consistency_level, cState);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
     private SliceQueryFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SliceRange range)
+    {
+        return toInternalFilter(metadata, parent, range, false);
+    }
+
+    private SliceQueryFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SliceRange range, boolean usePageToken)
     {
         if (metadata.isSuper())
         {
@@ -474,10 +628,15 @@ public class CassandraServer implements Cassandra.Iface
 
         Composite start = metadata.comparator.fromByteBuffer(range.start);
         Composite finish = metadata.comparator.fromByteBuffer(range.finish);
-        return new SliceQueryFilter(start, finish, range.reversed, range.count);
+        return new SliceQueryFilter(start, finish, range.reversed, usePageToken, range.count);
     }
 
     private IDiskAtomFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SlicePredicate predicate)
+    {
+        return toInternalFilter(metadata, parent, predicate, false);
+    }
+
+    private IDiskAtomFilter toInternalFilter(CFMetaData metadata, ColumnParent parent, SlicePredicate predicate, boolean usePageToken)
     {
         IDiskAtomFilter filter;
 
@@ -501,7 +660,7 @@ public class CassandraServer implements Cassandra.Iface
         }
         else
         {
-            filter = toInternalFilter(metadata, parent, predicate.slice_range);
+            filter = toInternalFilter(metadata, parent, predicate.slice_range, usePageToken);
         }
         return filter;
     }
@@ -536,6 +695,36 @@ public class CassandraServer implements Cassandra.Iface
         return getSlice(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
     }
 
+    private Map<ByteBuffer, PageResult> multigetSlicePagingInternal(String keyspace,
+                                                                    List<ByteBuffer> keys,
+                                                                    ColumnParent column_parent,
+                                                                    long timestamp,
+                                                                    SlicePredicate predicate,
+                                                                    ConsistencyLevel consistency_level,
+                                                                    ClientState cState)
+            throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
+        ThriftValidation.validateColumnParent(metadata, column_parent);
+        ThriftValidation.validatePredicate(metadata, column_parent, predicate);
+
+        org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
+        consistencyLevel.validateForRead(keyspace);
+
+        List<ReadCommand> commands = new ArrayList<ReadCommand>(keys.size());
+        IDiskAtomFilter filter = toInternalFilter(metadata, column_parent, predicate, true);
+
+        for (ByteBuffer key : keys)
+        {
+            ThriftValidation.validateKey(metadata, key);
+            // Note that we should not share a slice filter amongst the command, due to SliceQueryFilter not  being immutable
+            // due to its columnCounter used by the lastCounted() method (also see SelectStatement.getSliceCommands)
+            commands.add(ReadCommand.create(keyspace, key, column_parent.getColumn_family(), timestamp, filter.cloneShallow()));
+        }
+
+        return getSlicePaging(commands, consistencyLevel, cState);
+    }
+
     private Map<ByteBuffer, List<List<ColumnOrSuperColumn>>> multigetMultisliceInternal(String keyspace,
                                                                                         List<KeyPredicate> keyPredicates,
                                                                                         ColumnParent column_parent,
@@ -554,7 +743,30 @@ public class CassandraServer implements Cassandra.Iface
         return getSlices(commands, column_parent.isSetSuper_column(), consistencyLevel, cState);
     }
 
+    private Map<ByteBuffer, List<PageResult>> multigetMultislicePagingInternal(String keyspace,
+                                                                               List<KeyPredicate> keyPredicates,
+                                                                               ColumnParent column_parent,
+                                                                               long timestamp,
+                                                                               ConsistencyLevel consistency_level,
+                                                                               ClientState cState)
+            throws org.apache.cassandra.exceptions.InvalidRequestException, UnavailableException, TimedOutException
+    {
+        CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
+        ThriftValidation.validateColumnParent(metadata, column_parent);
+
+        org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
+        consistencyLevel.validateForRead(keyspace);
+
+        List<ReadCommand> commands = validateKeyPredicatesAndCreateCommands(keyspace, keyPredicates, column_parent, timestamp, metadata, true);
+        return getSlicesPaging(commands, consistencyLevel, cState);
+    }
+
     private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata)
+    {
+        return validateKeyPredicatesAndCreateCommands(keyspace, keyPredicates, column_parent, timestamp, metadata, false);
+    }
+
+    private List<ReadCommand> validateKeyPredicatesAndCreateCommands(String keyspace, List<KeyPredicate> keyPredicates, ColumnParent column_parent, long timestamp, CFMetaData metadata, boolean usePageToken)
     {
         List<ReadCommand> commands = new ArrayList<>(keyPredicates.size());
         validateKeyPredicates(keyPredicates, column_parent, metadata);
@@ -566,7 +778,7 @@ public class CassandraServer implements Cassandra.Iface
             SlicePredicate predicate = keyPredicate.predicate;
             IDiskAtomFilter filterToUse = canonicalFilters.get(predicate);
             if (filterToUse == null) { // Cannot use computeIfAbsent() for Java 7 compatibility
-                IDiskAtomFilter filter = toInternalFilter(metadata, column_parent, predicate);
+                IDiskAtomFilter filter = toInternalFilter(metadata, column_parent, predicate, usePageToken);
                 canonicalFilters.put(predicate, filter);
                 filterToUse = filter;
             }
@@ -1374,8 +1586,6 @@ public class CassandraServer implements Cassandra.Iface
         return ThriftConversion.toThrift(ksm);
     }
 
-    // implement get_range_slices_paging
-
     public List<KeySlice> get_range_slices(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level)
     throws InvalidRequestException, UnavailableException, TException, TimedOutException
     {
@@ -1447,6 +1657,94 @@ public class CassandraServer implements Cassandra.Iface
             assert rows != null;
 
             return thriftifyKeySlices(rows, column_parent, predicate, now);
+        }
+        catch (RequestValidationException e)
+        {
+            throw ThriftConversion.toThrift(e);
+        }
+        catch (RequestExecutionException e)
+        {
+            throw ThriftConversion.rethrow(e);
+        }
+        finally
+        {
+            Tracing.instance.stopSession();
+        }
+    }
+
+    @Override
+    public List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level)
+            throws InvalidRequestException, UnavailableException, TException, TimedOutException
+    {
+        if (startSessionIfRequested())
+        {
+            Map<String, String> traceParameters = ImmutableMap.of(
+                    "column_parent", column_parent.toString(),
+                    "predicate", predicate.toString(),
+                    "range", range.toString(),
+                    "consistency_level", consistency_level.name());
+            Tracing.instance.begin("get_range_slices_paging", traceParameters);
+        }
+        else
+        {
+            logger.trace("get_range_slices_paging");
+        }
+
+        try
+        {
+            ThriftClientState cState = state();
+            String keyspace = cState.getKeyspace();
+            markRequestMeter(keyspace);
+            cState.hasColumnFamilyAccess(keyspace, column_parent.column_family, Permission.SELECT);
+
+            CFMetaData metadata = ThriftValidation.validateColumnFamily(keyspace, column_parent.column_family);
+            ThriftValidation.validateColumnParent(metadata, column_parent);
+            ThriftValidation.validatePredicate(metadata, column_parent, predicate);
+            ThriftValidation.validateKeyRange(metadata, column_parent.super_column, range);
+
+            org.apache.cassandra.db.ConsistencyLevel consistencyLevel = ThriftConversion.fromThrift(consistency_level);
+            consistencyLevel.validateForRead(keyspace);
+            ThriftValidation.validateResumableRangeScan(keyspace, column_parent.column_family, Collections.singletonList(predicate));
+
+            List<Row> rows = null;
+
+            IPartitioner p = StorageService.getPartitioner();
+            AbstractBounds<RowPosition> bounds;
+            if (range.start_key == null)
+            {
+                Token.TokenFactory tokenFactory = p.getTokenFactory();
+                Token left = tokenFactory.fromString(range.start_token);
+                Token right = tokenFactory.fromString(range.end_token);
+                bounds = Range.makeRowRange(left, right);
+            }
+            else
+            {
+                RowPosition end = range.end_key == null
+                        ? p.getTokenFactory().fromString(range.end_token).maxKeyBound()
+                        : RowPosition.ForKey.get(range.end_key, p);
+                bounds = new Bounds<RowPosition>(RowPosition.ForKey.get(range.start_key, p), end);
+            }
+            long now = System.currentTimeMillis();
+            schedule(DatabaseDescriptor.getRangeRpcTimeout());
+            try
+            {
+                IDiskAtomFilter filter = ThriftValidation.asIFilter(predicate, metadata, column_parent.super_column, true);
+                rows = StorageProxy.getRangeSlice(new RangeSliceCommand(keyspace,
+                                column_parent.column_family,
+                                now,
+                                filter,
+                                bounds,
+                                ThriftConversion.indexExpressionsFromThrift(range.row_filter),
+                                range.count),
+                        consistencyLevel);
+            }
+            finally
+            {
+                release();
+            }
+            assert rows != null;
+
+            return thriftifyKeySlicePages(rows, now);
         }
         catch (RequestValidationException e)
         {
@@ -1553,6 +1851,18 @@ public class CassandraServer implements Cassandra.Iface
         {
             List<ColumnOrSuperColumn> thriftifiedColumns = thriftifyColumnFamily(row.cf, column_parent.super_column != null, reversed, now);
             keySlices.add(new KeySlice(row.key.getKey(), thriftifiedColumns));
+        }
+
+        return keySlices;
+    }
+
+    private List<KeySlicePage> thriftifyKeySlicePages(List<Row> rows, long now)
+    {
+        List<KeySlicePage> keySlices = new ArrayList<KeySlicePage>(rows.size());
+        for (Row row : rows)
+        {
+            PageResult thriftifiedColumns = thriftifyColumnFamilyPaging(row.cf, now);
+            keySlices.add(new KeySlicePage(row.key.getKey(), thriftifiedColumns));
         }
 
         return keySlices;
