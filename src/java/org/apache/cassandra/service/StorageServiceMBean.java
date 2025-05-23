@@ -690,13 +690,13 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void rescheduleFailedDeletions();
 
     /**
-     * Load new SSTables to the given keyspace/columnFamily
+     * Load new SSTables to the given keyspace/columnFamily.
+     * This method expects and verifies the column family is empty before and while loading the new SSTables.
      *
      * @param ksName The parent keyspace name
      * @param cfName The ColumnFamily name where SSTables belong
-     * @param emptyCf  Whether or not we expect the column family is empty before and while loading the new SSTables.
      */
-    public void loadNewSSTables(String ksName, String cfName, boolean emptyCf);
+    public void loadNewSSTables(String ksName, String cfName);
 
     /**
      * Return a List of Tokens representing a sample of keys across all ColumnFamilyStores.

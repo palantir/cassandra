@@ -134,9 +134,9 @@ public interface ColumnFamilyStoreMBean
 
     /**
      * Loads new SSTables into the column family view.
-     * @param emptyCf   Whether or not we expect the column family is empty before and while loading the new SSTables.
+     * This method expects and verifies the column family is empty before and while loading the new SSTables.
      */
-    public void loadNewSSTables(boolean emptyCf);
+    public void loadNewSSTables();
 
     /**
      * @return the number of SSTables in L0.  Always return 0 if Leveled compaction is not enabled.

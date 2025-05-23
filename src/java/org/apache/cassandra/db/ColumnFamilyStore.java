@@ -801,31 +801,16 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     /**
-     * See #{@code StorageService.loadNewSSTablesWithCount(String, String, boolean)} for more info
+     * See #{@code StorageService.loadNewSSTables(String, String)} for more info
      *
      * @param ksName        The keyspace name
      * @param cfName        The columnFamily name
-     * @param emptyCf   Whether or not we expect the column family is empty before and while loading the new SSTables
      *
      */
-    public static synchronized void loadNewSSTables(String ksName, String cfName, boolean emptyCf)
+    public static synchronized void loadNewSSTables(String ksName, String cfName)
     {
-        if (!emptyCf)
-        {
-            throw new UnsupportedOperationException("Loading new SSTables for a cf with existing data is not supported.");
-        }
         /** ks/cf existence checks will be done by open and getCFS methods for us */
         Keyspace.open(ksName).getColumnFamilyStore(cfName).loadNewSSTables();
-    }
-
-    public void loadNewSSTables(boolean emptyCf)
-    {
-        if (!emptyCf)
-        {
-            throw new UnsupportedOperationException("Loading new SSTables for a cf with existing data is not supported.");
-        }
-        /** ks/cf existence checks will be done by open and getCFS methods for us */
-        loadNewSSTables();
     }
 
     public void loadNewSSTables()

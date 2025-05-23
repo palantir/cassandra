@@ -1086,7 +1086,7 @@ public class NodeProbe implements AutoCloseable
 
     public void loadNewSSTables(String ksName, String cfName)
     {
-        ssProxy.loadNewSSTables(ksName, cfName, true);
+        ssProxy.loadNewSSTables(ksName, cfName);
     }
 
     public void rebuildIndex(String ksName, String cfName, String... idxNames)

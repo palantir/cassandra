@@ -5204,14 +5204,14 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     /**
      * #{@inheritDoc}
      */
-    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
+    public void loadNewSSTables(String ksName, String cfName)
     {
         if(!isNewCluster())
             throw new RuntimeException("Failure: is_new_cluster config is false. "
                                         + "Using loadnewsstable on active production cluster could lead to sstable/data conflicts.");
         if (!isInitialized())
             throw new RuntimeException("StorageService not yet initialized, can't load new sstables");
-        ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName);
     }
 
     /**
