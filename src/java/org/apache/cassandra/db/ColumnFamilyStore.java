@@ -3507,7 +3507,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     }
 
     @VisibleForTesting
-    public void resetFileIndexGenerator()
+    void resetFileIndexGenerator()
     {
         fileIndexGenerator.set(0);
     }
