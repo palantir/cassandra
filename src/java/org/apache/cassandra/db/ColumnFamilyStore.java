@@ -838,9 +838,22 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             Directories.SSTableLister sstableFiles = directories.sstableLister().skipTemporary(true);
             Collection<SSTableReader> newSSTables = SSTableReader.openAll(sstableFiles.list().entrySet(), metadata, partitioner);
 
+            if (newSSTables.isEmpty())
+            {
+                logger.info("No new SSTables were found for {}/{}",
+                            SafeArg.of("keyspace", keyspace.getName()),
+                            SafeArg.of("cf", name));
+                return;
+            }
+
             List<Integer> generations = newSSTables.stream()
                                                    .map(ssTableReader -> ssTableReader.descriptor.generation).sorted()
                                                    .collect(Collectors.toList());
+
+            logger.info("Loading new SSTables {} and building secondary indexes for {}/{}",
+                        SafeArg.of("keyspace", keyspace.getName()),
+                        SafeArg.of("cf", name),
+                        SafeArg.of("generations", generations));
 
             if(!fileIndexGenerator.compareAndSet(0, generations.isEmpty() ? 0 : generations.get(generations.size() - 1))) {
                 logger.error("Error: fileIndexGenerator was modified while loadNewSstable. Cf {}/{}, fileIndexGenerator value {}",
@@ -850,21 +863,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 throw new IllegalStateException("Error: fileIndexGenerator was modified while loadNewSstable. Aborting.");
             }
 
-            if (newSSTables.isEmpty())
-            {
-                logger.info("No new SSTables were found for {}/{}",
-                            SafeArg.of("keyspace", keyspace.getName()),
-                            SafeArg.of("cf", name));
-            }
-
-            logger.info("Loading new SSTables {} and building secondary indexes for {}/{}",
-                        SafeArg.of("keyspace", keyspace.getName()),
-                        SafeArg.of("cf", name),
-                        SafeArg.of("generations", generations));
-
             try (Refs<SSTableReader> refs = Refs.ref(newSSTables))
             {
-                data.addSSTables(newSSTables);
+                data.addSSTablesToEmptyView(newSSTables);
                 indexManager.maybeBuildSecondaryIndexes(newSSTables, indexManager.allIndexesNames());
             }
 
