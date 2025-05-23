@@ -1875,8 +1875,7 @@ public class StorageProxy implements StorageProxyMBean
                     ReadCallback<RangeSliceReply, Iterable<Row>> handler = new ReadCallback<>(resolver,
                                                                                               consistency_level,
                                                                                               nodeCmd,
-                                                                                              minimalEndpoints,
-                                                                                              Optional.empty());
+                                                                                              minimalEndpoints);
                     handler.assureSufficientLiveNodes();
                     resolver.setSources(filteredEndpoints);
                     if (filteredEndpoints.size() == 1

@@ -20,7 +20,6 @@ package org.apache.cassandra.locator;
 import java.net.InetAddress;
 import java.util.*;
 
-import com.codahale.metrics.Snapshot;
 import org.apache.cassandra.config.DatabaseDescriptor;
 
 public abstract class AbstractEndpointSnitch implements IEndpointSnitch
@@ -54,11 +53,6 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
                 return compareEndpoints(address, a1, a2);
             }
         });
-    }
-
-    public Optional<Snapshot> getSnapshot(InetAddress endpoint)
-    {
-        return Optional.empty();
     }
 
     public void gossiperStarting()

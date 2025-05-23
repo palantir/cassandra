@@ -70,7 +70,6 @@ public abstract class AbstractReadExecutor
     protected final ReadCallback<ReadResponse, Row> handler;
     protected final TraceState traceState;
     protected final ColumnFamilyStore cfs;
-    protected final ConcurrentLinkedQueue<Long> latencies;
 
     AbstractReadExecutor(ReadCommand command, ConsistencyLevel consistencyLevel, List<InetAddress> targetReplicas, ColumnFamilyStore cfs)
     {
@@ -79,8 +78,7 @@ public abstract class AbstractReadExecutor
         this.cfs = cfs;
         resolver = new RowDigestResolver(command.ksName, command.key, targetReplicas.size());
         traceState = Tracing.instance.get();
-        this.latencies = new ConcurrentLinkedQueue<>();
-        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas, Optional.of(latencies));
+        handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas);
     }
 
     @VisibleForTesting
@@ -123,13 +121,10 @@ public abstract class AbstractReadExecutor
         // We delay the local (potentially blocking) read till the end to avoid stalling remote requests.
         if (hasLocalEndpoint)
         {
-            long localStart = System.nanoTime();
             logger.trace("reading {} locally", readCommand.isDigestQuery() ? "digest" : "data");
             KeyspaceAwareSepQueue.setCurrentKeyspace(command.ksName);
             StageManager.getStage(stage(command)).maybeExecuteImmediately(new LocalReadRunnable(command, handler));
-            latencies.add(System.nanoTime() - localStart);
         }
-        logger.trace("measured read latencies {} ns", latencies);
     }
 
     private static Stage stage(ReadCommand command) {
