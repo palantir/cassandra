@@ -20,16 +20,20 @@ package org.apache.cassandra.net;
 
 import java.net.InetAddress;
 
+import com.google.common.collect.ImmutableMap;
+
 import com.palantir.tracing.CloseableSpan;
 import com.palantir.tracing.DetachedSpan;
 
 public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
 {
+    private final MessageOut message;
     private final IAsyncCallback<T> delegate;
     private final DetachedSpan span;
 
-    public TracedCallback(IAsyncCallback<T> delegate, DetachedSpan span)
+    public TracedCallback(MessageOut message, IAsyncCallback<T> delegate, DetachedSpan span)
     {
+        this.message = message;
         this.delegate = delegate;
         this.span = span;
     }
@@ -37,9 +41,10 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
     @Override
     public void response(MessageIn<T> msg)
     {
-        try (CloseableSpan ignored = span.completeAndStartChild("TracedCallback#response")) {
+        try (CloseableSpan ignored = span.childSpan("TracedCallback#response")) {
             delegate.response(msg);
         }
+        span.complete(ImmutableMap.of("verb", message.verb.name()));
     }
 
     @Override
@@ -52,8 +57,9 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
     public void onFailure(InetAddress from)
     {
         // Trust that the caller has checked this for us.
-        try (CloseableSpan ignored = span.completeAndStartChild("TracedCallback#onFailure")) {
+        try (CloseableSpan ignored = span.childSpan("TracedCallback#onFailure")) {
             ((IAsyncCallbackWithFailure<?>) delegate).onFailure(from);
         }
+        span.complete(ImmutableMap.of("verb", message.verb.name()));
     }
 }
