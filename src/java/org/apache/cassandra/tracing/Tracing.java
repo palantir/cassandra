@@ -245,8 +245,8 @@ public class Tracing implements ExecutorLocal<TraceState>
     public static Map<String, byte[]> serializeForMessage() {
         if (isTracing()) {
             return ImmutableMap.of(
-            TRACE_HEADER, UUIDGen.decompose(Tracing.instance.getSessionId()),
-            TRACE_TYPE, new byte[] { Tracing.TraceType.serialize(Tracing.instance.getTraceType()) });
+            TRACE_HEADER, UUIDGen.decompose(instance.getSessionId()),
+            TRACE_TYPE, new byte[] { TraceType.serialize(instance.getTraceType()) });
         } else {
             return Collections.emptyMap();
         }

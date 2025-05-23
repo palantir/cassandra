@@ -89,10 +89,10 @@ public class MessageOut<T>
         return new MessageOut<T>(verb, payload, serializer, builder.buildKeepingLast());
     }
 
-    public MessageOut<T> withParameters(Map<String, byte[]> values)
+    public MessageOut<T> withParameters(Map<String, byte[]> params)
     {
         ImmutableMap.Builder<String, byte[]> builder = ImmutableMap.builder();
-        builder.putAll(parameters).putAll(values);
+        builder.putAll(parameters).putAll(params);
         return new MessageOut<T>(verb, payload, serializer, builder.buildKeepingLast());
     }
 
