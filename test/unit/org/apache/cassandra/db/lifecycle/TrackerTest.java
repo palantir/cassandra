@@ -33,6 +33,7 @@ import com.google.common.collect.Iterables;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import junit.framework.Assert;
 import org.apache.cassandra.MockSchema;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -178,6 +179,33 @@ public class TrackerTest
         Assert.assertEquals(3, listener.senders.size());
         Assert.assertEquals(tracker, listener.senders.get(0));
         Assert.assertTrue(listener.received.get(0) instanceof SSTableAddedNotification);
+        DatabaseDescriptor.setIncrementalBackupsEnabled(backups);
+    }
+
+    @Test
+    public void testAddSSTablesWithEmptyView()
+    {
+        boolean backups = DatabaseDescriptor.isIncrementalBackupsEnabled();
+        DatabaseDescriptor.setIncrementalBackupsEnabled(false);
+        ColumnFamilyStore cfs = MockSchema.newCFS();
+        Tracker tracker = cfs.getTracker();
+        MockListener listener = new MockListener(false);
+        tracker.subscribe(listener);
+        List<SSTableReader> readers = ImmutableList.of(MockSchema.sstable(0, 17, cfs),
+                                                       MockSchema.sstable(1, 121, cfs));
+        List<SSTableReader> anotherReader = ImmutableList.of(MockSchema.sstable(2, 9, cfs));
+        tracker.addSSTablesToEmptyView(copyOf(readers));
+
+        Assert.assertEquals(2, tracker.view.get().sstables.size());
+
+        Assert.assertEquals(17 + 121, cfs.metric.liveDiskSpaceUsed.getCount());
+        Assert.assertEquals(2, listener.senders.size());
+        Assert.assertEquals(tracker, listener.senders.get(0));
+        Assert.assertTrue(listener.received.get(0) instanceof SSTableAddedNotification);
+
+        assertThatThrownBy(() -> tracker.addSSTablesToEmptyView(copyOf(anotherReader)))
+                .hasMessageContaining("addSSTablesToEmptyView called on data tracker with non-empty view");
+
         DatabaseDescriptor.setIncrementalBackupsEnabled(backups);
     }
 

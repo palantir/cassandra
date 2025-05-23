@@ -206,7 +206,10 @@ public class Tracker
     {
         if (!isDummy())
             setupKeycache(sstables);
-        apply(view -> view.sstables.isEmpty(), updateLiveSet(emptySet(), sstables));
+        if (apply(view -> view.sstables.isEmpty(), updateLiveSet(emptySet(), sstables)) == null)
+        {
+            throw new RuntimeException("addSSTablesToEmptyView called on data tracker with non-empty view");
+        }
         maybeFail(updateSizeTracking(emptySet(), sstables, null));
         for (SSTableReader sstable : sstables)
         {
