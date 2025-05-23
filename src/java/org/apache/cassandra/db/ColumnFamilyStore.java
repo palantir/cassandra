@@ -836,7 +836,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             logger.info("Loading new SSTables for {}/{}...",
                         SafeArg.of("keyspace", keyspace.getName()),
                         SafeArg.of("cfName", name));
-            forceFlush("Flush pre-load new sstable");
+            forceBlockingFlush("Flush pre-load new sstable");
 
             Set<SSTableReader> currentView = data.getView().sstables;
             if (!currentView.isEmpty() || fileIndexGenerator.get() != 0)
