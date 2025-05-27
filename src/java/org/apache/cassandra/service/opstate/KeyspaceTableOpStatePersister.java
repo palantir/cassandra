@@ -137,6 +137,8 @@ public class KeyspaceTableOpStatePersister
         {
             tmpFile.createNewFile();
             Files.write(tmpFile.toPath(), content.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+            // exception thrown here due to the .tmp file not existing, but the .tmp file did successfully
+            // move to the real json file.
             Files.move(tmpFile.toPath(), file.toPath(),
                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         }
