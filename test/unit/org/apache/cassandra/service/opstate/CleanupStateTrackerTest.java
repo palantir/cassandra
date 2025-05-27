@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class CleanupStateTrackerTest
 {
@@ -131,6 +132,27 @@ public class CleanupStateTrackerTest
         KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
         KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
+        assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(CleanupStateTracker.MIN_TS);
+    }
+
+    @Test
+    public void recordSuccessfulCleanupForTableDoesNotPersistAndLosesCache()
+    {
+        Instant instant1 = Instant.now().minusSeconds(30);
+        Instant instant2 = instant1.plusSeconds(1);
+
+        KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
+        KeyspaceTableOpStatePersister persister = new KeyspaceTableOpStatePersister(stateFilePath);
+        when(persister.updateStateInPersistentLocation(ImmutableMap.of(
+        OpStateTestConstants.KEYSPACE_TABLE_KEY_2, instant2))).thenReturn(false);
+
+        CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
+
+        tracker.recordSuccessfulCleanupForTable(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1);
+        tracker.recordSuccessfulCleanupForTable(OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2);
+
+
+        tracker = new CleanupStateTracker(state, persister);
         assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(CleanupStateTracker.MIN_TS);
     }
 }
