@@ -81,8 +81,7 @@ public abstract class AbstractReadExecutor
         handler = new ReadCallback<>(resolver, consistencyLevel, command, targetReplicas);
     }
 
-    @VisibleForTesting
-    boolean isLocalRequest(InetAddress replica) {
+    private static boolean isLocalRequest(InetAddress replica) {
         return replica.equals(FBUtilities.getBroadcastAddress());
     }
 
@@ -114,7 +113,6 @@ public abstract class AbstractReadExecutor
             logger.trace("reading {} from {}", readCommand.isDigestQuery() ? "digest" : "data", endpoint);
             if (message == null)
                 message = readCommand.createMessage();
-            // Handler adds remote requests latencies to list
             MessagingService.instance().sendRRWithFailure(message, endpoint, handler);
         }
 
