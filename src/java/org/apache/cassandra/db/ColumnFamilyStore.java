@@ -720,7 +720,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 CompactionMetadata compactionMetadata = (CompactionMetadata) desc.getMetadataSerializer().deserialize(desc, MetadataType.COMPACTION);
                 ancestors = compactionMetadata.ancestors;
             }
-            catch (IOException e)
+            catch (IOException | IndexOutOfBoundsException e)
             {
                 throw new FSReadError(e, desc.filenameFor(Component.STATS));
             }
