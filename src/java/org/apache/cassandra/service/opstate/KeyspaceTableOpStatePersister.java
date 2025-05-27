@@ -124,6 +124,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
+            log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
             return false;
         }
     }
