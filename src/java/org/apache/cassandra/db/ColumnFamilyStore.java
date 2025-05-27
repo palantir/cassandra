@@ -2115,7 +2115,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             }
             else
             {
-                // This boolean is not necessay for correctness, but is necessary for the metrics to be updated in the
+                // This boolean is not necessary for correctness, but is necessary for the metrics to be updated in the
                 // same cases, since slice queries skip updating metrics when no data was returned (for some reason).
                 // While this should be fixed, let's not do this in a PR that changes behaviour.
                 AtomicBoolean wasNotNull = new AtomicBoolean(false);
