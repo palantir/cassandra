@@ -17,7 +17,6 @@
  */
 package org.apache.cassandra.service;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -38,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -54,7 +52,6 @@ import org.apache.cassandra.gms.IFailureDetector;
 import org.apache.cassandra.gms.IEndpointStateChangeSubscriber;
 import org.apache.cassandra.gms.IFailureDetectionEventListener;
 import org.apache.cassandra.gms.VersionedValue;
-import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.net.IAsyncCallbackWithFailure;
@@ -499,6 +496,16 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
         }
     }
 
+    public boolean isRepairing(UUID cfId)
+    {
+        for (ParentRepairSession session : parentRepairSessions.values())
+        {
+            if (session.isRepairing(cfId))
+                return true;
+        }
+        return false;
+    }
+
     /**
      * We keep a ParentRepairSession around for the duration of the entire repair, for example, on a 256 token vnode rf=3 cluster
      * we would have 768 RepairSession but only one ParentRepairSession. We use the PRS to avoid anticompacting the sstables
@@ -628,6 +635,11 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
                 if (snapshotGenerations.contains(sstable.descriptor.generation))
                     activeSSTables.add(sstable);
             return activeSSTables;
+        }
+
+        synchronized boolean isRepairing(UUID cfId)
+        {
+            return columnFamilyStores.containsKey(cfId);
         }
 
         public synchronized void maybeSnapshot(UUID cfId, UUID parentSessionId)
