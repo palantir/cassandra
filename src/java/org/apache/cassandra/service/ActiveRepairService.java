@@ -504,9 +504,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
         for (ParentRepairSession session : parentRepairSessions.values())
         {
             if (session.isRepairing(cfId))
-            {
                 return true;
-            }
         }
         return false;
     }
