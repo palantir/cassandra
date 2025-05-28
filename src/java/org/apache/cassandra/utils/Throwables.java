@@ -91,7 +91,7 @@ public class Throwables
         return Optional.absent();
     }
 
-    public static void assertWithException(boolean condition)
+    public static void assertWithError(boolean condition)
     {
         if (!condition)
         {
@@ -99,7 +99,7 @@ public class Throwables
         }
     }
 
-    public static void assertWithException(boolean condition, String message)
+    public static void assertWithError(boolean condition, String message)
     {
         if (!condition)
         {
