@@ -62,11 +62,11 @@ public class CleanupStateTracker
     }
 
     @VisibleForTesting
-    CleanupStateTracker(KeyspaceTableOpStateCache state, KeyspaceTableOpStatePersister persister, boolean successfulReadFromPersister)
+    CleanupStateTracker(KeyspaceTableOpStateCache state, KeyspaceTableOpStatePersister persister)
     {
         this.persister = persister;
         this.state = state;
-        this.successfulReadFromPersister = true;
+        this.successfulReadFromPersister = false;
     }
 
     /** Creates table entry if it does not already exist */
@@ -97,12 +97,8 @@ public class CleanupStateTracker
     {
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
-        if (successfulReadFromPersister) {
-            boolean result = persister.updateStateInPersistentLocation(updatedEntries);
-            if (!result) {
-                log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
-            }
-        }
+        if (!successfulReadFromPersister || !persister.updateStateInPersistentLocation(updatedEntries))
+            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
     }
 
     private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()
