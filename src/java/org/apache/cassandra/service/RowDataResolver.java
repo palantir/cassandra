@@ -76,7 +76,7 @@ public class RowDataResolver extends AbstractRowResolver
                 ReadResponse response = message.payload;
                 ColumnFamily cf = response.row().cf;
                 assert !response.isDigestQuery() : "Received digest response to repair read from " + message.from;
-                Throwables.assertWithException(!filter.usePageToken() || cf != null);
+                Throwables.assertWithError(!filter.usePageToken() || cf != null);
                 versions.add(cf);
                 endpoints.add(message.from);
 

@@ -655,10 +655,10 @@ public class ThriftValidation
         Keyspace keyspace = Keyspace.open(keyspaceName);
         ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(columnFamilyName);
 
-        Throwables.assertWithException(!cfs.isRowCacheEnabled(), "Resumable range scans require the row cache to be disabled");
-        Throwables.assertWithException(!cfs.metadata.isSuper(), "Resumable range scans do not support super columns");
-        Throwables.assertWithException(!cfs.metadata.hasStaticColumns(), "Resumable range scans do not support static columns");
-        Throwables.assertWithException(cfs.indexManager == null || !cfs.indexManager.hasIndexes(), "Resumable range scans do not support secondary indexes");
+        Throwables.assertWithError(!cfs.isRowCacheEnabled(), "Resumable range scans require the row cache to be disabled");
+        Throwables.assertWithError(!cfs.metadata.isSuper(), "Resumable range scans do not support super columns");
+        Throwables.assertWithError(!cfs.metadata.hasStaticColumns(), "Resumable range scans do not support static columns");
+        Throwables.assertWithError(cfs.indexManager == null || !cfs.indexManager.hasIndexes(), "Resumable range scans do not support secondary indexes");
     }
 
     public static IDiskAtomFilter asIFilter(SlicePredicate sp, CFMetaData metadata, ByteBuffer superColumn)
