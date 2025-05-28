@@ -149,7 +149,9 @@ public class KeyspaceTableOpStatePersister
         }
         finally
         {
-            Files.delete(tmpFile.toPath());
+            if (tmpFile.exists()) {
+                Files.delete(tmpFile.toPath());
+            }
         }
     }
 

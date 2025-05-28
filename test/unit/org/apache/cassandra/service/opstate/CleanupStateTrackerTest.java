@@ -158,7 +158,6 @@ public class CleanupStateTrackerTest
             })
         );
 
-
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister, true);
         tracker.createCleanupEntryForTableIfNotExists(OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1, Optional.of(instant1));
         tracker.createCleanupEntryForTableIfNotExists(OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2, Optional.of(instant1));
