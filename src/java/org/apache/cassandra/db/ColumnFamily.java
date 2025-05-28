@@ -136,22 +136,22 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public void setPageToken(PageToken pageToken)
     {
-        assert pageToken != null;
+        Throwables.assertWithException(pageToken != null);
 
         this.pageToken = pageToken;
     }
 
     public void setPageToken(Cell cell)
     {
-        assert cell != null;
-        assert pageToken == null;
+        Throwables.assertWithException(cell != null);
+        Throwables.assertWithException(pageToken == null);
 
         pageToken = PageToken.createPageToken(cell);
     }
 
     public void setPageTokenEndOfRow()
     {
-        assert pageToken == null;
+        Throwables.assertWithException(pageToken == null);
 
         pageToken = PageToken.createPageTokenReachedEnd();
     }

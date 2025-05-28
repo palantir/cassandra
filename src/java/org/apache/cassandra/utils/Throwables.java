@@ -90,4 +90,20 @@ public class Throwables
         }
         return Optional.absent();
     }
+
+    public static void assertWithException(boolean condition)
+    {
+        if (!condition)
+        {
+            throw new AssertionError();
+        }
+    }
+
+    public static void assertWithException(boolean condition, String message)
+    {
+        if (!condition)
+        {
+            throw new AssertionError(message);
+        }
+    }
 }

@@ -24,6 +24,7 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
+import org.apache.cassandra.utils.Throwables;
 
 import java.io.DataInput;
 import java.io.IOException;
@@ -97,14 +98,14 @@ public class PageTokenDigest
         @Override
         public void serialize(PageTokenDigest pageTokenDigest, DataOutputPlus out, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_PLTR;
+            Throwables.assertWithException(version >= MessagingService.VERSION_22_PLTR);
 
             boolean hasReachedEnd = pageTokenDigest.isReachedEnd();
             out.writeBoolean(hasReachedEnd);
             if (!hasReachedEnd)
             {
                 int digestSize = pageTokenDigest.digest().remaining();
-                assert digestSize > 0;
+                Throwables.assertWithException(digestSize > 0);
                 out.writeInt(digestSize);
                 out.write(pageTokenDigest.digest());
             }
@@ -113,13 +114,13 @@ public class PageTokenDigest
         @Override
         public PageTokenDigest deserialize(DataInput in, int version) throws IOException
         {
-            assert version >= MessagingService.VERSION_22_PLTR;
+            Throwables.assertWithException(version >= MessagingService.VERSION_22_PLTR);
 
             boolean hasReachedEnd = in.readBoolean();
             if (!hasReachedEnd)
             {
                 int digestSize = in.readInt();
-                assert digestSize > 0;
+                Throwables.assertWithException(digestSize > 0);
                 byte[] buffer = new byte[digestSize];
                 in.readFully(buffer, 0, digestSize);
                 return PageTokenDigest.createPageTokenDigest(ByteBuffer.wrap(buffer));
@@ -130,7 +131,7 @@ public class PageTokenDigest
         @Override
         public long serializedSize(PageTokenDigest pageTokenDigest, int version)
         {
-            assert version >= MessagingService.VERSION_22_PLTR;
+            Throwables.assertWithException(version >= MessagingService.VERSION_22_PLTR);
             
             TypeSizes typeSizes = TypeSizes.NATIVE;
 
