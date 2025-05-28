@@ -19,6 +19,7 @@ package org.apache.cassandra.db.compaction;
 
 import java.util.*;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
@@ -31,6 +32,7 @@ import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Memtable;
 import org.apache.cassandra.db.RowPosition;
+import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.AlwaysPresentFilter;
 
@@ -50,7 +52,7 @@ public class CompactionController implements AutoCloseable
 
     public final ColumnFamilyStore cfs;
     // note that overlapIterator and overlappingSSTables will be null if NEVER_PURGE_TOMBSTONES is set - this is a
-    // good thing so that noone starts using them and thinks that if overlappingSSTables is empty, there
+    // good thing so that no one starts using them and thinks that if overlappingSSTables is empty, there
     // is no overlap.
     private Refs<SSTableReader> overlappingSSTables;
     private OverlapIterator<RowPosition, SSTableReader> overlapIterator;
@@ -76,7 +78,7 @@ public class CompactionController implements AutoCloseable
 
     void maybeRefreshOverlaps()
     {
-        if (doNotPurgeTombstones(cfs.keyspace.getName()))
+        if (doNotPurgeTombstones(cfs))
         {
             logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}", cfs.keyspace.getName());
             return;
@@ -94,7 +96,7 @@ public class CompactionController implements AutoCloseable
 
     private void refreshOverlaps()
     {
-        if (doNotPurgeTombstones(cfs.keyspace.getName()))
+        if (doNotPurgeTombstones(cfs))
         {
             logger.debug("not refreshing overlaps - doNotPurgeTombstones returned true for keyspace {}", cfs.keyspace.getName());
             return;
@@ -138,8 +140,8 @@ public class CompactionController implements AutoCloseable
         if (compacting == null)
             return Collections.<SSTableReader>emptySet();
 
-        if (doNotPurgeTombstones(cfStore.keyspace.getName())) {
-            logger.debug("not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}", cfStore.keyspace.getName());
+        if (doNotPurgeTombstones(cfStore)) {
+            logger.debug("Not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}", cfStore.keyspace.getName());
             return Collections.<SSTableReader>emptySet();
         }
 
@@ -207,7 +209,7 @@ public class CompactionController implements AutoCloseable
      */
     public Predicate<Long> getPurgeEvaluator(DecoratedKey key)
     {
-        if (doNotPurgeTombstones(getKeyspace()))
+        if (doNotPurgeTombstones(cfs))
         {
             logger.debug("Purge evaluator always returning false - doNotPurgeTombstones returned true for keyspace {}", getKeyspace());
             return Predicates.alwaysFalse();
@@ -265,17 +267,19 @@ public class CompactionController implements AutoCloseable
     }
 
     /**
-     * @param keyspace
+     * @param cfs
      * @return true if this node may be streaming data for this keyspace, or if cassandra.never_purge_tombstones is set
-     * If we are streaming, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds.
+     * If the node is streaming, tombstones should not be purged. If we pre-maturely purge a tombstone that was written
+     * at time T+1, and the node started streaming at time T, we may end up with resurrected keys.
      * <p>
      * Note that this node may receive data without streaming, e.g. during a repair.
      */
-    private static boolean doNotPurgeTombstones(String keyspace)
+    private static boolean doNotPurgeTombstones(ColumnFamilyStore cfs)
     {
         return NEVER_PURGE_TOMBSTONES
                 || StorageService.instance.isRebuilding()
-                || pendingRangesExistForKeyspace(keyspace);
+                || pendingRangesExistForKeyspace(cfs.keyspace.getName())
+                || ActiveRepairService.instance.isRepairing(cfs.metadata.cfId);
     }
 
     /**

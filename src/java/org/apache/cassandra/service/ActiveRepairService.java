@@ -499,6 +499,18 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
         }
     }
 
+    public boolean isRepairing(UUID cfId)
+    {
+        for (ParentRepairSession session : parentRepairSessions.values())
+        {
+            if (session.isRepairing(cfId))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * We keep a ParentRepairSession around for the duration of the entire repair, for example, on a 256 token vnode rf=3 cluster
      * we would have 768 RepairSession but only one ParentRepairSession. We use the PRS to avoid anticompacting the sstables
@@ -628,6 +640,18 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
                 if (snapshotGenerations.contains(sstable.descriptor.generation))
                     activeSSTables.add(sstable);
             return activeSSTables;
+        }
+
+        synchronized boolean isRepairing(UUID cfId)
+        {
+            for (ColumnFamilyStore cfs : columnFamilyStores.values())
+            {
+                if (cfs.metadata.cfId.equals(cfId))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public synchronized void maybeSnapshot(UUID cfId, UUID parentSessionId)
