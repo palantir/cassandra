@@ -112,7 +112,7 @@ public class RowDigestResolver extends AbstractRowResolver
             }
             else if (!digest.equals(newDigest) || !Objects.equals(pageTokenDigest, newPageTokenDigest))
             {
-                logger.error("Mismatch for key {} ({},{} vs {},{})",
+                logger.debug("Mismatch for key {} ({},{} vs {},{})",
                              UnsafeArg.of("key", key),
                              SafeArg.of("digest1", ByteBufferUtil.bytesToHex(digest)),
                              SafeArg.of("pageTokenDigest1", pageTokenDigest),
