@@ -99,7 +99,10 @@ public class CleanupStateTracker
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
         if (!successfulReadFromPersister || !persister.updateStateInPersistentLocation(updatedEntries))
-            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.", SafeArg.of("key", key));
+            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.",
+                     SafeArg.of("keyspace", key.getKeyspace()),
+                     SafeArg.of("cf", key.getColumnFamily())
+            );
     }
 
     private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()

@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.palantir.logsafe.SafeArg;
 
 public class KeyspaceTableOpStatePersister
 {
@@ -93,7 +94,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            log.warn("Cannot retrieve or create state file.", operationStateFile.getAbsolutePath(), e);
+            log.warn("Cannot retrieve or create state file.", SafeArg.of("file", operationStateFile.getName()), e);
             return null;
         }
         this.persistentFile = operationStateFile;
@@ -110,7 +111,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            log.warn("Failed to read state from file.", file.getAbsolutePath(), e);
+            log.warn("Failed to read state from file.", SafeArg.of("file", file.getName()), e);
             throw e;
         }
     }
@@ -124,7 +125,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
+            log.warn("Failed to write state to file.", SafeArg.of("file", file.getName()), e);
             return false;
         }
     }
@@ -142,7 +143,7 @@ public class KeyspaceTableOpStatePersister
         }
         catch (IOException e)
         {
-            log.warn("Failed to write state to file.", file.getAbsolutePath(), e);
+            log.warn("Failed to write state to file.", SafeArg.of("file", file.getName()), e);
             throw e;
         }
         finally
