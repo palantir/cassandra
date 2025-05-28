@@ -19,6 +19,7 @@ package org.apache.cassandra.db.compaction;
 
 import java.util.*;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
@@ -54,7 +55,7 @@ public class CompactionController implements AutoCloseable
 
     public final ColumnFamilyStore cfs;
     // note that overlapIterator and overlappingSSTables will be null if NEVER_PURGE_TOMBSTONES is set - this is a
-    // good thing so that noone starts using them and thinks that if overlappingSSTables is empty, there
+    // good thing so that no one starts using them and thinks that if overlappingSSTables is empty, there
     // is no overlap.
     private Refs<SSTableReader> overlappingSSTables;
     private OverlapIterator<RowPosition, SSTableReader> overlapIterator;
@@ -281,7 +282,8 @@ public class CompactionController implements AutoCloseable
     /**
      * @param cfs
      * @return true if this node may be streaming data for this keyspace, or if cassandra.never_purge_tombstones is set
-     * If we are streaming, tombstones should not be purged so that we don't pre-maturely purge those that exceed gc_grace_seconds.
+     * If the node is streaming, tombstones should not be purged. If we pre-maturely purge a tombstone that was written
+     * at time T+1, and the node started streaming at time T, we may end up with resurrected keys.
      * <p>
      * Note that this node may receive data without streaming, e.g. during a repair.
      */

@@ -19,8 +19,11 @@
 package org.apache.cassandra.db.compaction;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
@@ -38,6 +41,7 @@ import org.apache.cassandra.db.composites.CellName;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.locator.SimpleStrategy;
+import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -53,6 +57,7 @@ public class CompactionControllerTest extends SchemaLoader
     private static final String KEYSPACE = "CompactionControllerTest";
     private static final String CF1 = "Standard1";
     private static final String CF2 = "Standard2";
+    private static final String CF3 = "Standard3";
 
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
@@ -62,7 +67,8 @@ public class CompactionControllerTest extends SchemaLoader
                                     SimpleStrategy.class,
                                     KSMetaData.optsWithRF(1),
                                     SchemaLoader.standardCFMD(KEYSPACE, CF1),
-                                    SchemaLoader.standardCFMD(KEYSPACE, CF2));
+                                    SchemaLoader.standardCFMD(KEYSPACE, CF2),
+                                    SchemaLoader.standardCFMD(KEYSPACE, CF3));
     }
 
     @Test
@@ -209,6 +215,44 @@ public class CompactionControllerTest extends SchemaLoader
         } finally {
             StorageService.instance.unsafeSetRebuilding(false);
         }
+    }
+
+
+    @Test
+    public void testTombstonesNotPurgedWhenRepairing()
+    {
+        Keyspace keyspace = Keyspace.open(KEYSPACE);
+        ColumnFamilyStore cfs = keyspace.getColumnFamilyStore(CF3);
+        cfs.truncateBlocking();
+
+        ByteBuffer rowKey = ByteBufferUtil.bytes("key");
+
+        long timestamp1 = FBUtilities.timestampMicros();
+        long timestamp2 = timestamp1 - 5;
+
+        // create sstable with tombstone that should be expired in no older timestamps
+        applyDeleteMutation(CF3, rowKey, timestamp2);
+        cfs.forceBlockingFlush();
+
+        // first sstable with tombstone is compacting
+        Set<SSTableReader> compacting = Sets.newHashSet(cfs.getSSTables());
+
+        applyMutation(CF3, rowKey, timestamp1);
+        cfs.forceBlockingFlush();
+
+        // second sstable is overlapping
+        Set<SSTableReader> overlapping = Sets.difference(Sets.newHashSet(cfs.getSSTables()), compacting);
+
+        // the first sstable should be expired because the overlapping sstable is newer and the gc period is later
+        int gcBefore = (int) (System.currentTimeMillis() / 1000) + 5;
+
+        UUID repairUuid = UUID.randomUUID();
+        ActiveRepairService.instance.registerParentRepairSession(
+            repairUuid, FBUtilities.getLocalAddress(), Collections.singletonList(cfs), Collections.emptySet(), false, false);
+
+        assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), Collections.emptySet());
+        ActiveRepairService.instance.removeParentRepairSession(repairUuid);
+        assertEquals(CompactionController.getFullyExpiredSSTables(cfs, compacting, overlapping, gcBefore), compacting);
     }
 
     private void applyMutation(String cf, ByteBuffer rowKey, long timestamp)
