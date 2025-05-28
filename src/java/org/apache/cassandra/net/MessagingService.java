@@ -44,6 +44,11 @@ import com.palantir.cassandra.cvim.CrossVpcIpMappingAck;
 import com.palantir.cassandra.cvim.CrossVpcIpMappingSyn;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
+import com.palantir.tracing.CloseableTracer;
+import com.palantir.tracing.DetachedSpan;
+import com.palantir.tracing.Tracer;
+import com.palantir.tracing.Tracers;
+import com.palantir.tracing.api.SpanType;
 import org.apache.cassandra.concurrent.ExecutorLocals;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.concurrent.Stage;
@@ -71,6 +76,7 @@ import org.apache.cassandra.security.SSLFactory;
 import org.apache.cassandra.service.*;
 import org.apache.cassandra.service.paxos.Commit;
 import org.apache.cassandra.service.paxos.PrepareResponse;
+import org.apache.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.tracing.TraceState;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.*;
@@ -678,8 +684,14 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public int sendRR(MessageOut message, InetAddress to, IAsyncCallback cb, long timeout, boolean failureCallback)
     {
+        // n.b. this will be closed on the traced callback
+        DetachedSpan span = DetachedSpan.start("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
+        cb = new TracedCallback<>(message.verb, cb, span);
         int id = addCallback(cb, message, to, timeout, failureCallback);
-        sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE) : message, id, to);
+        sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE)
+                                            .withParameters(PalantirTracing.serializeForMessage()) :
+                   message.withParameters(PalantirTracing.serializeForMessage()),
+                   id, to);
         return id;
     }
 
@@ -700,8 +712,15 @@ public final class MessagingService implements MessagingServiceMBean
                       AbstractWriteResponseHandler<?> handler,
                       boolean allowHints)
     {
-        int id = addCallback(handler, message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
-        sendOneWay(message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE), id, to);
+        // n.b. this will be closed on the traced callback
+        DetachedSpan span = DetachedSpan.start("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
+        IAsyncCallbackWithFailure<?> cb = new TracedCallback<>(message.verb, handler, span);
+        int id = addCallback(cb, message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
+        sendOneWay(message
+                   .withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE)
+                   // TODO(abradshaw): figure out if we can just overwrite the span id here... or maybe
+                   .withParameters(PalantirTracing.serializeForMessage()),
+                   id, to);
         return id;
     }
 
@@ -724,23 +743,25 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public void sendOneWay(MessageOut message, int id, InetAddress to)
     {
-        if (logger.isTraceEnabled())
-            logger.trace("{} sending {} to {}@{}", SafeArg.of("endpoint", FBUtilities.getBroadcastAddress()), SafeArg.of("verb", message.verb),
-                         SafeArg.of("id", id), SafeArg.of("to", to));
+        try (CloseableTracer ignored = CloseableTracer.startSpan("MessagingService#sendOneWay")) {
+            if (logger.isTraceEnabled())
+                logger.trace("{} sending {} to {}@{}", SafeArg.of("endpoint", FBUtilities.getBroadcastAddress()), SafeArg.of("verb", message.verb),
+                             SafeArg.of("id", id), SafeArg.of("to", to));
 
-        if (to.equals(FBUtilities.getBroadcastAddress()))
-            logger.trace("Message-to-self {} going over MessagingService", message);
+            if (to.equals(FBUtilities.getBroadcastAddress()))
+                logger.trace("Message-to-self {} going over MessagingService", message);
 
-        // message sinks are a testing hook
-        for (IMessageSink ms : messageSinks)
-            if (!ms.allowOutgoingMessage(message, id, to))
-                return;
+            // message sinks are a testing hook
+            for (IMessageSink ms : messageSinks)
+                if (!ms.allowOutgoingMessage(message, id, to))
+                    return;
 
-        // get pooled connection (really, connection queue)
-        OutboundTcpConnection connection = getConnection(to, message);
+            // get pooled connection (really, connection queue)
+            OutboundTcpConnection connection = getConnection(to, message);
 
-        // write it
-        connection.enqueue(message, id);
+            // write it
+            connection.enqueue(message, id);
+        }
     }
 
     public <T> AsyncOneResponse<T> sendRR(MessageOut message, InetAddress to)
@@ -800,6 +821,7 @@ public final class MessagingService implements MessagingServiceMBean
     public void receive(MessageIn message, int id, long timestamp, boolean isCrossNodeTimestamp)
     {
         TraceState state = Tracing.instance.initializeFromMessage(message);
+        PalantirTracing.initializeTracerFromMessage("MessageService#recieve", message);
         if (state != null)
             state.trace("{} message received from {}", SafeArg.of("verb", message.verb), SafeArg.of("endpoint", message.from));
 
@@ -808,11 +830,12 @@ public final class MessagingService implements MessagingServiceMBean
             if (!ms.allowIncomingMessage(message, id))
                 return;
 
-        Runnable runnable = new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp);
+        Runnable runnable = Tracers.wrap("MessageDeliveryTask#run", new MessageDeliveryTask(message, id, timestamp, isCrossNodeTimestamp));
         LocalAwareExecutorService stage = StageManager.getStage(message.getMessageType());
         assert stage != null : "No stage for message type " + message.verb;
 
         stage.execute(runnable, ExecutorLocals.create(state));
+        Tracer.fastCompleteSpan();
     }
 
     public void setCallbackForTests(int messageId, CallbackInfo callback)
