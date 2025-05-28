@@ -167,7 +167,7 @@ public class RowDataResolver extends AbstractRowResolver
 
     private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
     {
-        PageToken resolvedPageToken = resolved.pageToken();
+        PageToken resolvedPageToken = resolved != null && resolved.isPageTokenSet() ? resolved.pageToken() : null;
         PageToken.Comparator comparator = null;
 
         for (ColumnFamily version : versions)
