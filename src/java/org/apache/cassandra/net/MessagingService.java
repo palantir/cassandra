@@ -686,7 +686,7 @@ public final class MessagingService implements MessagingServiceMBean
     {
         // n.b. this will be closed on the traced callback
         DetachedSpan span = DetachedSpan.start("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
-        cb = new TracedCallback<>(message, cb, span);
+        cb = new TracedCallback<>(message.verb, cb, span);
         int id = addCallback(cb, message, to, timeout, failureCallback);
         sendOneWay(failureCallback ? message.withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE)
                                             .withParameters(PalantirTracing.serializeForMessage()) :
@@ -714,7 +714,7 @@ public final class MessagingService implements MessagingServiceMBean
     {
         // n.b. this will be closed on the traced callback
         DetachedSpan span = DetachedSpan.start("MessagingService#sendRR", SpanType.CLIENT_OUTGOING);
-        IAsyncCallbackWithFailure<?> cb = new TracedCallback<>(message, handler, span);
+        IAsyncCallbackWithFailure<?> cb = new TracedCallback<>(message.verb, handler, span);
         int id = addCallback(cb, message, to, message.getTimeout(), handler.consistencyLevel, allowHints);
         sendOneWay(message
                    .withParameter(FAILURE_CALLBACK_PARAM, ONE_BYTE)

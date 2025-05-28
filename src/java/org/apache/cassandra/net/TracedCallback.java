@@ -27,13 +27,13 @@ import com.palantir.tracing.DetachedSpan;
 
 public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
 {
-    private final MessageOut message;
+    private final MessagingService.Verb verb;
     private final IAsyncCallback<T> delegate;
     private final DetachedSpan span;
 
-    public TracedCallback(MessageOut message, IAsyncCallback<T> delegate, DetachedSpan span)
+    public TracedCallback(MessagingService.Verb verb, IAsyncCallback<T> delegate, DetachedSpan span)
     {
-        this.message = message;
+        this.verb = verb;
         this.delegate = delegate;
         this.span = span;
     }
@@ -44,7 +44,7 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
         try (CloseableSpan ignored = span.childSpan("TracedCallback#response")) {
             delegate.response(msg);
         }
-        span.complete(ImmutableMap.of("verb", message.verb.name()));
+        span.complete(ImmutableMap.of("verb", verb.name()));
     }
 
     @Override
@@ -60,6 +60,6 @@ public class TracedCallback<T> implements IAsyncCallbackWithFailure<T>
         try (CloseableSpan ignored = span.childSpan("TracedCallback#onFailure")) {
             ((IAsyncCallbackWithFailure<?>) delegate).onFailure(from);
         }
-        span.complete(ImmutableMap.of("verb", message.verb.name()));
+        span.complete(ImmutableMap.of("verb", verb.name()));
     }
 }
