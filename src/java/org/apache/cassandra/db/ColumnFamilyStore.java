@@ -855,7 +855,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                         SafeArg.of("cf", name),
                         SafeArg.of("generations", generations));
 
-            if(!fileIndexGenerator.compareAndSet(0, generations.isEmpty() ? 0 : generations.get(generations.size() - 1))) {
+            if(!fileIndexGenerator.compareAndSet(0, generations.get(generations.size() - 1)))
+            {
                 logger.error("Error: fileIndexGenerator was modified while loadNewSstable. Cf {}/{}, fileIndexGenerator value {}",
                              SafeArg.of("keyspace", keyspace.getName()),
                              SafeArg.of("cfName", name),
