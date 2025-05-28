@@ -644,14 +644,7 @@ public class ActiveRepairService implements IEndpointStateChangeSubscriber, IFai
 
         synchronized boolean isRepairing(UUID cfId)
         {
-            for (ColumnFamilyStore cfs : columnFamilyStores.values())
-            {
-                if (cfs.metadata.cfId.equals(cfId))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return columnFamilyStores.containsKey(cfId);
         }
 
         public synchronized void maybeSnapshot(UUID cfId, UUID parentSessionId)
