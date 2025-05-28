@@ -32,10 +32,14 @@ import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 
 public class CleanupStateTrackerTest
 {
@@ -132,5 +136,67 @@ public class CleanupStateTrackerTest
         KeyspaceTableOpStateCache state = new KeyspaceTableOpStateCache(ImmutableMap.of());
         CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
         assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(CleanupStateTracker.MIN_TS);
+    }
+
+    @Test
+    public void cleanupEntryDoesNotPersistAndLosesCacheFallsBackToMin()
+    {
+        Instant instant1 = Instant.now().minusSeconds(30);
+
+        KeyspaceTableOpStateCache state = spy(new KeyspaceTableOpStateCache(ImmutableMap.of()));
+        when(state.getValidKeyspaceTableEntries()).thenReturn(OpStateTestConstants.KEYSPACE_TABLE_VALID_ENTRIES);
+
+        KeyspaceTableOpStatePersister persister = spy(new KeyspaceTableOpStatePersister(stateFilePath));
+        doReturn(false).when(persister).updateStateInPersistentLocation(
+            argThat(
+            map -> map.containsKey(OpStateTestConstants.KEYSPACE_TABLE_KEY_2)
+                   && map.get(OpStateTestConstants.KEYSPACE_TABLE_KEY_2).equals(instant1)));
+
+        CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
+        tracker.createCleanupEntryForTableIfNotExists(
+            OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1, Optional.of(instant1));
+        tracker.createCleanupEntryForTableIfNotExists(
+            OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2, Optional.of(instant1));
+        assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(instant1);
+
+        state = spy(new KeyspaceTableOpStateCache(ImmutableMap.of()));
+        when(state.getValidKeyspaceTableEntries()).thenReturn(OpStateTestConstants.KEYSPACE_TABLE_VALID_ENTRIES);
+        tracker = new CleanupStateTracker(state, persister);
+        Instant lastCleanupTs = tracker.getLastSuccessfulCleanupTsForNode();
+        assertThat(lastCleanupTs).isEqualTo(CleanupStateTracker.MIN_TS);
+    }
+
+    @Test
+    public void cleanupEntryDoesNotPersistNewValueAndLosesCacheFallsBackToOldCleanupTs()
+    {
+        Instant instant1 = Instant.now().minusSeconds(30);
+
+        KeyspaceTableOpStateCache state = spy(new KeyspaceTableOpStateCache(ImmutableMap.of()));
+        when(state.getValidKeyspaceTableEntries()).thenReturn(OpStateTestConstants.KEYSPACE_TABLE_VALID_ENTRIES);
+
+        KeyspaceTableOpStatePersister persister = spy(new KeyspaceTableOpStatePersister(stateFilePath));
+        CleanupStateTracker tracker = new CleanupStateTracker(state, persister);
+        tracker.createCleanupEntryForTableIfNotExists(
+            OpStateTestConstants.KEYSPACE1, OpStateTestConstants.TABLE1, Optional.of(instant1));
+        tracker.createCleanupEntryForTableIfNotExists(
+            OpStateTestConstants.KEYSPACE2, OpStateTestConstants.TABLE2, Optional.of(instant1));
+        assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(instant1);
+
+        Instant instant2 = instant1.plusSeconds(30);
+        Instant instant3 = instant1.plusSeconds(35);
+        doReturn(false).when(persister).updateStateInPersistentLocation(
+            argThat(
+                map -> map.containsKey(OpStateTestConstants.KEYSPACE_TABLE_KEY_2)
+                       && map.get(OpStateTestConstants.KEYSPACE_TABLE_KEY_2).equals(instant3)));
+
+        tracker.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_1, instant2);
+        tracker.updateTsForEntry(OpStateTestConstants.KEYSPACE_TABLE_KEY_2, instant3);
+        assertThat(tracker.getLastSuccessfulCleanupTsForNode()).isEqualTo(instant2);
+
+        state = spy(new KeyspaceTableOpStateCache(ImmutableMap.of()));
+        when(state.getValidKeyspaceTableEntries()).thenReturn(OpStateTestConstants.KEYSPACE_TABLE_VALID_ENTRIES);
+        tracker = new CleanupStateTracker(state, persister);
+        Instant lastCleanupTs = tracker.getLastSuccessfulCleanupTsForNode();
+        assertThat(lastCleanupTs).isEqualTo(instant1);
     }
 }
