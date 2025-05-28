@@ -38,7 +38,6 @@ import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.*;
-import org.apache.cassandra.db.compaction.CompactionTracker;
 import org.apache.cassandra.db.composites.*;
 import org.apache.cassandra.db.compaction.AbstractCompactionTask;
 import org.apache.cassandra.db.compaction.CompactionManager;
@@ -303,7 +302,7 @@ public class Util
     {
         int gcBefore = cfs.gcBefore(System.currentTimeMillis());
         AbstractCompactionTask task = cfs.getCompactionStrategy().getUserDefinedTask(sstables, gcBefore);
-        task.execute(null, null);
+        task.execute(null);
     }
 
     public static void expectEOF(Callable<?> callable)

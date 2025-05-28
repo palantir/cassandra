@@ -50,8 +50,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Iterables;
-
-import com.palantir.cassandra.objects.CompactionEstimationWrapper;
+import org.apache.cassandra.metrics.CompactionMetrics;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -496,26 +495,23 @@ public class Directories
         Collections.sort(candidates);
     }
 
-    public Boolean checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions(CompactionEstimationWrapper compactionEstimation)
+    public Boolean checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
     {
-        return checkAvailableDiskSpace(compactionEstimation.getEstimatedSSTables(),
-                                       compactionEstimation.getExpectedTotalWriteSize(),
-                                       0,
-                                       0);
+        return checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, 0, 0);
     }
 
-    public Boolean checkAvailableDiskSpaceConsideringConcurrentCompactions(CompactionEstimationWrapper compactionEstimation)
+    public Boolean checkAvailableDiskSpaceConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
     {
         synchronized (COMPACTION_LOCK)
         {
-            long expectedTotalWriteSize = compactionEstimation.getExpectedTotalWriteSize();
-            if (!checkAvailableDiskSpace(compactionEstimation.getEstimatedSSTables(),
+            if (!checkAvailableDiskSpace(estimatedSSTables,
                                          expectedTotalWriteSize,
                                          expectedSpaceUsedByCompactions,
-                                         compactionEstimation.getLiveSpaceUsedByInProgressCompactions()))
-            {
+                                         CompactionMetrics.getCompactions()
+                                                          .stream()
+                                                          .mapToLong(compactionHolder -> compactionHolder.getCompactionInfo().getCompleted())
+                                                          .sum()))
                 return false;
-            }
             expectedSpaceUsedByCompactions += expectedTotalWriteSize;
             return true;
         }

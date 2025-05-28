@@ -27,7 +27,6 @@ import com.palantir.cassandra.db.compaction.CompactionThroughputThrottler;
 
 import org.apache.cassandra.db.compaction.CompactionInfo;
 import org.apache.cassandra.db.compaction.CompactionManager;
-import org.apache.cassandra.db.compaction.CompactionTracker;
 
 import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 
@@ -37,6 +36,9 @@ import static org.apache.cassandra.metrics.CassandraMetricsRegistry.Metrics;
 public class CompactionMetrics implements CompactionManager.CompactionExecutorStatsCollector
 {
     public static final MetricNameFactory factory = new DefaultNameFactory("Compaction");
+
+    // a synchronized identity set of running tasks to their compaction info
+    private static final Set<CompactionInfo.Holder> compactions = Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<CompactionInfo.Holder, Boolean>()));
 
     /** Estimated number of compactions remaining to perform */
     public final Gauge<Integer> pendingTasks;
@@ -51,7 +53,7 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
     /** Total completed bytes for in-flight compactions */
     public final Gauge<Long> activeCompactionsBytesProcessed;
 
-    public CompactionMetrics(final CompactionTracker tracker, final ThreadPoolExecutor... collectors)
+    public CompactionMetrics(final ThreadPoolExecutor... collectors)
     {
         pendingTasks = Metrics.register(factory.createMetricName("PendingTasks"), new Gauge<Integer>()
         {
@@ -62,7 +64,7 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
                                                   .mapToInt(Integer::intValue)
                                                   .sum();
                 // add number of currently running compactions
-                return n + tracker.getCompactions().size();
+                return n + compactions.size();
             }
         });
         completedTasks = Metrics.register(factory.createMetricName("CompletedTasks"), new Gauge<Long>()
@@ -82,14 +84,32 @@ public class CompactionMetrics implements CompactionManager.CompactionExecutorSt
         {
             public Long getValue()
             {
-                return tracker.getTotalCompletedBytes();
+                return compactions.stream()
+                                  .map(holder -> holder.getCompactionInfo().getCompleted())
+                                  .mapToLong(Long::longValue)
+                                  .sum();
             }
         });
     }
 
+    public void beginCompaction(CompactionInfo.Holder ci)
+    {
+        // notify
+        ci.started();
+        compactions.add(ci);
+    }
+
     public void finishCompaction(CompactionInfo.Holder ci)
     {
+        // notify
+        ci.finished();
+        compactions.remove(ci);
         bytesCompacted.inc(ci.getCompactionInfo().getTotal());
         totalCompactionsCompleted.mark();
+    }
+
+    public static List<CompactionInfo.Holder> getCompactions()
+    {
+        return new ArrayList<CompactionInfo.Holder>(compactions);
     }
 }

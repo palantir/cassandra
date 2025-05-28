@@ -686,7 +686,15 @@ public class CompactionsTest
 
         try
         {
-            compaction.executeInternal(ci -> {}, new CompactionTracker());
+            compaction.executeInternal(new CompactionManager.CompactionExecutorStatsCollector()
+            {
+                public void beginCompaction(CompactionInfo.Holder ci)
+                {
+                    ci.stop();
+                }
+
+                public void finishCompaction(CompactionInfo.Holder ci) {}
+            });
         }
         catch (Exception e)
         {
