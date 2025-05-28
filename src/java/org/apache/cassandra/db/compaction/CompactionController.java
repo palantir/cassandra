@@ -149,7 +149,8 @@ public class CompactionController implements AutoCloseable
 
         if (doNotPurgeTombstones(cfStore))
         {
-            logger.debug("Not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}", cfStore.keyspace.getName());
+            logger.debug("Not looking for droppable sstables - doNotPurgeTombstones returned true for keyspace {}",
+                         SafeArg.of("kesypace", cfStore.keyspace.getName()));
             return Collections.<SSTableReader>emptySet();
         }
 
