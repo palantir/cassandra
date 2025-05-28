@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.palantir.logsafe.SafeArg;
 import org.apache.cassandra.config.DatabaseDescriptor;
 
 public class CleanupStateTracker
@@ -98,7 +99,7 @@ public class CleanupStateTracker
         Map<KeyspaceTableKey, Instant> updatedEntries = state.updateTsForEntry(key, value);
         updateCacheIfHasNotYetSuccessfullyReadFromPersister();
         if (!successfulReadFromPersister || !persister.updateStateInPersistentLocation(updatedEntries))
-            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.");
+            log.warn("Failed to update persistant cleanup state, but cache has been updated. Will retry at next update.", SafeArg.of("key", key));
     }
 
     private void updateCacheIfHasNotYetSuccessfullyReadFromPersister()
