@@ -80,11 +80,11 @@ public enum FilterExperiment
                 //  The indeterminate codepath seems to have never been hit so it's probably fine to defer for now as
                 //  long as we still have signal if we do hit it.
                 log.warn("Query result changed under immediate compaction but results from 60 seconds ago are identical, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult.metadata()), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult.metadata()));
+                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult));
             } else {
                 failures.inc();
                 log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Comparison method: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, SafeArg.of("comparisonMethod", initialComparison.name()), safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult.metadata()), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult.metadata()));
+                         legacyResult, optimizedResult, SafeArg.of("comparisonMethod", initialComparison.name()), safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult));
             }
         } catch (RuntimeException e) {
             failures.inc();
@@ -150,7 +150,11 @@ public enum FilterExperiment
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
     }
 
-    private static SafeArg safeLoggableColumnFamilyMetadata(String argName, CFMetaData metaData) {
+    private static SafeArg safeLoggableColumnFamilyMetadata(String argName, ColumnFamily columnFamily) {
+        if (columnFamily == null) {
+            return SafeArg.of(argName, "null");
+        }
+        CFMetaData metaData = columnFamily.metadata();
         return SafeArg.of(argName, new ToStringBuilder(metaData)
         .append("cfId", metaData.cfId) // UUID
         .append("ksName", metaData.ksName) // Is a metric label
