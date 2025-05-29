@@ -90,8 +90,9 @@ public class Cassandra {
      * @param column_parent
      * @param predicate
      * @param consistency_level
+     * @param trace
      */
-    public java.util.Map<java.nio.ByteBuffer,PageResult> multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public java.util.Map<java.nio.ByteBuffer,PageResult> multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * Performs multiple get_slice commands in parallel for the given column_parent. Differently from multiget_slice,
@@ -120,8 +121,9 @@ public class Cassandra {
      * @param request
      * @param column_parent
      * @param consistency_level
+     * @param trace
      */
-    public java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>> multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>> multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * Perform a get_count in parallel on the given list<binary> keys. The return value maps keys to the count found.
@@ -152,8 +154,9 @@ public class Cassandra {
      * @param predicate
      * @param range
      * @param consistency_level
+     * @param trace
      */
-    public java.util.List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
+    public java.util.List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException;
 
     /**
      * returns a range of columns, wrapping to the next rows if necessary to collect max_results.
@@ -529,17 +532,17 @@ public class Cassandra {
 
     public void multiget_slice(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<ColumnOrSuperColumn>>> resultHandler) throws org.apache.thrift.TException;
 
-    public void multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler) throws org.apache.thrift.TException;
+    public void multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler) throws org.apache.thrift.TException;
 
     public void multiget_multislice(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<java.util.List<ColumnOrSuperColumn>>>> resultHandler) throws org.apache.thrift.TException;
 
-    public void multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler) throws org.apache.thrift.TException;
+    public void multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler) throws org.apache.thrift.TException;
 
     public void multiget_count(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.lang.Integer>> resultHandler) throws org.apache.thrift.TException;
 
     public void get_range_slices(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlice>> resultHandler) throws org.apache.thrift.TException;
 
-    public void get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler) throws org.apache.thrift.TException;
+    public void get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler) throws org.apache.thrift.TException;
 
     public void get_paged_slice(java.lang.String column_family, KeyRange range, java.nio.ByteBuffer start_column, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlice>> resultHandler) throws org.apache.thrift.TException;
 
@@ -845,19 +848,20 @@ public class Cassandra {
     }
 
     @Override
-    public java.util.Map<java.nio.ByteBuffer,PageResult> multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public java.util.Map<java.nio.ByteBuffer,PageResult> multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
-      send_multiget_slice_paging(keys, column_parent, predicate, consistency_level);
+      send_multiget_slice_paging(keys, column_parent, predicate, consistency_level, trace);
       return recv_multiget_slice_paging();
     }
 
-    public void send_multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws org.apache.thrift.TException
+    public void send_multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace) throws org.apache.thrift.TException
     {
       multiget_slice_paging_args args = new multiget_slice_paging_args();
       args.setKeys(keys);
       args.setColumn_parent(column_parent);
       args.setPredicate(predicate);
       args.setConsistency_level(consistency_level);
+      args.setTrace(trace);
       sendBase("multiget_slice_paging", args);
     }
 
@@ -917,18 +921,19 @@ public class Cassandra {
     }
 
     @Override
-    public java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>> multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>> multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
-      send_multiget_multislice_paging(request, column_parent, consistency_level);
+      send_multiget_multislice_paging(request, column_parent, consistency_level, trace);
       return recv_multiget_multislice_paging();
     }
 
-    public void send_multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws org.apache.thrift.TException
+    public void send_multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace) throws org.apache.thrift.TException
     {
       multiget_multislice_paging_args args = new multiget_multislice_paging_args();
       args.setRequest(request);
       args.setColumn_parent(column_parent);
       args.setConsistency_level(consistency_level);
+      args.setTrace(trace);
       sendBase("multiget_multislice_paging", args);
     }
 
@@ -1026,19 +1031,20 @@ public class Cassandra {
     }
 
     @Override
-    public java.util.List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
+    public java.util.List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace) throws InvalidRequestException, UnavailableException, TimedOutException, org.apache.thrift.TException
     {
-      send_get_range_slices_paging(column_parent, predicate, range, consistency_level);
+      send_get_range_slices_paging(column_parent, predicate, range, consistency_level, trace);
       return recv_get_range_slices_paging();
     }
 
-    public void send_get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level) throws org.apache.thrift.TException
+    public void send_get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace) throws org.apache.thrift.TException
     {
       get_range_slices_paging_args args = new get_range_slices_paging_args();
       args.setColumn_parent(column_parent);
       args.setPredicate(predicate);
       args.setRange(range);
       args.setConsistency_level(consistency_level);
+      args.setTrace(trace);
       sendBase("get_range_slices_paging", args);
     }
 
@@ -2522,9 +2528,9 @@ public class Cassandra {
     }
 
     @Override
-    public void multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler) throws org.apache.thrift.TException {
+    public void multiget_slice_paging(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      multiget_slice_paging_call method_call = new multiget_slice_paging_call(keys, column_parent, predicate, consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      multiget_slice_paging_call method_call = new multiget_slice_paging_call(keys, column_parent, predicate, consistency_level, trace, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -2534,12 +2540,14 @@ public class Cassandra {
       private ColumnParent column_parent;
       private SlicePredicate predicate;
       private ConsistencyLevel consistency_level;
-      public multiget_slice_paging_call(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private TraceMetadata trace;
+      public multiget_slice_paging_call(java.util.List<java.nio.ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.keys = keys;
         this.column_parent = column_parent;
         this.predicate = predicate;
         this.consistency_level = consistency_level;
+        this.trace = trace;
       }
 
       @Override
@@ -2550,6 +2558,7 @@ public class Cassandra {
         args.setColumn_parent(column_parent);
         args.setPredicate(predicate);
         args.setConsistency_level(consistency_level);
+        args.setTrace(trace);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -2610,9 +2619,9 @@ public class Cassandra {
     }
 
     @Override
-    public void multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler) throws org.apache.thrift.TException {
+    public void multiget_multislice_paging(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      multiget_multislice_paging_call method_call = new multiget_multislice_paging_call(request, column_parent, consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      multiget_multislice_paging_call method_call = new multiget_multislice_paging_call(request, column_parent, consistency_level, trace, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -2621,11 +2630,13 @@ public class Cassandra {
       private java.util.List<KeyPredicate> request;
       private ColumnParent column_parent;
       private ConsistencyLevel consistency_level;
-      public multiget_multislice_paging_call(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private TraceMetadata trace;
+      public multiget_multislice_paging_call(java.util.List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.request = request;
         this.column_parent = column_parent;
         this.consistency_level = consistency_level;
+        this.trace = trace;
       }
 
       @Override
@@ -2635,6 +2646,7 @@ public class Cassandra {
         args.setRequest(request);
         args.setColumn_parent(column_parent);
         args.setConsistency_level(consistency_level);
+        args.setTrace(trace);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -2745,9 +2757,9 @@ public class Cassandra {
     }
 
     @Override
-    public void get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler) throws org.apache.thrift.TException {
+    public void get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      get_range_slices_paging_call method_call = new get_range_slices_paging_call(column_parent, predicate, range, consistency_level, resultHandler, this, ___protocolFactory, ___transport);
+      get_range_slices_paging_call method_call = new get_range_slices_paging_call(column_parent, predicate, range, consistency_level, trace, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -2757,12 +2769,14 @@ public class Cassandra {
       private SlicePredicate predicate;
       private KeyRange range;
       private ConsistencyLevel consistency_level;
-      public get_range_slices_paging_call(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private TraceMetadata trace;
+      public get_range_slices_paging_call(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.column_parent = column_parent;
         this.predicate = predicate;
         this.range = range;
         this.consistency_level = consistency_level;
+        this.trace = trace;
       }
 
       @Override
@@ -2773,6 +2787,7 @@ public class Cassandra {
         args.setPredicate(predicate);
         args.setRange(range);
         args.setConsistency_level(consistency_level);
+        args.setTrace(trace);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -4597,7 +4612,7 @@ public class Cassandra {
       public multiget_slice_paging_result getResult(I iface, multiget_slice_paging_args args) throws org.apache.thrift.TException {
         multiget_slice_paging_result result = new multiget_slice_paging_result();
         try {
-          result.success = iface.multiget_slice_paging(args.keys, args.column_parent, args.predicate, args.consistency_level);
+          result.success = iface.multiget_slice_paging(args.keys, args.column_parent, args.predicate, args.consistency_level, args.trace);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -4669,7 +4684,7 @@ public class Cassandra {
       public multiget_multislice_paging_result getResult(I iface, multiget_multislice_paging_args args) throws org.apache.thrift.TException {
         multiget_multislice_paging_result result = new multiget_multislice_paging_result();
         try {
-          result.success = iface.multiget_multislice_paging(args.request, args.column_parent, args.consistency_level);
+          result.success = iface.multiget_multislice_paging(args.request, args.column_parent, args.consistency_level, args.trace);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -4777,7 +4792,7 @@ public class Cassandra {
       public get_range_slices_paging_result getResult(I iface, get_range_slices_paging_args args) throws org.apache.thrift.TException {
         get_range_slices_paging_result result = new get_range_slices_paging_result();
         try {
-          result.success = iface.get_range_slices_paging(args.column_parent, args.predicate, args.range, args.consistency_level);
+          result.success = iface.get_range_slices_paging(args.column_parent, args.predicate, args.range, args.consistency_level, args.trace);
         } catch (InvalidRequestException ire) {
           result.ire = ire;
         } catch (UnavailableException ue) {
@@ -6706,7 +6721,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, multiget_slice_paging_args args, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,PageResult>> resultHandler) throws org.apache.thrift.TException {
-        iface.multiget_slice_paging(args.keys, args.column_parent, args.predicate, args.consistency_level,resultHandler);
+        iface.multiget_slice_paging(args.keys, args.column_parent, args.predicate, args.consistency_level, args.trace,resultHandler);
       }
     }
 
@@ -6864,7 +6879,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, multiget_multislice_paging_args args, org.apache.thrift.async.AsyncMethodCallback<java.util.Map<java.nio.ByteBuffer,java.util.List<PageResult>>> resultHandler) throws org.apache.thrift.TException {
-        iface.multiget_multislice_paging(args.request, args.column_parent, args.consistency_level,resultHandler);
+        iface.multiget_multislice_paging(args.request, args.column_parent, args.consistency_level, args.trace,resultHandler);
       }
     }
 
@@ -7101,7 +7116,7 @@ public class Cassandra {
 
       @Override
       public void start(I iface, get_range_slices_paging_args args, org.apache.thrift.async.AsyncMethodCallback<java.util.List<KeySlicePage>> resultHandler) throws org.apache.thrift.TException {
-        iface.get_range_slices_paging(args.column_parent, args.predicate, args.range, args.consistency_level,resultHandler);
+        iface.get_range_slices_paging(args.column_parent, args.predicate, args.range, args.consistency_level, args.trace,resultHandler);
       }
     }
 
@@ -17952,6 +17967,7 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TField COLUMN_PARENT_FIELD_DESC = new org.apache.thrift.protocol.TField("column_parent", org.apache.thrift.protocol.TType.STRUCT, (short)2);
     private static final org.apache.thrift.protocol.TField PREDICATE_FIELD_DESC = new org.apache.thrift.protocol.TField("predicate", org.apache.thrift.protocol.TType.STRUCT, (short)3);
     private static final org.apache.thrift.protocol.TField CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("consistency_level", org.apache.thrift.protocol.TType.I32, (short)4);
+    private static final org.apache.thrift.protocol.TField TRACE_FIELD_DESC = new org.apache.thrift.protocol.TField("trace", org.apache.thrift.protocol.TType.STRUCT, (short)5);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new multiget_slice_paging_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new multiget_slice_paging_argsTupleSchemeFactory();
@@ -17964,6 +17980,7 @@ public class Cassandra {
      * @see ConsistencyLevel
      */
     public @org.apache.thrift.annotation.Nullable ConsistencyLevel consistency_level; // required
+    public @org.apache.thrift.annotation.Nullable TraceMetadata trace; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -17974,7 +17991,8 @@ public class Cassandra {
        * 
        * @see ConsistencyLevel
        */
-      CONSISTENCY_LEVEL((short)4, "consistency_level");
+      CONSISTENCY_LEVEL((short)4, "consistency_level"),
+      TRACE((short)5, "trace");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -17998,6 +18016,8 @@ public class Cassandra {
             return PREDICATE;
           case 4: // CONSISTENCY_LEVEL
             return CONSISTENCY_LEVEL;
+          case 5: // TRACE
+            return TRACE;
           default:
             return null;
         }
@@ -18053,6 +18073,8 @@ public class Cassandra {
           new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, SlicePredicate.class)));
       tmpMap.put(_Fields.CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.TRACE, new org.apache.thrift.meta_data.FieldMetaData("trace", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TraceMetadata.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(multiget_slice_paging_args.class, metaDataMap);
     }
@@ -18066,13 +18088,15 @@ public class Cassandra {
       java.util.List<java.nio.ByteBuffer> keys,
       ColumnParent column_parent,
       SlicePredicate predicate,
-      ConsistencyLevel consistency_level)
+      ConsistencyLevel consistency_level,
+      TraceMetadata trace)
     {
       this();
       this.keys = keys;
       this.column_parent = column_parent;
       this.predicate = predicate;
       this.consistency_level = consistency_level;
+      this.trace = trace;
     }
 
     /**
@@ -18092,6 +18116,9 @@ public class Cassandra {
       if (other.isSetConsistency_level()) {
         this.consistency_level = other.consistency_level;
       }
+      if (other.isSetTrace()) {
+        this.trace = new TraceMetadata(other.trace);
+      }
     }
 
     @Override
@@ -18106,6 +18133,7 @@ public class Cassandra {
       this.predicate = null;
       this.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.ONE;
 
+      this.trace = null;
     }
 
     public int getKeysSize() {
@@ -18232,6 +18260,31 @@ public class Cassandra {
       }
     }
 
+    @org.apache.thrift.annotation.Nullable
+    public TraceMetadata getTrace() {
+      return this.trace;
+    }
+
+    public multiget_slice_paging_args setTrace(@org.apache.thrift.annotation.Nullable TraceMetadata trace) {
+      this.trace = trace;
+      return this;
+    }
+
+    public void unsetTrace() {
+      this.trace = null;
+    }
+
+    /** Returns true if field trace is set (has been assigned a value) and false otherwise */
+    public boolean isSetTrace() {
+      return this.trace != null;
+    }
+
+    public void setTraceIsSet(boolean value) {
+      if (!value) {
+        this.trace = null;
+      }
+    }
+
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -18267,6 +18320,14 @@ public class Cassandra {
         }
         break;
 
+      case TRACE:
+        if (value == null) {
+          unsetTrace();
+        } else {
+          setTrace((TraceMetadata)value);
+        }
+        break;
+
       }
     }
 
@@ -18285,6 +18346,9 @@ public class Cassandra {
 
       case CONSISTENCY_LEVEL:
         return getConsistency_level();
+
+      case TRACE:
+        return getTrace();
 
       }
       throw new java.lang.IllegalStateException();
@@ -18306,6 +18370,8 @@ public class Cassandra {
         return isSetPredicate();
       case CONSISTENCY_LEVEL:
         return isSetConsistency_level();
+      case TRACE:
+        return isSetTrace();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -18359,6 +18425,15 @@ public class Cassandra {
           return false;
       }
 
+      boolean this_present_trace = true && this.isSetTrace();
+      boolean that_present_trace = true && that.isSetTrace();
+      if (this_present_trace || that_present_trace) {
+        if (!(this_present_trace && that_present_trace))
+          return false;
+        if (!this.trace.equals(that.trace))
+          return false;
+      }
+
       return true;
     }
 
@@ -18381,6 +18456,10 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetConsistency_level()) ? 131071 : 524287);
       if (isSetConsistency_level())
         hashCode = hashCode * 8191 + consistency_level.getValue();
+
+      hashCode = hashCode * 8191 + ((isSetTrace()) ? 131071 : 524287);
+      if (isSetTrace())
+        hashCode = hashCode * 8191 + trace.hashCode();
 
       return hashCode;
     }
@@ -18429,6 +18508,16 @@ public class Cassandra {
       }
       if (isSetConsistency_level()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.consistency_level, other.consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = java.lang.Boolean.compare(isSetTrace(), other.isSetTrace());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTrace()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.trace, other.trace);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -18488,6 +18577,14 @@ public class Cassandra {
         sb.append(this.consistency_level);
       }
       first = false;
+      if (!first) sb.append(", ");
+      sb.append("trace:");
+      if (this.trace == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.trace);
+      }
+      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -18512,6 +18609,9 @@ public class Cassandra {
       }
       if (predicate != null) {
         predicate.validate();
+      }
+      if (trace != null) {
+        trace.validate();
       }
     }
 
@@ -18595,6 +18695,15 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 5: // TRACE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.trace = new TraceMetadata();
+                struct.trace.read(iprot);
+                struct.setTraceIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -18638,6 +18747,11 @@ public class Cassandra {
           oprot.writeI32(struct.consistency_level.getValue());
           oprot.writeFieldEnd();
         }
+        if (struct.trace != null) {
+          oprot.writeFieldBegin(TRACE_FIELD_DESC);
+          struct.trace.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -18666,6 +18780,14 @@ public class Cassandra {
         struct.column_parent.write(oprot);
         struct.predicate.write(oprot);
         oprot.writeI32(struct.consistency_level.getValue());
+        java.util.BitSet optionals = new java.util.BitSet();
+        if (struct.isSetTrace()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetTrace()) {
+          struct.trace.write(oprot);
+        }
       }
 
       @Override
@@ -18690,6 +18812,12 @@ public class Cassandra {
         struct.setPredicateIsSet(true);
         struct.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setConsistency_levelIsSet(true);
+        java.util.BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          struct.trace = new TraceMetadata();
+          struct.trace.read(iprot);
+          struct.setTraceIsSet(true);
+        }
       }
     }
 
@@ -21072,6 +21200,7 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TField REQUEST_FIELD_DESC = new org.apache.thrift.protocol.TField("request", org.apache.thrift.protocol.TType.LIST, (short)1);
     private static final org.apache.thrift.protocol.TField COLUMN_PARENT_FIELD_DESC = new org.apache.thrift.protocol.TField("column_parent", org.apache.thrift.protocol.TType.STRUCT, (short)2);
     private static final org.apache.thrift.protocol.TField CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("consistency_level", org.apache.thrift.protocol.TType.I32, (short)3);
+    private static final org.apache.thrift.protocol.TField TRACE_FIELD_DESC = new org.apache.thrift.protocol.TField("trace", org.apache.thrift.protocol.TType.STRUCT, (short)4);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new multiget_multislice_paging_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new multiget_multislice_paging_argsTupleSchemeFactory();
@@ -21083,6 +21212,7 @@ public class Cassandra {
      * @see ConsistencyLevel
      */
     public @org.apache.thrift.annotation.Nullable ConsistencyLevel consistency_level; // required
+    public @org.apache.thrift.annotation.Nullable TraceMetadata trace; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -21092,7 +21222,8 @@ public class Cassandra {
        * 
        * @see ConsistencyLevel
        */
-      CONSISTENCY_LEVEL((short)3, "consistency_level");
+      CONSISTENCY_LEVEL((short)3, "consistency_level"),
+      TRACE((short)4, "trace");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -21114,6 +21245,8 @@ public class Cassandra {
             return COLUMN_PARENT;
           case 3: // CONSISTENCY_LEVEL
             return CONSISTENCY_LEVEL;
+          case 4: // TRACE
+            return TRACE;
           default:
             return null;
         }
@@ -21167,6 +21300,8 @@ public class Cassandra {
           new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, ColumnParent.class)));
       tmpMap.put(_Fields.CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.TRACE, new org.apache.thrift.meta_data.FieldMetaData("trace", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TraceMetadata.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(multiget_multislice_paging_args.class, metaDataMap);
     }
@@ -21179,12 +21314,14 @@ public class Cassandra {
     public multiget_multislice_paging_args(
       java.util.List<KeyPredicate> request,
       ColumnParent column_parent,
-      ConsistencyLevel consistency_level)
+      ConsistencyLevel consistency_level,
+      TraceMetadata trace)
     {
       this();
       this.request = request;
       this.column_parent = column_parent;
       this.consistency_level = consistency_level;
+      this.trace = trace;
     }
 
     /**
@@ -21204,6 +21341,9 @@ public class Cassandra {
       if (other.isSetConsistency_level()) {
         this.consistency_level = other.consistency_level;
       }
+      if (other.isSetTrace()) {
+        this.trace = new TraceMetadata(other.trace);
+      }
     }
 
     @Override
@@ -21217,6 +21357,7 @@ public class Cassandra {
       this.column_parent = null;
       this.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.ONE;
 
+      this.trace = null;
     }
 
     public int getRequestSize() {
@@ -21318,6 +21459,31 @@ public class Cassandra {
       }
     }
 
+    @org.apache.thrift.annotation.Nullable
+    public TraceMetadata getTrace() {
+      return this.trace;
+    }
+
+    public multiget_multislice_paging_args setTrace(@org.apache.thrift.annotation.Nullable TraceMetadata trace) {
+      this.trace = trace;
+      return this;
+    }
+
+    public void unsetTrace() {
+      this.trace = null;
+    }
+
+    /** Returns true if field trace is set (has been assigned a value) and false otherwise */
+    public boolean isSetTrace() {
+      return this.trace != null;
+    }
+
+    public void setTraceIsSet(boolean value) {
+      if (!value) {
+        this.trace = null;
+      }
+    }
+
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -21345,6 +21511,14 @@ public class Cassandra {
         }
         break;
 
+      case TRACE:
+        if (value == null) {
+          unsetTrace();
+        } else {
+          setTrace((TraceMetadata)value);
+        }
+        break;
+
       }
     }
 
@@ -21360,6 +21534,9 @@ public class Cassandra {
 
       case CONSISTENCY_LEVEL:
         return getConsistency_level();
+
+      case TRACE:
+        return getTrace();
 
       }
       throw new java.lang.IllegalStateException();
@@ -21379,6 +21556,8 @@ public class Cassandra {
         return isSetColumn_parent();
       case CONSISTENCY_LEVEL:
         return isSetConsistency_level();
+      case TRACE:
+        return isSetTrace();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -21423,6 +21602,15 @@ public class Cassandra {
           return false;
       }
 
+      boolean this_present_trace = true && this.isSetTrace();
+      boolean that_present_trace = true && that.isSetTrace();
+      if (this_present_trace || that_present_trace) {
+        if (!(this_present_trace && that_present_trace))
+          return false;
+        if (!this.trace.equals(that.trace))
+          return false;
+      }
+
       return true;
     }
 
@@ -21441,6 +21629,10 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetConsistency_level()) ? 131071 : 524287);
       if (isSetConsistency_level())
         hashCode = hashCode * 8191 + consistency_level.getValue();
+
+      hashCode = hashCode * 8191 + ((isSetTrace()) ? 131071 : 524287);
+      if (isSetTrace())
+        hashCode = hashCode * 8191 + trace.hashCode();
 
       return hashCode;
     }
@@ -21479,6 +21671,16 @@ public class Cassandra {
       }
       if (isSetConsistency_level()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.consistency_level, other.consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = java.lang.Boolean.compare(isSetTrace(), other.isSetTrace());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTrace()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.trace, other.trace);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -21530,6 +21732,14 @@ public class Cassandra {
         sb.append(this.consistency_level);
       }
       first = false;
+      if (!first) sb.append(", ");
+      sb.append("trace:");
+      if (this.trace == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.trace);
+      }
+      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -21548,6 +21758,9 @@ public class Cassandra {
       // check for sub-struct validity
       if (column_parent != null) {
         column_parent.validate();
+      }
+      if (trace != null) {
+        trace.validate();
       }
     }
 
@@ -21623,6 +21836,15 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 4: // TRACE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.trace = new TraceMetadata();
+                struct.trace.read(iprot);
+                struct.setTraceIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -21661,6 +21883,11 @@ public class Cassandra {
           oprot.writeI32(struct.consistency_level.getValue());
           oprot.writeFieldEnd();
         }
+        if (struct.trace != null) {
+          oprot.writeFieldBegin(TRACE_FIELD_DESC);
+          struct.trace.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -21688,6 +21915,14 @@ public class Cassandra {
         }
         struct.column_parent.write(oprot);
         oprot.writeI32(struct.consistency_level.getValue());
+        java.util.BitSet optionals = new java.util.BitSet();
+        if (struct.isSetTrace()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetTrace()) {
+          struct.trace.write(oprot);
+        }
       }
 
       @Override
@@ -21710,6 +21945,12 @@ public class Cassandra {
         struct.setColumn_parentIsSet(true);
         struct.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setConsistency_levelIsSet(true);
+        java.util.BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          struct.trace = new TraceMetadata();
+          struct.trace.read(iprot);
+          struct.setTraceIsSet(true);
+        }
       }
     }
 
@@ -25720,6 +25961,7 @@ public class Cassandra {
     private static final org.apache.thrift.protocol.TField PREDICATE_FIELD_DESC = new org.apache.thrift.protocol.TField("predicate", org.apache.thrift.protocol.TType.STRUCT, (short)2);
     private static final org.apache.thrift.protocol.TField RANGE_FIELD_DESC = new org.apache.thrift.protocol.TField("range", org.apache.thrift.protocol.TType.STRUCT, (short)3);
     private static final org.apache.thrift.protocol.TField CONSISTENCY_LEVEL_FIELD_DESC = new org.apache.thrift.protocol.TField("consistency_level", org.apache.thrift.protocol.TType.I32, (short)4);
+    private static final org.apache.thrift.protocol.TField TRACE_FIELD_DESC = new org.apache.thrift.protocol.TField("trace", org.apache.thrift.protocol.TType.STRUCT, (short)5);
 
     private static final org.apache.thrift.scheme.SchemeFactory STANDARD_SCHEME_FACTORY = new get_range_slices_paging_argsStandardSchemeFactory();
     private static final org.apache.thrift.scheme.SchemeFactory TUPLE_SCHEME_FACTORY = new get_range_slices_paging_argsTupleSchemeFactory();
@@ -25732,6 +25974,7 @@ public class Cassandra {
      * @see ConsistencyLevel
      */
     public @org.apache.thrift.annotation.Nullable ConsistencyLevel consistency_level; // required
+    public @org.apache.thrift.annotation.Nullable TraceMetadata trace; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -25742,7 +25985,8 @@ public class Cassandra {
        * 
        * @see ConsistencyLevel
        */
-      CONSISTENCY_LEVEL((short)4, "consistency_level");
+      CONSISTENCY_LEVEL((short)4, "consistency_level"),
+      TRACE((short)5, "trace");
 
       private static final java.util.Map<java.lang.String, _Fields> byName = new java.util.HashMap<java.lang.String, _Fields>();
 
@@ -25766,6 +26010,8 @@ public class Cassandra {
             return RANGE;
           case 4: // CONSISTENCY_LEVEL
             return CONSISTENCY_LEVEL;
+          case 5: // TRACE
+            return TRACE;
           default:
             return null;
         }
@@ -25820,6 +26066,8 @@ public class Cassandra {
           new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, KeyRange.class)));
       tmpMap.put(_Fields.CONSISTENCY_LEVEL, new org.apache.thrift.meta_data.FieldMetaData("consistency_level", org.apache.thrift.TFieldRequirementType.REQUIRED, 
           new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, ConsistencyLevel.class)));
+      tmpMap.put(_Fields.TRACE, new org.apache.thrift.meta_data.FieldMetaData("trace", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, TraceMetadata.class)));
       metaDataMap = java.util.Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(get_range_slices_paging_args.class, metaDataMap);
     }
@@ -25833,13 +26081,15 @@ public class Cassandra {
       ColumnParent column_parent,
       SlicePredicate predicate,
       KeyRange range,
-      ConsistencyLevel consistency_level)
+      ConsistencyLevel consistency_level,
+      TraceMetadata trace)
     {
       this();
       this.column_parent = column_parent;
       this.predicate = predicate;
       this.range = range;
       this.consistency_level = consistency_level;
+      this.trace = trace;
     }
 
     /**
@@ -25858,6 +26108,9 @@ public class Cassandra {
       if (other.isSetConsistency_level()) {
         this.consistency_level = other.consistency_level;
       }
+      if (other.isSetTrace()) {
+        this.trace = new TraceMetadata(other.trace);
+      }
     }
 
     @Override
@@ -25872,6 +26125,7 @@ public class Cassandra {
       this.range = null;
       this.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.ONE;
 
+      this.trace = null;
     }
 
     @org.apache.thrift.annotation.Nullable
@@ -25982,6 +26236,31 @@ public class Cassandra {
       }
     }
 
+    @org.apache.thrift.annotation.Nullable
+    public TraceMetadata getTrace() {
+      return this.trace;
+    }
+
+    public get_range_slices_paging_args setTrace(@org.apache.thrift.annotation.Nullable TraceMetadata trace) {
+      this.trace = trace;
+      return this;
+    }
+
+    public void unsetTrace() {
+      this.trace = null;
+    }
+
+    /** Returns true if field trace is set (has been assigned a value) and false otherwise */
+    public boolean isSetTrace() {
+      return this.trace != null;
+    }
+
+    public void setTraceIsSet(boolean value) {
+      if (!value) {
+        this.trace = null;
+      }
+    }
+
     @Override
     public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
       switch (field) {
@@ -26017,6 +26296,14 @@ public class Cassandra {
         }
         break;
 
+      case TRACE:
+        if (value == null) {
+          unsetTrace();
+        } else {
+          setTrace((TraceMetadata)value);
+        }
+        break;
+
       }
     }
 
@@ -26035,6 +26322,9 @@ public class Cassandra {
 
       case CONSISTENCY_LEVEL:
         return getConsistency_level();
+
+      case TRACE:
+        return getTrace();
 
       }
       throw new java.lang.IllegalStateException();
@@ -26056,6 +26346,8 @@ public class Cassandra {
         return isSetRange();
       case CONSISTENCY_LEVEL:
         return isSetConsistency_level();
+      case TRACE:
+        return isSetTrace();
       }
       throw new java.lang.IllegalStateException();
     }
@@ -26109,6 +26401,15 @@ public class Cassandra {
           return false;
       }
 
+      boolean this_present_trace = true && this.isSetTrace();
+      boolean that_present_trace = true && that.isSetTrace();
+      if (this_present_trace || that_present_trace) {
+        if (!(this_present_trace && that_present_trace))
+          return false;
+        if (!this.trace.equals(that.trace))
+          return false;
+      }
+
       return true;
     }
 
@@ -26131,6 +26432,10 @@ public class Cassandra {
       hashCode = hashCode * 8191 + ((isSetConsistency_level()) ? 131071 : 524287);
       if (isSetConsistency_level())
         hashCode = hashCode * 8191 + consistency_level.getValue();
+
+      hashCode = hashCode * 8191 + ((isSetTrace()) ? 131071 : 524287);
+      if (isSetTrace())
+        hashCode = hashCode * 8191 + trace.hashCode();
 
       return hashCode;
     }
@@ -26179,6 +26484,16 @@ public class Cassandra {
       }
       if (isSetConsistency_level()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.consistency_level, other.consistency_level);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = java.lang.Boolean.compare(isSetTrace(), other.isSetTrace());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTrace()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.trace, other.trace);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -26238,6 +26553,14 @@ public class Cassandra {
         sb.append(this.consistency_level);
       }
       first = false;
+      if (!first) sb.append(", ");
+      sb.append("trace:");
+      if (this.trace == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.trace);
+      }
+      first = false;
       sb.append(")");
       return sb.toString();
     }
@@ -26265,6 +26588,9 @@ public class Cassandra {
       }
       if (range != null) {
         range.validate();
+      }
+      if (trace != null) {
+        trace.validate();
       }
     }
 
@@ -26339,6 +26665,15 @@ public class Cassandra {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 5: // TRACE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.trace = new TraceMetadata();
+                struct.trace.read(iprot);
+                struct.setTraceIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -26375,6 +26710,11 @@ public class Cassandra {
           oprot.writeI32(struct.consistency_level.getValue());
           oprot.writeFieldEnd();
         }
+        if (struct.trace != null) {
+          oprot.writeFieldBegin(TRACE_FIELD_DESC);
+          struct.trace.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -26397,6 +26737,14 @@ public class Cassandra {
         struct.predicate.write(oprot);
         struct.range.write(oprot);
         oprot.writeI32(struct.consistency_level.getValue());
+        java.util.BitSet optionals = new java.util.BitSet();
+        if (struct.isSetTrace()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetTrace()) {
+          struct.trace.write(oprot);
+        }
       }
 
       @Override
@@ -26413,6 +26761,12 @@ public class Cassandra {
         struct.setRangeIsSet(true);
         struct.consistency_level = org.apache.cassandra.thrift.ConsistencyLevel.findByValue(iprot.readI32());
         struct.setConsistency_levelIsSet(true);
+        java.util.BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          struct.trace = new TraceMetadata();
+          struct.trace.read(iprot);
+          struct.setTraceIsSet(true);
+        }
       }
     }
 

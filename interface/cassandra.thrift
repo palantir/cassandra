@@ -702,7 +702,8 @@ service Cassandra {
   map<binary,PageResult> multiget_slice_paging(1:required list<binary> keys,
                                                        2:required ColumnParent column_parent,
                                                        3:required SlicePredicate predicate,
-                                                       4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                                       4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                                       5:optional TraceMetadata trace)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -730,7 +731,8 @@ service Cassandra {
  */
   map<binary,list<PageResult>> multiget_multislice_paging(1:required list<KeyPredicate> request,
                                                                   2:required ColumnParent column_parent,
-                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                                                  3:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE
+                                                                  4:optional TraceMetadata trace)
                                         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
@@ -759,7 +761,8 @@ service Cassandra {
   list<KeySlicePage> get_range_slices_paging(1:required ColumnParent column_parent,
                                   2:required SlicePredicate predicate,
                                   3:required KeyRange range,
-                                  4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE)
+                                  4:required ConsistencyLevel consistency_level=ConsistencyLevel.ONE,
+                                  5:optional TraceMetadata trace)
         throws (1:InvalidRequestException ire, 2:UnavailableException ue, 3:TimedOutException te),
 
   /**
