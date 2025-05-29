@@ -35,6 +35,7 @@ import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.CloseableIterator;
 import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.Throwables;
 
 public class RowDataResolver extends AbstractRowResolver
 {
@@ -75,7 +76,7 @@ public class RowDataResolver extends AbstractRowResolver
                 ReadResponse response = message.payload;
                 ColumnFamily cf = response.row().cf;
                 assert !response.isDigestQuery() : "Received digest response to repair read from " + message.from;
-                assert !filter.usePageToken() || cf != null;
+                Throwables.assertWithError(!filter.usePageToken() || cf != null);
                 versions.add(cf);
                 endpoints.add(message.from);
 
