@@ -72,6 +72,7 @@ public enum FilterExperiment
             if (initialComparison.isEqual()) {
                 successes.inc();
             } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))) {
+                // This case means that the data was modified between getting the legacy and optimized result. As a result, this experiment is indeterminate.
                 indeterminate.inc();
             } else if ((legacyResult.metadata().getGcGraceSeconds() == 0
                            && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)).isEqual())) {
