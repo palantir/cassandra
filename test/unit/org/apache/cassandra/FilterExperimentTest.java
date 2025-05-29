@@ -47,36 +47,36 @@ public class FilterExperimentTest
     @Test
     public void testAreEqual_trueIfEqual() {
         ColumnFamily cf = cf(value('a'), rangeDelete('b', 'c'));
-        assertThat(FilterExperiment.areEqual(cf, cf)).isTrue();
+        assertThat(FilterExperiment.areEqual(cf, cf).isEqual()).isTrue();
     }
 
     @Test
     public void testAreEqual_trueIfEqual_cellwise() {
         ColumnFamily left = cf(value('a'), value('d'));
         ColumnFamily right = cf(value('a'), value('b'), rangeDelete('b', 'c'), value('d'));
-        assertThat(FilterExperiment.areEqual(left, right)).isTrue();
+        assertThat(FilterExperiment.areEqual(left, right).isEqual()).isTrue();
     }
 
     @Test
     public void testAreEqual_handlesNull() {
         ColumnFamily left = cf();
         ColumnFamily right = null;
-        assertThat(FilterExperiment.areEqual(left, right)).isTrue();
-        assertThat(FilterExperiment.areEqual(right, left)).isTrue();
+        assertThat(FilterExperiment.areEqual(left, right).isEqual()).isTrue();
+        assertThat(FilterExperiment.areEqual(right, left).isEqual()).isTrue();
     }
 
     @Test
     public void testAreEqual_falseIfMoreCells() {
         ColumnFamily left = cf(value('a'), value('b'));
         ColumnFamily right = cf(value('a'));
-        assertThat(FilterExperiment.areEqual(left, right)).isFalse();
+        assertThat(FilterExperiment.areEqual(left, right).isEqual()).isFalse();
     }
 
     @Test
     public void testAreEqual_falseIfMoreCells_fromRangeTombstones() {
         ColumnFamily left = cf(value('a'), value('b'), rangeDelete('b', 'c'));
         ColumnFamily right = cf(value('a'), value('b'));
-        assertThat(FilterExperiment.areEqual(left, right)).isFalse();
+        assertThat(FilterExperiment.areEqual(left, right).isEqual()).isFalse();
     }
 
     private static ColumnFamily cf(OnDiskAtom... atoms) {

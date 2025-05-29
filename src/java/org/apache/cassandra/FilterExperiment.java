@@ -18,7 +18,6 @@
 
 package org.apache.cassandra;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
@@ -27,7 +26,6 @@ import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.slf4j.Logger;
@@ -40,8 +38,6 @@ import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.Cell;
 import org.apache.cassandra.db.ColumnFamily;
-import org.apache.cassandra.db.DeletionInfo;
-import org.apache.cassandra.db.RangeTombstone;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
 import org.apache.cassandra.metrics.MetricNameFactory;
@@ -72,24 +68,24 @@ public enum FilterExperiment
         ColumnFamily legacyResult = time(() -> function.apply(USE_LEGACY), legacyTimer);
         try {
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
-            if (areEqual(legacyResult, optimizedResult)) {
+            ComparisonResult initialComparison = areEqual(legacyResult, optimizedResult);
+            if (initialComparison.isEqual()) {
                 successes.inc();
             } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))) {
+                // This case means that the data was modified between getting the legacy and optimized result. As a result, this experiment is indeterminate.
                 indeterminate.inc();
-                log.warn("Query result changed while running experiments, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult.metadata()), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult.metadata()));
             } else if ((legacyResult.metadata().getGcGraceSeconds() == 0
-                           && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)))) {
+                           && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)).isEqual())) {
                 indeterminate.inc();
                 // TODO(lkjaerozhang): Give a better log message when I actually understand what this means.
                 //  The indeterminate codepath seems to have never been hit so it's probably fine to defer for now as
                 //  long as we still have signal if we do hit it.
                 log.warn("Query result changed under immediate compaction but results from 60 seconds ago are identical, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult.metadata()), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult.metadata()));
+                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult));
             } else {
                 failures.inc();
-                log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult.metadata()), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult.metadata()));
+                log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Comparison method: {}, Legacy metadata: {}, Optimized metadata: {}",
+                         legacyResult, optimizedResult, SafeArg.of("comparisonMethod", initialComparison.name()), safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult));
             }
         } catch (RuntimeException e) {
             failures.inc();
@@ -131,25 +127,19 @@ public enum FilterExperiment
      * added directly to returnCF rather than being present in the iterator. So this only happens once.
      */
     @VisibleForTesting
-    static boolean areEqual(ColumnFamily legacy, ColumnFamily modern) {
-        if (compareAndLogMetadataIfFalse(legacy, modern, "md5", FilterExperiment::areTrulyEqual)) {
-            return true;
+    static ComparisonResult areEqual(ColumnFamily legacy, ColumnFamily modern) {
+        if (areTrulyEqual(legacy, modern)) {
+            return ComparisonResult.EQUAL;
         }
         if (legacy == null) {
             boolean areEqual = !iterator(modern).hasNext();
-            log.warn("The legacy column family was null when comparing results but the modern column family was not; Optimized: {}, Optimized metadata: {}", modern, safeLoggableColumnFamilyMetadata("optimizedMetadata", modern.metadata()));
-            return areEqual;
+            return areEqual ? ComparisonResult.EQUAL : ComparisonResult.LEGACY_WAS_NULL;
         } else if (modern == null) {
-            boolean areEqual =  !iterator(legacy).hasNext();
-            log.warn("The modern column family was null when comparing results but the legacy column family was not; Legacy: {}, Legacy metadata: {}", legacy, safeLoggableColumnFamilyMetadata("legacyMetadata", legacy.metadata()));
-            return areEqual;
+            boolean areEqual = !iterator(legacy).hasNext();
+            return areEqual ? ComparisonResult.EQUAL : ComparisonResult.MODERN_WAS_NULL;
+        } else {
+            return Iterators.elementsEqual(iterator(legacy), iterator(modern)) ? ComparisonResult.EQUAL : ComparisonResult.NOT_EQUAL_BY_ITERATOR;
         }
-        return compareAndLogMetadataIfFalse(legacy, modern, "iterator", FilterExperiment::compareUsingIterator);
-    }
-
-    private static boolean compareUsingIterator(ColumnFamily legacy, ColumnFamily modern)
-    {
-        return Iterators.elementsEqual(iterator(legacy), iterator(modern));
     }
 
     private static Iterator<Cell> iterator(ColumnFamily columnFamily) {
@@ -161,17 +151,11 @@ public enum FilterExperiment
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
     }
 
-    private static boolean compareAndLogMetadataIfFalse(ColumnFamily legacy, ColumnFamily modern, String comparisonType, BiFunction<ColumnFamily, ColumnFamily, Boolean> comparator)
-    {
-        boolean equal = comparator.apply(legacy, modern);
-        if (!equal) {
-            log.warn("Comparison failure while experimenting; Comparison type: {}, Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                     legacy, modern, comparisonType, safeLoggableColumnFamilyMetadata("legacyMetadata", legacy.metadata()), safeLoggableColumnFamilyMetadata("optimizedMetadata", modern.metadata()));
+    private static SafeArg safeLoggableColumnFamilyMetadata(String argName, ColumnFamily columnFamily) {
+        if (columnFamily == null) {
+            return SafeArg.of(argName, "null");
         }
-        return equal;
-    }
-
-    private static SafeArg safeLoggableColumnFamilyMetadata(String argName, CFMetaData metaData) {
+        CFMetaData metaData = columnFamily.metadata();
         return SafeArg.of(argName, new ToStringBuilder(metaData)
         .append("cfId", metaData.cfId) // UUID
         .append("ksName", metaData.ksName) // Is a metric label
@@ -192,5 +176,26 @@ public enum FilterExperiment
         .append("speculativeRetry", metaData.getSpeculativeRetry()) // Enum and percentage
         .append("isDense", metaData.getIsDense()) // boolean
         .toString());
+    }
+
+    @VisibleForTesting
+    enum ComparisonResult
+    {
+        EQUAL(true),
+        NOT_EQUAL_BY_ITERATOR(false),
+        LEGACY_WAS_NULL(false),
+        MODERN_WAS_NULL(false);
+
+        private final boolean isEqual;
+
+        ComparisonResult(boolean isEqual)
+        {
+            this.isEqual = isEqual;
+        }
+
+        public boolean isEqual()
+        {
+            return isEqual;
+        }
     }
 }
