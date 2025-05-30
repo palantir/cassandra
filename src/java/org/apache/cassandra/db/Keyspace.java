@@ -26,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import com.palantir.cassandra.db.SystemPalantir;
 import com.palantir.tracing.CloseableTracer;
 
 import com.google.common.base.Function;
@@ -98,7 +100,7 @@ public class Keyspace
 
     public static Keyspace open(String keyspaceName)
     {
-        assert initialized || keyspaceName.equals(SystemKeyspace.NAME);
+        assert initialized || keyspaceName.equals(SystemKeyspace.NAME) || keyspaceName.equals(SystemPalantir.NAME);
         return open(keyspaceName, Schema.instance, true);
     }
 
