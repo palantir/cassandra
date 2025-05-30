@@ -2187,7 +2187,7 @@ public class ColumnFamilyStoreTest
 
         assertEquals(0, cfs.getSSTables().size());
 
-        // start the generation counter at 1 again (other tests have incremented it already)
+        // start the generation counter at 0 again (other tests have incremented it already)
         cfs.resetFileIndexGenerator();
 
         boolean incrementalBackupsEnabled = DatabaseDescriptor.isIncrementalBackupsEnabled();
@@ -2211,6 +2211,7 @@ public class ColumnFamilyStoreTest
         assertTrue(generations.contains(8));
         assertTrue(generations.contains(9));
         assertEquals(2, cfs.getSSTables().size());
+        assertEquals(9, cfs.getFileIndexGenerator());
         cfs.clearUnsafe();
     }
 

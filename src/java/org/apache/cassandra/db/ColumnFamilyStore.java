@@ -3514,6 +3514,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         fileIndexGenerator.set(0);
     }
 
+    @VisibleForTesting
+    int getFileIndexGenerator()
+    {
+        return fileIndexGenerator.get();
+    }
+
     // returns the "canonical" version of any current sstable, i.e. if an sstable is being replaced and is only partially
     // visible to reads, this sstable will be returned as its original entirety, and its replacement will not be returned
     // (even if it completely replaces it)
