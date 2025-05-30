@@ -257,22 +257,35 @@ public class CommitLog implements CommitLogMBean
      */
     public ReplayPosition add(Mutation mutation)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLog#add"))
+        List<ReplayPosition> positions = addAll(Collections.singletonList(mutation));
+        return positions.get(0);
+    }
+
+    /**
+     * Add multiple Mutations to the commit log in a batch, blocking until all allocations are synced.
+     *
+     * @param mutations the Mutations to add to the log
+     * @return a List of ReplayPositions for each mutation added
+     */
+    public List<ReplayPosition> addAll(Collection<Mutation> mutations)
+    {
+        if (mutations == null || mutations.isEmpty())
+            return Collections.emptyList();
+        List<ReplayPosition> positions = new ArrayList<>(mutations.size());
+        List<CommitLogSegment.Allocation> allocations = new ArrayList<>(mutations.size());
+        for (Mutation mutation : mutations)
         {
             assert mutation != null;
-
             long size = Mutation.serializer.serializedSize(mutation, MessagingService.current_version);
-
             long totalSize = size + ENTRY_OVERHEAD_SIZE;
             if (totalSize > MAX_MUTATION_SIZE)
             {
                 String keyspaceName = mutation.getKeyspaceName();
                 String columnFamiliesToString = mutation.getColumnFamilies().toString();
                 throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
-                                                                 keyspaceName, columnFamiliesToString, totalSize, MAX_MUTATION_SIZE));
+                        keyspaceName, columnFamiliesToString, totalSize, MAX_MUTATION_SIZE));
             }
-
-            Allocation alloc = allocator.allocate(mutation, (int) totalSize);
+            CommitLogSegment.Allocation alloc = allocator.allocate(mutation, (int) totalSize);
             ICRC32 checksum = CRC32Factory.instance.create();
             final ByteBuffer buffer = alloc.getBuffer();
             try (BufferedDataOutputStreamPlus dos = new DataOutputBufferFixed(buffer))
@@ -292,14 +305,15 @@ public class CommitLog implements CommitLogMBean
             {
                 throw new FSWriteError(e, alloc.getSegment().getPath());
             }
-            finally
-            {
-                alloc.markWritten();
-            }
-
-            executor.finishWriteFor(alloc);
-            return alloc.getReplayPosition();
+            allocations.add(alloc);
+            positions.add(alloc.getReplayPosition());
         }
+        for (CommitLogSegment.Allocation alloc : allocations)
+            alloc.markWritten();
+        // Wait for all allocations to sync
+        for (CommitLogSegment.Allocation alloc : allocations)
+            executor.finishWriteFor(alloc);
+        return positions;
     }
 
     /**
