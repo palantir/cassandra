@@ -19,6 +19,8 @@
 package org.apache.cassandra;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -26,6 +28,7 @@ import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.slf4j.Logger;
@@ -138,7 +141,7 @@ public enum FilterExperiment
             boolean areEqual = !iterator(legacy).hasNext();
             return areEqual ? ComparisonResult.EQUAL : ComparisonResult.MODERN_WAS_NULL;
         } else {
-            return Iterators.elementsEqual(iterator(legacy), iterator(modern)) ? ComparisonResult.EQUAL : ComparisonResult.NOT_EQUAL_BY_ITERATOR;
+            return compareByIterator(iterator(legacy), iterator(modern));
         }
     }
 
@@ -147,8 +150,65 @@ public enum FilterExperiment
                                 Predicates.not(columnFamily.inOrderDeletionTester()::isDeleted));
     }
 
+    private static Optional<Cell> getNext(Iterator<Cell> iterator)
+    {
+        return iterator.hasNext() ? Optional.ofNullable(iterator.next()) : Optional.empty();
+    }
+
     static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
+    }
+
+    static ComparisonResult compareByIterator(Iterator<Cell> legacyIterator, Iterator<Cell> modernIterator)
+    {
+        ImmutableList.Builder<String> differencesBuilder = ImmutableList.builder();
+        int index = -1;
+        while (legacyIterator.hasNext() || modernIterator.hasNext())
+        {
+            index++;
+            Optional<Cell> legacy = getNext(legacyIterator);
+            Optional<Cell> modern = getNext(modernIterator);
+
+            if (legacy.isPresent() && modern.isPresent())
+            {
+                if (legacy.get().equals(modern.get()))
+                {
+                    continue;
+                }
+                differencesBuilder.add(notEqual(index, legacy.get(), modern.get()));
+            }
+            else
+            {
+                differencesBuilder.add(missingItem(index, legacy.isPresent(), modern.isPresent()));
+            }
+        }
+        List<String> differences = differencesBuilder.build();
+
+        if (differences.isEmpty()) {
+            return ComparisonResult.EQUAL;
+        } else {
+            log.warn("Column families returned different results via iterator: {}", SafeArg.of("differences", differences));
+            return ComparisonResult.NOT_EQUAL_BY_ITERATOR;
+        }
+    }
+
+    private static String missingItem(int index, boolean hasLegacyCell, boolean hasModernCell) {
+        return String.format("[%s: MissingItem(hasLegacyCell=%s, hasModernCell=%s)]",
+                             index, hasLegacyCell, hasModernCell);
+    }
+
+    private static String notEqual(int index, Cell legacy, Cell modern) {
+        return String.format("[%s: NotEqual(legacyClassName=%s, modernClassName=%s, timestampMatches=%s, nameMatches=%s, valueMatches=%s, legacySerializationFlags=%s, modernSerializationFlags=%s)]",
+                             index,
+                             legacy.getClass().getName(),
+                             modern.getClass().getName(),
+                             // These are what are compared in the .equals() implementation for AbstractCell.
+                             // TODO(lkjaerozhang): Follow up with information for the other types of cells.
+                             legacy.timestamp() == modern.timestamp(),
+                             legacy.name() == modern.name(),
+                             legacy.value() == modern.value(),
+                             legacy.serializationFlags(),
+                             modern.serializationFlags());
     }
 
     private static SafeArg safeLoggableColumnFamilyMetadata(String argName, ColumnFamily columnFamily) {
