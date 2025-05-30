@@ -389,36 +389,31 @@ public class Keyspace
         return row;
     }
 
-    public void apply(Mutation mutation, boolean writeCommitLog)
-    {
-        apply(mutation, writeCommitLog, true);
-    }
-
     /**
-     * This method appends a row to the global CommitLog, then updates memtables and indexes.
+     * Applies a batch of mutations to the keyspace, optionally writing to the commit log and updating indexes.
      *
-     * @param mutation       the row to write.  Must not be modified after calling apply, since commitlog append
-     *                       may happen concurrently, depending on the CL Executor type.
-     * @param writeCommitLog false to disable commitlog append entirely
-     * @param updateIndexes  false to disable index updates (used by CollationController "defragmenting")
+     * @param mutations      the mutations to apply
+     * @param writeCommitLog whether to write to the commit log
+     * @param updateIndexes  whether to update secondary indexes
      */
-    public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
+    public void applyAll(Collection<Mutation> mutations, boolean writeCommitLog, boolean updateIndexes)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("Keyspace#apply"))
-        {
-            if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
-                throw new RuntimeException("Testing write failures");
+        if (mutations == null || mutations.isEmpty())
+            return;
+        if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
+            throw new RuntimeException("Testing write failures");
 
+        List<ReplayPosition> replayPositions = null;
+        if (writeCommitLog)
+            replayPositions = CommitLog.instance.addAll(mutations);
+
+        int idx = 0;
+        for (Mutation mutation : mutations)
+        {
             try (OpOrder.Group opGroup = writeOrder.start())
             {
-                // write the mutation to the commitlog and memtables
-                ReplayPosition replayPosition = null;
-                if (writeCommitLog)
-                {
-                    Tracing.trace("Appending to commitlog");
-                    replayPosition = CommitLog.instance.add(mutation);
-                }
-
+                ReplayPosition replayPosition = (writeCommitLog && replayPositions != null) ? replayPositions.get(idx) : null;
+                idx++;
                 DecoratedKey key = StorageService.getPartitioner().decorateKey(mutation.key());
                 for (ColumnFamily cf : mutation.getColumnFamilies())
                 {
@@ -428,15 +423,31 @@ public class Keyspace
                         logger.error("Attempting to mutate non-existant table {}", cf.id());
                         continue;
                     }
-
                     Tracing.trace("Adding to {} memtable", cf.metadata().cfName);
                     SecondaryIndexManager.Updater updater = updateIndexes
-                                                            ? cfs.indexManager.updaterFor(key, cf, opGroup)
-                                                            : SecondaryIndexManager.nullUpdater;
+                        ? cfs.indexManager.updaterFor(key, cf, opGroup)
+                        : SecondaryIndexManager.nullUpdater;
                     cfs.apply(key, cf, updater, opGroup, replayPosition);
                 }
             }
         }
+    }
+
+    // Convenience overload for backward compatibility
+    public void applyAll(Collection<Mutation> mutations, boolean writeCommitLog)
+    {
+        applyAll(mutations, writeCommitLog, true);
+    }
+
+    // Refactor apply() overloads to use applyAll
+    public void apply(Mutation mutation, boolean writeCommitLog)
+    {
+        applyAll(Collections.singletonList(mutation), writeCommitLog);
+    }
+
+    public void apply(Mutation mutation, boolean writeCommitLog, boolean updateIndexes)
+    {
+        applyAll(Collections.singletonList(mutation), writeCommitLog, updateIndexes);
     }
 
     public AbstractReplicationStrategy getReplicationStrategy()
