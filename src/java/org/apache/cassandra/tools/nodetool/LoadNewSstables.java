@@ -28,20 +28,19 @@ import java.util.List;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
-@Command(name = "refresh", description = "Load newly placed SSTables to the system without restart")
-public class Refresh extends NodeToolCmd
+@Command(name = "loadnewsstables", description = "Load the SSTables placed into the keyspace directory into view without restart. "
+                                                 + "The targeted keyspace/cf has to be fully empty, with no existing or prior data otherwise the command will throw. "
+                                                 + "This command should only be used to load a consistent set of sstables from a unique snapshot, "
+                                                 + "otherwise it might lead to unexpected results.")
+public class LoadNewSstables extends NodeToolCmd
 {
     @Arguments(usage = "<keyspace> <table>", description = "The keyspace and table name")
     private List<String> args = new ArrayList<>();
 
-    @Option(title = "empty", name = {"-emp", "--empty"}, description = "Use -emp to indicate the target table is empty"
-            + " and will not be written to until after the new SSTables have completed being loaded")
-    private boolean empty = false;
-
     @Override
     public void execute(NodeProbe probe)
     {
-        checkArgument(args.size() == 2, "refresh requires ks and cf args");
-        probe.loadNewSSTables(args.get(0), args.get(1), empty);
+        checkArgument(args.size() == 2, "loadnewsstables requires ks and cf args");
+        probe.loadNewSSTables(args.get(0), args.get(1));
     }
 }

@@ -202,6 +202,21 @@ public class Tracker
         }
     }
 
+    public void addSSTablesToEmptyView(Iterable<SSTableReader> sstables)
+    {
+        if (!isDummy())
+            setupKeycache(sstables);
+        if (apply(view -> view.sstables.isEmpty(), updateLiveSet(emptySet(), sstables)) == null)
+        {
+            throw new RuntimeException("addSSTablesToEmptyView called on data tracker with non-empty view");
+        }
+        maybeFail(updateSizeTracking(emptySet(), sstables, null));
+        for (SSTableReader sstable : sstables)
+        {
+            notifyAdded(sstable);
+        }
+    }
+
     /** (Re)initializes the tracker, purging all references. */
     @VisibleForTesting
     public void reset(Memtable memtable)

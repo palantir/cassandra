@@ -690,42 +690,13 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public void rescheduleFailedDeletions();
 
     /**
-     * Load new SSTables to the given keyspace/columnFamily
+     * Load new SSTables to the given keyspace/columnFamily.
+     * This method expects and verifies the column family is empty before and while loading the new SSTables.
      *
      * @param ksName The parent keyspace name
      * @param cfName The ColumnFamily name where SSTables belong
      */
     public void loadNewSSTables(String ksName, String cfName);
-
-    /**
-     * Load new SSTables to the given keyspace/columnFamily
-     *
-     * @param ksName            The parent keyspace name
-     * @param cfName            The ColumnFamily name where SSTables belong
-     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
-     */
-    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty);
-
-    /**
-     * Load new SSTables to the given keyspace/columnFamily
-     *
-     * @param ksName The parent keyspace name
-     * @param cfName The ColumnFamily name where SSTables belong
-     *
-     * @return the number of new sstables loaded
-     */
-    public int loadNewSSTablesWithCount(String ksName, String cfName);
-
-    /**
-     * Load new SSTables to the given keyspace/columnFamily
-     *
-     * @param ksName            The parent keyspace name
-     * @param cfName            The ColumnFamily name where SSTables belong
-     * @param assumeCfIsEmpty   Whether or not we can assume the column family is empty before and while loading the new SSTables
-     *
-     * @return the number of new sstables loaded
-     */
-    public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty);
 
     /**
      * Return a List of Tokens representing a sample of keys across all ColumnFamilyStores.

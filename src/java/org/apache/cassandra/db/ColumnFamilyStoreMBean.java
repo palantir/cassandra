@@ -133,17 +133,10 @@ public interface ColumnFamilyStoreMBean
     public List<String> getSSTablesForKey(String key);
 
     /**
-     * Scan through Keyspace/ColumnFamily's data directory
-     * determine which SSTables should be loaded and load them
+     * Loads new SSTables into the column family view.
+     * This method expects and verifies the column family is empty before and while loading the new SSTables.
      */
     public void loadNewSSTables();
-
-    /**
-     * Scan through Keyspace/ColumnFamily's data directory
-     * determine which SSTables should be loaded and load them
-     * @return the number of sstables loaded
-     */
-    public int loadNewSSTablesWithCount();
 
     /**
      * @return the number of SSTables in L0.  Always return 0 if Leveled compaction is not enabled.

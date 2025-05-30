@@ -23,7 +23,6 @@ import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.function.Consumer;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
@@ -118,7 +117,7 @@ public class NodeTool
                 ProxyHistograms.class,
                 Rebuild.class,
                 GetKeyspacesWithAllRangesAvailable.class,
-                Refresh.class,
+                LoadNewSstables.class,
                 RemoveNode.class,
                 Assassinate.class,
                 Repair.class,

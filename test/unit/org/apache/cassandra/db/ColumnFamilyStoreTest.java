@@ -99,6 +99,8 @@ import static org.apache.cassandra.Util.column;
 import static org.apache.cassandra.Util.dk;
 import static org.apache.cassandra.Util.rp;
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -1165,7 +1167,7 @@ public class ColumnFamilyStoreTest
         assert statsFile.exists();
         boolean deleted = statsFile.delete();
         assert deleted : "Cannot delete " + statsFile;
-        cfs.loadNewSSTables();
+        cfs.unsafeLoadNewSSTablesWithRewrite();
 
         // Add another cell with a lower timestamp
         putColsStandard(cfs, key, new BufferCell(cname, ByteBufferUtil.bytes("b"), 1));
@@ -2092,7 +2094,129 @@ public class ColumnFamilyStoreTest
     }
 
     @Test
-    public void testLoadNewSSTablesAvoidsOverwrites() throws Throwable
+    public void testloadNewSSTablesThrowsWhenExistingSstable() throws Throwable
+    {
+        String ks = KEYSPACE1;
+        String cf = CF_STANDARD5;
+        ColumnFamilyStore cfs = Keyspace.open(ks).getColumnFamilyStore(cf);
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Directories dir = new Directories(cfs.metadata);
+
+        ByteBuffer key = bytes("key");
+
+        SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                                             cfmeta, StorageService.getPartitioner());
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+        cfs.loadNewSSTables();
+
+        writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                         cfmeta, StorageService.getPartitioner());
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        assertEquals(1, cfs.getSSTables().size());
+
+        Set<Integer> sstablesOnDisk = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            sstablesOnDisk.add(descriptor.generation);
+
+        assertEquals(2, sstablesOnDisk.size());
+
+        assertThatThrownBy(cfs::loadNewSSTables)
+            .hasMessageContaining("Calling loadNewSstable on a cf with existing sstables");
+    }
+
+    @Test
+    public void testloadNewSSTablesDoesNotRewriteGenerations() throws Throwable
+    {
+        String ks = KEYSPACE1;
+        String cf = CF_STANDARD5;
+        ColumnFamilyStore cfs = Keyspace.open(ks).getColumnFamilyStore(cf);
+        final CFMetaData cfmeta = Schema.instance.getCFMetaData(ks, cf);
+        Directories dir = new Directories(cfs.metadata);
+        cfs.truncateBlocking();
+        SSTableDeletingTask.waitForDeletions();
+
+        // clear old SSTables (probably left by CFS.clearUnsafe() calls in other tests)
+        for (Map.Entry<Descriptor, Set<Component>> entry : dir.sstableLister().list().entrySet())
+        {
+            for (Component component : entry.getValue())
+            {
+                FileUtils.delete(entry.getKey().filenameFor(component));
+            }
+        }
+
+        // sanity check
+        int existingSSTables = dir.sstableLister().list().keySet().size();
+        assert existingSSTables == 0 : String.format("%d SSTables unexpectedly exist", existingSSTables);
+
+        ByteBuffer key = bytes("key");
+
+        SSTableSimpleWriter writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                                             cfmeta, StorageService.getPartitioner())
+        {
+            @Override
+            protected SSTableWriter getWriter()
+            {
+                // hack for reset generation
+                generation.set(7);
+                return super.getWriter();
+            }
+        };
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        writer = new SSTableSimpleWriter(dir.getDirectoryForNewSSTables(),
+                                         cfmeta, StorageService.getPartitioner());
+        writer.newRow(key);
+        writer.addColumn(bytes("col"), bytes("val"), 1);
+        writer.close();
+
+        Set<Integer> generations = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            generations.add(descriptor.generation);
+
+        // we should have two generations: [8, 9]
+        assertEquals(2, generations.size());
+        assertTrue(generations.contains(8));
+        assertTrue(generations.contains(9));
+
+        assertEquals(0, cfs.getSSTables().size());
+
+        // start the generation counter at 0 again (other tests have incremented it already)
+        cfs.resetFileIndexGenerator();
+
+        boolean incrementalBackupsEnabled = DatabaseDescriptor.isIncrementalBackupsEnabled();
+        try
+        {
+            // avoid duplicate hardlinks to incremental backups
+            DatabaseDescriptor.setIncrementalBackupsEnabled(false);
+            cfs.loadNewSSTables();
+        }
+        finally
+        {
+            DatabaseDescriptor.setIncrementalBackupsEnabled(incrementalBackupsEnabled);
+        }
+
+        assertEquals(2, cfs.getSSTables().size());
+        generations = new HashSet<>();
+        for (Descriptor descriptor : dir.sstableLister().list().keySet())
+            generations.add(descriptor.generation);
+
+        assertEquals(2, generations.size());
+        assertTrue(generations.contains(8));
+        assertTrue(generations.contains(9));
+        assertEquals(2, cfs.getSSTables().size());
+        assertEquals(9, cfs.getFileIndexGenerator());
+        cfs.clearUnsafe();
+    }
+
+    @Test
+    public void testUnsafeLoadNewSSTablesWithRewrite() throws Throwable
     {
         String ks = KEYSPACE1;
         String cf = CF_STANDARD5;
@@ -2158,7 +2282,7 @@ public class ColumnFamilyStoreTest
         {
             // avoid duplicate hardlinks to incremental backups
             DatabaseDescriptor.setIncrementalBackupsEnabled(false);
-            cfs.loadNewSSTables();
+            cfs.unsafeLoadNewSSTablesWithRewrite();
         }
         finally
         {

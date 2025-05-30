@@ -5206,35 +5206,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
      */
     public void loadNewSSTables(String ksName, String cfName)
     {
-        //ColumnFamilyStore.loadNewSSTables(ksName, cfName, false);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
-    }
-
-    /**
-     * #{@inheritDoc}
-     */
-    public void loadNewSSTables(String ksName, String cfName, boolean assumeCfIsEmpty)
-    {
-        //ColumnFamilyStore.loadNewSSTables(ksName, cfName, assumeCfIsEmpty);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
-    }
-
-    /**
-     * #{@inheritDoc}
-     */
-    public int loadNewSSTablesWithCount(String ksName, String cfName)
-    {
-        //return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, false);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
-    }
-
-    /**
-     * #{@inheritDoc}
-     */
-    public int loadNewSSTablesWithCount(String ksName, String cfName, boolean assumeCfIsEmpty)
-    {
-        //return ColumnFamilyStore.loadNewSSTablesWithCount(ksName, cfName, assumeCfIsEmpty);
-        throw new UnsupportedOperationException("Cannot load SSTables on version 2.2.18-1.165.0+.");
+        if(!isNewCluster())
+            throw new RuntimeException("Failure: is_new_cluster config is false. "
+                                        + "Using loadnewsstable on active production cluster could lead to sstable/data conflicts.");
+        if (!isInitialized())
+            throw new RuntimeException("StorageService not yet initialized, can't load new sstables");
+        ColumnFamilyStore.loadNewSSTables(ksName, cfName);
     }
 
     /**

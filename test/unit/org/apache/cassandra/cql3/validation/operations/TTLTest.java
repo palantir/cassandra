@@ -316,7 +316,7 @@ public class TTLTest extends CQLTester
 
         copySSTablesToTableDir(currentTable(), simple, clustering);
 
-        cfs.loadNewSSTables();
+        cfs.unsafeLoadNewSSTablesWithRewrite();
 
         if (runScrub)
         {
