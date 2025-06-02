@@ -119,6 +119,7 @@ public class Config
     public Integer concurrent_counter_writes = 32;
     public Boolean commitlog_use_progress_wait_queue = false;
     public Boolean always_async_write = false;
+    public Boolean batch_local_writes = false;
 
     @Deprecated
     public Integer concurrent_replicates = null;
