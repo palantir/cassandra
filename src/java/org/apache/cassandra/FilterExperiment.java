@@ -18,18 +18,13 @@
 
 package org.apache.cassandra;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.slf4j.Logger;
@@ -143,7 +138,7 @@ public enum FilterExperiment
             boolean areEqual = !iterator(legacy).hasNext();
             return areEqual ? ComparisonResult.EQUAL : ComparisonResult.MODERN_WAS_NULL;
         } else {
-            return compareByIterator(iterator(legacy), iterator(modern));
+            return compareByIterator(iterator(legacy), iterator(modern), legacy.metadata());
         }
     }
 
@@ -162,9 +157,9 @@ public enum FilterExperiment
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
     }
 
-    static ComparisonResult compareByIterator(Iterator<Cell> legacyIterator, Iterator<Cell> modernIterator)
+    static ComparisonResult compareByIterator(Iterator<Cell> legacyIterator, Iterator<Cell> modernIterator, CFMetaData metadata)
     {
-        List<String> differences = new ArrayList<>();
+        int differences = 0;
         int index = -1;
         while (legacyIterator.hasNext() || modernIterator.hasNext())
         {
@@ -178,39 +173,42 @@ public enum FilterExperiment
                 {
                     continue;
                 }
-                differences.add(notEqual(index, legacy, modern));
+                log.warn("Items were not equal when comparing by iterator. Keyspace: {}, ColumnFamily: {}, index: {}, legacyClassName: {}, modernClassName: {}, timestampMatches: {}, nameMatches: {}, valueMatches: {}, legacySerializationFlags: {}, modernSerializationFlags: {}",
+                         SafeArg.of("keyspace", metadata.ksName),
+                         SafeArg.of("columnFamily", metadata.cfName),
+                         SafeArg.of("index", index),
+                         SafeArg.of("legacyClassName", legacy.getClass().getName()),
+                         SafeArg.of("modernClassName", modern.getClass().getName()),
+                         // These are what are compared in the .equals() implementation for AbstractCell.
+                         // TODO(lkjaerozhang): Follow up with information for the other types of cells.
+                         SafeArg.of("timestampMatches", legacy.timestamp() == modern.timestamp()),
+                         SafeArg.of("nameMatches", legacy.name() == modern.name()),
+                         SafeArg.of("valueMatches", legacy.value() == modern.value()),
+                         SafeArg.of("legacySerializationFlags", legacy.serializationFlags()),
+                         SafeArg.of("modernSerializationFlags", modern.serializationFlags()));
+                differences++;
             }
             else
             {
-                differences.add(missingItem(index, legacy != null, modern != null));
+                log.warn("Mismatched number of items at index {} when comparing by iterator. Legacy: {}, Modern: {}, Keyspace: {}, ColumnFamily: {}",
+                         SafeArg.of("index", index),
+                         SafeArg.of("hasLegacy", legacy != null),
+                         SafeArg.of("hasModern", modern != null),
+                         SafeArg.of("keyspace", metadata.ksName),
+                         SafeArg.of("columnFamily", metadata.cfName));
+                differences++;
             }
         }
 
-        if (differences.isEmpty()) {
+        if (differences == 0) {
             return ComparisonResult.EQUAL;
         } else {
-            log.warn("Column families returned different results via iterator: {}", SafeArg.of("differences", differences));
+            log.warn("Column families returned different results via iterator: {}, Keyspace: {}, ColumnFamily: {}",
+                     SafeArg.of("differences", differences),
+                     SafeArg.of("keyspace", metadata.ksName),
+                     SafeArg.of("columnFamily", metadata.cfName));
             return ComparisonResult.NOT_EQUAL_BY_ITERATOR;
         }
-    }
-
-    private static String missingItem(int index, boolean hasLegacyCell, boolean hasModernCell) {
-        return String.format("[%s: MissingItem(hasLegacyCell=%s, hasModernCell=%s)]",
-                             index, hasLegacyCell, hasModernCell);
-    }
-
-    private static String notEqual(int index, Cell legacy, Cell modern) {
-        return String.format("[%s: NotEqual(legacyClassName=%s, modernClassName=%s, timestampMatches=%s, nameMatches=%s, valueMatches=%s, legacySerializationFlags=%s, modernSerializationFlags=%s)]",
-                             index,
-                             legacy.getClass().getName(),
-                             modern.getClass().getName(),
-                             // These are what are compared in the .equals() implementation for AbstractCell.
-                             // TODO(lkjaerozhang): Follow up with information for the other types of cells.
-                             legacy.timestamp() == modern.timestamp(),
-                             legacy.name() == modern.name(),
-                             legacy.value() == modern.value(),
-                             legacy.serializationFlags(),
-                             modern.serializationFlags());
     }
 
     private static SafeArg safeLoggableColumnFamilyMetadata(String argName, ColumnFamily columnFamily) {
