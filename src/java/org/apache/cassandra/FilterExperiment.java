@@ -18,6 +18,7 @@
 
 package org.apache.cassandra;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +45,7 @@ import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.metrics.CassandraMetricsRegistry;
 import org.apache.cassandra.metrics.DefaultNameFactory;
 import org.apache.cassandra.metrics.MetricNameFactory;
+import org.apache.thrift.annotation.Nullable;
 
 public enum FilterExperiment
 {
@@ -150,9 +152,10 @@ public enum FilterExperiment
                                 Predicates.not(columnFamily.inOrderDeletionTester()::isDeleted));
     }
 
-    private static Optional<Cell> getNext(Iterator<Cell> iterator)
+    @Nullable
+    private static Cell getNext(Iterator<Cell> iterator)
     {
-        return iterator.hasNext() ? Optional.ofNullable(iterator.next()) : Optional.empty();
+        return iterator.hasNext() ? iterator.next() : null;
     }
 
     static boolean areTrulyEqual(ColumnFamily legacy, ColumnFamily modern) {
@@ -161,28 +164,27 @@ public enum FilterExperiment
 
     static ComparisonResult compareByIterator(Iterator<Cell> legacyIterator, Iterator<Cell> modernIterator)
     {
-        ImmutableList.Builder<String> differencesBuilder = ImmutableList.builder();
+        List<String> differences = new ArrayList<>();
         int index = -1;
         while (legacyIterator.hasNext() || modernIterator.hasNext())
         {
             index++;
-            Optional<Cell> legacy = getNext(legacyIterator);
-            Optional<Cell> modern = getNext(modernIterator);
+            Cell legacy = getNext(legacyIterator);
+            Cell modern = getNext(modernIterator);
 
-            if (legacy.isPresent() && modern.isPresent())
+            if (legacy != null && modern != null)
             {
-                if (legacy.get().equals(modern.get()))
+                if (legacy.equals(modern))
                 {
                     continue;
                 }
-                differencesBuilder.add(notEqual(index, legacy.get(), modern.get()));
+                differences.add(notEqual(index, legacy, modern));
             }
             else
             {
-                differencesBuilder.add(missingItem(index, legacy.isPresent(), modern.isPresent()));
+                differences.add(missingItem(index, legacy != null, modern != null));
             }
         }
-        List<String> differences = differencesBuilder.build();
 
         if (differences.isEmpty()) {
             return ComparisonResult.EQUAL;
