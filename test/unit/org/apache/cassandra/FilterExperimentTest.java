@@ -51,6 +51,13 @@ public class FilterExperimentTest
     }
 
     @Test
+    public void testAreEqual_falseIfNotEqual() {
+        ColumnFamily left = cf(value('a'), value('d'));
+        ColumnFamily right = cf(value('a'), value('c'));
+        assertThat(FilterExperiment.areEqual(left, right).isEqual()).isFalse();
+    }
+
+    @Test
     public void testAreEqual_trueIfEqual_cellwise() {
         ColumnFamily left = cf(value('a'), value('d'));
         ColumnFamily right = cf(value('a'), value('b'), rangeDelete('b', 'c'), value('d'));
