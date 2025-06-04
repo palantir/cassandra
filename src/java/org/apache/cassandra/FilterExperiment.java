@@ -61,8 +61,11 @@ public enum FilterExperiment
 
     public static ColumnFamily execute(
             Function<FilterExperiment, ColumnFamily> function,
-            Function<FilterExperiment, ColumnFamily> fallback) {
-        if (!shouldRunExperiment()) {
+            Function<FilterExperiment, ColumnFamily> fallback,
+            boolean forceUseLegacy)
+    {
+        if (forceUseLegacy || !shouldRunExperiment())
+        {
             return function.apply(USE_LEGACY);
         }
         ColumnFamily legacyResult = time(() -> function.apply(USE_LEGACY), legacyTimer);
