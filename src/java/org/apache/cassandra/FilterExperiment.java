@@ -62,9 +62,9 @@ public enum FilterExperiment
     public static ColumnFamily execute(
             Function<FilterExperiment, ColumnFamily> function,
             Function<FilterExperiment, ColumnFamily> fallback,
-            boolean forceUseLegacy)
+            boolean forceSkipExperiment)
     {
-        if (forceUseLegacy || !shouldRunExperiment())
+        if (forceSkipExperiment || !shouldRunExperiment())
         {
             return function.apply(USE_LEGACY);
         }
