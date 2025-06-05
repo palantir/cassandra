@@ -514,9 +514,8 @@ public class CassandraServer implements Cassandra.Iface
     }
 
     @Override
-    public Map<ByteBuffer, PageResult> multiget_slice_paging(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level, TraceMetadata trace_metadata) throws InvalidRequestException, UnavailableException, TimedOutException, TException
+    public Map<ByteBuffer, PageResult> multiget_slice_paging(List<ByteBuffer> keys, ColumnParent column_parent, SlicePredicate predicate, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        PalantirTracing.initializeTracerFromIncomingThriftMessage("multiget_slice_paging", trace_metadata);
         if (startSessionIfRequested())
         {
             List<String> keysList = Lists.newArrayList();
@@ -551,7 +550,6 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
-            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -603,9 +601,8 @@ public class CassandraServer implements Cassandra.Iface
     }
 
     @Override
-    public Map<ByteBuffer, List<PageResult>> multiget_multislice_paging(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level, TraceMetadata trace_metadata) throws InvalidRequestException, UnavailableException, TimedOutException, TException
+    public Map<ByteBuffer, List<PageResult>> multiget_multislice_paging(List<KeyPredicate> request, ColumnParent column_parent, ConsistencyLevel consistency_level) throws InvalidRequestException, UnavailableException, TimedOutException, TException
     {
-        PalantirTracing.initializeTracerFromIncomingThriftMessage("multiget_multislice_paging", trace_metadata);
         if (startSessionIfRequested())
         {
             List<Pair<String, SlicePredicate>> keyPredicates = Lists.newArrayList();
@@ -640,7 +637,6 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
-            PalantirTracing.closeServerSpanThrift();
         }
     }
 
@@ -1793,10 +1789,9 @@ public class CassandraServer implements Cassandra.Iface
         }
     }
 
-    public List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level, TraceMetadata trace_metadata)
+    public List<KeySlicePage> get_range_slices_paging(ColumnParent column_parent, SlicePredicate predicate, KeyRange range, ConsistencyLevel consistency_level)
             throws InvalidRequestException, UnavailableException, TException, TimedOutException
     {
-        PalantirTracing.initializeTracerFromIncomingThriftMessage("multiget_multislice_paging", trace_metadata);
         if (startSessionIfRequested())
         {
             Map<String, String> traceParameters = ImmutableMap.of(
@@ -1878,7 +1873,6 @@ public class CassandraServer implements Cassandra.Iface
         finally
         {
             Tracing.instance.stopSession();
-            PalantirTracing.closeServerSpanThrift();
         }
     }
 

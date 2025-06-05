@@ -91,7 +91,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_1, cp);
 
         Map<ByteBuffer, PageResult> result = server.multiget_slice_paging(ImmutableList.of(PARTITION_1), cp, SLICE_PREDICATE_A_TO_Z,
-                ConsistencyLevel.ONE, null);
+                ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(1);
         assertThat(result.get(PARTITION_1).getColumns().size()).isEqualTo(4);
@@ -107,7 +107,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_2, cp);
 
         Map<ByteBuffer, PageResult> result = server.multiget_slice_paging(ImmutableList.of(PARTITION_1, PARTITION_2), cp, SLICE_PREDICATE_A_TO_Z,
-                ConsistencyLevel.ONE, null);
+                ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -128,7 +128,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_2, cp);
 
         Map<ByteBuffer, PageResult> result = server.multiget_slice_paging(ImmutableList.of(PARTITION_1, PARTITION_2), cp, SLICE_PREDICATE_E_TO_Z,
-                ConsistencyLevel.ONE, null);
+                ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -149,7 +149,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_2, cp);
 
         Map<ByteBuffer, PageResult> result = server.multiget_slice_paging(ImmutableList.of(PARTITION_1, PARTITION_2), cp, SLICE_PREDICATE_FROM_Y,
-                ConsistencyLevel.ONE, null);
+                ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -170,7 +170,7 @@ public class ResumableRangeScanThriftTest
         boolean caughtExpectedError = false;
         try
         {
-            server.multiget_slice_paging(ImmutableList.of(PARTITION_1), cp, REVERSED_SLICE_PREDICATE, ConsistencyLevel.ONE, null);
+            server.multiget_slice_paging(ImmutableList.of(PARTITION_1), cp, REVERSED_SLICE_PREDICATE, ConsistencyLevel.ONE);
         }
         catch (AssertionError e)
         {
@@ -191,7 +191,7 @@ public class ResumableRangeScanThriftTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_RANGE_FROM_A_TO_Z);
 
-        Map<ByteBuffer, List<PageResult>> result = server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE, null);
+        Map<ByteBuffer, List<PageResult>> result = server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(1);
         assertThat(result.get(PARTITION_1).size()).isEqualTo(1);
@@ -209,7 +209,7 @@ public class ResumableRangeScanThriftTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_RANGE_FROM_A_TO_Z, PARTITION_2_RANGE_FROM_E_TO_Z);
 
-        Map<ByteBuffer, List<PageResult>> result = server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE, null);
+        Map<ByteBuffer, List<PageResult>> result = server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -232,7 +232,7 @@ public class ResumableRangeScanThriftTest
 
         List<KeyPredicate> request = ImmutableList.of(PARTITION_1_RANGE_FROM_A_TO_Z, PARTITION_1_RANGE_FROM_Y);
 
-        Map<ByteBuffer, List<PageResult>> result = server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE, null);
+        Map<ByteBuffer, List<PageResult>> result = server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(1);
         assertThat(result.get(PARTITION_1).size()).isEqualTo(2);
@@ -255,7 +255,7 @@ public class ResumableRangeScanThriftTest
         boolean caughtExpectedError = false;
         try
         {
-            server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE, null);
+            server.multiget_multislice_paging(request, cp, ConsistencyLevel.ONE);
         }
         catch (AssertionError e)
         {
@@ -274,7 +274,7 @@ public class ResumableRangeScanThriftTest
         ColumnParent cp = new ColumnParent(COLUMN_FAMILY);
         addTheAlphabetToRow(PARTITION_1, cp);
 
-        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_A_TO_Z, KEY_RANGE_1, ConsistencyLevel.ONE, null);
+        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_A_TO_Z, KEY_RANGE_1, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(1);
         assertThat(result.get(0).getPageResult().getColumns().size()).isEqualTo(4);
@@ -289,7 +289,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_1, cp);
         addTheAlphabetToRow(PARTITION_2, cp);
 
-        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_A_TO_Z, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE, null);
+        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_A_TO_Z, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -309,7 +309,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_1, cp);
         addTheAlphabetToRow(PARTITION_2, cp);
 
-        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_E_TO_Z, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE, null);
+        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_E_TO_Z, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -329,7 +329,7 @@ public class ResumableRangeScanThriftTest
         addTheAlphabetToRow(PARTITION_1, cp);
         addTheAlphabetToRow(PARTITION_2, cp);
 
-        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_FROM_Y, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE, null);
+        List<KeySlicePage> result = server.get_range_slices_paging(cp, SLICE_PREDICATE_FROM_Y, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE);
 
         assertThat(result.size()).isEqualTo(2);
 
@@ -350,7 +350,7 @@ public class ResumableRangeScanThriftTest
         boolean caughtExpectedError = false;
         try
         {
-            server.get_range_slices_paging(cp, REVERSED_SLICE_PREDICATE, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE, null);
+            server.get_range_slices_paging(cp, REVERSED_SLICE_PREDICATE, KEY_RANGE_1_TO_2, ConsistencyLevel.ONE);
         }
         catch (AssertionError e)
         {
