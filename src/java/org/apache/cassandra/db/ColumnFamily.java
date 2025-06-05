@@ -21,13 +21,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -76,10 +70,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     {
         T cf = factory.create(metadata, reversedInsertOrder);
         cf.delete(this);
-        if (pageToken != null)
-        {
-            cf.setPageToken(pageToken);
-        }
         return cf;
     }
 
@@ -104,41 +94,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
                               ? new ColumnCounter(now)
                               : new ColumnCounter.GroupByPrefix(now, getComparator(), metadata.clusteringColumns().size(), true);
         return counter.countAll(this).live();
-    }
-
-    public ColumnFamily cloneMeLimitByPageToken(PageToken pageToken)
-    {
-        if (pageToken == null || pageToken.isReachedEnd())
-        {
-            return this;
-        }
-
-        ColumnFamily cf = cloneMeShallow();
-        cf.delete(this);
-        cf.setPageToken(pageToken);
-
-        CellNameType comparator = getComparator();
-        for (Iterator<Cell> iter = getSortedColumns().iterator(); iter.hasNext(); )
-        {
-            Cell cell = iter.next();
-            if (comparator.compare(cell.name(), pageToken.getCell().name()) < 0)
-            {
-                cf.addColumn(cell);
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        return cf;
-    }
-
-    public void setPageToken(PageToken pageToken)
-    {
-        assert pageToken != null;
-
-        this.pageToken = pageToken;
     }
 
     public void setPageToken(Cell cell)
@@ -169,17 +124,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
     /**
      * Clones the column map.
      */
-    public ColumnFamily cloneMe()
-    {
-        ColumnFamily cf = cloneMeInternal();
-        if (pageToken != null)
-        {
-            cf.setPageToken(pageToken);
-        }
-        return cf;
-    }
-
-    abstract ColumnFamily cloneMeInternal();
+    public abstract ColumnFamily cloneMe();
 
     public UUID id()
     {
@@ -261,7 +206,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 
     public abstract void delete(DeletionInfo info);
     public abstract void delete(DeletionTime deletionTime);
-    public abstract void delete(RangeTombstone tombstone);
+    protected abstract void delete(RangeTombstone tombstone);
 
     public abstract SearchIterator<CellName, Cell> searchIterator();
 

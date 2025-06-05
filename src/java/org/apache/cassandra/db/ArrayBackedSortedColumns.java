@@ -101,7 +101,7 @@ public class ArrayBackedSortedColumns extends ColumnFamily
         return factory;
     }
 
-    public ColumnFamily cloneMeInternal()
+    public ColumnFamily cloneMe()
     {
         return new ArrayBackedSortedColumns(this);
     }
@@ -485,7 +485,7 @@ public class ArrayBackedSortedColumns extends ColumnFamily
         deletionInfo.add(newInfo);
     }
 
-    public void delete(RangeTombstone tombstone)
+    protected void delete(RangeTombstone tombstone)
     {
         deletionInfo.add(tombstone, getComparator());
     }

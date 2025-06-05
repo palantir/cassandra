@@ -22,12 +22,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.cassandra.utils.Pair;
 
 /*
  * The read response message is sent by the server when reading data
@@ -37,28 +34,27 @@ import org.apache.cassandra.utils.Pair;
 public class ReadResponse
 {
     public static final IVersionedSerializer<ReadResponse> serializer = new ReadResponseSerializer();
-    private static final AtomicReferenceFieldUpdater<ReadResponse, Pair<ByteBuffer, PageTokenDigest>> digestUpdater =
-            AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, (Class<Pair<ByteBuffer, PageTokenDigest>>) (Class<?>) Pair.class, "digest");
+    private static final AtomicReferenceFieldUpdater<ReadResponse, ByteBuffer> digestUpdater = AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, ByteBuffer.class, "digest");
 
     private final Row row;
-    private volatile Pair<ByteBuffer, PageTokenDigest> digest;
+    private volatile ByteBuffer digest;
 
-    public ReadResponse(ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
+    public ReadResponse(ByteBuffer digest)
     {
-        this(null, dataDigest, pageTokenDigest);
-        assert dataDigest != null;
+        this(null, digest);
+        assert digest != null;
     }
 
     public ReadResponse(Row row)
     {
-        this(row, null, null);
+        this(row, null);
         assert row != null;
     }
 
-    private ReadResponse(Row row, ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
+    public ReadResponse(Row row, ByteBuffer digest)
     {
         this.row = row;
-        this.digest = Pair.create(dataDigest, pageTokenDigest);
+        this.digest = digest;
     }
 
     public Row row()
@@ -68,26 +64,18 @@ public class ReadResponse
 
     public ByteBuffer digest()
     {
-        return digest.left;
+        return digest;
     }
 
-    public PageTokenDigest pageTokenDigest()
+    public void setDigest(ByteBuffer digest)
     {
-        return digest.right;
-    }
-
-    public void setDigest(ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
-    {
-        Pair<ByteBuffer, PageTokenDigest> curr = this.digest;
-        Pair<ByteBuffer, PageTokenDigest> newDigest = Pair.create(dataDigest, pageTokenDigest);
-        if (!digestUpdater.compareAndSet(this, curr, newDigest))
+        ByteBuffer curr = this.digest;
+        if (!digestUpdater.compareAndSet(this, curr, digest))
         {
-            assert newDigest.equals(this.digest) :
-                    String.format("Digest mismatch : data(%s), pageToken(%s) vs data(%s), pageTokenDigest(%s)",
-                            Arrays.toString(dataDigest.array()),
-                            pageTokenDigest,
-                            Arrays.toString(this.digest.left.array()),
-                            this.digest.right);
+            assert digest.equals(this.digest) :
+                String.format("Digest mismatch : %s vs %s",
+                              Arrays.toString(digest.array()),
+                              Arrays.toString(this.digest.array()));
         }
     }
 
@@ -105,20 +93,8 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         ByteBuffer buffer = response.isDigestQuery() ? response.digest() : ByteBufferUtil.EMPTY_BYTE_BUFFER;
         out.write(buffer);
         out.writeBoolean(response.isDigestQuery());
-        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_PLTR)
-        {
-            PageTokenDigest pageTokenDigest = response.pageTokenDigest();
-            boolean pageTokenDigestExists = pageTokenDigest != null;
-            out.writeBoolean(pageTokenDigestExists);
-            if (pageTokenDigestExists)
-            {
-                PageTokenDigest.serializer.serialize(pageTokenDigest, out, version);
-            }
-        }
         if (!response.isDigestQuery())
-        {
             Row.serializer.serialize(response.row(), out, version);
-        }
     }
 
     public ReadResponse deserialize(DataInput in, int version) throws IOException
@@ -133,24 +109,14 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         boolean isDigest = in.readBoolean();
         assert isDigest == digestSize > 0;
 
-        if (isDigest)
+        Row row = null;
+        if (!isDigest)
         {
-            if (version < MessagingService.VERSION_22_PLTR)
-            {
-                return new ReadResponse(ByteBuffer.wrap(digest), null);
-            }
-            boolean pageTokenDigestExists = in.readBoolean();
-            if (pageTokenDigestExists)
-            {
-                PageTokenDigest pageTokenDigest = PageTokenDigest.serializer.deserialize(in, version);
-                return new ReadResponse(ByteBuffer.wrap(digest), pageTokenDigest);
-            }
-            return new ReadResponse(ByteBuffer.wrap(digest), null);
+            // This is coming from a remote host
+            row = Row.serializer.deserialize(in, version, ColumnSerializer.Flag.FROM_REMOTE);
         }
 
-        // This is coming from a remote host
-        Row row = Row.serializer.deserialize(in, version, ColumnSerializer.Flag.FROM_REMOTE);
-        return new ReadResponse(row);
+        return isDigest ? new ReadResponse(ByteBuffer.wrap(digest)) : new ReadResponse(row);
     }
 
     public long serializedSize(ReadResponse response, int version)
@@ -160,20 +126,8 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         int size = typeSizes.sizeof(buffer.remaining());
         size += buffer.remaining();
         size += typeSizes.sizeof(response.isDigestQuery());
-        if (response.isDigestQuery() && version >= MessagingService.VERSION_22_PLTR)
-        {
-            boolean pageTokenDigestExists = response.pageTokenDigest() != null;
-            size += typeSizes.sizeof(pageTokenDigestExists);
-            if (pageTokenDigestExists)
-            {
-                size += PageTokenDigest.serializer.serializedSize(response.pageTokenDigest(), version);
-            }
-        }
         if (!response.isDigestQuery())
-        {
             size += Row.serializer.serializedSize(response.row(), version);
-        }
-
         return size;
     }
 }

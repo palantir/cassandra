@@ -22,17 +22,13 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import com.google.common.collect.Iterables;
 
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
-import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
@@ -118,9 +114,7 @@ public class RowDataResolver extends AbstractRowResolver
 
         for (int i = 0; i < versions.size(); i++)
         {
-            ColumnFamily version = versions.get(i);
-            version = version == null ? null : version.cloneMeLimitByPageToken(resolved == null ? null : resolved.pageToken());
-            ColumnFamily diffCf = ColumnFamily.diff(version, resolved);
+            ColumnFamily diffCf = ColumnFamily.diff(versions.get(i), resolved);
             if (diffCf == null) // no repair needs to happen
                 continue;
 
@@ -163,36 +157,7 @@ public class RowDataResolver extends AbstractRowResolver
             if (version != null)
                 iters.add(FBUtilities.closeableIterator(version.iterator()));
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
-        resolved = ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
-        PageToken resolvedPageToken = resolvedPageToken(versions, resolved);
-        return resolved == null ? null : resolved.cloneMeLimitByPageToken(resolvedPageToken);
-    }
-
-    private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
-    {
-        PageToken resolvedPageToken = resolved.pageToken();
-        PageToken.Comparator comparator = null;
-
-        for (ColumnFamily version : versions)
-        {
-            if (version != null && version.isPageTokenSet())
-            {
-                if (comparator == null)
-                {
-                    comparator = new PageToken.Comparator(version.getComparator());
-                }
-                if (resolvedPageToken == null)
-                {
-                    resolvedPageToken = version.pageToken();
-                }
-                else if (comparator.compare(version.pageToken(), resolvedPageToken) < 0)
-                {
-                    resolvedPageToken = version.pageToken();
-                }
-            }
-        }
-
-        return resolvedPageToken;
+        return ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
     }
 
     public Row getData()
