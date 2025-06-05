@@ -145,7 +145,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
     public SliceQueryFilter cloneShallow()
     {
-        return new SliceQueryFilter(slices, reversed, usePageToken, count, compositesToGroup);
+        return new SliceQueryFilter(slices, reversed, count, compositesToGroup);
     }
 
     public SliceQueryFilter withUpdatedCount(int newCount)
