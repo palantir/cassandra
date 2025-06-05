@@ -21,7 +21,12 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -34,7 +39,6 @@ import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.db.composites.CellNames;
 import org.apache.cassandra.db.filter.ColumnCounter;
 import org.apache.cassandra.db.filter.ColumnSlice;
-import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.io.sstable.ColumnNameHelper;
 import org.apache.cassandra.io.sstable.ColumnStats;
 import org.apache.cassandra.io.sstable.SSTable;
@@ -51,14 +55,10 @@ import org.apache.cassandra.utils.*;
  */
 public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
 {
-    /* The column serializer for this Column Family. Create based on config. Used for everything except Row */
+    /* The column serializer for this Column Family. Create based on config. */
     public static final ColumnFamilySerializer serializer = new ColumnFamilySerializer();
-    /* The same serializer as above but aware of page tokens. Only used for Row */
-    public static final ColumnFamilySerializer serializerPageTokenAware = new ColumnFamilyPageTokenAwareSerializer();
 
     protected final CFMetaData metadata;
-
-    private PageToken pageToken;
 
     protected ColumnFamily(CFMetaData metadata)
     {
@@ -94,31 +94,6 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
                               ? new ColumnCounter(now)
                               : new ColumnCounter.GroupByPrefix(now, getComparator(), metadata.clusteringColumns().size(), true);
         return counter.countAll(this).live();
-    }
-
-    public void setPageToken(Cell cell)
-    {
-        assert cell != null;
-        assert pageToken == null;
-
-        pageToken = PageToken.createPageToken(cell);
-    }
-
-    public void setPageTokenEndOfRow()
-    {
-        assert pageToken == null;
-
-        pageToken = PageToken.createPageTokenReachedEnd();
-    }
-
-    public PageToken pageToken()
-    {
-        return pageToken;
-    }
-
-    public boolean isPageTokenSet()
-    {
-        return pageToken != null;
     }
 
     /**
@@ -391,9 +366,8 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         ColumnFamily comparison = (ColumnFamily) o;
 
         return metadata.equals(comparison.metadata)
-                && deletionInfo().equals(comparison.deletionInfo())
-                && ByteBufferUtil.compareUnsigned(digest(this), digest(comparison)) == 0
-                && Objects.equals(pageToken(), comparison.pageToken());
+               && deletionInfo().equals(comparison.deletionInfo())
+               && ByteBufferUtil.compareUnsigned(digest(this), digest(comparison)) == 0;
     }
 
     @Override
@@ -405,7 +379,7 @@ public abstract class ColumnFamily implements Iterable<Cell>, IRowCacheEntry
         if (isMarkedForDelete())
             sb.append(" -").append(deletionInfo()).append("-");
 
-        sb.append(" [").append(CellNames.getColumnsString(getComparator(), this)).append("], pageToken=").append(pageToken()).append(")");
+        sb.append(" [").append(CellNames.getColumnsString(getComparator(), this)).append("])");
         return sb.toString();
     }
 

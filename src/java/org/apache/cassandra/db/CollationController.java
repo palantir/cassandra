@@ -310,15 +310,7 @@ public class CollationController
             // we need to distinguish between "there is no data at all for this row" (BF will let us rebuild that efficiently)
             // and "there used to be data, but it's gone now" (we should cache the empty CF so we don't need to rebuild that slower)
             if (iterators.isEmpty())
-            {
-                if (filter.filter.usePageToken())
-                {
-                    returnCF.setPageTokenEndOfRow();
-                    return returnCF;
-                }
                 return null;
-            }
-
 
             Tracing.trace("Merging data from memtables and {} sstables", sstablesIterated);
             filter.collateOnDiskAtom(returnCF, iterators, gcBefore, experiment);

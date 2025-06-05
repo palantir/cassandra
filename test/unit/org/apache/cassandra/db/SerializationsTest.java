@@ -30,6 +30,7 @@ import org.apache.cassandra.db.marshal.LongType;
 import org.apache.cassandra.dht.AbstractBounds;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Range;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.util.DataOutputStreamPlus;
 import org.apache.cassandra.locator.SimpleStrategy;
@@ -45,7 +46,6 @@ import org.junit.Test;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class SerializationsTest extends AbstractSerializationsTester
@@ -318,33 +318,6 @@ public class SerializationsTest extends AbstractSerializationsTester
         in.close();
     }
 
-    @Test
-    public void testPageTokenSerializeAndDeserialize() throws IOException
-    {
-        PageToken.Serializer pageTokenSerializer = new PageToken.Serializer(statics.StandardCf.getComparator().columnSerializer());
-        PageToken pageTokenReachedEnd = PageToken.createPageTokenReachedEnd();
-        PageToken pageTokenHasValue = PageToken.createPageToken(statics.cell);
-
-        DataOutputStreamPlus out = getOutput("db.PageToken.bin");
-
-        pageTokenSerializer.serialize(pageTokenReachedEnd, out, getVersion());
-        pageTokenSerializer.serialize(pageTokenHasValue, out, getVersion());
-
-        out.close();
-
-        testSerializedSize(pageTokenReachedEnd, pageTokenSerializer);
-        testSerializedSize(pageTokenHasValue, pageTokenSerializer);
-
-        DataInputStream in = getInput("db.PageToken.bin");
-        PageToken deserializedPageToken1 = pageTokenSerializer.deserialize(in, getVersion());
-        PageToken deserializedPageToken2 = pageTokenSerializer.deserialize(in, getVersion());
-
-        assert deserializedPageToken1.isReachedEnd();
-        assert deserializedPageToken1.getCell() == null;
-        assert !deserializedPageToken2.isReachedEnd();
-        assert deserializedPageToken2.getCell().equals(pageTokenHasValue.getCell());
-    }
-
     private void testWriteResponseWrite() throws IOException
     {
         WriteResponse aff = new WriteResponse();
@@ -405,8 +378,6 @@ public class SerializationsTest extends AbstractSerializationsTester
 
         private final ColumnFamily StandardCf = ArrayBackedSortedColumns.factory.create(KS, StandardCF);
         private final ColumnFamily SuperCf = ArrayBackedSortedColumns.factory.create(KS, SuperCF);
-
-        private final Cell cell = new BufferCell(CellNames.simpleDense(StandardCharsets.UTF_8.encode("dummy")));
 
         private final Row StandardRow = new Row(Util.dk("key0"), StandardCf);
         private final Row SuperRow = new Row(Util.dk("key1"), SuperCf);
