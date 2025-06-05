@@ -31,7 +31,6 @@ import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
-import org.apache.cassandra.utils.Throwables;
 
 public class PageToken
 {
@@ -87,7 +86,7 @@ public class PageToken
         @Override
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
-            Throwables.assertWithError(version >= MessagingService.VERSION_22_PLTR);
+            assert version >= MessagingService.VERSION_22_PLTR;
 
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
@@ -99,7 +98,7 @@ public class PageToken
         @Override
         public PageToken deserialize(DataInput in, int version) throws IOException
         {
-            Throwables.assertWithError(version >= MessagingService.VERSION_22_PLTR);
+            assert version >= MessagingService.VERSION_22_PLTR;
 
             return deserialize(in, ColumnSerializer.Flag.LOCAL, version);
         }
@@ -117,14 +116,14 @@ public class PageToken
         @Override
         public long serializedSize(PageToken pageToken, int version)
         {
-            Throwables.assertWithError(version >= MessagingService.VERSION_22_PLTR);
+            assert version >= MessagingService.VERSION_22_PLTR;
 
             return serializedSize(pageToken, TypeSizes.NATIVE, version);
         }
 
         public long serializedSize(PageToken pagetoken, TypeSizes typeSizes, int version)
         {
-            Throwables.assertWithError(version >= MessagingService.VERSION_22_PLTR);
+            assert version >= MessagingService.VERSION_22_PLTR;
 
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)

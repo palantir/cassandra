@@ -46,7 +46,6 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileDataInput;
 import org.apache.cassandra.service.ClientWarn;
 import org.apache.cassandra.tracing.Tracing;
-import org.apache.cassandra.utils.Throwables;
 
 public class SliceQueryFilter implements IDiskAtomFilter
 {
@@ -337,7 +336,7 @@ public class SliceQueryFilter implements IDiskAtomFilter
         while (!columnCounter.hasSeenAtLeast(count) && reducedCells.hasNext())
         {
             Cell cell = reducedCells.next();
-            Throwables.assertWithError(cell != null);
+            assert cell != null;
 
             if (firstCell == null)
             {
@@ -346,10 +345,10 @@ public class SliceQueryFilter implements IDiskAtomFilter
 
             if (usePageToken && hitRangeScanThreshold(reducedCells.deadAndLiveCells()))
             {
-                Throwables.assertWithError(cell.name() != firstCell,
-                        "Hit the range scan threshold on the first cell. Either the configured threshold is too low or there are unexpected duplicate cells.");
-                Throwables.assertWithError(lastSeenCellInContainer == null || cell.name() != lastSeenCellInContainer,
-                        "Hit the range scan threshold on a cell that is included in the results set. This should never happen.");
+                assert cell.name() != firstCell :
+                        "Hit the range scan threshold on the first cell. Either the configured threshold is too low or there are unexpected duplicate cells.";
+                assert lastSeenCellInContainer == null || cell.name() != lastSeenCellInContainer :
+                        "Hit the range scan threshold on a cell that is included in the results set. This should never happen.";
 
                 container.setPageToken(cell);
                 break;

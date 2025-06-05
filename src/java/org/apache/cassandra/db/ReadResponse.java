@@ -28,7 +28,6 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.Pair;
-import org.apache.cassandra.utils.Throwables;
 
 /*
  * The read response message is sent by the server when reading data
@@ -47,7 +46,7 @@ public class ReadResponse
     public ReadResponse(ByteBuffer dataDigest, PageTokenDigest pageTokenDigest)
     {
         this(null, dataDigest, pageTokenDigest);
-        Throwables.assertWithError(dataDigest != null);
+        assert dataDigest != null;
     }
 
     public ReadResponse(Row row)
@@ -83,12 +82,12 @@ public class ReadResponse
         Pair<ByteBuffer, PageTokenDigest> newDigest = Pair.create(dataDigest, pageTokenDigest);
         if (!digestUpdater.compareAndSet(this, curr, newDigest))
         {
-            Throwables.assertWithError(newDigest.equals(this.digest),
+            assert newDigest.equals(this.digest) :
                     String.format("Digest mismatch : data(%s), pageToken(%s) vs data(%s), pageTokenDigest(%s)",
                             Arrays.toString(dataDigest.array()),
                             pageTokenDigest,
                             Arrays.toString(this.digest.left.array()),
-                            this.digest.right));
+                            this.digest.right);
         }
     }
 

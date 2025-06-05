@@ -67,7 +67,6 @@ import org.apache.cassandra.tracing.PalantirTracing;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.Pair;
-import org.apache.cassandra.utils.Throwables;
 import org.apache.cassandra.utils.UUIDGen;
 import org.apache.thrift.TException;
 
@@ -284,7 +283,7 @@ public class CassandraServer implements Cassandra.Iface
 
     private PageToken thriftifyPageToken(org.apache.cassandra.db.filter.PageToken pageToken)
     {
-        Throwables.assertWithError(pageToken != null, "Page token should never be null when using paging");
+        assert pageToken != null : "Page token should never be null when using paging";
 
         if (pageToken.isReachedEnd())
         {
@@ -402,14 +401,14 @@ public class CassandraServer implements Cassandra.Iface
 
     private PageResult thriftifyColumnFamilyPaging(ColumnFamily cf, long now)
     {
-        Throwables.assertWithError(cf != null, "Resolved column family should never be null when using paging, since it includes a page token");
+        assert cf != null : "Resolved column family should never be null when using paging, since it includes a page token";
 
         if (!cf.hasColumns())
         {
             return new PageResult().setColumns(EMPTY_COLUMNS).setPage_token(thriftifyPageToken(cf.pageToken()));
         }
 
-        Throwables.assertWithError(!cf.metadata().isSuper());
+        assert !cf.metadata().isSuper();
         return thriftifyColumnsPaging(cf.getSortedColumns(), now, cf.pageToken());
     }
 
