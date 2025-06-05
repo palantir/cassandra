@@ -284,7 +284,6 @@ public class Config
 
     public volatile int tombstone_warn_threshold = 1000;
     public volatile int tombstone_failure_threshold = 100000;
-    public volatile int range_scan_cells_read_threshold = 5000000;
 
     public volatile int rowcount_warn_threshold = 10000;
     public volatile int rowcount_failure_threshold = 100000;

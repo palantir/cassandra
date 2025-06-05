@@ -60,9 +60,6 @@ public class CommitLogDescriptor
     /**
      * Increment this number if there is a changes in the commit log disc layout or MessagingVersion changes.
      * Note: make sure to handle {@link #getMessagingVersion()}
-     * Palantir note: As part of resumable range scans, we bump the messaging version for ColumnFamily serialization.
-     * However, that change is not relevant for the commitlog since a mutation will never have a page token, so we do
-     * not increment the version here.
      */
     @VisibleForTesting
     public static final int current_version = VERSION_22;

@@ -157,11 +157,4 @@ public class RowResolverTest
         assertTrue(resolved.isMarkedForDelete());
         assertEquals(2, resolved.deletionInfo().getTopLevelDeletion().markedForDeleteAt);
     }
-
-    @Test
-    public void testResolveAllNulls()
-    {
-        ColumnFamily resolved = RowDataResolver.resolveSuperset(Arrays.asList(null, null, null), System.currentTimeMillis());
-        assertNull(resolved);
-    }
 }
