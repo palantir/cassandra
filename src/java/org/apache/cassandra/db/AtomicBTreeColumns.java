@@ -135,7 +135,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         return factory;
     }
 
-    ColumnFamily cloneMeInternal()
+    public ColumnFamily cloneMeInternal()
     {
         return new AtomicBTreeColumns(metadata, ref);
     }
