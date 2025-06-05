@@ -215,8 +215,10 @@ public class CollationController
                 final ColumnFamily cf = memtable.getColumnFamily(filter.key);
                 if (cf != null)
                 {
-                    filter.delete(returnDeletionInfo, cf);
+                    returnDeletionInfo.add(cf.deletionInfo().getTopLevelDeletion());
+
                     Iterator<Cell> iter = filter.getIterator(cf);
+                    Iterator<RangeTombstone> rangeTombstoneIterator = filter.filter.getRangeTombstoneIterator(cf);
                     if (copyOnHeap)
                     {
                         iter = Iterators.transform(iter, new Function<Cell, Cell>()
@@ -226,8 +228,17 @@ public class CollationController
                                 return cell.localCopy(cf.metadata, HeapAllocator.instance);
                             }
                         });
+
+                        rangeTombstoneIterator = Iterators.transform(rangeTombstoneIterator, new Function<RangeTombstone, RangeTombstone>()
+                        {
+                            public RangeTombstone apply(RangeTombstone ts)
+                            {
+                                return new RangeTombstone(ts.min.copy(cf.metadata, HeapAllocator.instance), ts.max.copy(cf.metadata, HeapAllocator.instance), ts.data.markedForDeleteAt, ts.data.localDeletionTime);
+                            }
+                        });
                     }
                     iterators.add(iter);
+                    iterators.add(rangeTombstoneIterator);
                 }
             }
 
