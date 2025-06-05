@@ -384,7 +384,7 @@ public class ResumableRangeScanThriftTest
                     .setName(ByteBufferUtil.bytes(String.valueOf(ch)))
                     .setValue(new byte[0])
                     .setTimestamp(System.nanoTime());
-            server.insert(key, parent, column, ConsistencyLevel.ONE, null);
+            server.insert(key, parent, column, ConsistencyLevel.ONE);
         }
     }
 }
