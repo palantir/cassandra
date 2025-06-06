@@ -91,6 +91,8 @@ public final class MessagingService implements MessagingServiceMBean
     public static final int VERSION_20 = 7;
     public static final int VERSION_21 = 8;
     public static final int VERSION_22 = 9;
+    // skipping to 50 in attempt to avoid conflicts with oss versions
+    public static final int VERSION_22_PLTR = 50;
     public static final int current_version = VERSION_22;
 
     public static final String FAILURE_CALLBACK_PARAM = "CAL_BAC";

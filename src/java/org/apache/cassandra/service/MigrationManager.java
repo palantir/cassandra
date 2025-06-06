@@ -70,6 +70,9 @@ public class MigrationManager
     public static final int MIGRATION_DELAY_IN_MS = 60000;
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
 
+    // These messaging service versions are known to have compatible schema formats so nodes on these versions are allowed to pull from each other
+    private static final Set<Integer> SCHEMA_COMPATIBLE_VERSIONS_RRS = new HashSet<>(Arrays.asList(MessagingService.VERSION_22, MessagingService.VERSION_22_PLTR));
+
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
 
     private MigrationManager() {}
@@ -228,18 +231,16 @@ public class MigrationManager
     public static boolean shouldPullSchemaFrom(InetAddress endpoint)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
+         * Don't request schema from nodes with an incompatible or unknown major version (may have incompatible schema)
          * Don't request schema from fat clients
          */
-        return MessagingService.instance().knowsVersion(endpoint)
-                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
-                && !Gossiper.instance.isGossipOnlyMember(endpoint);
+        return compatibleVersionsForSchemaPull(endpoint) && !Gossiper.instance.isGossipOnlyMember(endpoint);
     }
 
     public static boolean shouldPullSchemaFrom(InetAddress endpoint, UUID theirVersion)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
+         * Don't request schema from nodes with an incompatible or unknown major version (may have incompatible schema)
          * Don't request schema from fat clients
          * Don't request schema from bootstrapping nodes (?)
          * Don't request schema if we have scheduled a pull request for that schema version
@@ -247,11 +248,27 @@ public class MigrationManager
         Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
         boolean noScheduledRequests = currentlyScheduledRequests.size() < MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
                                       && !currentlyScheduledRequests.contains(endpoint);
-        return MessagingService.instance().knowsVersion(endpoint)
-               && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
-               && !Gossiper.instance.isGossipOnlyMember(endpoint)
-               && !Schema.emptyVersion.equals(theirVersion)
-               && noScheduledRequests;
+        return compatibleVersionsForSchemaPull(endpoint)
+                && !Gossiper.instance.isGossipOnlyMember(endpoint)
+                && !Schema.emptyVersion.equals(theirVersion)
+                && noScheduledRequests;
+    }
+
+    private static boolean compatibleVersionsForSchemaPull(InetAddress endpoint)
+    {
+        if (!MessagingService.instance().knowsVersion(endpoint))
+        {
+            return false;
+        }
+
+        int otherVersion = MessagingService.instance().getRawVersion(endpoint);
+
+        return compatibleVersionsForSchemaPull(otherVersion);
+    }
+
+    private static boolean compatibleVersionsForSchemaPull(int otherVersion)
+    {
+        return otherVersion == MessagingService.current_version || (SCHEMA_COMPATIBLE_VERSIONS_RRS.contains(otherVersion) && SCHEMA_COMPATIBLE_VERSIONS_RRS.contains(MessagingService.current_version));
     }
 
     public static boolean isReadyForBootstrap()
