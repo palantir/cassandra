@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
 
+import com.google.common.collect.ImmutableSet;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
@@ -71,7 +72,7 @@ public class MigrationManager
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
 
     // These messaging service versions are known to have compatible schema formats so nodes on these versions are allowed to pull from each other
-    private static final Set<Integer> SCHEMA_COMPATIBLE_VERSIONS_RRS = new HashSet<>(Arrays.asList(MessagingService.VERSION_22, MessagingService.VERSION_22_PLTR));
+    private static final ImmutableSet<Integer> SCHEMA_COMPATIBLE_VERSIONS_RRS = ImmutableSet.of(MessagingService.VERSION_22, MessagingService.VERSION_22_PLTR);
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
 
