@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.*;
 
+import com.google.common.collect.ImmutableSet;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.logsafe.UnsafeArg;
 import com.palantir.tracing.CloseableTracer;
@@ -69,6 +70,9 @@ public class MigrationManager
 
     public static final int MIGRATION_DELAY_IN_MS = 60000;
     public static final int MAX_SCHEDULED_SCHEMA_PULL_REQUESTS = 3;
+
+    // These messaging service versions are known to have compatible schema formats so nodes on these versions are allowed to pull from each other
+    private static final Set<Integer> SCHEMA_COMPATIBLE_VERSIONS_RRS = ImmutableSet.of(MessagingService.VERSION_22, MessagingService.VERSION_22_PLTR);
 
     private final List<MigrationListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -228,18 +232,16 @@ public class MigrationManager
     public static boolean shouldPullSchemaFrom(InetAddress endpoint)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
+         * Don't request schema from nodes with an incompatible or unknown major version
          * Don't request schema from fat clients
          */
-        return MessagingService.instance().knowsVersion(endpoint)
-                && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
-                && !Gossiper.instance.isGossipOnlyMember(endpoint);
+        return compatibleMessagingVersionsForSchema(endpoint) && !Gossiper.instance.isGossipOnlyMember(endpoint);
     }
 
     public static boolean shouldPullSchemaFrom(InetAddress endpoint, UUID theirVersion)
     {
         /*
-         * Don't request schema from nodes with a differnt or unknown major version (may have incompatible schema)
+         * Don't request schema from nodes with an incompatible or unknown major version (may have incompatible schema)
          * Don't request schema from fat clients
          * Don't request schema from bootstrapping nodes (?)
          * Don't request schema if we have scheduled a pull request for that schema version
@@ -247,11 +249,27 @@ public class MigrationManager
         Set<InetAddress> currentlyScheduledRequests = scheduledSchemaPulls.getOrDefault(theirVersion, Collections.emptySet());
         boolean noScheduledRequests = currentlyScheduledRequests.size() < MAX_SCHEDULED_SCHEMA_PULL_REQUESTS
                                       && !currentlyScheduledRequests.contains(endpoint);
-        return MessagingService.instance().knowsVersion(endpoint)
-               && MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version
-               && !Gossiper.instance.isGossipOnlyMember(endpoint)
-               && !Schema.emptyVersion.equals(theirVersion)
-               && noScheduledRequests;
+        return compatibleMessagingVersionsForSchema(endpoint)
+                && !Gossiper.instance.isGossipOnlyMember(endpoint)
+                && !Schema.emptyVersion.equals(theirVersion)
+                && noScheduledRequests;
+    }
+
+    private static boolean compatibleMessagingVersionsForSchema(InetAddress endpoint)
+    {
+        if (!MessagingService.instance().knowsVersion(endpoint))
+        {
+            return false;
+        }
+
+        int otherVersion = MessagingService.instance().getRawVersion(endpoint);
+
+        return compatibleMessagingVersionsForSchema(otherVersion);
+    }
+
+    private static boolean compatibleMessagingVersionsForSchema(int otherVersion)
+    {
+        return otherVersion == MessagingService.current_version || (SCHEMA_COMPATIBLE_VERSIONS_RRS.contains(otherVersion) && SCHEMA_COMPATIBLE_VERSIONS_RRS.contains(MessagingService.current_version));
     }
 
     public static boolean isReadyForBootstrap()
@@ -613,12 +631,10 @@ public class MigrationManager
 
                 try (CloseableTracer ignored1 = CloseableTracer.startSpan("MigrationManager#announce compute condition"))
                 {
-                    condition = !endpoint.equals(FBUtilities.getBroadcastAddress()) &&
-                            MessagingService.instance().knowsVersion(endpoint) &&
-                            MessagingService.instance().getRawVersion(endpoint) == MessagingService.current_version;
+                    condition = !endpoint.equals(FBUtilities.getBroadcastAddress()) && compatibleMessagingVersionsForSchema(endpoint);
                 }
 
-                // only push schema to nodes with known and equal versions
+                // only push schema to nodes with known and compatible versions
                 if (condition) {
                     logger.debug("Anouncing schema to endpoint {}", SafeArg.of("endpoint", endpoint));
                     logger.trace("Announcing schema {}", UnsafeArg.of("schema", schema));
