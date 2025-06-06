@@ -42,6 +42,8 @@ public class MigrationManagerTest
     private static InetAddress HOST_2;
     private static InetAddress HOST_3;
     private static InetAddress HOST_4;
+    private static InetAddress HOST_5;
+    private static InetAddress HOST_6;
     private static Set<InetAddress> hosts;
 
     @BeforeClass
@@ -51,11 +53,15 @@ public class MigrationManagerTest
         HOST_2 = InetAddress.getByName("10.0.0.2");
         HOST_3 = InetAddress.getByName("10.0.0.3");
         HOST_4 = InetAddress.getByName("10.0.0.4");
-        hosts = ImmutableSet.of(HOST_1, HOST_2, HOST_3, HOST_4);
-        MessagingService.instance().setVersion(HOST_1, MessagingService.VERSION_22_PLTR);
-        MessagingService.instance().setVersion(HOST_2, MessagingService.VERSION_22_PLTR);
-        MessagingService.instance().setVersion(HOST_3, MessagingService.VERSION_22_PLTR);
-        MessagingService.instance().setVersion(HOST_4, MessagingService.VERSION_22_PLTR);
+        HOST_5 = InetAddress.getByName("10.0.0.5");
+        HOST_6 = InetAddress.getByName("10.0.0.6");
+        hosts = ImmutableSet.of(HOST_1, HOST_2, HOST_3, HOST_4, HOST_5, HOST_6);
+        MessagingService.instance().setVersion(HOST_1, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_2, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_3, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_4, MessagingService.VERSION_22);
+        MessagingService.instance().setVersion(HOST_5, MessagingService.VERSION_22_PLTR);
+        MessagingService.instance().setVersion(HOST_6, MessagingService.VERSION_21);
     }
 
     @Before
@@ -93,5 +99,21 @@ public class MigrationManagerTest
         MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_2);
         MigrationManager.addEndpointToSchemaPullVersion(UUID_1, HOST_3);
         assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_4, UUID_1));
+    }
+
+    // VERSION_22 and VERSION_22_PLTR have compatible schema formats so they are able to accounce to and pull schemas from each other.
+    // If this test fails, either update MigrationManager.SCHEMA_COMPATIBLE_VERSIONS_RRS to include the new MessagingService version if the new schema format is
+    // compatible or accept that upgrades and downgrades to the bumped version will cause periods of schema disagreement between nodes on different versions.
+    @Test
+    public void pullsCompatibleVersions()
+    {
+        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_1, UUID_1));
+        assertTrue(MigrationManager.shouldPullSchemaFrom(HOST_5, UUID_2));
+    }
+
+    @Test
+    public void doesNotPullIncompatibleVersions()
+    {
+        assertFalse(MigrationManager.shouldPullSchemaFrom(HOST_6, UUID_1));
     }
 }
