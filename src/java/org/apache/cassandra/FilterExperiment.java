@@ -19,6 +19,7 @@
 package org.apache.cassandra;
 
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -61,10 +62,26 @@ public enum FilterExperiment
 
     public static ColumnFamily execute(
             Function<FilterExperiment, ColumnFamily> function,
-            Function<FilterExperiment, ColumnFamily> fallback) {
-        if (!shouldRunExperiment()) {
+            Function<FilterExperiment, ColumnFamily> fallback,
+            Optional<FilterExperiment> maybeFilterExperiment)
+    {
+        if (!maybeFilterExperiment.isPresent() && !shouldRunExperiment())
+        {
             return function.apply(USE_LEGACY);
         }
+
+        if (maybeFilterExperiment.isPresent())
+        {
+            if (maybeFilterExperiment.get() == USE_LEGACY)
+            {
+                return function.apply(USE_LEGACY);
+            }
+            else
+            {
+                return function.apply(USE_OPTIMIZED);
+            }
+        }
+
         ColumnFamily legacyResult = time(() -> function.apply(USE_LEGACY), legacyTimer);
         try {
             ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);

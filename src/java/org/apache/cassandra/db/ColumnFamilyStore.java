@@ -2064,12 +2064,17 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         return (int) (now / 1000) - metadata.getGcGraceSeconds();
     }
 
+    public ColumnFamily getColumnFamily(QueryFilter filter)
+    {
+        return getColumnFamily(filter, Optional.empty());
+    }
+
     /**
      * get a list of columns starting from a given column, in a specified order.
      * only the latest version of a column is returned.
      * @return null if there is no data and no tombstones; otherwise a ColumnFamily
      */
-    public ColumnFamily getColumnFamily(QueryFilter filter)
+    public ColumnFamily getColumnFamily(QueryFilter filter, Optional<FilterExperiment> maybeFilterExperiment)
     {
         assert name.equals(filter.getColumnFamilyName()) : filter.getColumnFamilyName();
 
@@ -2120,7 +2125,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 };
                 result = FilterExperiment.execute(
                     experiment -> compute.apply(experiment, gcBefore),
-                    experiment -> compute.apply(experiment, gcBefore - 60));
+                        experiment -> compute.apply(experiment, gcBefore - 60),
+                        maybeFilterExperiment);
 
                 if (result == null && !wasNotNull.get())
                     return null;
