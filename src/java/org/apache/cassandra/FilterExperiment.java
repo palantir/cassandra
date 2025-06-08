@@ -44,7 +44,7 @@ import org.apache.thrift.annotation.Nullable;
 
 public enum FilterExperiment
 {
-    USE_LEGACY, USE_OPTIMIZED;
+    USE_LEGACY, USE_OPTIMIZED, USE_OPTIMIZED_EMIT_CELLS;
 
     private static final Logger log = LoggerFactory.getLogger(FilterExperiment.class);
     private static final MetricNameFactory names = new DefaultNameFactory("FilterExperiment");

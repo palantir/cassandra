@@ -132,19 +132,23 @@ public class QueryFilter
         if (experiment == FilterExperiment.USE_LEGACY || filter.isReversed() || isRowCacheEnabled(returnCF)) {
             legacyCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
         } else {
-            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
+            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp, experiment);
         }
     }
 
     private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
-                                                  List<? extends Iterator<? extends OnDiskAtom>> toCollate,
-                                                  IDiskAtomFilter filter,
-                                                  DecoratedKey key,
-                                                  int gcBefore,
-                                                  long timestamp) {
+                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                   IDiskAtomFilter filter,
+                                                   DecoratedKey key,
+                                                   int gcBefore,
+                                                   long timestamp,
+                                                   FilterExperiment experiment)
+    {
         Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
         Iterator<OnDiskAtom> countRangeTombstones = RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF, merged);
-        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore);
+        Iterator<OnDiskAtom> filtered = experiment == FilterExperiment.USE_OPTIMIZED_EMIT_CELLS ?
+                filterTombstonesEmitCells(returnCF.getComparator(), countRangeTombstones, gcBefore) :
+                filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore);
         Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
             returnCF, filter.getColumnComparator(returnCF.getComparator()), filtered);
         filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp);
