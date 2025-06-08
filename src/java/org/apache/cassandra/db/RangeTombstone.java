@@ -94,6 +94,11 @@ public class RangeTombstone extends Interval<Composite, DeletionTime> implements
         return comparator.compare(min, rt.min) <= 0 && comparator.compare(max, rt.max) >= 0;
     }
 
+    public boolean includes(RangeTombstone rt, Comparator<Composite> comparator)
+    {
+        return comparator.compare(min, rt.min) <= 0 && comparator.compare(max, rt.max) >= 0;
+    }
+
     public boolean includes(Comparator<Composite> comparator, Composite name)
     {
         return comparator.compare(name, min) >= 0 && comparator.compare(name, max) <= 0;

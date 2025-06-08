@@ -17,16 +17,7 @@
  */
 package org.apache.cassandra.db.filter;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Deque;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.SortedSet;
+import java.util.*;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
@@ -329,7 +320,6 @@ public class QueryFilter
     static Iterator<OnDiskAtom> filterTombstonesEmitCells(
             final CellNameType comparator, Iterator<? extends OnDiskAtom> backingIterator, int gcBefore)
     {
-        final PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(backingIterator);
         return new AbstractIterator<OnDiskAtom>()
         {
             RangeTombstone maybePendingRangeTombstone;
@@ -341,47 +331,66 @@ public class QueryFilter
 
             protected OnDiskAtom computeNext()
             {
-                while (peeking.hasNext())
+                while (backingIterator.hasNext())
                 {
-                    OnDiskAtom nextAtom = peeking.peek();
-                    // if the next atom is outside the range, we can dump any cached range tombstone that haven't
-                    // deleted anything.
+                    OnDiskAtom nextAtom = backingIterator.next();
+                    if (Objects.isNull(nextAtom))
+                    {
+                        continue;
+                    }
+
                     if (maybePendingRangeTombstone == null
                             || !maybePendingRangeTombstone.includes(comparator, nextAtom.name()))
                     {
+                        // we either don't have a pending range tombstone, or
+                        // we do have a pending range tombstone and the incoming atom is either a range tombstone or a cell
+                        // if it is a range tombstone, it starts after the pending range tombstone ends and therefore is not in range
+                        // if it is a cell, it is after the pending range tombstone ends and therefore not in range / covered
                         if (nextAtom instanceof RangeTombstone)
                         {
-                            setPendingRangeTombstone((RangeTombstone) peeking.next());
+                            // always immediately return the range tombstone to maintain ordering
+                            // even though we will hold onto it to merge with other range tombstones
+                            // this is because we will emit cells covered by this range tombstone after
+                            setPendingRangeTombstone((RangeTombstone) nextAtom);
                             return maybePendingRangeTombstone;
                         }
                         else
                         {
-                            maybePendingRangeTombstone = null;
-                            return peeking.next();
+                            setPendingRangeTombstone(null);
+                            return nextAtom;
                         }
                     }
 
-                    // we have a range tombstone, we're in the range
+                    // we have a pending range tombstone, and the incoming atom is either a range tombstone or a cell
+                    // if it is a cell, it is in range of the range tombstone
+                    // if it is a range tombstone, it starts before the pending range tombstone ends
+                    // in this case, we may be able to merge the incoming range tombstone if it is droppable and
+                    // fully contained within the pending range tombstone's range
                     if (nextAtom instanceof Cell)
                     {
                         // even if the next cell is overwritten by the range tombstone, still emit it
-                        return peeking.next();
+                        // this is the key difference of this method vs filterTombstones
+                        return nextAtom;
                     }
                     else
                     {
                         RangeTombstone tombstone = (RangeTombstone) nextAtom;
 
-                        // If the range tombstone is droppable and we have an overlap, we expect that the present tombstone
-                        // will supercede the old, based on how we write, so we can skip emitting that tombstone.
-                        if (maybePendingRangeTombstone.supersedes(tombstone, comparator) && !tombstoneNotDroppable(tombstone))
+                        // if the incoming range tombstone is droppable and is fully contained within the pending range tombstone,
+                        // we expect that we can skip emitting the incoming range tombstone
+                        if (maybePendingRangeTombstone.includes(tombstone, comparator) && tombstoneIsDroppable(tombstone))
                         {
-                            peeking.next();
+                            continue;
                         }
                         else
                         {
-                            // cannot optimize, return, move on
-                            peeking.next();
-                            setPendingRangeTombstone(tombstone);
+                            // cannot optimize so we return the tombstone
+                            // however we only want to set the pending range tombstone to the incoming range tombstone
+                            // if the incoming one's end comes after the pending one's end
+                            if (!maybePendingRangeTombstone.includes(tombstone, comparator))
+                            {
+                                setPendingRangeTombstone(tombstone);
+                            }
                             return tombstone;
                         }
                     }
@@ -389,9 +398,9 @@ public class QueryFilter
                 return endOfData();
             }
 
-            private boolean tombstoneNotDroppable(RangeTombstone tombstone)
+            private boolean tombstoneIsDroppable(RangeTombstone tombstone)
             {
-                return tombstone != null && tombstone.getLocalDeletionTime() >= gcBefore;
+                return tombstone.getLocalDeletionTime() < gcBefore;
             }
         };
     }
