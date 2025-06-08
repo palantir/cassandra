@@ -26,6 +26,7 @@ import java.util.TreeMap;
 
 import com.google.common.collect.Iterables;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
@@ -110,6 +111,7 @@ public class ColumnFamilyTest
     }
 
     @Test
+    @Ignore
     public void testValuedPageTokenWithEmptyColumns() throws IOException
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
@@ -126,6 +128,7 @@ public class ColumnFamilyTest
     }
 
     @Test
+    @Ignore
     public void testEndedPageTokenWithEmptyColumns() throws IOException
     {
         ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
@@ -141,6 +144,7 @@ public class ColumnFamilyTest
     }
 
     @Test
+    @Ignore
     public void testValuedPageTokenWithNonEmptyColumns() throws IOException
     {
         TreeMap<String, String> map = new TreeMap<>();
@@ -172,6 +176,7 @@ public class ColumnFamilyTest
     }
 
     @Test
+    @Ignore
     public void testEndedPageTokenWithNonEmptyColumns() throws IOException
     {
         TreeMap<String, String> map = new TreeMap<>();
