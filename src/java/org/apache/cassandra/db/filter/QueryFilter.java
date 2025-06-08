@@ -323,12 +323,10 @@ public class QueryFilter
     }
 
     /**
-     * A complex function which holds a RangeTombstone before emitting it. Uses the held range tombstone
-     * to elide emitting cells that are covered by it, or redundant other range tombstones. Emits the range
-     * tombstone iff an incompatible range tombstone is seen, otherwise skips.
+     * A similar method to filterTombstones except this iterator emits cells covered by the held range tombstone.
      */
     @VisibleForTesting
-    static Iterator<OnDiskAtom> filterTombstonesEmittingCells(
+    static Iterator<OnDiskAtom> filterTombstonesEmitCells(
             final CellNameType comparator, Iterator<? extends OnDiskAtom> backingIterator, int gcBefore)
     {
         final PeekingIterator<OnDiskAtom> peeking = Iterators.peekingIterator(backingIterator);
@@ -348,11 +346,6 @@ public class QueryFilter
                     OnDiskAtom nextAtom = peeking.peek();
                     // if the next atom is outside the range, we can dump any cached range tombstone that haven't
                     // deleted anything.
-                    // dg note: the second part of this condition that checks if a range tombstone is included in this one only checks
-                    // the min part of the range, meaning it assumes tombstones are always of the format (X, 0), which i think is true,
-                    // but it does seem like a strange assumption to make. i think we do have tombstones which are not of that format
-                    // for deleting the atlas tombstone or sentinel (?) but not sure if that matters
-
                     if (maybePendingRangeTombstone == null
                             || !maybePendingRangeTombstone.includes(comparator, nextAtom.name()))
                     {
