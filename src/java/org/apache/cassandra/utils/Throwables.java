@@ -21,9 +21,15 @@ package org.apache.cassandra.utils;
 import java.io.IOException;
 
 import com.google.common.base.Optional;
+import com.palantir.logsafe.Arg;
+import com.palantir.logsafe.SafeArg;
+import org.apache.cassandra.FilterExperiment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Throwables
 {
+    private static final Logger log = LoggerFactory.getLogger(Throwables.class);
 
     public static Throwable merge(Throwable existingFail, Throwable newFail)
     {
@@ -89,5 +95,26 @@ public class Throwables
                 return Optional.of((IOException) cause);
         }
         return Optional.absent();
+    }
+
+    public static void assertWithError(boolean condition, Arg<?>... args)
+    {
+        if (!condition)
+        {
+            log.error("Assertion failed", (Object[]) args);
+            throw new AssertionError();
+        }
+    }
+
+    public static void assertWithError(boolean condition, String message, Arg<?>... args)
+    {
+        if (!condition)
+        {
+            Arg<?>[] newArgs = new Arg[args.length + 1];
+            System.arraycopy(args, 0, newArgs, 0, args.length);
+            newArgs[args.length] = SafeArg.of("message", message);
+            log.error("Assertion failed", (Object[]) newArgs);
+            throw new AssertionError(message);
+        }
     }
 }

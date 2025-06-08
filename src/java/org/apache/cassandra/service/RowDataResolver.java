@@ -29,11 +29,13 @@ import com.google.common.collect.Iterables;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
+import org.apache.cassandra.db.filter.PageToken;
 import org.apache.cassandra.db.filter.QueryFilter;
 import org.apache.cassandra.net.*;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.CloseableIterator;
 import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.Throwables;
 
 public class RowDataResolver extends AbstractRowResolver
 {
@@ -74,6 +76,7 @@ public class RowDataResolver extends AbstractRowResolver
                 ReadResponse response = message.payload;
                 ColumnFamily cf = response.row().cf;
                 assert !response.isDigestQuery() : "Received digest response to repair read from " + message.from;
+                Throwables.assertWithError(!filter.usePageToken() || cf != null);
                 versions.add(cf);
                 endpoints.add(message.from);
 
@@ -113,7 +116,9 @@ public class RowDataResolver extends AbstractRowResolver
 
         for (int i = 0; i < versions.size(); i++)
         {
-            ColumnFamily diffCf = ColumnFamily.diff(versions.get(i), resolved);
+            ColumnFamily version = versions.get(i);
+            version = version == null ? null : version.cloneMeLimitByPageToken(resolved == null ? null : resolved.pageToken());
+            ColumnFamily diffCf = ColumnFamily.diff(version, resolved);
             if (diffCf == null) // no repair needs to happen
                 continue;
 
@@ -156,7 +161,36 @@ public class RowDataResolver extends AbstractRowResolver
             if (version != null)
                 iters.add(FBUtilities.closeableIterator(version.iterator()));
         filter.collateColumns(resolved, iters, Integer.MIN_VALUE);
-        return ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
+        resolved = ColumnFamilyStore.removeDeleted(resolved, Integer.MIN_VALUE);
+        PageToken resolvedPageToken = resolvedPageToken(versions, resolved);
+        return resolved == null ? null : resolved.cloneMeLimitByPageToken(resolvedPageToken);
+    }
+
+    private static PageToken resolvedPageToken(Iterable<ColumnFamily> versions, ColumnFamily resolved)
+    {
+        PageToken resolvedPageToken = resolved != null && resolved.isPageTokenSet() ? resolved.pageToken() : null;
+        PageToken.Comparator comparator = null;
+
+        for (ColumnFamily version : versions)
+        {
+            if (version != null && version.isPageTokenSet())
+            {
+                if (comparator == null)
+                {
+                    comparator = new PageToken.Comparator(version.getComparator());
+                }
+                if (resolvedPageToken == null)
+                {
+                    resolvedPageToken = version.pageToken();
+                }
+                else if (comparator.compare(version.pageToken(), resolvedPageToken) < 0)
+                {
+                    resolvedPageToken = version.pageToken();
+                }
+            }
+        }
+
+        return resolvedPageToken;
     }
 
     public Row getData()
