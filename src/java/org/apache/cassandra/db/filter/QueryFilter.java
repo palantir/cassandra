@@ -351,7 +351,7 @@ public class QueryFilter
                     {
                         if (nextAtom instanceof RangeTombstone)
                         {
-                            maybePendingRangeTombstone = (RangeTombstone) peeking.next();
+                            setPendingRangeTombstone((RangeTombstone) peeking.next());
                             return maybePendingRangeTombstone;
                         }
                         else
