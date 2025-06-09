@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.google.common.collect.Iterables;
+import org.apache.cassandra.metrics.CompactionMetrics;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,8 +123,8 @@ public class Directories
 
     public static final DataDirectory[] dataDirectories;
 
-    //needed for dealing with race condition when compactions run in parallel, to reflect the actual available space
-    //see https://github.com/palantir/cassandra/issues/198
+    // needed for dealing with race condition when compactions run in parallel, to reflect the actual available space
+    // see https://github.com/palantir/cassandra/issues/198
     private static final Object COMPACTION_LOCK = new Object();
     private static long expectedSpaceUsedByCompactions = 0;
     static
@@ -496,24 +497,44 @@ public class Directories
 
     public Boolean checkAvailableDiskSpaceWithoutConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
     {
-        return checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, 0);
+        return checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, 0, 0);
     }
 
     public Boolean checkAvailableDiskSpaceConsideringConcurrentCompactions(long estimatedSSTables, long expectedTotalWriteSize)
     {
         synchronized (COMPACTION_LOCK)
         {
-            if (!checkAvailableDiskSpace(estimatedSSTables, expectedTotalWriteSize, expectedSpaceUsedByCompactions))
+            if (!checkAvailableDiskSpace(estimatedSSTables,
+                                         expectedTotalWriteSize,
+                                         expectedSpaceUsedByCompactions,
+                                         CompactionMetrics.getCompactions()
+                                                          .stream()
+                                                          .mapToLong(compactionHolder -> compactionHolder.getCompactionInfo().getCompleted())
+                                                          .sum()))
                 return false;
             expectedSpaceUsedByCompactions += expectedTotalWriteSize;
             return true;
         }
     }
 
-    private boolean checkAvailableDiskSpace(long estimatedSSTables, long expectedTotalWriteSize, long expectedSpaceUsedByCompactions) {
+    /**
+     * Determines if there is sufficient disk space available to perform a compaction.
+     *
+     * @param estimatedSSTables The estimated number of SSTables expected to be generated as a result of the compaction.
+     * @param expectedTotalWriteSize The estimated disk space, in bytes, needed specifically for the current compaction.
+     * @param expectedSpaceUsedByCompactions The total estimated disk space required for all ongoing and pending compactions, in bytes.
+     * @param liveSpaceUsedByInProgressCompactions The disk space, in bytes, currently used by temporary SSTables.
+     * @return boolean indicating whether there is enough disk space available to proceed with the compaction.
+     */
+    private boolean checkAvailableDiskSpace(long estimatedSSTables,
+                                            long expectedTotalWriteSize,
+                                            long expectedSpaceUsedByCompactions,
+                                            long liveSpaceUsedByInProgressCompactions)
+    {
         long writeSize = expectedTotalWriteSize / estimatedSSTables;
         long totalAvailable = 0L;
         long totalSpace = 0L;
+        long spaceNeededForInProgressCompactions = Math.max(0, expectedSpaceUsedByCompactions - liveSpaceUsedByInProgressCompactions);
 
         for (DataDirectory dataDir : dataDirectories)
         {
@@ -521,12 +542,12 @@ public class Directories
                 continue;
             DataDirectoryCandidate candidate = new DataDirectoryCandidate(dataDir);
             // exclude directory if its total writeSize does not fit to data directory
-            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace - expectedSpaceUsedByCompactions, candidate.totalSpace, writeSize))
+            if (insufficientDiskSpaceForWriteSize(candidate.availableSpace - spaceNeededForInProgressCompactions, candidate.totalSpace, writeSize))
                 continue;
             totalAvailable += candidate.availableSpace;
             totalSpace += candidate.totalSpace;
         }
-        if (insufficientDiskSpaceForWriteSize(totalAvailable - expectedSpaceUsedByCompactions, totalSpace, expectedTotalWriteSize))
+        if (insufficientDiskSpaceForWriteSize(totalAvailable - spaceNeededForInProgressCompactions, totalSpace, expectedTotalWriteSize))
         {
             logger.warn("Insufficient space for compaction - total available space found: {}MB for compaction with"
                         + " expected size {}MB, with total disk space {}MB and max disk usage by compaction at {}%",

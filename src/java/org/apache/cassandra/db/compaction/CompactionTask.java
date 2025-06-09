@@ -387,8 +387,7 @@ public class CompactionTask extends AbstractCompactionTask
         while(true)
         {
             long estimatedSSTables = Math.max(1, expectedWriteSize / strategy.getMaxSSTableBytes());
-
-            if(getAvailableDiskSpace.apply(estimatedSSTables, expectedWriteSize))
+            if (getAvailableDiskSpace.apply(estimatedSSTables, expectedWriteSize))
                 break;
 
             if (!reduceScopeForLimitedSpace(expectedWriteSize))
