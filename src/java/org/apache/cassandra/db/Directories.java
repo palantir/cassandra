@@ -521,8 +521,8 @@ public class Directories
      * Determines if there is sufficient disk space available to perform a compaction.
      *
      * @param estimatedSSTables The estimated number of SSTables expected to be generated as a result of the compaction.
-     * @param expectedTotalWriteSize The total estimated disk space required for all ongoing and pending compactions, in bytes.
-     * @param expectedSpaceUsedByCompactions The estimated disk space, in bytes, needed specifically for the current compaction.
+     * @param expectedTotalWriteSize The estimated disk space, in bytes, needed specifically for the current compaction.
+     * @param expectedSpaceUsedByCompactions The total estimated disk space required for all ongoing and pending compactions, in bytes.
      * @param liveSpaceUsedByInProgressCompactions The disk space, in bytes, currently used by temporary SSTables.
      * @return boolean indicating whether there is enough disk space available to proceed with the compaction.
      */
