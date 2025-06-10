@@ -433,13 +433,11 @@ public class Keyspace
         }
     }
 
-    // Convenience overload for backward compatibility
     public void applyAll(Collection<Mutation> mutations, boolean writeCommitLog)
     {
         applyAll(mutations, writeCommitLog, true);
     }
 
-    // Refactor apply() overloads to use applyAll
     public void apply(Mutation mutation, boolean writeCommitLog)
     {
         applyAll(Collections.singletonList(mutation), writeCommitLog);
