@@ -380,9 +380,9 @@ public class QueryFilter
                     {
                         RangeTombstone tombstone = (RangeTombstone) nextAtom;
 
-                        // if the incoming range tombstone is droppable and is fully contained within the pending range tombstone,
+                        // if the incoming range tombstone is droppable and superceded by the pending range tombstone,
                         // we expect that we can skip emitting the incoming range tombstone
-                        if (maybePendingRangeTombstone.includes(tombstone, comparator) && tombstoneIsDroppable(tombstone))
+                        if (maybePendingRangeTombstone.supersedes(tombstone, comparator) && tombstoneIsDroppable(tombstone))
                         {
                             continue;
                         }
