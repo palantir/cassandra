@@ -46,14 +46,6 @@ public class DynamicEndpointSnitchTest
     }
 
     @Test
-    public void testGetSnapshotReturnsEmptyWhenNullSamples() {
-        SimpleSnitch ss = new SimpleSnitch();
-        DynamicEndpointSnitch dsnitch = new DynamicEndpointSnitch(ss, String.valueOf(ss.hashCode()));
-        InetAddress self = FBUtilities.getBroadcastAddress();
-        assertThat(dsnitch.getSnapshot(self)).isEqualTo(Optional.empty());
-    }
-
-    @Test
     public void testSnitch() throws InterruptedException, IOException, ConfigurationException
     {
         // do this because SS needs to be initialized before DES can work properly.

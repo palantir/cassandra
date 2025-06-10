@@ -1566,13 +1566,6 @@ public class StorageProxy implements StorageProxyMBean
                         MessagingService.instance().sendRRWithFailure(message, endpoint, repairHandler);
                     }
                 }
-                finally {
-                    try {
-                        exec.writePredictedSpeculativeRetryPerformanceMetrics();
-                    } catch (RuntimeException e) {
-                        logger.error("Failed to write predicted speculative retry performance metrics", e);
-                    }
-                }
             }
 
             commandsToRetry.clear();
@@ -1937,8 +1930,7 @@ public class StorageProxy implements StorageProxyMBean
                     ReadCallback<RangeSliceReply, Iterable<Row>> handler = new ReadCallback<>(resolver,
                                                                                               consistency_level,
                                                                                               nodeCmd,
-                                                                                              minimalEndpoints,
-                                                                                              Optional.empty());
+                                                                                              minimalEndpoints);
                     handler.assureSufficientLiveNodes();
                     resolver.setSources(filteredEndpoints);
                     if (filteredEndpoints.size() == 1
