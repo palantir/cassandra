@@ -135,7 +135,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         return factory;
     }
 
-    public ColumnFamily cloneMe()
+    ColumnFamily cloneMeInternal()
     {
         return new AtomicBTreeColumns(metadata, ref);
     }
@@ -150,7 +150,7 @@ public class AtomicBTreeColumns extends ColumnFamily
         delete(new DeletionInfo(delTime));
     }
 
-    protected void delete(RangeTombstone tombstone)
+    public void delete(RangeTombstone tombstone)
     {
         delete(new DeletionInfo(tombstone, getComparator()));
     }
