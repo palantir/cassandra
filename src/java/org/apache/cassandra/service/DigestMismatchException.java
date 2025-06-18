@@ -20,16 +20,19 @@ package org.apache.cassandra.service;
 import java.nio.ByteBuffer;
 
 import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.db.filter.PageTokenDigest;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 @SuppressWarnings("serial")
 public class DigestMismatchException extends Exception
 {
-    public DigestMismatchException(DecoratedKey key, ByteBuffer digest1, ByteBuffer digest2)
+    public DigestMismatchException(DecoratedKey key, ByteBuffer digest1, PageTokenDigest pageTokenDigest1, ByteBuffer digest2, PageTokenDigest pageTokenDigest2)
     {
-        super(String.format("Mismatch for key %s (%s vs %s)",
-                            key.toString(),
-                            ByteBufferUtil.bytesToHex(digest1),
-                            ByteBufferUtil.bytesToHex(digest2)));
+        super(String.format("Mismatch for key %s (%s,%s vs %s,%s)",
+                key.toString(),
+                ByteBufferUtil.bytesToHex(digest1),
+                pageTokenDigest1,
+                ByteBufferUtil.bytesToHex(digest2),
+                pageTokenDigest2));
     }
 }
