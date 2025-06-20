@@ -102,7 +102,7 @@ public enum FilterExperiment
         ColumnFamily optimizedEmitCellsResult = results.get(USE_OPTIMIZED_EMIT_CELLS);
 
         compareAndLogResults(legacyResult, optimizedResult, USE_OPTIMIZED, function, fallback);
-        compareAndLogResults(legacyResult, optimizedEmitCellsResult, USE_OPTIMIZED, function, fallback);
+        compareAndLogResults(legacyResult, optimizedEmitCellsResult, USE_OPTIMIZED_EMIT_CELLS, function, fallback);
 
         return legacyResult;
     }
