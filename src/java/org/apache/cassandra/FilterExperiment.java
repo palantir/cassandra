@@ -18,7 +18,13 @@
 
 package org.apache.cassandra;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -44,7 +50,7 @@ import org.apache.thrift.annotation.Nullable;
 
 public enum FilterExperiment
 {
-    USE_LEGACY, USE_OPTIMIZED;
+    USE_LEGACY, USE_OPTIMIZED, USE_OPTIMIZED_EMIT_CELLS;
 
     private static final Logger log = LoggerFactory.getLogger(FilterExperiment.class);
     private static final MetricNameFactory names = new DefaultNameFactory("FilterExperiment");
@@ -52,12 +58,20 @@ public enum FilterExperiment
             CassandraMetricsRegistry.Metrics.timer(names.createMetricName("Legacy"));
     private static final Timer optimizedTimer =
             CassandraMetricsRegistry.Metrics.timer(names.createMetricName("Optimized"));
+    private static final Timer optimizedEmittingTimer =
+            CassandraMetricsRegistry.Metrics.timer(names.createMetricName("OptimizedEmitting"));
     private static final Counter successes =
             CassandraMetricsRegistry.Metrics.counter(names.createMetricName("Successes"));
     private static final Counter failures =
             CassandraMetricsRegistry.Metrics.counter(names.createMetricName("Failures"));
     private static final Counter indeterminate =
             CassandraMetricsRegistry.Metrics.counter(names.createMetricName("Indeterminate"));
+    private static final Counter successesForEmitting =
+            CassandraMetricsRegistry.Metrics.counter(names.createMetricName("SuccessesForEmitting"));
+    private static final Counter failuresForEmitting =
+            CassandraMetricsRegistry.Metrics.counter(names.createMetricName("FailuresForEmitting"));
+    private static final Counter indeterminateForEmitting =
+            CassandraMetricsRegistry.Metrics.counter(names.createMetricName("IndeterminateForEmitting"));
 
     public static ColumnFamily execute(
             Function<FilterExperiment, ColumnFamily> function,
@@ -65,42 +79,138 @@ public enum FilterExperiment
         if (!shouldRunExperiment()) {
             return function.apply(USE_LEGACY);
         }
-        ColumnFamily legacyResult = time(() -> function.apply(USE_LEGACY), legacyTimer);
-        try {
-            ColumnFamily optimizedResult = time(() -> function.apply(USE_OPTIMIZED), optimizedTimer);
-            ComparisonResult initialComparison = areEqual(legacyResult, optimizedResult);
-            if (initialComparison.isEqual()) {
-                successes.inc();
-            } else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY))) {
-                // This case means that the data was modified between getting the legacy and optimized result. As a result, this experiment is indeterminate.
-                indeterminate.inc();
-            } else if ((legacyResult.metadata().getGcGraceSeconds() == 0
-                           && areEqual(fallback.apply(USE_LEGACY), fallback.apply(USE_OPTIMIZED)).isEqual())) {
-                indeterminate.inc();
-                // TODO(lkjaerozhang): Give a better log message when I actually understand what this means.
-                //  The indeterminate codepath seems to have never been hit so it's probably fine to defer for now as
-                //  long as we still have signal if we do hit it.
-                log.warn("Query result changed under immediate compaction but results from 60 seconds ago are identical, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult));
-            } else {
-                failures.inc();
-                log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Comparison method: {}, Legacy metadata: {}, Optimized metadata: {}",
-                         legacyResult, optimizedResult, SafeArg.of("comparisonMethod", initialComparison.name()), safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult));
+
+        List<FilterExperiment> experiments = Arrays.asList(FilterExperiment.values());
+        Collections.shuffle(experiments); // shuffle to prevent caching bias
+
+        Map<FilterExperiment, ColumnFamily> results = new HashMap<>();
+        for (FilterExperiment experiment : experiments)
+        {
+            try
+            {
+                results.put(experiment, time(() -> function.apply(experiment), getTimer(experiment)));
             }
-        } catch (RuntimeException e) {
-            failures.inc();
-            log.warn("Caught an exception while experimenting. This is probably unexpected", e);
+            catch (RuntimeException e)
+            {
+                getFailureCounter(experiment).ifPresent(Counter::inc);
+                log.warn("Caught an exception while experimenting. This is probably unexpected", e);
+            }
         }
+
+        ColumnFamily legacyResult = results.get(USE_LEGACY);
+        ColumnFamily optimizedResult = results.get(USE_OPTIMIZED);
+        ColumnFamily optimizedEmitCellsResult = results.get(USE_OPTIMIZED_EMIT_CELLS);
+
+        compareAndLogResults(legacyResult, optimizedResult, USE_OPTIMIZED, function, fallback);
+        compareAndLogResults(legacyResult, optimizedEmitCellsResult, USE_OPTIMIZED_EMIT_CELLS, function, fallback);
+
         return legacyResult;
     }
 
-    public static boolean shouldRunExperiment() {
+    private static void compareAndLogResults(
+            ColumnFamily legacyResult,
+            ColumnFamily optimizedResult,
+            FilterExperiment experiment,
+            Function<FilterExperiment, ColumnFamily> function,
+            Function<FilterExperiment, ColumnFamily> fallback
+    )
+    {
+        ComparisonResult initialComparison = areEqual(legacyResult, optimizedResult, experiment);
+        if (initialComparison.isEqual())
+        {
+            getSuccessCounter(experiment).ifPresent(Counter::inc);
+        }
+        else if (!areTrulyEqual(legacyResult, function.apply(USE_LEGACY)))
+        {
+            // This case means that the data was modified between getting the legacy and optimized result. As a result, this experiment is indeterminate.
+            getIndeterminateCounter(experiment).ifPresent(Counter::inc);
+        }
+        else if ((legacyResult.metadata().getGcGraceSeconds() == 0
+                && areEqual(fallback.apply(USE_LEGACY), fallback.apply(experiment), experiment).isEqual()))
+        {
+            getIndeterminateCounter(experiment).ifPresent(Counter::inc);
+            // TODO(lkjaerozhang): Give a better log message when I actually understand what this means.
+            //  The indeterminate codepath seems to have never been hit so it's probably fine to defer for now as
+            //  long as we still have signal if we do hit it.
+            log.warn("Query result changed under immediate compaction but results from 60 seconds ago are identical, result is indeterminate; Legacy: {}, Optimized: {}, Legacy metadata: {}, Optimized metadata: {}",
+                    legacyResult, optimizedResult, safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult), SafeArg.of("experiment", experiment));
+        }
+        else
+        {
+            getFailureCounter(experiment).ifPresent(Counter::inc);
+            log.warn("Comparison failure while experimenting; Legacy: {}, Optimized: {}, Comparison method: {}, Legacy metadata: {}, Optimized metadata: {}",
+                    legacyResult, optimizedResult, SafeArg.of("comparisonMethod", initialComparison.name()), safeLoggableColumnFamilyMetadata("legacyMetadata", legacyResult), safeLoggableColumnFamilyMetadata("optimizedMetadata", optimizedResult), SafeArg.of("experiment", experiment));
+        }
+    }
+
+    private static boolean shouldRunExperiment()
+    {
         return ThreadLocalRandom.current().nextDouble() <= DatabaseDescriptor.getFilterExperimentProbability();
     }
 
     private static <T> T time(Supplier<T> delegate, Timer timer) {
         try (Timer.Context context = timer.time()) {
             return delegate.get();
+        }
+    }
+
+    private static Timer getTimer(FilterExperiment experiment)
+    {
+        switch (experiment)
+        {
+            case USE_LEGACY:
+                return legacyTimer;
+            case USE_OPTIMIZED:
+                return optimizedTimer;
+            case USE_OPTIMIZED_EMIT_CELLS:
+                return optimizedEmittingTimer;
+            default:
+                throw new IllegalArgumentException("Unknown experiment: " + experiment);
+        }
+    }
+
+    private static Optional<Counter> getSuccessCounter(FilterExperiment experiment)
+    {
+        switch (experiment)
+        {
+            case USE_LEGACY:
+                return Optional.empty();
+            case USE_OPTIMIZED:
+                return Optional.of(successes);
+            case USE_OPTIMIZED_EMIT_CELLS:
+                return Optional.of(successesForEmitting);
+            default:
+                throw new IllegalArgumentException("Unknown experiment: " + experiment);
+        }
+    }
+
+    private static Optional<Counter> getFailureCounter(FilterExperiment experiment)
+    {
+        switch (experiment)
+        {
+            case USE_LEGACY:
+                return Optional.empty();
+            case USE_OPTIMIZED:
+                return Optional.of(failures);
+            case USE_OPTIMIZED_EMIT_CELLS:
+                return Optional.of(failuresForEmitting);
+            default:
+                throw new IllegalArgumentException("Unknown experiment: " + experiment);
+        }
+    }
+
+    private static Optional<Counter> getIndeterminateCounter(FilterExperiment experiment)
+    {
+        switch (experiment)
+        {
+            case USE_LEGACY:
+                return Optional.empty();
+            case USE_OPTIMIZED:
+                return Optional.of(indeterminate);
+            case USE_OPTIMIZED_EMIT_CELLS:
+                return Optional.of(indeterminateForEmitting);
+            default:
+                throw new IllegalArgumentException("Unknown experiment: " + experiment);
         }
     }
 
@@ -127,7 +237,8 @@ public enum FilterExperiment
      * added directly to returnCF rather than being present in the iterator. So this only happens once.
      */
     @VisibleForTesting
-    static ComparisonResult areEqual(ColumnFamily legacy, ColumnFamily modern) {
+    static ComparisonResult areEqual(ColumnFamily legacy, ColumnFamily modern, FilterExperiment experiment)
+    {
         if (areTrulyEqual(legacy, modern)) {
             return ComparisonResult.EQUAL;
         }
@@ -138,7 +249,7 @@ public enum FilterExperiment
             boolean areEqual = !iterator(legacy).hasNext();
             return areEqual ? ComparisonResult.EQUAL : ComparisonResult.MODERN_WAS_NULL;
         } else {
-            return compareByIterator(iterator(legacy), iterator(modern), legacy.metadata());
+            return compareByIterator(iterator(legacy), iterator(modern), legacy.metadata(), experiment);
         }
     }
 
@@ -157,7 +268,7 @@ public enum FilterExperiment
         return ColumnFamily.digest(legacy).equals(ColumnFamily.digest(modern));
     }
 
-    static ComparisonResult compareByIterator(Iterator<Cell> legacyIterator, Iterator<Cell> modernIterator, CFMetaData metadata)
+    static ComparisonResult compareByIterator(Iterator<Cell> legacyIterator, Iterator<Cell> modernIterator, CFMetaData metadata, FilterExperiment experiment)
     {
         int differences = 0;
         int index = -1;
@@ -174,28 +285,30 @@ public enum FilterExperiment
                     continue;
                 }
                 log.warn("Items were not equal when comparing by iterator. Keyspace: {}, ColumnFamily: {}, index: {}, legacyClassName: {}, modernClassName: {}, timestampMatches: {}, nameMatches: {}, valueMatches: {}, legacySerializationFlags: {}, modernSerializationFlags: {}",
-                         SafeArg.of("keyspace", metadata.ksName),
-                         SafeArg.of("columnFamily", metadata.cfName),
-                         SafeArg.of("index", index),
-                         SafeArg.of("legacyClassName", legacy.getClass().getName()),
-                         SafeArg.of("modernClassName", modern.getClass().getName()),
-                         // These are what are compared in the .equals() implementation for AbstractCell.
-                         // TODO(lkjaerozhang): Follow up with information for the other types of cells.
-                         SafeArg.of("timestampMatches", legacy.timestamp() == modern.timestamp()),
-                         SafeArg.of("nameMatches", legacy.name() == modern.name()),
-                         SafeArg.of("valueMatches", legacy.value() == modern.value()),
-                         SafeArg.of("legacySerializationFlags", legacy.serializationFlags()),
-                         SafeArg.of("modernSerializationFlags", modern.serializationFlags()));
+                        SafeArg.of("keyspace", metadata.ksName),
+                        SafeArg.of("columnFamily", metadata.cfName),
+                        SafeArg.of("index", index),
+                        SafeArg.of("legacyClassName", legacy.getClass().getName()),
+                        SafeArg.of("modernClassName", modern.getClass().getName()),
+                        // These are what are compared in the .equals() implementation for AbstractCell.
+                        // TODO(lkjaerozhang): Follow up with information for the other types of cells.
+                        SafeArg.of("timestampMatches", legacy.timestamp() == modern.timestamp()),
+                        SafeArg.of("nameMatches", legacy.name() == modern.name()),
+                        SafeArg.of("valueMatches", legacy.value() == modern.value()),
+                        SafeArg.of("legacySerializationFlags", legacy.serializationFlags()),
+                        SafeArg.of("modernSerializationFlags", modern.serializationFlags()),
+                        SafeArg.of("experiment", experiment));
                 differences++;
             }
             else
             {
                 log.warn("Mismatched number of items at index {} when comparing by iterator. Legacy: {}, Modern: {}, Keyspace: {}, ColumnFamily: {}",
-                         SafeArg.of("index", index),
-                         SafeArg.of("hasLegacy", legacy != null),
-                         SafeArg.of("hasModern", modern != null),
-                         SafeArg.of("keyspace", metadata.ksName),
-                         SafeArg.of("columnFamily", metadata.cfName));
+                        SafeArg.of("index", index),
+                        SafeArg.of("hasLegacy", legacy != null),
+                        SafeArg.of("hasModern", modern != null),
+                        SafeArg.of("keyspace", metadata.ksName),
+                        SafeArg.of("columnFamily", metadata.cfName),
+                        SafeArg.of("experiment", experiment));
                 differences++;
             }
         }
@@ -204,9 +317,10 @@ public enum FilterExperiment
             return ComparisonResult.EQUAL;
         } else {
             log.warn("Column families returned different results via iterator: {}, Keyspace: {}, ColumnFamily: {}",
-                     SafeArg.of("differences", differences),
-                     SafeArg.of("keyspace", metadata.ksName),
-                     SafeArg.of("columnFamily", metadata.cfName));
+                    SafeArg.of("differences", differences),
+                    SafeArg.of("keyspace", metadata.ksName),
+                    SafeArg.of("columnFamily", metadata.cfName),
+                    SafeArg.of("experiment", experiment));
             return ComparisonResult.NOT_EQUAL_BY_ITERATOR;
         }
     }

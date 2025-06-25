@@ -17,16 +17,7 @@
  */
 package org.apache.cassandra.db.filter;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Deque;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.SortedSet;
+import java.util.*;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
@@ -141,19 +132,23 @@ public class QueryFilter
         if (experiment == FilterExperiment.USE_LEGACY || filter.isReversed() || isRowCacheEnabled(returnCF)) {
             legacyCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
         } else {
-            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp);
+            optimizedCollateOnDiskAtom(returnCF, toCollate, filter, key, gcBefore, timestamp, experiment);
         }
     }
 
     private static void optimizedCollateOnDiskAtom(ColumnFamily returnCF,
-                                                  List<? extends Iterator<? extends OnDiskAtom>> toCollate,
-                                                  IDiskAtomFilter filter,
-                                                  DecoratedKey key,
-                                                  int gcBefore,
-                                                  long timestamp) {
+                                                   List<? extends Iterator<? extends OnDiskAtom>> toCollate,
+                                                   IDiskAtomFilter filter,
+                                                   DecoratedKey key,
+                                                   int gcBefore,
+                                                   long timestamp,
+                                                   FilterExperiment experiment)
+    {
         Iterator<OnDiskAtom> merged = merge(returnCF.getComparator(), toCollate);
         Iterator<OnDiskAtom> countRangeTombstones = RangeTombstoneCountingIterator.wrapIterator(gcBefore, returnCF, merged);
-        Iterator<OnDiskAtom> filtered = filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore);
+        Iterator<OnDiskAtom> filtered = experiment == FilterExperiment.USE_OPTIMIZED_EMIT_CELLS ?
+                filterTombstonesEmitCells(returnCF.getComparator(), countRangeTombstones, gcBefore) :
+                filterTombstones(returnCF.getComparator(), countRangeTombstones, gcBefore);
         Iterator<Cell> reconciled = reconcileDuplicatesAndGatherTombstones(
             returnCF, filter.getColumnComparator(returnCF.getComparator()), filtered);
         filter.collectReducedColumns(returnCF, reconciled, key, gcBefore, timestamp);
@@ -318,6 +313,98 @@ public class QueryFilter
 
             private boolean pendingTombstoneNotDroppable() {
                 return maybePendingRangeTombstone != null && maybePendingRangeTombstone.getLocalDeletionTime() >= gcBefore;
+            }
+        };
+    }
+
+    /**
+     * A similar method to filterTombstones except this iterator emits cells covered by the held range tombstone.
+     */
+    @VisibleForTesting
+    static Iterator<OnDiskAtom> filterTombstonesEmitCells(
+            final CellNameType comparator, Iterator<? extends OnDiskAtom> backingIterator, int gcBefore)
+    {
+        return new AbstractIterator<OnDiskAtom>()
+        {
+            RangeTombstone maybePendingRangeTombstone;
+
+            private void setPendingRangeTombstone(RangeTombstone newValue)
+            {
+                maybePendingRangeTombstone = newValue;
+            }
+
+            protected OnDiskAtom computeNext()
+            {
+                while (backingIterator.hasNext())
+                {
+                    OnDiskAtom nextAtom = backingIterator.next();
+                    if (Objects.isNull(nextAtom))
+                    {
+                        continue;
+                    }
+
+                    if (maybePendingRangeTombstone == null
+                            || !maybePendingRangeTombstone.includes(comparator, nextAtom.name()))
+                    {
+                        // we either don't have a pending range tombstone, or
+                        // we do have a pending range tombstone and the incoming atom is either a range tombstone or a cell
+                        // if it is a range tombstone, it starts after the pending range tombstone ends and therefore is not in range
+                        // if it is a cell, it is after the pending range tombstone ends and therefore not in range / covered
+                        if (nextAtom instanceof RangeTombstone)
+                        {
+                            // always immediately return the range tombstone to maintain ordering
+                            // even though we will hold onto it to merge with other range tombstones
+                            // this is because we will emit cells covered by this range tombstone after
+                            setPendingRangeTombstone((RangeTombstone) nextAtom);
+                            return maybePendingRangeTombstone;
+                        }
+                        else
+                        {
+                            setPendingRangeTombstone(null);
+                            return nextAtom;
+                        }
+                    }
+
+                    // we have a pending range tombstone, and the incoming atom is either a range tombstone or a cell
+                    // if it is a cell, it is in range of the range tombstone
+                    // if it is a range tombstone, it starts before the pending range tombstone ends
+                    // in this case, we may be able to merge the incoming range tombstone if it is droppable and
+                    // fully contained within the pending range tombstone's range
+                    if (nextAtom instanceof Cell)
+                    {
+                        // even if the next cell is overwritten by the range tombstone, still emit it
+                        // this is the key difference of this method vs filterTombstones
+                        return nextAtom;
+                    }
+                    else
+                    {
+                        RangeTombstone tombstone = (RangeTombstone) nextAtom;
+
+                        // if the incoming range tombstone is droppable and superceded by the pending range tombstone,
+                        // we expect that we can skip emitting the incoming range tombstone
+                        if (maybePendingRangeTombstone.supersedes(tombstone, comparator) && tombstoneIsDroppable(tombstone))
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            // cannot optimize so we return the tombstone
+                            // however we only want to set the pending range tombstone to the incoming range tombstone
+                            // if the incoming one's end comes after the pending one's end
+                            if (!maybePendingRangeTombstone.includes(tombstone, comparator))
+                            {
+                                setPendingRangeTombstone(tombstone);
+                            }
+                            return tombstone;
+                        }
+                    }
+                }
+                return endOfData();
+            }
+
+            private boolean tombstoneIsDroppable(RangeTombstone tombstone)
+            {
+                return tombstone.getLocalDeletionTime() < gcBefore;
             }
         };
     }

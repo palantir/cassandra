@@ -53,40 +53,95 @@ public class QueryFilterTest {
     private static final int WRITE_TIME = 123;
 
     @Test
-    public void testCollateOnDiskAtom_safeInPresenceOfRepeatedTombstones() {
+    public void testCollateOnDiskAtom_withoutEmitCells_safeInPresenceOfRepeatedTombstones()
+    {
         List<Cell> left = ImmutableList.of(value('a'), value('d'), value('e'), value('f'));
         List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'e'), value('a'), value('b'), rangeDelete('a', 'e'), value('g'));
         ColumnFamily cf = newCF();
-        collate(cf, left.iterator(), right.iterator());
+        collateWithoutEmitCells(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().isLive()).isTrue();
         assertThat(cf.iterator()).containsExactly(value('f'), value('g'));
     }
 
     @Test
-    public void testCollateOnDiskAtom_dropsUnnecessaryCellsAndTombstones() {
+    public void testCollateOnDiskAtom_withoutEmitCells_dropsUnnecessaryCellsAndTombstones()
+    {
         List<Cell> left = ImmutableList.of(value('a'), value('d'));
         List<RangeTombstone> right = ImmutableList.of(rangeDelete('a', 'c'));
         ColumnFamily cf = newCF();
-        collate(cf, left.iterator(), right.iterator());
+        collateWithoutEmitCells(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().isLive()).isTrue();
         assertThat(cf.iterator()).containsExactly(value('d'));
     }
 
     @Test
-    public void testCollateOnDiskAtom_gathersNecessaryTombstones() {
+    public void testCollateOnDiskAtom_withoutEmitCells_gathersNecessaryTombstones()
+    {
         List<Cell> left = ImmutableList.of(value('a'), value('d'));
         List<RangeTombstone> right = ImmutableList.of(rangeDelete('a', 'c'), rangeDelete('b', 'c', TOMBSTONES_TS + 1));
         ColumnFamily cf = newCF();
-        collate(cf, left.iterator(), right.iterator());
+        collateWithoutEmitCells(cf, left.iterator(), right.iterator());
         assertThat(cf.deletionInfo().rangeIterator()).containsExactly(rangeDelete('a', 'c'));
         assertThat(cf.iterator()).containsExactly(value('d'));
     }
 
     @Test
-    public void testCollateOnDiskAtom_merges() {
+    public void testCollateOnDiskAtom_withoutEmitCells_merges()
+    {
         List<Cell> left = ImmutableList.of(value('a'), value('c'), value('e'));
         List<Cell> right = ImmutableList.of(value('b'), value('d'));
-        assertThat(collate(left.iterator(), right.iterator()))
+        ColumnFamily cf = newCF();
+        assertThat(collateWithoutEmitCells(cf, left.iterator(), right.iterator()))
+                .containsExactly(value('a'), value('b'), value('c'), value('d'), value('e'));
+    }
+
+    @Test
+    public void testCollateOnDiskAtom_withEmitCells_safeInPresenceOfRepeatedTombstones()
+    {
+        List<OnDiskAtom> left = ImmutableList.of(value('a'), rangeDelete('a', 'e'), value('d'), value('e'), value('f'));
+        List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'e'), value('a'), value('b'), value('g'));
+        ColumnFamily cf = newCF();
+        collateWithEmitCells(cf, left.iterator(), right.iterator());
+        assertThat(cf.deletionInfo().isLive()).isFalse();
+        assertThat(cf.deletionInfo().rangeCount()).isEqualTo(1);
+        assertThat(cf.iterator())
+                .containsExactly(value('f'), value('g'));
+    }
+
+    @Test
+    public void testCollateOnDiskAtom_withEmitCells_dropsUnnecessaryCellsAndTombstones()
+    {
+        List<OnDiskAtom> left = ImmutableList.of(value('a'), rangeDelete('b', 'c'));
+        List<OnDiskAtom> right = ImmutableList.of(rangeDelete('a', 'c'), value('d'));
+        ColumnFamily cf = newCF();
+        collateWithEmitCells(cf, left.iterator(), right.iterator());
+        assertThat(cf.deletionInfo().isLive()).isFalse();
+        assertThat(cf.deletionInfo().rangeCount()).isEqualTo(1);
+        assertThat(cf.iterator()).containsExactly(value('d'));
+    }
+
+    @Test
+    public void testCollateOnDiskAtom_withEmitCells_doesNotDropNewerTombstones()
+    {
+        List<Cell> left = ImmutableList.of(value('a'), value('d'));
+        List<RangeTombstone> right = ImmutableList.of(
+                rangeDelete('a', 'c'),
+                rangeDelete('b', 'c', TOMBSTONES_TS + 1),
+                rangeDelete('c', 'c', TOMBSTONES_TS + 2)
+        );
+        ColumnFamily cf = newCF();
+        collateWithEmitCells(cf, left.iterator(), right.iterator());
+        assertThat(cf.deletionInfo().rangeCount()).isEqualTo(3);
+        assertThat(cf.iterator()).containsExactly(value('d'));
+    }
+
+    @Test
+    public void testCollateOnDiskAtom_withEmitCells_merges()
+    {
+        List<Cell> left = ImmutableList.of(value('a'), value('c'), value('e'));
+        List<Cell> right = ImmutableList.of(value('b'), value('d'));
+        ColumnFamily cf = newCF();
+        assertThat(collateWithEmitCells(cf, left.iterator(), right.iterator()))
                 .containsExactly(value('a'), value('b'), value('c'), value('d'), value('e'));
     }
 
@@ -94,13 +149,28 @@ public class QueryFilterTest {
         return ArrayBackedSortedColumns.factory.create(metadata);
     }
 
-    private static List<Cell> collate(Iterator<? extends OnDiskAtom>... cells) {
-        return collate(newCF(), cells);
+    private static List<Cell> collateWithoutEmitCells(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells)
+    {
+        return collate(FilterExperiment.USE_OPTIMIZED, returnCf, cells);
     }
 
-    private static List<Cell> collate(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells) {
+    private static List<Cell> collateWithEmitCells(ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells)
+    {
+        return collate(FilterExperiment.USE_OPTIMIZED_EMIT_CELLS, returnCf, cells);
+    }
+
+    private static List<Cell> collate(FilterExperiment experimentType, ColumnFamily returnCf, Iterator<? extends OnDiskAtom>... cells)
+    {
         IDiskAtomFilter filter = new SliceQueryFilter(ColumnSlice.ALL_COLUMNS, false, Integer.MAX_VALUE);
-        QueryFilter.collateOnDiskAtom(returnCf, Arrays.asList(cells), filter, null, WRITE_TIME + 1, 10_000, FilterExperiment.USE_OPTIMIZED);
+        QueryFilter.collateOnDiskAtom(
+                returnCf,
+                Arrays.asList(cells),
+                filter,
+                null,
+                WRITE_TIME + 1,
+                10_000,
+                experimentType
+        );
         return read(returnCf);
     }
 
@@ -136,56 +206,98 @@ public class QueryFilterTest {
 
     @Test
     public void testFilterTombstones_tombstone_skipped_if_next_tombstone_does_not_overlap() {
-        assertThat(filter(rangeDelete('a', 'b'), rangeDelete('c', 'd'), value('c'))).isEmpty();
+        assertThat(filterWithoutEmitCells(rangeDelete('a', 'b'), rangeDelete('c', 'd'), value('c'))).isEmpty();
     }
 
     @Test
     public void testFilterTombstones_tombstone_skipped_if_next_cell_does_not_overlap() {
         Cell value = value('c');
         Cell unsortedOverlappingToEnsureWeClearedTombstone = value('a');
-        assertThat(filter(rangeDelete('a', 'b'), value, unsortedOverlappingToEnsureWeClearedTombstone))
+        assertThat(filterWithoutEmitCells(rangeDelete('a', 'b'), value, unsortedOverlappingToEnsureWeClearedTombstone))
             .containsExactly(value, unsortedOverlappingToEnsureWeClearedTombstone);
     }
 
     @Test
     public void testFilterTombstones_never_returns_tombstones_out_of_order() {
         OnDiskAtom[] cells = new OnDiskAtom[] { rangeDelete('a', 'c', 123), value('a', 124) };
-        assertThat(filter(cells)).containsExactly(cells);
+        assertThat(filterWithoutEmitCells(cells)).containsExactly(cells);
     }
 
     @Test
     public void testFilterTombstones_skips_cell_if_overlapped_by_current_tombstone() {
-        assertThat(filter(rangeDelete('a', 'b'), value('a'))).isEmpty();
+        assertThat(filterWithoutEmitCells(rangeDelete('a', 'b'), value('a'))).isEmpty();
     }
 
     @Test
     public void testFilterTombstones_does_not_skip_overlapping_cell_if_cell_newer_than_tombstone() {
         Cell value = value('a', TOMBSTONES_TS);
-        assertThat(filter(rangeDelete('a', 'b'), value)).contains(value);
+        assertThat(filterWithoutEmitCells(rangeDelete('a', 'b'), value)).contains(value);
     }
 
     @Test
     public void testFilterTombstones_coalesces_tombstones_that_supercede() {
-        assertThat(filter(rangeDelete('a', 'd'), rangeDelete('b', 'c'), rangeDelete('b', 'd', TOMBSTONES_TS + 1)))
+        assertThat(filterWithoutEmitCells(rangeDelete('a', 'd'), rangeDelete('b', 'c'), rangeDelete('b', 'd', TOMBSTONES_TS + 1)))
                 .containsExactly(rangeDelete('a', 'd'));
     }
 
     @Test
     public void testFilterTombstones_does_not_coalesce_when_incompatible_timestamps() {
-        assertThat(filter(rangeDelete('a', 'd'), rangeDelete('b', 'c', TOMBSTONES_TS + 1), rangeDelete('b', 'd', TOMBSTONES_TS + 2)))
+        assertThat(filterWithoutEmitCells(rangeDelete('a', 'd'), rangeDelete('b', 'c', TOMBSTONES_TS + 1), rangeDelete('b', 'd', TOMBSTONES_TS + 2)))
                 .containsExactly(rangeDelete('a', 'd'), rangeDelete('b', 'c', TOMBSTONES_TS + 1));
     }
 
     @Test
     public void testFilterTombstones_returns_range_tombstones_that_are_not_droppable() {
         RangeTombstone tombstone = nonDroppableRangeDelete('a', 'b');
-        assertThat(filter(tombstone, value('a'), rangeDelete('d', 'f'))).containsExactly(tombstone);
+        assertThat(filterWithoutEmitCells(tombstone, value('a'), rangeDelete('d', 'f'))).containsExactly(tombstone);
     }
 
     @Test
     public void testFilterTombstones_returns_pending_last_tombstone_if_not_droppable() {
         RangeTombstone tombstone = nonDroppableRangeDelete('a', 'c');
-        assertThat(filter(tombstone)).containsExactly(tombstone);
+        assertThat(filterWithoutEmitCells(tombstone)).containsExactly(tombstone);
+    }
+
+    @Test
+    public void filterTombstonesEmitCells_tombstone_emits_tombstones_if_no_overlap()
+    {
+        assertThat(filterWithEmitCells(rangeDelete('a', 'b'), rangeDelete('c', 'd')))
+                .containsExactly(rangeDelete('a', 'b'), rangeDelete('c', 'd'));
+    }
+
+    @Test
+    public void filterTombstonesEmitCells_never_returns_tombstones_out_of_order()
+    {
+        OnDiskAtom[] cells = new OnDiskAtom[]{rangeDelete('a', 'c', 123), value('a', 124)};
+        assertThat(filterWithEmitCells(cells)).containsExactly(cells);
+    }
+
+    @Test
+    public void filterTombstonesEmitCells_emits_cell_even_if_overlapped_by_current_tombstone()
+    {
+        assertThat(filterWithEmitCells(rangeDelete('a', 'b'), value('a')))
+                .containsExactly(rangeDelete('a', 'b'), value('a'));
+    }
+
+    @Test
+    public void filterTombstonesEmitCells_coalesces_tombstones_that_supercede()
+    {
+        assertThat(filterWithEmitCells(rangeDelete('a', 'd'), rangeDelete('b', 'c'), rangeDelete('b', 'd', TOMBSTONES_TS + 1)))
+                .containsExactly(rangeDelete('a', 'd'), rangeDelete('b', 'd', TOMBSTONES_TS + 1));
+    }
+
+    @Test
+    public void filterTombstonesEmitCells_does_not_coalesce_when_incompatible_timestamps()
+    {
+        assertThat(filterWithEmitCells(rangeDelete('a', 'd'), rangeDelete('b', 'c', TOMBSTONES_TS + 1), rangeDelete('b', 'd', TOMBSTONES_TS + 2)))
+                .containsExactly(rangeDelete('a', 'd'), rangeDelete('b', 'c', TOMBSTONES_TS + 1), rangeDelete('b', 'd', TOMBSTONES_TS + 2));
+    }
+
+    @Test
+    public void filterTombstonesEmitCells_does_not_coalesces_when_not_droppable()
+    {
+        assertThat(filterWithEmitCells(rangeDelete('a', 'd'), nonDroppableRangeDelete('b', 'c'), rangeDelete('b', 'd', TOMBSTONES_TS + 1)))
+                .containsExactly(rangeDelete('a', 'd'), nonDroppableRangeDelete('b', 'c'), rangeDelete('b', 'd', TOMBSTONES_TS + 1));
     }
 
     private static List<Cell> reconcileDuplicates(ColumnFamily returnCF, OnDiskAtom... cells) {
@@ -195,8 +307,19 @@ public class QueryFilterTest {
                 Arrays.asList(cells).iterator()));
     }
 
+    private static List<OnDiskAtom> filterWithoutEmitCells(OnDiskAtom... atoms)
+    {
+        return filter(FilterExperiment.USE_OPTIMIZED, atoms);
+    }
+
+    private static List<OnDiskAtom> filterWithEmitCells(OnDiskAtom... atoms)
+    {
+        return filter(FilterExperiment.USE_OPTIMIZED_EMIT_CELLS, atoms);
+    }
+
     // add a bunch of cells either side to check for edge cases
-    private static List<OnDiskAtom> filter(OnDiskAtom... atoms) {
+    private static List<OnDiskAtom> filter(FilterExperiment experimentType, OnDiskAtom... atoms)
+    {
         int buffering = 25;
         List<OnDiskAtom> enhanced = new ArrayList<>(buffering + atoms.length + buffering);
         for (int i = 0; i < 25; i++) {
@@ -208,7 +331,11 @@ public class QueryFilterTest {
         for (int i = 0; i < 25; i++) {
             enhanced.add(value((char) ('z' + i)));
         }
-        List<OnDiskAtom> result = ImmutableList.copyOf(QueryFilter.filterTombstones(metadata.comparator, enhanced.iterator(), WRITE_TIME + 1));
+        List<OnDiskAtom> result = ImmutableList.copyOf(
+                experimentType == FilterExperiment.USE_OPTIMIZED ?
+                        QueryFilter.filterTombstones(metadata.comparator, enhanced.iterator(), WRITE_TIME + 1) :
+                        QueryFilter.filterTombstonesEmitCells(metadata.comparator, enhanced.iterator(), WRITE_TIME + 1)
+        );
         return result.subList(buffering, result.size() - buffering);
     }
 
