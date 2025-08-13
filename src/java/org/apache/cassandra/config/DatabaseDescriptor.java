@@ -1245,6 +1245,11 @@ public class DatabaseDescriptor
         return conf.always_async_write;
     }
 
+    public static boolean getBatchLocalWrites()
+    {
+        return conf.batch_local_writes;
+    }
+
     public static int getFlushWriters()
     {
             return conf.memtable_flush_writers;

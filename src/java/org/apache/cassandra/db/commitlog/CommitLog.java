@@ -257,49 +257,75 @@ public class CommitLog implements CommitLogMBean
      */
     public ReplayPosition add(Mutation mutation)
     {
-        try (CloseableTracer ignored = CloseableTracer.startSpan("CommitLog#add"))
+        Allocation alloc = writeToLog(mutation);
+        executor.finishWriteFor(alloc);
+        return alloc.getReplayPosition();
+    }
+
+    /**
+     * Add multiple Mutations to the commit log in a batch, blocking until all allocations are synced.
+     *
+     * @param mutations the Mutations to add to the log
+     * @return a List of ReplayPositions for each mutation added
+     */
+    public List<ReplayPosition> addAll(Collection<Mutation> mutations)
+    {
+        assert mutations != null;
+
+        List<ReplayPosition> positions = new ArrayList<>(mutations.size());
+        List<CommitLogSegment.Allocation> allocations = new ArrayList<>(mutations.size());
+
+        for (Mutation mutation : mutations)
         {
-            assert mutation != null;
-
-            long size = Mutation.serializer.serializedSize(mutation, MessagingService.current_version);
-
-            long totalSize = size + ENTRY_OVERHEAD_SIZE;
-            if (totalSize > MAX_MUTATION_SIZE)
-            {
-                String keyspaceName = mutation.getKeyspaceName();
-                String columnFamiliesToString = mutation.getColumnFamilies().toString();
-                throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
-                                                                 keyspaceName, columnFamiliesToString, totalSize, MAX_MUTATION_SIZE));
-            }
-
-            Allocation alloc = allocator.allocate(mutation, (int) totalSize);
-            ICRC32 checksum = CRC32Factory.instance.create();
-            final ByteBuffer buffer = alloc.getBuffer();
-            try (BufferedDataOutputStreamPlus dos = new DataOutputBufferFixed(buffer))
-            {
-                // checksummed length
-                dos.writeInt((int) size);
-                checksum.update(buffer, buffer.position() - 4, 4);
-                buffer.putInt(checksum.getCrc());
-
-                int start = buffer.position();
-                // checksummed mutation
-                Mutation.serializer.serialize(mutation, dos, MessagingService.current_version);
-                checksum.update(buffer, start, (int) size);
-                buffer.putInt(checksum.getCrc());
-            }
-            catch (IOException e)
-            {
-                throw new FSWriteError(e, alloc.getSegment().getPath());
-            }
-            finally
-            {
-                alloc.markWritten();
-            }
-
-            executor.finishWriteFor(alloc);
-            return alloc.getReplayPosition();
+            Allocation alloc = writeToLog(mutation);
+            allocations.add(alloc);
+            positions.add(alloc.getReplayPosition());
         }
+
+        // Wait for all allocations to sync
+        for (CommitLogSegment.Allocation alloc : allocations)
+        {
+            executor.finishWriteFor(alloc);
+        }
+
+        return positions;
+    }
+
+    private Allocation writeToLog(Mutation mutation) {
+        assert mutation != null;
+        long size = Mutation.serializer.serializedSize(mutation, MessagingService.current_version);
+        long totalSize = size + ENTRY_OVERHEAD_SIZE;
+        if (totalSize > MAX_MUTATION_SIZE)
+        {
+            String keyspaceName = mutation.getKeyspaceName();
+            String columnFamiliesToString = mutation.getColumnFamilies().toString();
+            throw new IllegalArgumentException(String.format("Mutation in keyspace %s with tables %s of %s bytes is too large for the maximum size of %s",
+                                                             keyspaceName, columnFamiliesToString, totalSize, MAX_MUTATION_SIZE));
+        }
+        CommitLogSegment.Allocation alloc = allocator.allocate(mutation, (int) totalSize);
+        ICRC32 checksum = CRC32Factory.instance.create();
+        final ByteBuffer buffer = alloc.getBuffer();
+        try (BufferedDataOutputStreamPlus dos = new DataOutputBufferFixed(buffer))
+        {
+            // checksummed length
+            dos.writeInt((int) size);
+            checksum.update(buffer, buffer.position() - 4, 4);
+            buffer.putInt(checksum.getCrc());
+
+            int start = buffer.position();
+            // checksummed mutation
+            Mutation.serializer.serialize(mutation, dos, MessagingService.current_version);
+            checksum.update(buffer, start, (int) size);
+            buffer.putInt(checksum.getCrc());
+        }
+        catch (IOException e)
+        {
+            throw new FSWriteError(e, alloc.getSegment().getPath());
+        } finally {
+            alloc.markWritten();
+        }
+
+        return alloc;
     }
 
     /**
