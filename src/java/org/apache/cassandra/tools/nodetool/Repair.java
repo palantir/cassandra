@@ -84,6 +84,10 @@ public class Repair extends NodeToolCmd
     @Override
     public void execute(NodeProbe probe)
     {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Repair interrupted. Only the current keyspace will be repaired.");
+        }));
+
         List<String> keyspaces = parseOptionalKeyspace(args, probe);
         String[] cfnames = parseOptionalColumnFamilies(args);
 
