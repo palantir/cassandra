@@ -2106,4 +2106,24 @@ public class DatabaseDescriptor
     {
         conf.coerce_read_consistency_all = value;
     }
+
+    public static boolean getDisableReadRepairMutation()
+    {
+        return conf.disable_read_repair_mutation;
+    }
+
+    public static void setDisableReadRepairMutation(boolean value)
+    {
+        conf.disable_read_repair_mutation = value;
+    }
+
+    public static boolean getDisableBlockOnReadRepair()
+    {
+        return conf.disable_block_on_read_repair;
+    }
+
+    public static void setDisableBlockOnReadRepair(boolean value)
+    {
+        conf.disable_block_on_read_repair = value;
+    }
 }

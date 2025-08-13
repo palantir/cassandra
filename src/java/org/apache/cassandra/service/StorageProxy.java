@@ -1450,6 +1450,7 @@ public class StorageProxy implements StorageProxyMBean
                 try
                 {
                     Row row = exec.get();
+                    Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
                     if (row != null)
                     {
                         row = exec.command.maybeTrim(row);
@@ -1556,9 +1557,12 @@ public class StorageProxy implements StorageProxyMBean
                         RowDataResolver resolver = (RowDataResolver)handler.resolver;
                         try
                         {
-                            // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
-                            // behind on writes in case the out-of-sync row is read multiple times in quick succession
-                            FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                            if (!DatabaseDescriptor.getDisableBlockOnReadRepair())
+                            {
+                                // wait for the repair writes to be acknowledged, to minimize impact on any replica that's
+                                // behind on writes in case the out-of-sync row is read multiple times in quick succession
+                                FBUtilities.waitOnFutures(resolver.repairResults, DatabaseDescriptor.getWriteRpcTimeout());
+                            }
                         }
                         catch (TimeoutException e)
                         {
@@ -1964,7 +1968,10 @@ public class StorageProxy implements StorageProxyMBean
 
                 try
                 {
-                    FBUtilities.waitOnFutures(repairResponses, DatabaseDescriptor.getWriteRpcTimeout());
+                    if (!DatabaseDescriptor.getDisableBlockOnReadRepair())
+                    {
+                        FBUtilities.waitOnFutures(repairResponses, DatabaseDescriptor.getWriteRpcTimeout());
+                    }
                 }
                 catch (TimeoutException ex)
                 {

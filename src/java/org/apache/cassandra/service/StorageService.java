@@ -5528,14 +5528,36 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Updated write_delay_in_s to {}", SafeArg.of("value", writeDelay));
     }
 
+    public boolean getCoerceReadConsistencyAll()
+    {
+        return DatabaseDescriptor.getCoerceReadConsistencyAll();
+    }
+
     public void setCoerceReadConsistencyAll(boolean value)
     {
         DatabaseDescriptor.setCoerceReadConsistencyAll(value);
         logger.info("Updated coerce_read_consistency_level to {}", SafeArg.of("value", value));
     }
 
-    public boolean getCoerceReadConsistencyAll()
+    public boolean getDisableReadRepairMutation()
     {
-        return DatabaseDescriptor.getCoerceReadConsistencyAll();
+        return DatabaseDescriptor.getDisableReadRepairMutation();
+    }
+
+    public void setDisableReadRepairMutation(boolean value)
+    {
+        DatabaseDescriptor.setDisableReadRepairMutation(value);
+        logger.info("Updated disable_read_repair_mutation to {}", SafeArg.of("value", value));
+    }
+
+    public boolean getDisableBlockOnReadRepair()
+    {
+        return DatabaseDescriptor.getDisableBlockOnReadRepair();
+    }
+
+    public void setDisableBlockOnReadRepair(boolean value)
+    {
+        DatabaseDescriptor.setDisableBlockOnReadRepair(value);
+        logger.info("Updated disable_block_on_read_repair to {}", SafeArg.of("value", value));
     }
 }

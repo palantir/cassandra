@@ -315,6 +315,8 @@ public class Config
     public int otc_coalescing_enough_coalesced_messages = 8;
 
     public volatile boolean coerce_read_consistency_all = false;
+    public volatile boolean disable_read_repair_mutation = false;
+    public volatile boolean disable_block_on_read_repair = false;
 
     public int windows_timer_interval = 0;
 

@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Iterables;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.columniterator.IdentityQueryFilter;
 import org.apache.cassandra.db.filter.IDiskAtomFilter;
@@ -109,6 +110,11 @@ public class RowDataResolver extends AbstractRowResolver
      */
     public static List<AsyncOneResponse> scheduleRepairs(ColumnFamily resolved, String keyspaceName, DecoratedKey key, List<ColumnFamily> versions, List<InetAddress> endpoints)
     {
+        if (DatabaseDescriptor.getDisableReadRepairMutation())
+        {
+            return Collections.emptyList();
+        }
+
         List<AsyncOneResponse> results = new ArrayList<AsyncOneResponse>(versions.size());
 
         for (int i = 0; i < versions.size(); i++)

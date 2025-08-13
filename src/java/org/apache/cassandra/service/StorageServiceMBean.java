@@ -936,4 +936,12 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
     public boolean getCoerceReadConsistencyAll();
 
     public void setCoerceReadConsistencyAll(boolean value);
+
+    public boolean getDisableReadRepairMutation();
+
+    public void setDisableReadRepairMutation(boolean value);
+
+    public boolean getDisableBlockOnReadRepair();
+
+    public void setDisableBlockOnReadRepair(boolean value);
 }
