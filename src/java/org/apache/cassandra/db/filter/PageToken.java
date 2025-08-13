@@ -20,16 +20,24 @@ package org.apache.cassandra.db.filter;
 
 import java.io.DataInput;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.security.MessageDigest;
+import java.util.Comparator;
 
 import org.apache.cassandra.db.Cell;
+import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnSerializer;
 import org.apache.cassandra.db.TypeSizes;
+import org.apache.cassandra.db.composites.CellNameType;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.utils.FBUtilities;
 
 public class PageToken
 {
+    private static final byte PAGE_TOKEN_DIGEST_MARKER = 'a';
+
     private final Cell cell;
     private final boolean reachedEnd;
 
@@ -47,6 +55,15 @@ public class PageToken
     public boolean isReachedEnd()
     {
         return reachedEnd;
+    }
+
+    public void updateDigest(MessageDigest digest)
+    {
+        digest.update(PAGE_TOKEN_DIGEST_MARKER);
+
+        if (cell != null)
+            cell.updateDigest(digest);
+        digest.update((byte) (reachedEnd ? 1 : 0));
     }
 
     public static PageToken createPageToken(Cell pageToken)
@@ -68,9 +85,11 @@ public class PageToken
             this.columnSerializer = columnSerializer;
         }
 
+        @Override
         public void serialize(PageToken pagetoken, DataOutputPlus out, int version) throws IOException
         {
             assert version >= MessagingService.VERSION_22_PLTR;
+
             out.writeBoolean(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
@@ -78,8 +97,11 @@ public class PageToken
             }
         }
 
+        @Override
         public PageToken deserialize(DataInput in, int version) throws IOException
         {
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             return deserialize(in, ColumnSerializer.Flag.LOCAL, version);
         }
 
@@ -93,14 +115,18 @@ public class PageToken
             return PageToken.createPageToken(columnSerializer.deserialize(in, flag));
         }
 
+        @Override
         public long serializedSize(PageToken pageToken, int version)
         {
+            assert version >= MessagingService.VERSION_22_PLTR;
+
             return serializedSize(pageToken, TypeSizes.NATIVE, version);
         }
 
         public long serializedSize(PageToken pagetoken, TypeSizes typeSizes, int version)
         {
             assert version >= MessagingService.VERSION_22_PLTR;
+
             long size = typeSizes.sizeof(pagetoken.reachedEnd);
             if (!pagetoken.reachedEnd)
             {
@@ -136,6 +162,37 @@ public class PageToken
         else
         {
             return "Cell(" + cell.name().toString() + ")";
+        }
+    }
+
+    public static class Comparator implements java.util.Comparator<PageToken>
+    {
+        private final CellNameType cellComparator;
+
+        public Comparator(CellNameType cellComparator)
+        {
+            this.cellComparator = cellComparator;
+        }
+
+        @Override
+        public int compare(PageToken pageToken1, PageToken pageToken2)
+        {
+            if (pageToken1.isReachedEnd() && pageToken2.isReachedEnd())
+            {
+                return 0;
+            }
+            else if (pageToken2.isReachedEnd())
+            {
+                return -1;
+            }
+            else if (pageToken1.isReachedEnd())
+            {
+                return 1;
+            }
+            else
+            {
+                return cellComparator.compare(pageToken1.getCell().name(), pageToken2.getCell().name());
+            }
         }
     }
 }

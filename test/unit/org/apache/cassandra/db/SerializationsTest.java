@@ -407,6 +407,7 @@ public class SerializationsTest extends AbstractSerializationsTester
         private final ColumnFamily SuperCf = ArrayBackedSortedColumns.factory.create(KS, SuperCF);
 
         private final Cell cell = new BufferCell(CellNames.simpleDense(StandardCharsets.UTF_8.encode("dummy")));
+        private final ByteBuffer digest = ByteBufferUtil.bytes("dummy");
 
         private final Row StandardRow = new Row(Util.dk("key0"), StandardCf);
         private final Row SuperRow = new Row(Util.dk("key1"), SuperCf);

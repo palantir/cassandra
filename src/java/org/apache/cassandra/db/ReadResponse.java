@@ -19,11 +19,10 @@ package org.apache.cassandra.db;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 /*
@@ -34,7 +33,6 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 public class ReadResponse
 {
     public static final IVersionedSerializer<ReadResponse> serializer = new ReadResponseSerializer();
-    private static final AtomicReferenceFieldUpdater<ReadResponse, ByteBuffer> digestUpdater = AtomicReferenceFieldUpdater.newUpdater(ReadResponse.class, ByteBuffer.class, "digest");
 
     private final Row row;
     private volatile ByteBuffer digest;
@@ -51,7 +49,7 @@ public class ReadResponse
         assert row != null;
     }
 
-    public ReadResponse(Row row, ByteBuffer digest)
+    private ReadResponse(Row row, ByteBuffer digest)
     {
         this.row = row;
         this.digest = digest;
@@ -69,14 +67,7 @@ public class ReadResponse
 
     public void setDigest(ByteBuffer digest)
     {
-        ByteBuffer curr = this.digest;
-        if (!digestUpdater.compareAndSet(this, curr, digest))
-        {
-            assert digest.equals(this.digest) :
-                String.format("Digest mismatch : %s vs %s",
-                              Arrays.toString(digest.array()),
-                              Arrays.toString(this.digest.array()));
-        }
+        this.digest = digest;
     }
 
     public boolean isDigestQuery()
@@ -128,6 +119,7 @@ class ReadResponseSerializer implements IVersionedSerializer<ReadResponse>
         size += typeSizes.sizeof(response.isDigestQuery());
         if (!response.isDigestQuery())
             size += Row.serializer.serializedSize(response.row(), version);
+
         return size;
     }
 }
