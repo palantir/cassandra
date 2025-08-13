@@ -17,13 +17,15 @@
  */
 package org.apache.cassandra.net;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.config.Config;
@@ -38,6 +40,8 @@ public class OutboundTcpConnectionPool
 {
     public static final long LARGE_MESSAGE_THRESHOLD =
             Long.getLong(Config.PROPERTY_PREFIX + "otcp_large_message_threshold", 1024 * 64);
+
+    private static final Logger logger = LoggerFactory.getLogger(OutboundTcpConnectionPool.class);
 
     // pointer for the real Address.
     private final InetAddress id;
@@ -136,7 +140,24 @@ public class OutboundTcpConnectionPool
             if (DatabaseDescriptor.getOutboundBindAny())
                 return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort());
             else
-                return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), FBUtilities.getLocalAddress(), 0);
+            {
+                InetAddress localAddress = FBUtilities.getLocalAddress();
+                if (localAddress.toString().startsWith("/"))
+                {
+                    logger.warn("Local address does not have a hostname: {}", localAddress);
+                }
+                String hostname = localAddress.getHostName();
+                if (localAddress.toString().startsWith("/"))
+                {
+                    logger.warn("Local address still does not have a hostname: {}, {}", localAddress, hostname);
+                }
+                else
+                {
+                    logger.info("Local address has a hostname: {}", localAddress);
+                }
+
+                return SSLFactory.getSocket(DatabaseDescriptor.getServerEncryptionOptions(), endpoint, DatabaseDescriptor.getSSLStoragePort(), localAddress, 0);
+            }
         }
         else
         {
