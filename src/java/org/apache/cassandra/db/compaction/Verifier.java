@@ -29,10 +29,12 @@ import org.apache.cassandra.io.sstable.SSTableIdentityIterator;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.DataIntegrityMetadata;
 import org.apache.cassandra.io.util.DataIntegrityMetadata.FileDigestValidator;
+import org.apache.cassandra.io.util.FileMark;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.utils.ByteBufferUtil;
+import org.apache.cassandra.utils.Hex;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.OutputHandler;
 import org.apache.cassandra.utils.UUIDGen;
@@ -143,6 +145,10 @@ public class Verifier implements Closeable
 
                 rowStart = dataFile.getFilePointer();
                 outputHandler.debug("Reading row at " + rowStart);
+                FileMark mark = dataFile.mark();
+                long remaining = dataFile.bytesRemaining();
+                outputHandler.debug("Content of file: " + Hex.bytesToHex(dataFile.readBytes((int) remaining).array()));
+                dataFile.reset(mark);
 
                 DecoratedKey key = null;
                 try

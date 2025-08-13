@@ -35,7 +35,11 @@ import java.util.UUID;
 import net.nicoulaj.compilecommand.annotations.Inline;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileDataInput;
+import org.apache.cassandra.io.util.FileMark;
 import org.apache.cassandra.io.util.FileUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility methods to make ByteBuffers less painful
@@ -80,6 +84,7 @@ public class ByteBufferUtil
     public static final ByteBuffer EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new byte[0]);
     /** Represents an unset value in bound variables */
     public static final ByteBuffer UNSET_BYTE_BUFFER = ByteBuffer.wrap(new byte[]{});
+    private static final Logger log = LoggerFactory.getLogger(ByteBufferUtil.class);
 
     @Inline
     public static int compareUnsigned(ByteBuffer o1, ByteBuffer o2)
@@ -358,7 +363,23 @@ public class ByteBufferUtil
             return EMPTY_BYTE_BUFFER;
 
         if (in instanceof FileDataInput)
-            return ((FileDataInput) in).readBytes(length);
+        {
+            long bytesRemaining = 0;
+            FileDataInput fileDataInput = ((FileDataInput) in);
+            FileMark mark = fileDataInput.mark();
+            try
+            {
+                bytesRemaining = fileDataInput.bytesRemaining();
+                return ((FileDataInput) in).readBytes(length);
+            }
+            catch (IOException e)
+            {
+                fileDataInput.reset(mark);
+                log.error("Tried to read {} bytes but I have {} and the rest of the bytes are {}",
+                          length, bytesRemaining, Hex.bytesToHex(fileDataInput.readBytes((int) bytesRemaining).array()));
+                throw e;
+            }
+        }
 
         byte[] buff = new byte[length];
         in.readFully(buff);
