@@ -21,19 +21,24 @@
 package org.apache.cassandra.service.paxos;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.locks.Lock;
 
 import com.google.common.util.concurrent.Striped;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.*;
+import org.apache.cassandra.db.compaction.CompactionTask;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.UUIDGen;
 
 public class PaxosState
 {
     private static final Striped<Lock> LOCKS = Striped.lazyWeakLock(DatabaseDescriptor.getConcurrentWriters() * 1024);
+    protected static final Logger logger = LoggerFactory.getLogger(PaxosState.class);
 
     private final Commit promised;
     private final Commit accepted;
@@ -57,10 +62,16 @@ public class PaxosState
     public static PrepareResponse prepare(Commit toPrepare)
     {
         long start = System.nanoTime();
+        Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casPrepareAttempts.mark();
         try
         {
+            long startWaitLock = System.nanoTime();
+            logger.debug("CASPrepare: waiting for key lock {} for cf {} in keyspace", hexKey(toPrepare.key), toPrepare.update.metadata().cfName, toPrepare.update.metadata().ksName);
             Lock lock = LOCKS.get(toPrepare.key);
             lock.lock();
+            Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casLock.mark();
+            Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casLockWait.addNano(System.nanoTime() - startWaitLock);
+            logger.debug("CASPrepare: key lock acquired {} for cf {} in keyspace", hexKey(toPrepare.key), toPrepare.update.metadata().cfName, toPrepare.update.metadata().ksName);
             try
             {
                 // When preparing, we need to use the same time as "now" (that's the time we use to decide if something
@@ -69,16 +80,25 @@ public class PaxosState
                 // amount of re-submit will fix this (because the node on which the commit has expired will have a
                 // tombstone that hides any re-submit). See CASSANDRA-12043 for details.
                 long now = UUIDGen.unixTimestamp(toPrepare.ballot);
+
+                long readPaxos = System.nanoTime();
                 PaxosState state = SystemKeyspace.loadPaxosState(toPrepare.key, toPrepare.update.metadata(), now);
+                Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casSystemRead.addNano(System.nanoTime() - readPaxos);
                 if (toPrepare.isAfter(state.promised))
                 {
                     Tracing.trace("Promising ballot {}", toPrepare.ballot);
+                    logger.debug("Promising ballot {}", toPrepare.ballot);
+
+                    long writePaxos = System.nanoTime();
                     SystemKeyspace.savePaxosPromise(toPrepare);
+                    Keyspace.open(toPrepare.update.metadata().ksName).getColumnFamilyStore(toPrepare.update.metadata().cfId).metric.casSystemWrite.addNano(System.nanoTime() - writePaxos);
+
                     return new PrepareResponse(true, state.accepted, state.mostRecentCommit);
                 }
                 else
                 {
                     Tracing.trace("Promise rejected; {} is not sufficiently newer than {}", toPrepare, state.promised);
+                    logger.debug("Promise rejected; {} is not sufficiently newer than {}", toPrepare, state.promised);
                     // return the currently promised ballot (not the last accepted one) so the coordinator can make sure it uses newer ballot next time (#5667)
                     return new PrepareResponse(false, state.promised, state.mostRecentCommit);
                 }
@@ -98,10 +118,16 @@ public class PaxosState
     public static Boolean propose(Commit proposal)
     {
         long start = System.nanoTime();
+        Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casProposeAttempts.mark();
         try
         {
+            long startWaitLock = System.nanoTime();
+            logger.debug("CASPropose: waiting for key lock {} for cf {} in keyspace", hexKey(proposal.key), proposal.update.metadata().cfName, proposal.update.metadata().ksName);
             Lock lock = LOCKS.get(proposal.key);
             lock.lock();
+            Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casLock.mark();
+            Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casLockWait.addNano(System.nanoTime() - startWaitLock);
+            logger.debug("CASPropose: key lock acquired {} for cf {} in keyspace", hexKey(proposal.key), proposal.update.metadata().cfName, proposal.update.metadata().ksName);
             try
             {
                 long now = UUIDGen.unixTimestamp(proposal.ballot);
@@ -109,12 +135,14 @@ public class PaxosState
                 if (proposal.hasBallot(state.promised.ballot) || proposal.isAfter(state.promised))
                 {
                     Tracing.trace("Accepting proposal {}", proposal);
+                    logger.debug("Accepting proposal {}", proposal);
                     SystemKeyspace.savePaxosProposal(proposal);
                     return true;
                 }
                 else
                 {
                     Tracing.trace("Rejecting proposal for {} because inProgress is now {}", proposal, state.promised);
+                    logger.debug("Rejecting proposal for {} because inProgress is now {}", proposal, state.promised);
                     return false;
                 }
             }
@@ -132,6 +160,7 @@ public class PaxosState
     public static void commit(Commit proposal)
     {
         long start = System.nanoTime();
+        Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casCommitAttempts.mark();
         try
         {
             // There is no guarantee we will see commits in the right order, because messages
@@ -144,12 +173,14 @@ public class PaxosState
             if (UUIDGen.unixTimestamp(proposal.ballot) >= SystemKeyspace.getTruncatedAt(proposal.update.metadata().cfId))
             {
                 Tracing.trace("Committing proposal {}", proposal);
+                logger.debug("Committing proposal {}", proposal);
                 Mutation mutation = proposal.makeMutation();
                 Keyspace.open(mutation.getKeyspaceName()).apply(mutation, true);
             }
             else
             {
                 Tracing.trace("Not committing proposal {} as ballot timestamp predates last truncation time", proposal);
+                logger.debug("Not committing proposal {} as ballot timestamp predates last truncation time", proposal);
             }
             // We don't need to lock, we're just blindly updating
             SystemKeyspace.savePaxosCommit(proposal);
@@ -158,5 +189,14 @@ public class PaxosState
         {
             Keyspace.open(proposal.update.metadata().ksName).getColumnFamilyStore(proposal.update.metadata().cfId).metric.casCommit.addNano(System.nanoTime() - start);
         }
+    }
+
+    private static String hexKey(ByteBuffer key) {
+        ByteBuffer duplicateKey = key.duplicate();
+        StringBuilder result = new StringBuilder();
+        while (duplicateKey.hasRemaining()) {
+            result.append(String.format("%02X", duplicateKey.get()));
+        }
+        return result.toString();
     }
 }
