@@ -2120,7 +2120,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 };
                 result = FilterExperiment.execute(
                     experiment -> compute.apply(experiment, gcBefore),
-                    experiment -> compute.apply(experiment, gcBefore - 60));
+                        experiment -> compute.apply(experiment, gcBefore - 60),
+                        filter.filter.usePageToken());
 
                 if (result == null && !wasNotNull.get())
                     return null;
