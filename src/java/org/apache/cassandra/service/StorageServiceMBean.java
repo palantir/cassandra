@@ -909,4 +909,8 @@ public int scrub(boolean disableSnapshot, boolean skipCorrupted, boolean checkDa
      * Returns the value of the palantir_cassandra.is_new_cluster system variable or false if not set.
      */
     public boolean isNewCluster();
+
+    public boolean getReadRequestDigestCheckEnabled();
+
+    public void setReadRequestDigestCheckEnabled(boolean enabled);
 }

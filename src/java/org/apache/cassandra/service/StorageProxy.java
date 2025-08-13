@@ -1434,12 +1434,24 @@ public class StorageProxy implements StorageProxyMBean
                 assert !command.isDigestQuery();
 
                 AbstractReadExecutor exec = AbstractReadExecutor.getReadExecutor(command, consistencyLevel);
+                if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.getReadRequestDigestCheckEnabled())
+                {
+                    readExecutors[i] = exec;
+                    continue;
+                }
                 exec.executeAsync();
                 readExecutors[i] = exec;
             }
 
             for (AbstractReadExecutor exec : readExecutors)
+            {
+                if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.getReadRequestDigestCheckEnabled())
+                {
+                    continue;
+                }
                 exec.maybeTryAdditionalReplicas();
+            }
+
 
             // read results and make a second pass for any digest mismatches
             List<ReadCommand> repairCommands = null;
@@ -1448,6 +1460,10 @@ public class StorageProxy implements StorageProxyMBean
             {
                 try
                 {
+                    if (exec.targetReplicas.size() > 1 && !DatabaseDescriptor.getReadRequestDigestCheckEnabled())
+                    {
+                        throw new DigestMismatchException(exec.resolver.key, ByteBufferUtil.bytes("fake digest 1"), ByteBufferUtil.bytes("fake digest 2"));
+                    }
                     Row row = exec.get();
                     Keyspace.open(exec.command.ksName).getColumnFamilyStore(exec.command.cfName).metric.avoidedReadRepairs.mark();
                     if (row != null)

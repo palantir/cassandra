@@ -64,6 +64,8 @@ public class NodeTool
     public int execute(String... args)
     {
         List<Class<? extends NodeToolCmdRunnable>> commands = newArrayList(
+                SetReadRequestDigestCheckEnabled.class,
+                GetReadRequestDigestCheckEnabled.class,
                 CassHelp.class,
                 Info.class,
                 Ring.class,
