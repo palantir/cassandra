@@ -22,6 +22,8 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.TreeMap;
 
 import com.google.common.collect.Iterables;
@@ -36,12 +38,18 @@ import org.apache.cassandra.io.util.DataOutputBuffer;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.ByteBufferUtil;
+import org.assertj.core.api.ByteArrayAssert;
 
 import static org.apache.cassandra.Util.column;
 import static org.apache.cassandra.Util.cellname;
 import static org.apache.cassandra.Util.tombstone;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.spy;
 
 public class ColumnFamilyTest
 {
@@ -325,5 +333,73 @@ public class ColumnFamilyTest
 
         assertEquals(ByteBufferUtil.bytes("col2"), stats.minColumnNames.get(0));
         assertEquals(ByteBufferUtil.bytes("col61"), stats.maxColumnNames.get(0));
+    }
+
+    @Test
+    public void testDigestCollision() throws Exception
+    {
+        // Cell digest: [ name, value, 8-bytes-timestamp, 0]
+        //              [ A,    B,     0,0,0,0,0,0,0,1,   0]
+        Cell cell = column("A", "B", 1);
+        MessageDigest cellDigest = MessageDigest.getInstance("MD5");
+        cell.updateDigest(cellDigest);
+
+        // DeletionInfo digest: [ start, end, 8-bytes-timestamp]
+        //                      [ A B,   0,   0,0,0,0,0,0,1,0  ]
+        RangeTombstone rangeTombstone = tombstone("AB", "\0", 1 << 8, 0);
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        cf.delete(rangeTombstone);
+        MessageDigest deletionDigest = MessageDigest.getInstance("MD5");
+        cf.deletionInfo().updateDigest(deletionDigest);
+
+        // This is unexpected! A cell can be crafted to have the same digest as a range tombstone.
+        new ByteArrayAssert(cellDigest.digest()).isEqualTo(deletionDigest.digest());
+    }
+
+    @Test
+    public void testDigestCollisionRealisticTimestamps() throws Exception
+    {
+        long timeMicros = 11745568765000000L;
+
+        Cell cell = column("A", "B", timeMicros);
+        MessageDigest cellDigest = MessageDigest.getInstance("MD5");
+        cell.updateDigest(cellDigest);
+
+        RangeTombstone rangeTombstone = tombstone("AB", "\0", timeMicros << 8, 0);
+        ColumnFamily cf = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        cf.delete(rangeTombstone);
+        MessageDigest deletionDigest = MessageDigest.getInstance("MD5");
+        cf.deletionInfo().updateDigest(deletionDigest);
+
+        // This is unexpected! A cell can be crafted to have the same digest as a range tombstone.
+        new ByteArrayAssert(cellDigest.digest()).isEqualTo(deletionDigest.digest());
+    }
+
+    @Test
+    public void testCfDigestCollision() throws Exception
+    {
+        ColumnFamily cf1 = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+        ColumnFamily cf2 = ArrayBackedSortedColumns.factory.create(KEYSPACE1, CF_STANDARD1);
+
+        Cell c1 = column("A", "X", 1);
+        Cell c2 = column("B", "C", 1);
+
+        RangeTombstone del2 = tombstone("BC", "\0", 1 << 8, 0);
+
+        cf1.addColumn(c1);
+        cf1.addColumn(c2);
+
+        cf2.addColumn(c1);
+        cf2.delete(del2);
+
+        assertFalse(cf1.equals(cf2));
+
+        MessageDigest digest1 = MessageDigest.getInstance("MD5");
+        MessageDigest digest2 = MessageDigest.getInstance("MD5");
+
+        cf1.updateDigest(digest1);
+        cf2.updateDigest(digest2);
+
+        new ByteArrayAssert(digest1.digest()).isEqualTo(digest2.digest());
     }
 }
