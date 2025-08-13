@@ -21,6 +21,9 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 
+import com.palantir.cassandra.logicalts.IllegalLogicalTimestampException;
+import com.palantir.cassandra.logicalts.MutationVerifier;
+import com.palantir.cassandra.logicalts.UncheckedAutoCloseable;
 import com.palantir.cassandra.utils.OwnershipVerificationUtils;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.*;
@@ -48,11 +51,17 @@ public class MutationVerbHandler implements IVerbHandler<Mutation>
             }
 
             OwnershipVerificationUtils.verifyMutation(message.payload);
-
-            message.payload.apply();
-            WriteResponse response = new WriteResponse();
-            Tracing.trace("Enqueuing response to {}", replyTo);
-            MessagingService.instance().sendReply(response.createMessage(), id, replyTo);
+            try (UncheckedAutoCloseable ignored = MutationVerifier.INSTANCE.verifyMutation(message.payload))
+            {
+                message.payload.apply();
+                WriteResponse response = new WriteResponse();
+                Tracing.trace("Enqueuing response to {}", replyTo);
+                MessagingService.instance().sendReply(response.createMessage(), id, replyTo);
+            }
+            catch (IllegalLogicalTimestampException e)
+            {
+                throw new RuntimeException(e);
+            }
     }
 
     /**
