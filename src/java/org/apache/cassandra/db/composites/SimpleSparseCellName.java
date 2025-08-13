@@ -62,6 +62,11 @@ public class SimpleSparseCellName extends AbstractComposite implements CellName
         return columnName.bytes;
     }
 
+    @Override
+    public int serializedSize() {
+        return assertSerializedSize(columnName.bytes.remaining(), "simple sparse cell name");
+    }
+
     public int clusteringSize()
     {
         return 0;
